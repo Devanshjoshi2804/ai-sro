@@ -21,7 +21,12 @@ from sro.domain.recording.network import (
     InitiatorKind,
 )
 from sro.domain.recording.recording import Recording
-from sro.domain.shared.identifiers import PrincipalId, RecordingId, SkillId, TenantId
+from sro.domain.shared.identifiers import (
+    PrincipalId,
+    RecordingId,
+    SkillId,
+    TenantId,
+)
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.plan import NetworkPlan, UiPlan

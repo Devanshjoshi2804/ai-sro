@@ -9,6 +9,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from itertools import count
 
+from sro.application.context import RequestContext
+from sro.application.induction.induce_skill import InducedSkill, InduceSkill
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.application.ports.repositories import RecordingRepository, SkillRepository
 from sro.domain.recording.recording import Recording
@@ -71,6 +73,11 @@ class FakeBrowserProvider:
             raise BrowserUnavailable("fake provider is switched off")
         self.closed.append(session_id)
 
+    async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
+        if session_id in self.closed:
+            return None
+        return f"https://steel.test/v1/sessions/{session_id}/live"
+
 
 class FakeBlobStore:
     def __init__(self) -> None:
@@ -82,6 +89,12 @@ class FakeBlobStore:
 
     async def presigned_url(self, key: str, *, expires_in: timedelta) -> str:
         return f"https://blobs.test/{key}?expires={int(expires_in.total_seconds())}"
+
+    async def presigned_url_for_uri(self, uri: str, *, expires_in: timedelta) -> str | None:
+        prefix = "s3://sro-artifacts/"
+        if not uri.startswith(prefix):
+            return None
+        return await self.presigned_url(uri[len(prefix) :], expires_in=expires_in)
 
 
 class FakeTranscriber:
@@ -100,6 +113,46 @@ class FakeTranscriber:
             raise RuntimeError("no transcriber configured")
         self.calls += 1
         return self._text
+
+
+class FakeDurableExecution:
+    """Runs induction inline and records the deadlines it was asked for.
+
+    Keeping the real use case behind it means the HTTP tests still exercise
+    induction; what they skip is the scheduler, not the behaviour.
+    """
+
+    def __init__(self, induce: InduceSkill, *, available: bool = True) -> None:
+        self._induce = induce
+        self.available = available
+        self.watching: list[str] = []
+        self.finished: list[str] = []
+
+    async def induce_skill(
+        self,
+        ctx: RequestContext,
+        *,
+        first: RecordingId,
+        second: RecordingId,
+        name: str | None = None,
+    ) -> InducedSkill:
+        return await self._induce.execute(ctx, first=first, second=second, name=name)
+
+    async def watch_recording(
+        self,
+        ctx: RequestContext,
+        *,
+        recording_id: RecordingId,
+        browser_session_id: BrowserSessionId,
+        timeout_seconds: int,
+    ) -> bool:
+        if not self.available:
+            return False
+        self.watching.append(str(recording_id))
+        return True
+
+    async def recording_finished(self, ctx: RequestContext, *, recording_id: RecordingId) -> None:
+        self.finished.append(str(recording_id))
 
 
 class FakeRecordingRepository:

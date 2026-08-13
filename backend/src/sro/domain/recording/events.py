@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import StrEnum
 
@@ -64,6 +64,27 @@ class ActionFrame:
             raise InvariantViolation("ActionFrame.index must be non-negative")
         if self.occurred_at.tzinfo is None:
             raise InvariantViolation("ActionFrame.occurred_at must be timezone-aware")
+
+    def absorbing(
+        self,
+        *,
+        requests: tuple[CapturedRequest, ...] = (),
+        console: tuple[ConsoleMessage, ...] = (),
+        page_events: tuple[PageEvent, ...] = (),
+    ) -> ActionFrame:
+        """A copy carrying evidence that arrived after this frame was stored.
+
+        Capture is drained on an interval, so a response that finishes just
+        after a drain belongs to an action already written down. Without this
+        the request is discarded and the step loses the very call the skill
+        would replay.
+        """
+        return replace(
+            self,
+            requests=self.requests + requests,
+            console=self.console + console,
+            page_events=self.page_events + page_events,
+        )
 
     @property
     def primary_request(self) -> CapturedRequest | None:

@@ -12,10 +12,12 @@ from sro.config import get_settings
 from sro.container import build_container
 from sro.interface.http.errors import install_error_handlers
 from sro.interface.http.v1.routers import health, recordings, skills
+from sro.observability import configure_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    configure_logging(level="DEBUG" if get_settings().debug else "INFO")
     container = build_container()
     app.state.container = container
     try:

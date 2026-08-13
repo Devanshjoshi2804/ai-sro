@@ -16,6 +16,7 @@ import asyncio
 import base64
 import contextlib
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -42,6 +43,9 @@ from sro.infrastructure.steel.cdp_mapping import (
     to_page_event,
     to_timing,
 )
+from sro.infrastructure.steel.video import Recorded, ScreencastRecorder
+
+logger = logging.getLogger(__name__)
 
 _RECORDER_JS = Path(__file__).with_name("recorder.js")
 
@@ -101,11 +105,15 @@ class CaptureSession:
         key_prefix: str,
         inline_body_limit_bytes: int = 256 * 1024,
         screenshot_per_gesture: bool = True,
+        video: bool = True,
+        video_max_width: int = 1280,
     ) -> None:
         self._blobs = blob_store
         self._prefix = key_prefix.rstrip("/")
         self._inline_limit = inline_body_limit_bytes
         self._screenshot = screenshot_per_gesture
+        self._video_max_width = video_max_width
+        self._recorder = ScreencastRecorder() if video else None
 
         self._events: list[CaptureEvent] = []
         self._artifacts: list[PendingArtifact] = []
@@ -178,6 +186,19 @@ class CaptureSession:
         cdp.on("Network.loadingFinished", lambda payload: self._spawn(self._finish(payload)))
         cdp.on("Network.loadingFailed", self._on_failed)
         cdp.on("Runtime.consoleAPICalled", self._on_console)
+        if self._recorder is not None:
+            cdp.on("Page.screencastFrame", self._on_screencast_frame)
+            await cdp.send(
+                "Page.startScreencast",
+                {
+                    "format": "jpeg",
+                    "quality": 60,
+                    "maxWidth": self._video_max_width,
+                    # Every frame: a screencast only emits when the page changes,
+                    # so skipping frames drops the change, not the idle time.
+                    "everyNthFrame": 1,
+                },
+            )
         for method in (
             "Page.frameNavigated",
             "Page.loadEventFired",
@@ -189,6 +210,47 @@ class CaptureSession:
             "Page.windowOpen",
         ):
             cdp.on(method, self._page_event_handler(method))
+
+    async def open_at(self, url: str) -> None:
+        """Put the session on the page the operator asked to start from.
+
+        Steel accepts a ``startUrl`` when a session is created and does not act
+        on it for an attached browser, so the navigation happens here -- after
+        the recorder is installed, which also means the first page load is
+        captured rather than missed.
+        """
+        page = self._page
+        if page is None:
+            return
+        try:
+            await page.goto(url, wait_until="domcontentloaded")
+        except Exception:
+            # A bad start URL is the operator's to fix in the live view; it must
+            # not fail the recording that already exists.
+            logger.warning("could not open the session at %s", url, exc_info=True)
+
+    def flush_incomplete(self) -> int:
+        """Emit exchanges still in flight, with whatever was observed.
+
+        A request that never reaches ``loadingFinished`` -- the tab closed, the
+        session ended, the socket dropped -- would otherwise sit in ``_pending``
+        until the process forgets it. The method, URL, headers and initiator are
+        already known, and that is most of what a skill is built from, so an
+        incomplete exchange is recorded as incomplete rather than discarded.
+        """
+        stranded = list(self._pending.values())
+        self._pending.clear()
+        for pending in stranded:
+            self._emit(
+                pending,
+                response_body=None,
+                failure_reason=(
+                    None
+                    if pending.status is not None
+                    else "capture ended before the response completed"
+                ),
+            )
+        return len(stranded)
 
     def drain(self) -> CaptureBatch:
         batch = CaptureBatch(
@@ -204,6 +266,13 @@ class CaptureSession:
         return batch
 
     async def detach(self) -> None:
+        # Before tearing anything down: whatever is still in flight is evidence.
+        self.flush_incomplete()
+        if self._recorder is not None:
+            # Normally the supervisor takes the file first; this is the crash
+            # path, where closing the encoder matters more than keeping it.
+            self._recorder.close()
+            self._recorder = None
         for task in list(self._tasks):
             task.cancel()
         if self._tasks:
@@ -436,6 +505,36 @@ class CaptureSession:
                 )
             )
         )
+
+    def _on_screencast_frame(self, payload: CdpPayload) -> None:
+        """One repaint. Acked immediately or the browser stops sending them."""
+        recorder = self._recorder
+        metadata = payload.get("metadata") or {}
+        session_id = payload.get("sessionId")
+
+        if recorder is not None and payload.get("data"):
+            timestamp = metadata.get("timestamp")
+            at_ms = (
+                float(timestamp) * 1000
+                if timestamp is not None
+                else (datetime.now(UTC).timestamp() * 1000)
+            )
+            recorder.add_frame(base64.b64decode(str(payload["data"])), at_ms=at_ms)
+
+        if session_id is not None and self._cdp is not None:
+            self._spawn(self._ack_screencast(int(session_id)))
+
+    async def _ack_screencast(self, session_id: int) -> None:
+        cdp = self._cdp
+        if cdp is None:
+            return
+        with contextlib.suppress(Exception):
+            await cdp.send("Page.screencastFrameAck", {"sessionId": session_id})
+
+    def stop_video(self) -> Recorded | None:
+        """Finish the recording and hand over the file, if there is one."""
+        recorder, self._recorder = self._recorder, None
+        return recorder.close() if recorder is not None else None
 
     # -- console and page ------------------------------------------------
 

@@ -6,11 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LiveSession } from "@/features/recording/components/live-session";
+import { RecordingVideo } from "@/features/recording/components/recording-video";
 
 export function RecordingDetail({ recordingId }: { recordingId: string }) {
   const recording = useQuery({
     queryKey: recordingKeys.detail(recordingId),
     queryFn: () => getRecording(recordingId),
+    // Frames arrive on the capture drain interval, so an open recording is
+    // polled; a finished one never changes again.
+    refetchInterval: (query) => (query.state.data?.status === "capturing" ? 5_000 : false),
   });
 
   if (recording.isLoading) return <Skeleton className="h-96 w-full" />;
@@ -34,9 +39,14 @@ export function RecordingDetail({ recordingId }: { recordingId: string }) {
         </p>
       </header>
 
+      {recording.data.status === "capturing" && (
+        <LiveSession recordingId={recordingId} frameCount={frames.length} />
+      )}
+
       <Tabs defaultValue="frames">
         <TabsList>
           <TabsTrigger value="frames">Timeline ({frames.length})</TabsTrigger>
+          <TabsTrigger value="video">Video</TabsTrigger>
           <TabsTrigger value="artifacts">Artifacts ({artifacts.length})</TabsTrigger>
         </TabsList>
 
@@ -67,6 +77,14 @@ export function RecordingDetail({ recordingId }: { recordingId: string }) {
           {frames.length === 0 && (
             <p className="text-muted-foreground py-12 text-center">No frames captured.</p>
           )}
+        </TabsContent>
+
+        <TabsContent value="video" className="pt-4">
+          <RecordingVideo
+            recordingId={recordingId}
+            frames={frames}
+            startedAt={recording.data.started_at}
+          />
         </TabsContent>
 
         <TabsContent value="artifacts" className="space-y-2 pt-4">

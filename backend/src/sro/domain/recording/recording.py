@@ -8,6 +8,7 @@ from enum import StrEnum
 
 from sro.domain.recording.artifact import ArtifactKind, MediaArtifact
 from sro.domain.recording.events import ActionFrame
+from sro.domain.recording.network import CapturedRequest
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import (
     BrowserSessionId,
@@ -113,6 +114,19 @@ class Recording:
         )
         self._frames.append(placed)
         return placed
+
+    def absorb_late_evidence(self, *, requests: tuple[CapturedRequest, ...]) -> bool:
+        """Attach evidence belonging to the most recent action.
+
+        Returns whether there was a frame to attach it to. Nothing to attach to
+        means the traffic really is page-load noise from before the first
+        action, which the caller counts rather than keeps.
+        """
+        self._require_open("absorb late evidence")
+        if not self._frames or not requests:
+            return False
+        self._frames[-1] = self._frames[-1].absorbing(requests=requests)
+        return True
 
     def attach_artifact(self, artifact: MediaArtifact) -> None:
         self._require_open("attach an artifact")

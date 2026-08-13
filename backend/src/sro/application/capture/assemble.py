@@ -21,11 +21,25 @@ from sro.domain.recording.network import CapturedRequest
 @dataclass(frozen=True, slots=True)
 class AssemblyResult:
     frames: tuple[ActionFrame, ...]
-    orphaned_requests: int
-    """Traffic before the first human action. A high count means capture
-    attached to CDP late and the recording is missing its opening steps."""
+
+    unattached_requests: tuple[CapturedRequest, ...]
+    """Traffic with no preceding action *in this batch*.
+
+    Two very different causes, and the caller can tell them apart because it
+    knows whether the recording already has frames:
+
+    - page-load noise before the first human action, which is genuinely orphaned
+    - the tail of the previous action, when a response finished after the last
+      drain. Those belong to the frame that is already stored; dropping them
+      would silently cost that step its network plan, which is the part a skill
+      is actually built from.
+    """
 
     orphaned_snapshots: int
+
+    @property
+    def unattached_count(self) -> int:
+        return len(self.unattached_requests)
 
 
 @dataclass
@@ -38,7 +52,7 @@ class _OpenFrame:
 def assemble_frames(events: list[CaptureEvent]) -> AssemblyResult:
     """Fold events into frames: an input opens one, its effects attach to it."""
     open_frames: list[_OpenFrame] = []
-    orphaned_requests = 0
+    unattached: list[CapturedRequest] = []
     orphaned_snapshots = 0
 
     for event in sorted(events, key=_sort_key):
@@ -54,7 +68,7 @@ def assemble_frames(events: list[CaptureEvent]) -> AssemblyResult:
                     open_frames[-1].snapshot = event.snapshot
             case RequestEvent():
                 if not open_frames:
-                    orphaned_requests += 1
+                    unattached.append(event.request)
                 else:
                     open_frames[-1].requests.append(event.request)
 
@@ -70,7 +84,7 @@ def assemble_frames(events: list[CaptureEvent]) -> AssemblyResult:
     )
     return AssemblyResult(
         frames=frames,
-        orphaned_requests=orphaned_requests,
+        unattached_requests=tuple(unattached),
         orphaned_snapshots=orphaned_snapshots,
     )
 

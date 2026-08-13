@@ -15,7 +15,11 @@ from sro.domain.shared.identifiers import RecordingId
 class IngestResult:
     frames_added: int
     total_frames: int
+    absorbed_requests: int
+    """Calls attached to the previous action because they finished after a drain."""
+
     orphaned_requests: int
+    """Calls with no action to attach to at all: page-load noise."""
 
 
 class IngestCaptureEvents:
@@ -38,6 +42,9 @@ class IngestCaptureEvents:
 
         async with self._uow as uow:
             recording = await uow.recordings.get(ctx.tenant_id, recording_id)
+            # Absorb before appending: unattached traffic precedes this batch's
+            # actions, so it belongs to the frame that was already the last one.
+            absorbed = recording.absorb_late_evidence(requests=assembled.unattached_requests)
             for frame in assembled.frames:
                 recording.append_frame(frame)
             await uow.recordings.save(recording)
@@ -46,5 +53,6 @@ class IngestCaptureEvents:
         return IngestResult(
             frames_added=len(assembled.frames),
             total_frames=len(recording.frames),
-            orphaned_requests=assembled.orphaned_requests,
+            absorbed_requests=assembled.unattached_count if absorbed else 0,
+            orphaned_requests=0 if absorbed else assembled.unattached_count,
         )

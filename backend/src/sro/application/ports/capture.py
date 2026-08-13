@@ -15,7 +15,12 @@ from sro.domain.shared.identifiers import RecordingId
 
 class CaptureController(Protocol):
     async def start(
-        self, ctx: RequestContext, *, recording_id: RecordingId, debugger_url: str
+        self,
+        ctx: RequestContext,
+        *,
+        recording_id: RecordingId,
+        debugger_url: str,
+        start_url: str | None = None,
     ) -> None: ...
 
     async def stop(self, ctx: RequestContext, *, recording_id: RecordingId) -> None:

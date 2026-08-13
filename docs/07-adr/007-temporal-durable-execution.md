@@ -69,3 +69,27 @@ crash-replay cannot double-write. Non-negotiable for inventory.
 - Crash recovery, retries, timers and human waits stop being application code.
 - Temporal's Python SDK emits OTel traces that follow the GenAI semantic
   conventions, so agent spans arrive on the same pipeline as everything else.
+
+## How it is wired (v0)
+
+The interface layer talks to `application/ports/durable.py`, never to Temporal.
+`TemporalDurableExecution` is the only adapter, and the composition root is the
+only place that knows it exists.
+
+- **Induction** goes through `InductionWorkflow` and the caller waits for the
+  result. Waiting is not a workaround: induction takes milliseconds and the
+  supervisor wants the skill back. What the workflow buys is a retryable history
+  when it fails, starting from the sealed recordings rather than from a browser
+  session nobody can reproduce. A bad pair is marked non-retryable, and the
+  adapter unwraps Temporal's nesting so the caller sees *why* — "a skill needs
+  two different recordings", not "Activity task failed".
+- **The session deadline** is started when a recording starts and signalled when
+  it finishes. It is explicitly best effort: the recording is already durable by
+  then, so a scheduler outage costs a deadline, never a demonstration. That
+  asymmetry is the whole reason `watch_recording` returns a bool instead of
+  raising.
+
+Task queues split by scarcity rather than by feature: `browser` holds work tied
+to a scarce browser slot, so a slow induction can never starve session reaping.
+They live in `queues.py` because both the worker and the client need them, and
+the worker imports the composition root.

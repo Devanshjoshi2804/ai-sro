@@ -332,6 +332,136 @@
         }
       }
     },
+    "/v1/recordings/{recording_id}/live-view": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Get Live View",
+        "description": "Null when the demonstration is over or the provider has reaped it.",
+        "operationId": "get_live_view_v1_recordings__recording_id__live_view_get",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recording Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveViewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recordings/{recording_id}/media": {
+      "get": {
+        "tags": [
+          "recordings"
+        ],
+        "summary": "Get Media",
+        "description": "Playback links, minted per request and short-lived.",
+        "operationId": "get_media_v1_recordings__recording_id__media_get",
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recording Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MediaModel"
+                  },
+                  "title": "Response Get Media V1 Recordings  Recording Id  Media Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/recordings/{recording_id}/artifacts": {
       "post": {
         "tags": [
@@ -482,7 +612,7 @@
           "skills"
         ],
         "summary": "Induce Skill",
-        "description": "Two runs to one skill version. Runs synchronously: induction is pure\ncomputation over sealed recordings and takes milliseconds. The durable path\nthrough Temporal exists for callers that want a retryable handle.",
+        "description": "Two runs to one skill version.\n\nRuns through Temporal rather than in the request: a failed induction keeps a\nhistory worth reading, and a retry starts from the sealed recordings rather\nthan from a browser session nobody can reproduce. The caller still waits --\ninduction takes milliseconds -- but the work is not lost if this process is.",
         "operationId": "induce_skill_v1_skills_induct_post",
         "parameters": [
           {
@@ -1061,6 +1191,78 @@
           "derived_parameter_count"
         ],
         "title": "InductionResponse"
+      },
+      "LiveViewResponse": {
+        "properties": {
+          "live_view_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live View Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "live_view_url"
+        ],
+        "title": "LiveViewResponse"
+      },
+      "MediaModel": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "frame_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "url",
+          "content_type",
+          "size_bytes",
+          "duration_ms",
+          "frame_index"
+        ],
+        "title": "MediaModel"
       },
       "NetworkPlanModel": {
         "properties": {

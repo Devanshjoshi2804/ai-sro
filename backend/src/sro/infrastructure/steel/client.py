@@ -88,6 +88,25 @@ class SteelClient:
                 f"could not release Steel session {session_id}: {exc}"
             ) from exc
 
+    async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
+        """Ask Steel where the session can be driven.
+
+        A released session still answers, but with a status that says it is over;
+        there is nothing to point an operator at, so that is ``None``.
+        """
+        try:
+            response = await self._client.get(f"{self._base_url}/v1/sessions/{session_id}")
+            if response.status_code == httpx.codes.NOT_FOUND:
+                return None
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise BrowserUnavailable(f"could not read Steel session {session_id}: {exc}") from exc
+
+        body = response.json()
+        if str(body.get("status", "")).lower() in {"released", "failed"}:
+            return None
+        return self._base_url + _path_of(body.get("sessionViewerUrl"))
+
     async def health(self) -> bool:
         try:
             response = await self._client.get(f"{self._base_url}/v1/health")

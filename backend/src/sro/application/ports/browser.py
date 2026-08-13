@@ -25,6 +25,14 @@ class BrowserProvider(Protocol):
         """Idempotent -- crash recovery calls this on sessions already gone."""
         ...
 
+    async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
+        """Where a human drives this session, asked for after the fact.
+
+        The URL is not stored on the recording: it belongs to the provider, and
+        a session that has ended has no live view. ``None`` says exactly that.
+        """
+        ...
+
 
 class BrowserUnavailable(Exception):
     """Provider is down. Not a ``DomainError``: the request was fine, we are not."""

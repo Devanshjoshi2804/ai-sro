@@ -35,13 +35,10 @@ def build_header_plans(
                 # header is required is the useful part; the value is minted live.
                 plans.append(HeaderPlan(name=name, sensitivity=sensitivity, mint=True))
             case Sensitivity.TRANSPORT:
-                # Recorded for documentation. The HTTP client sets these, and
-                # replaying a captured Content-Length is actively harmful.
-                plans.append(
-                    HeaderPlan(
-                        name=name, sensitivity=sensitivity, value=Template(value), mint=False
-                    )
-                )
+                # Recorded because it was observed, never carried as a value:
+                # the domain says these are not replayable, and a captured
+                # Referer points at the page of a demonstration that is over.
+                plans.append(HeaderPlan(name=name, sensitivity=sensitivity, managed=True))
             case Sensitivity.SEMANTIC:
                 plans.append(HeaderPlan(name=name, sensitivity=sensitivity, value=Template(value)))
 

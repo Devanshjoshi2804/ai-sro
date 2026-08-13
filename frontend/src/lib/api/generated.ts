@@ -76,6 +76,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/recordings/{recording_id}/live-view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Live View
+         * @description Null when the demonstration is over or the provider has reaped it.
+         */
+        get: operations["get_live_view_v1_recordings__recording_id__live_view_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/recordings/{recording_id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Media
+         * @description Playback links, minted per request and short-lived.
+         */
+        get: operations["get_media_v1_recordings__recording_id__media_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/recordings/{recording_id}/artifacts": {
         parameters: {
             query?: never;
@@ -121,9 +161,12 @@ export interface paths {
         put?: never;
         /**
          * Induce Skill
-         * @description Two runs to one skill version. Runs synchronously: induction is pure
-         *     computation over sealed recordings and takes milliseconds. The durable path
-         *     through Temporal exists for callers that want a retryable handle.
+         * @description Two runs to one skill version.
+         *
+         *     Runs through Temporal rather than in the request: a failed induction keeps a
+         *     history worth reading, and a retry starts from the sealed recordings rather
+         *     than from a browser session nobody can reproduce. The caller still waits --
+         *     induction takes milliseconds -- but the work is not lost if this process is.
          */
         post: operations["induce_skill_v1_skills_induct_post"];
         delete?: never;
@@ -295,6 +338,26 @@ export interface components {
             input_parameter_count: number;
             /** Derived Parameter Count */
             derived_parameter_count: number;
+        };
+        /** LiveViewResponse */
+        LiveViewResponse: {
+            /** Live View Url */
+            live_view_url: string | null;
+        };
+        /** MediaModel */
+        MediaModel: {
+            /** Kind */
+            kind: string;
+            /** Url */
+            url: string;
+            /** Content Type */
+            content_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /** Frame Index */
+            frame_index: number | null;
         };
         /** NetworkPlanModel */
         NetworkPlanModel: {
@@ -657,6 +720,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecordingDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_live_view_v1_recordings__recording_id__live_view_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveViewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_media_v1_recordings__recording_id__media_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaModel"][];
                 };
             };
             /** @description Validation Error */

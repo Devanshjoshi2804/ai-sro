@@ -70,3 +70,21 @@ git checkout backend/src/sro/domain/shared/errors.py
 - Steel needs `shm_size: 2gb`. Chrome crashes with Docker's 64 MB default, and
   the failure looks like a random disconnect rather than an out-of-memory error.
 - `make reset` destroys all local data and re-migrates.
+
+## Frontend
+
+`npm test` — vitest, jsdom, Testing Library. Components only.
+
+What is worth testing here is what the screens *refuse* to do, because those are
+the rules a reviewer relies on and the ones a refactor quietly breaks:
+
+- the review screen never renders a credential value, only its vault reference
+- it offers one rung of the promotion ladder and stops at the highest permitted
+  stage
+- the list refuses to pair a recording that is still capturing, or two runs of
+  different objectives
+
+Not tested here: whether the API returns the right shape. That is the generated
+client's job — `make types` regenerates it and the build fails if it drifted —
+and the backend's own suite. A frontend test that mocks the API and then asserts
+the mock proves nothing.

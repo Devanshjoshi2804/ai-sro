@@ -35,13 +35,30 @@ class HeaderPlan:
     """True for CSRF and trace headers: the captured value is stale by design and
     a fresh one must be obtained from the live session."""
 
+    managed: bool = False
+    """True when the HTTP client owns the value: Host, Content-Length, Referer,
+    Origin, the sec-* family. The header is recorded because it was observed,
+    but the captured value describes the browser that made the demonstration,
+    not the call. Replaying a stale Referer is misleading; replaying a captured
+    Content-Length is actively harmful."""
+
     def __post_init__(self) -> None:
         if not self.name.strip():
             raise InvariantViolation("HeaderPlan requires a name")
-        if self.value is None and self.credential_ref is None and not self.mint:
+        if (
+            self.value is None
+            and self.credential_ref is None
+            and not self.mint
+            and not self.managed
+        ):
             raise InvariantViolation(
                 f"header {self.name!r} has no value, no credential reference and no "
                 "mint strategy; the executor could not reproduce it"
+            )
+        if self.managed and self.value is not None:
+            raise InvariantViolation(
+                f"header {self.name!r} is client-managed, so carrying a captured "
+                "value would invite an executor to replay it"
             )
 
 

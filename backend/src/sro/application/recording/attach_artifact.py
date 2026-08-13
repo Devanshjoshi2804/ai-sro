@@ -105,6 +105,7 @@ class AttachArtifact:
         uri: str,
         content_type: str,
         size_bytes: int,
+        duration_ms: int | None = None,
         frame_index: int | None = None,
         label: str | None = None,
     ) -> None:
@@ -123,6 +124,7 @@ class AttachArtifact:
                     content_type=content_type,
                     size_bytes=size_bytes,
                     created_at=self._clock.now(),
+                    duration_ms=duration_ms,
                     frame_index=frame_index,
                     label=label,
                 )

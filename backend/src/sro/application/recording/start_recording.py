@@ -9,7 +9,7 @@ from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.recording.recording import Recording
-from sro.domain.shared.identifiers import RecordingId
+from sro.domain.shared.identifiers import BrowserSessionId, RecordingId
 from sro.domain.shared.objective import ObjectiveKey
 
 
@@ -20,6 +20,8 @@ class StartedRecording:
 
     debugger_url: str = ""
     """CDP endpoint for the capture adapter. Never put on the wire."""
+
+    browser_session_id: BrowserSessionId | None = None
 
 
 class StartRecording:
@@ -65,4 +67,5 @@ class StartRecording:
             recording_id=recording.id,
             live_view_url=session.live_view_url,
             debugger_url=session.debugger_url,
+            browser_session_id=session.id,
         )

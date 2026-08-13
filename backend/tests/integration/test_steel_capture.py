@@ -140,6 +140,93 @@ async def test_a_screenshot_is_written_for_each_gesture(steel: SteelClient) -> N
     assert all(artifact.size_bytes > 0 for artifact in batch.artifacts)
 
 
+async def test_a_request_in_flight_when_capture_ends_is_still_recorded(
+    steel: SteelClient,
+) -> None:
+    """The driver disconnecting mid-call must not erase the call.
+
+    This is how a demonstration loses its most important step: the operator
+    closes the tab the moment the WMS confirms, and the confirming POST is the
+    one the skill is built from.
+    """
+    session = await steel.open()
+    capture = CaptureSession(blob_store=FakeBlobStore(), key_prefix="acme/rec-inflight")
+
+    try:
+        await capture.attach(session.debugger_url)
+        page = capture.page
+        await page.route(
+            "https://wms.test/",
+            lambda route: route.fulfill(status=200, content_type="text/html", body=PAGE),
+        )
+        # Never fulfilled: the exchange is still open when capture ends.
+        await page.route("**/api/waves/**", lambda route: None)
+        await page.goto("https://wms.test/")
+        await page.click("#release")
+        await page.wait_for_timeout(500)
+
+        capture.flush_incomplete()
+        batch = capture.drain()
+    finally:
+        await capture.detach()
+        await steel.close(session.id)
+
+    requests = [e for e in batch.events if isinstance(e, RequestEvent)]
+    released = next((r for r in requests if "release" in r.request.url), None)
+
+    assert released is not None, "an unfinished exchange was discarded"
+    assert released.request.method == "POST"
+    assert released.request.request_headers.get("X-Facility") == "DC01"
+    assert released.request.failure_reason == "capture ended before the response completed"
+
+
+async def test_a_demonstration_is_recorded_as_a_playable_video(steel: SteelClient) -> None:
+    """The reviewer watches this. It has to be a real file, not a pile of JPEGs."""
+    import av
+
+    session = await steel.open()
+    capture = CaptureSession(blob_store=FakeBlobStore(), key_prefix="acme/rec-video")
+
+    try:
+        await capture.attach(session.debugger_url)
+        page = capture.page
+        await page.route(
+            "https://wms.test/",
+            lambda route: route.fulfill(status=200, content_type="text/html", body=PAGE),
+        )
+        await page.goto("https://wms.test/")
+        # Move the page around so the screencast has something to encode.
+        for value in ("W-1", "W-2", "W-3"):
+            await page.fill("#wave", value)
+            await page.wait_for_timeout(300)
+        await page.click("#release")
+        await page.wait_for_timeout(800)
+
+        recorded = capture.stop_video()
+    finally:
+        await capture.detach()
+        await steel.close(session.id)
+
+    assert recorded is not None, "no video was produced"
+    assert recorded.frame_count > 1
+    assert recorded.path.stat().st_size > 0
+
+    with av.open(str(recorded.path)) as container:
+        stream = container.streams.video[0]
+        assert stream.codec_context.name == "h264"
+        assert stream.width > 0 and stream.height > 0
+        # Even dimensions, or the file will not decode in a browser.
+        assert stream.width % 2 == 0 and stream.height % 2 == 0
+        decoded = sum(1 for _ in container.decode(video=0))
+
+    # Not exact parity with frame_count: the screencast changes resolution when
+    # the page does, and the encoder resolves that its own way. What matters is
+    # that the file plays and covers the demonstration.
+    assert 1 < decoded <= recorded.frame_count
+    assert recorded.duration_ms > 0
+    recorded.path.unlink(missing_ok=True)
+
+
 async def test_the_session_api_shape_is_what_the_adapter_expects(steel: SteelClient) -> None:
     session = await steel.open()
     try:

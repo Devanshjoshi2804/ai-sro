@@ -8,11 +8,16 @@ invalidates a workflow history.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from temporalio import activity
 
 from sro.application.context import RequestContext
-from sro.container import Container
+
+if TYPE_CHECKING:
+    # Type-only: the composition root builds the activities, so importing it at
+    # runtime would make anything that schedules work import every adapter.
+    from sro.container import Container
 from sro.domain.shared.identifiers import BrowserSessionId, PrincipalId, RecordingId, TenantId
 
 
@@ -31,6 +36,7 @@ class InductionResult:
     version: int
     step_count: int
     input_parameter_count: int
+    derived_parameter_count: int
 
 
 @dataclass
@@ -63,6 +69,7 @@ class Activities:
             version=induced.version,
             step_count=induced.step_count,
             input_parameter_count=induced.input_parameter_count,
+            derived_parameter_count=induced.derived_parameter_count,
         )
 
     @activity.defn(name="abandon_stale_recording")

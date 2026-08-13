@@ -15,6 +15,8 @@ from sro.domain.recording.sensitivity import (
     is_secret,
 )
 from sro.domain.shared.errors import InvariantViolation
+from sro.domain.skill.plan import HeaderPlan
+from sro.domain.skill.template import Template
 from tests import factories as f
 
 
@@ -58,6 +60,37 @@ class TestSecretsAreReferencedNotCopied:
 
         assert facility.sensitivity is Sensitivity.SEMANTIC
         assert str(facility.value) == "DC01"
+
+    def test_client_managed_headers_never_carry_a_captured_value(self) -> None:
+        # A Referer captured during a demonstration points at a page that no
+        # longer exists, and a captured Content-Length describes a body that is
+        # about to be re-rendered with different parameters.
+        request = f.request(
+            request_headers={
+                "Referer": "https://wms.test/waves?wave=W-1001",
+                "Content-Length": "42",
+                "User-Agent": "Mozilla/5.0",
+                "X-Facility": "DC01",
+            }
+        )
+        plans = build_header_plans(request, target_system="blue_yonder", facility="DC01")
+        by_name = {p.name: p for p in plans}
+
+        for name in ("Referer", "Content-Length", "User-Agent"):
+            assert by_name[name].managed is True
+            assert by_name[name].value is None
+
+        # The header that carries meaning is still replayed.
+        assert str(by_name["X-Facility"].value) == "DC01"
+
+    def test_a_managed_header_cannot_be_given_a_value(self) -> None:
+        with pytest.raises(InvariantViolation, match="client-managed"):
+            HeaderPlan(
+                name="Referer",
+                sensitivity=Sensitivity.TRANSPORT,
+                managed=True,
+                value=Template("https://wms.test/stale"),
+            )
 
     def test_the_executor_is_told_which_credentials_it_needs(self) -> None:
         plans = build_header_plans(f.request(), target_system="blue_yonder", facility="DC01")

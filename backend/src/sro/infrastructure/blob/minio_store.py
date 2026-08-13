@@ -56,6 +56,12 @@ class MinioBlobStore(BlobStore):
         )
         return url
 
+    async def presigned_url_for_uri(self, uri: str, *, expires_in: timedelta) -> str | None:
+        prefix = f"s3://{self._bucket}/"
+        if not uri.startswith(prefix):
+            return None
+        return await self.presigned_url(uri[len(prefix) :], expires_in=expires_in)
+
     async def get(self, key: str) -> bytes:
         response = await asyncio.to_thread(self._client.get_object, Bucket=self._bucket, Key=key)
         body: bytes = response["Body"].read()

@@ -15,10 +15,9 @@ from temporalio.worker import Worker
 from sro.config import Settings, get_settings
 from sro.container import build_container
 from sro.infrastructure.temporal.activities import Activities
+from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
 from sro.infrastructure.temporal.workflows import InductionWorkflow, RecordingSessionWorkflow
-
-DEFAULT_QUEUE = "default"
-BROWSER_QUEUE = "browser"
+from sro.observability import configure_logging
 
 
 async def connect(settings: Settings) -> Client:
@@ -27,6 +26,7 @@ async def connect(settings: Settings) -> Client:
 
 async def run() -> None:
     settings = get_settings()
+    configure_logging()
     activities = Activities(build_container(settings))
     client = await connect(settings)
 

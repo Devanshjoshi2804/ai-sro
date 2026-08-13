@@ -15,8 +15,9 @@ from httpx import ASGITransport
 from sro.application.context import RequestContext
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
+from sro.config import Settings
 from sro.container import Container
-from sro.domain.shared.identifiers import RecordingId
+from sro.domain.shared.identifiers import BrowserSessionId, RecordingId
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests import factories as f
@@ -24,6 +25,7 @@ from tests.unit.fakes import (
     FakeBlobStore,
     FakeBrowserProvider,
     FakeClock,
+    FakeDurableExecution,
     FakeIdFactory,
     FakeTranscriber,
     FakeUnitOfWork,
@@ -39,6 +41,7 @@ class _FakeContainer(Container):
 
     def __init__(self, uow: FakeUnitOfWork) -> None:
         self._uow = uow
+        self.settings = Settings()
         self.clock = FakeClock()
         self.ids = FakeIdFactory()
         self.blobs = FakeBlobStore()
@@ -48,6 +51,7 @@ class _FakeContainer(Container):
         # is what these tests want -- the capture loop has its own coverage in
         # tests/integration/test_steel_capture.py.
         self.capture = FakeCaptureSupervisor()
+        self.durable = FakeDurableExecution(self.induce_skill())
 
     def unit_of_work(self) -> UnitOfWork:
         return self._uow
@@ -59,7 +63,12 @@ class FakeCaptureSupervisor(CaptureController):
         self.stopped: list[str] = []
 
     async def start(
-        self, ctx: RequestContext, *, recording_id: RecordingId, debugger_url: str
+        self,
+        ctx: RequestContext,
+        *,
+        recording_id: RecordingId,
+        debugger_url: str,
+        start_url: str | None = None,
     ) -> None:
         self.started.append(str(recording_id))
 
@@ -139,6 +148,31 @@ class TestRecordings:
         assert response.status_code == 200
         assert body["frame_count"] == 1
         assert body["frames"][0]["primary_request"].startswith("POST ")
+
+
+class TestLiveView:
+    async def test_an_open_recording_points_at_its_session(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
+    ) -> None:
+        recording = f.recording(frames=0)
+        recording.attach_browser_session(BrowserSessionId("sess-9"))
+        await uow.recordings.add(recording)
+
+        response = await client.get(f"/v1/recordings/{recording.id}/live-view")
+
+        assert response.status_code == 200
+        assert "sess-9" in response.json()["live_view_url"]
+
+    async def test_a_sealed_recording_has_no_live_view(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
+    ) -> None:
+        recording = f.recording(frames=1, sealed=True)
+        await uow.recordings.add(recording)
+
+        response = await client.get(f"/v1/recordings/{recording.id}/live-view")
+
+        assert response.status_code == 200
+        assert response.json()["live_view_url"] is None
 
 
 class TestSkills:

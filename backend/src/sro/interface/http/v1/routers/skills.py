@@ -25,10 +25,14 @@ router = APIRouter(prefix="/skills", tags=["skills"])
 async def induce_skill(
     body: InduceSkillRequest, container: ContainerDep, ctx: ContextDep
 ) -> InductionResponse:
-    """Two runs to one skill version. Runs synchronously: induction is pure
-    computation over sealed recordings and takes milliseconds. The durable path
-    through Temporal exists for callers that want a retryable handle."""
-    induced = await container.induce_skill().execute(
+    """Two runs to one skill version.
+
+    Runs through Temporal rather than in the request: a failed induction keeps a
+    history worth reading, and a retry starts from the sealed recordings rather
+    than from a browser session nobody can reproduce. The caller still waits --
+    induction takes milliseconds -- but the work is not lost if this process is.
+    """
+    induced = await container.durable.induce_skill(
         ctx,
         first=RecordingId(body.first_recording_id),
         second=RecordingId(body.second_recording_id),
@@ -50,17 +54,13 @@ async def list_skills(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[SkillSummary]:
-    uow = container.unit_of_work()
-    async with uow as unit:
-        skills = await unit.skills.list_for_tenant(ctx.tenant_id, limit=limit, offset=offset)
+    skills = await container.list_skills().execute(ctx, limit=limit, offset=offset)
     return [SkillSummary.of(s) for s in skills]
 
 
 @router.get("/{skill_id}")
 async def get_skill(skill_id: str, container: ContainerDep, ctx: ContextDep) -> SkillDetail:
-    uow = container.unit_of_work()
-    async with uow as unit:
-        skill = await unit.skills.get(ctx.tenant_id, SkillId(skill_id))
+    skill = await container.get_skill().execute(ctx, skill_id=SkillId(skill_id))
     return SkillDetail.of_skill(skill)
 
 

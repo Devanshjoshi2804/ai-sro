@@ -18,6 +18,13 @@ export const getRecording = (id: string) => api.get<RecordingDetail>(`/v1/record
 export const startRecording = (body: StartRecordingRequest) =>
   api.post<StartRecordingResponse>("/v1/recordings", body);
 
+export type Media = Schemas["MediaModel"];
+
+export const getMedia = (id: string) => api.get<Media[]>(`/v1/recordings/${id}/media`);
+
+export const getLiveView = (id: string) =>
+  api.get<{ live_view_url: string | null }>(`/v1/recordings/${id}/live-view`);
+
 export const finishRecording = (id: string, abandonReason?: string) =>
   api.post<RecordingSummary>(`/v1/recordings/${id}/finish`, {
     abandon_reason: abandonReason ?? null,

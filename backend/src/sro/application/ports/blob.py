@@ -14,3 +14,12 @@ class BlobStore(Protocol):
     async def presigned_url(self, key: str, *, expires_in: timedelta) -> str:
         """Time-limited read URL, so large media never streams through the API."""
         ...
+
+    async def presigned_url_for_uri(self, uri: str, *, expires_in: timedelta) -> str | None:
+        """The same, addressed by the URI stored on an artifact.
+
+        The store wrote the URI, so the store parses it. ``None`` when the URI
+        belongs to somewhere else entirely -- a recording imported from another
+        deployment, say.
+        """
+        ...

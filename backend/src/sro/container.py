@@ -17,14 +17,20 @@ from sro.application.induction.induce_skill import InduceSkill
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.capture import CaptureController
+from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.transcription import Transcriber
 from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
+from sro.application.recording.get_recording import GetRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
+from sro.application.recording.list_recordings import ListRecordings
+from sro.application.recording.live_view import GetLiveView
+from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
 from sro.application.skill.promote_skill import PromoteSkill
+from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.config import Settings, get_settings
 from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -33,6 +39,7 @@ from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
 from sro.infrastructure.system import SystemClock, UuidFactory
 from sro.infrastructure.telemetry.otel import configure_tracing
+from sro.infrastructure.temporal.durable import TemporalDurableExecution
 from sro.infrastructure.transcription.null import NullTranscriber
 
 
@@ -50,6 +57,7 @@ class Container:
     blobs: BlobStore
     browser: BrowserProvider
     transcriber: Transcriber
+    durable: DurableExecution
     session_factory: async_sessionmaker[AsyncSession]
 
     capture: CaptureController = field(init=False)
@@ -76,6 +84,24 @@ class Container:
 
     def attach_artifact(self) -> AttachArtifact:
         return AttachArtifact(self.unit_of_work(), self.blobs, self.clock, self.transcriber)
+
+    def list_recordings(self) -> ListRecordings:
+        return ListRecordings(self.unit_of_work())
+
+    def get_recording(self) -> GetRecording:
+        return GetRecording(self.unit_of_work())
+
+    def list_skills(self) -> ListSkills:
+        return ListSkills(self.unit_of_work())
+
+    def get_skill(self) -> GetSkill:
+        return GetSkill(self.unit_of_work())
+
+    def get_live_view(self) -> GetLiveView:
+        return GetLiveView(self.unit_of_work(), self.browser)
+
+    def get_recording_media(self) -> GetRecordingMedia:
+        return GetRecordingMedia(self.unit_of_work(), self.blobs)
 
     def finish_recording(self) -> FinishRecording:
         return FinishRecording(self.unit_of_work(), self.browser, self.clock)
@@ -114,6 +140,9 @@ def build_container(settings: Settings | None = None) -> Container:
             session_timeout_seconds=settings.steel_session_timeout_seconds,
         ),
         transcriber=NullTranscriber(),
+        durable=TemporalDurableExecution(
+            address=settings.temporal_address, namespace=settings.temporal_namespace
+        ),
         session_factory=create_session_factory(engine),
     )
     container.capture = CaptureSupervisor(
@@ -123,5 +152,7 @@ def build_container(settings: Settings | None = None) -> Container:
         drain_interval_seconds=settings.capture_drain_interval_seconds,
         inline_body_limit_bytes=settings.inline_body_limit_bytes,
         screenshot_per_gesture=settings.capture_screenshot_per_frame,
+        video=settings.capture_video,
+        video_max_width=settings.capture_video_max_width,
     )
     return container

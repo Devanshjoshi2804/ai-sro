@@ -13,6 +13,8 @@ from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     ArtifactModel,
     FinishRecordingRequest,
+    LiveViewResponse,
+    MediaModel,
     RecordingDetail,
     RecordingSummary,
     StartRecordingRequest,
@@ -41,8 +43,20 @@ async def start_recording(
     # Capture starts only once the recording is durable: attaching first would
     # leave a live CDP session with nowhere to put what it records.
     await container.capture.start(
-        ctx, recording_id=started.recording_id, debugger_url=started.debugger_url
+        ctx,
+        recording_id=started.recording_id,
+        debugger_url=started.debugger_url,
+        start_url=body.start_url,
     )
+    # Best effort by design -- see DurableExecution.watch_recording. A scheduler
+    # outage costs this session its deadline, never the demonstration.
+    if started.browser_session_id is not None:
+        await container.durable.watch_recording(
+            ctx,
+            recording_id=started.recording_id,
+            browser_session_id=started.browser_session_id,
+            timeout_seconds=container.settings.steel_session_timeout_seconds,
+        )
     return StartRecordingResponse(
         recording_id=started.recording_id.value,
         live_view_url=started.live_view_url,
@@ -76,11 +90,9 @@ async def list_recordings(
         else None
     )
 
-    uow = container.unit_of_work()
-    async with uow as unit:
-        recordings = await unit.recordings.list_for_tenant(
-            ctx.tenant_id, objective_key=objective, limit=limit, offset=offset
-        )
+    recordings = await container.list_recordings().execute(
+        ctx, objective_key=objective, limit=limit, offset=offset
+    )
     return [RecordingSummary.of(r) for r in recordings]
 
 
@@ -88,10 +100,38 @@ async def list_recordings(
 async def get_recording(
     recording_id: str, container: ContainerDep, ctx: ContextDep
 ) -> RecordingDetail:
-    uow = container.unit_of_work()
-    async with uow as unit:
-        recording = await unit.recordings.get(ctx.tenant_id, RecordingId(recording_id))
+    recording = await container.get_recording().execute(ctx, recording_id=RecordingId(recording_id))
     return RecordingDetail.of_recording(recording)
+
+
+@router.get("/{recording_id}/live-view")
+async def get_live_view(
+    recording_id: str, container: ContainerDep, ctx: ContextDep
+) -> LiveViewResponse:
+    """Null when the demonstration is over or the provider has reaped it."""
+    url = await container.get_live_view().execute(ctx, recording_id=RecordingId(recording_id))
+    return LiveViewResponse(live_view_url=url)
+
+
+@router.get("/{recording_id}/media")
+async def get_media(
+    recording_id: str, container: ContainerDep, ctx: ContextDep
+) -> list[MediaModel]:
+    """Playback links, minted per request and short-lived."""
+    media = await container.get_recording_media().execute(
+        ctx, recording_id=RecordingId(recording_id)
+    )
+    return [
+        MediaModel(
+            kind=item.kind.value,
+            url=item.url,
+            content_type=item.content_type,
+            size_bytes=item.size_bytes,
+            duration_ms=item.duration_ms,
+            frame_index=item.frame_index,
+        )
+        for item in media
+    ]
 
 
 @router.post("/{recording_id}/artifacts", status_code=status.HTTP_201_CREATED)
@@ -132,6 +172,8 @@ async def finish_recording(
     # Drain and detach before sealing: a sealed recording rejects appends, so
     # anything still buffered would be lost with no error to show for it.
     await container.capture.stop(ctx, recording_id=RecordingId(recording_id))
+
+    await container.durable.recording_finished(ctx, recording_id=RecordingId(recording_id))
 
     use_case = container.finish_recording()
     recording = (

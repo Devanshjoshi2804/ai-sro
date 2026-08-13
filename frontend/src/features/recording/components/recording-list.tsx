@@ -68,12 +68,18 @@ export function RecordingList() {
             Select two sealed runs of the same objective to induce a skill.
           </p>
         </div>
-        <Button
-          disabled={selected.length !== 2 || induct.isPending}
-          onClick={() => induct.mutate()}
-        >
-          {induct.isPending ? "Inducing…" : "Induce skill from 2 runs"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            disabled={selected.length !== 2 || induct.isPending}
+            onClick={() => induct.mutate()}
+          >
+            {induct.isPending ? "Inducing…" : "Induce skill from 2 runs"}
+          </Button>
+          <Link href="/recordings/new">
+            <Button>Start a demonstration</Button>
+          </Link>
+        </div>
       </div>
 
       <Table>

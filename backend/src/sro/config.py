@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     capture_drain_interval_seconds: float = 5.0
     capture_screenshot_per_frame: bool = True
 
+    capture_video: bool = True
+    """Screencast the demonstration. Encoded as it arrives, so a long session
+    costs disk rather than memory."""
+
+    capture_video_max_width: int = 1280
+
     transcription_enabled: bool = False
     """Narration transcription is optional. Default binding is NullTranscriber."""
 

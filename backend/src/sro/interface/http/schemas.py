@@ -36,6 +36,19 @@ class StartRecordingResponse(BaseModel):
     live_view_url: str
 
 
+class MediaModel(BaseModel):
+    kind: str
+    url: str
+    content_type: str
+    size_bytes: int
+    duration_ms: int | None
+    frame_index: int | None
+
+
+class LiveViewResponse(BaseModel):
+    live_view_url: str | None
+
+
 class FinishRecordingRequest(BaseModel):
     abandon_reason: str | None = Field(
         default=None,
@@ -243,7 +256,7 @@ class SkillVersionModel(BaseModel):
                                 header.name: (
                                     str(header.value)
                                     if header.value is not None
-                                    else f"<{header.credential_ref or 'minted'}>"
+                                    else f"<{_header_source(header)}>"
                                 )
                                 for header in step.network_plan.headers
                             },
@@ -291,6 +304,15 @@ class SkillVersionModel(BaseModel):
                 for p in version.parameters
             ],
         )
+
+
+def _header_source(header: Any) -> str:
+    """What a reviewer needs to know: where the value will come from."""
+    if header.credential_ref:
+        return str(header.credential_ref)
+    if header.managed:
+        return "set by the client"
+    return "minted per run"
 
 
 class SkillDetail(SkillSummary):

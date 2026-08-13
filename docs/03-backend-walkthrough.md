@@ -4,7 +4,10 @@
 
 Worked example: "list a tenant's recordings". Follow it literally — if a step
 does not work as written, this document is wrong and fixing it is part of the
-change.
+change. That has already happened once: following it end to end is what found
+three routers reading from repositories directly instead of through a use case.
+`ListRecordings`, `GetRecording`, `ListSkills` and `GetSkill` exist because this
+document said they should.
 
 ### 1. Does the domain already say it?
 
@@ -62,6 +65,14 @@ This is the only place the SQL is actually proved.
 - `container.py` — wire the use case. This is the only module that imports
   `infrastructure`.
 
+A router never touches `container.unit_of_work()`. A read that looks too small
+to deserve a use case is exactly how the application layer gets bypassed, and
+the next reader cannot tell which rules apply to it. The check is mechanical:
+
+```bash
+grep -rn "unit_of_work()" backend/src/sro/interface/   # must return nothing
+```
+
 ### 7. Regenerate the frontend contract
 
 ```bash
@@ -96,9 +107,13 @@ The rules:
 - A **snapshot** attaches to the most recent frame that has none. A second
   snapshot on the same frame is discarded — the first was taken at action time,
   which is the state the human was looking at when they decided to act.
-- Anything before the first input is page-load noise: dropped, but **counted**.
-  A high `orphaned_requests` means the adapter attached to CDP late and the
-  recording is missing its opening steps.
+- A request with no preceding input **in this batch** is not automatically
+  noise. Capture is drained on an interval, so a response that finishes just
+  after a drain arrives alone in the next one. If the recording already has
+  frames, the call belongs to the most recent action and is absorbed into it
+  (`Recording.absorb_late_evidence`); only when there is no frame at all is it
+  page-load noise, dropped but **counted**. Getting this wrong silently costs a
+  step the very call the skill would replay.
 
 Events are sorted by timestamp first, because CDP guarantees no ordering across
 domains. Ties break input-first, so a snapshot taken at click time lands on the
@@ -181,6 +196,51 @@ the hard way against a real browser:
 
 Without both, capture goes quiet partway through a session and the recording
 silently loses its remaining steps.
+
+An exchange still in flight when capture ends -- the operator closed the tab the
+moment the WMS confirmed -- never reaches `loadingFinished` and would sit in the
+pending map until the process forgot it. `flush_incomplete()` emits those with
+whatever was observed and a `failure_reason` saying why they are partial. The
+method, URL, headers and initiator are already known, and that is most of what a
+skill is built from.
+
+The drain loop logs what it saw on every pass:
+
+```
+capture drain: recording=rec_… events=6 frames=+1 (1 total) absorbed=0 orphaned=3 artifacts=1
+```
+
+A recording that ends up thin is diagnosed there or not at all; by review time
+the only evidence left is whatever survived. `sro.observability.configure_logging`
+exists because uvicorn configures only its own loggers, and without it every one
+of those lines goes nowhere.
+
+### Video
+
+`video.py`, fed by `Page.startScreencast`.
+
+CDP sends a JPEG whenever the page changes, at whatever rate it changes. Holding
+a demonstration's worth of those in memory to encode later is how a long session
+takes the API process down with it, so frames are decoded and encoded to H.264 as
+they arrive, into a temp file, at their real timing. Memory stays flat and the
+result is an ordinary MP4 that any browser plays without a custom player.
+
+Two details are load-bearing:
+
+- `stream.codec_context.time_base` must be set, not just `stream.time_base`.
+  Without it libx264 has no timebase, buffers everything, and fails the final
+  flush with a bare `EINVAL` -- losing every frame still inside the encoder.
+- Screencast frames must be acked (`Page.screencastFrameAck`) or the browser
+  stops sending them.
+
+Video is the least important capture channel and the only skippable one: an
+encoding failure disables video for the session and is logged, never raised,
+because losing it must not cost the network, accessibility or input evidence.
+
+Playback goes through `GET /v1/recordings/{id}/media`, which mints presigned
+URLs that expire in 30 minutes. A recording holds live customer traffic, so a
+link that outlives the page it was rendered on is an untracked copy of the
+evidence.
 
 Response bodies over `SRO_INLINE_BODY_LIMIT_BYTES` are written to object storage
 and the `Body` keeps the URI. A `Body` that is neither inline nor pointing at a

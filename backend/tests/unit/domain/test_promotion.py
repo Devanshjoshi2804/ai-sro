@@ -34,13 +34,15 @@ def test_promotion_cannot_go_backwards() -> None:
         check_promotion(PromotionStage.SHADOW, PromotionStage.RECORDED)
 
 
-def test_this_release_refuses_to_go_past_shadow() -> None:
-    # v0 has no executor. Anything above SHADOW would advertise a guarantee --
-    # executes and verifies unattended -- that no code here can deliver.
-    assert HIGHEST_PERMITTED_STAGE is PromotionStage.SHADOW
+def test_this_release_refuses_to_go_past_assisted() -> None:
+    # ASSISTED is available because an L1 executor exists and checks every step
+    # against the demonstration's assertions. AUTONOMOUS additionally claims a
+    # result is right when no human looked, which needs one medium's outcome
+    # checked against another's -- and nothing here does that yet.
+    assert HIGHEST_PERMITTED_STAGE is PromotionStage.ASSISTED
 
-    with pytest.raises(InvariantViolation, match="no executor"):
-        check_promotion(PromotionStage.SHADOW, PromotionStage.ASSISTED)
+    with pytest.raises(InvariantViolation, match="unattended"):
+        check_promotion(PromotionStage.ASSISTED, PromotionStage.AUTONOMOUS)
 
 
 def test_promotion_records_who_and_when() -> None:

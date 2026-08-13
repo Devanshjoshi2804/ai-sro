@@ -16,7 +16,11 @@ from sro.config import Settings, get_settings
 from sro.container import build_container
 from sro.infrastructure.temporal.activities import Activities
 from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
-from sro.infrastructure.temporal.workflows import InductionWorkflow, RecordingSessionWorkflow
+from sro.infrastructure.temporal.workflows import (
+    ExecutionWorkflow,
+    InductionWorkflow,
+    RecordingSessionWorkflow,
+)
 from sro.observability import configure_logging
 
 
@@ -33,8 +37,13 @@ async def run() -> None:
     default = Worker(
         client,
         task_queue=DEFAULT_QUEUE,
-        workflows=[InductionWorkflow],
-        activities=[activities.induce_skill],
+        workflows=[InductionWorkflow, ExecutionWorkflow],
+        activities=[
+            activities.induce_skill,
+            activities.start_run,
+            activities.execute_step,
+            activities.finish_run,
+        ],
     )
     browser = Worker(
         client,

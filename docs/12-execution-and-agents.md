@@ -82,6 +82,49 @@ activity retry is a completely ordinary event.
 Mutation is already a domain property (`CapturedRequest.is_mutation`), so this
 is enforced where the plan is built rather than remembered at the call site.
 
+## L1 as built
+
+A **run** (`domain/execution/run.py`) is the audit record: the skill version, the
+stage it was at, the parameters it was given, the values it read out of the
+system as it went, and one outcome per step. It is written after every step and
+nothing in it is ever rewritten.
+
+**What the stage means, concretely.** This is the difference the ladder makes,
+and it lives in one property:
+
+| Stage | Reads | Writes |
+|---|---|---|
+| `recorded` | refused | refused — nobody has reviewed it |
+| `shadow` | sent for real | produced in full, **withheld** |
+| `assisted` | sent for real | sent, and the run names the human who authorised it |
+| `autonomous` | not available | — |
+
+A withheld write is recorded with its URL and its idempotency key, so a
+supervisor reviews the exact request before allowing the rung above.
+
+**One step per activity.** `ExecutionWorkflow` calls `start_run`, then
+`execute_step` per index, then `finish_run`. The step is the unit of durability
+because it is the unit of damage: a worker that dies after step 7 resumes at
+step 8, and an activity asked to repeat a step the run already records returns
+what happened rather than doing it again. Retries are capped at one attempt for
+every step, not only the writing ones — whether a step writes is knowable only
+after it has been built, and a read losing a retry costs less than a write
+gaining one.
+
+**Where the credentials come from.** A skill's header plan holds references, not
+values: `<blue_yonder/SG/cookie>` for the session, `<minted per run>` for CSRF.
+The executor prefixes the tenant and resolves both out of the vault, so one
+skill is usable by any tenant holding a login to that system and by no other.
+A header that cannot be resolved stops the step; the call never goes out
+degraded, because a request missing its session is a request as somebody else.
+
+The honest gap: "minted" is aspirational. Blue Yonder issues
+`CSRF-ENCRYPT-TOKEN` at login and no page, cookie or storage key exposes it, so
+it is supplied through `POST /v1/connections/{id}/session-headers` by whoever can
+read one — an operator, or the capture adapter, which sees every request header
+of the session it is attached to. It expires with the session, and a run whose
+header has expired fails at its first write rather than doing half a task.
+
 ## Agents
 
 | Agent | Job | Model |

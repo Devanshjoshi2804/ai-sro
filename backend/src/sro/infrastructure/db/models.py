@@ -109,3 +109,27 @@ class ConnectionRow(Base):
         # racing each other into the same WMS.
         Index("uq_connections_tenant_system", "tenant_id", "target_system", unique=True),
     )
+
+
+class RunRow(Base):
+    __tablename__ = "runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    skill_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    skill_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    stage: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+
+    requested_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    authorized_by: Mapped[str | None] = mapped_column(String(64))
+
+    parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    derived: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    steps: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
+
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (Index("ix_runs_tenant_started", "tenant_id", "started_at"),)

@@ -25,9 +25,14 @@ class PromotionStage(StrEnum):
         return PromotionStage(_ORDER[self.rung + 1])
 
 
-# Raise only alongside a working executor and its cross-path verification.
-# Until then, nothing above SHADOW can honestly be verified.
-HIGHEST_PERMITTED_STAGE = PromotionStage.SHADOW
+# ASSISTED because an L1 executor now exists and every step it performs is
+# checked against the assertions the demonstration established. AUTONOMOUS stays
+# closed: it additionally requires the cross-path check (an L2 or L3 result
+# verified against what L1 would have produced), which arrives with those rungs.
+#
+# The difference the ladder actually makes: at SHADOW a write is produced and
+# withheld, at ASSISTED it is sent and the run names the human who allowed it.
+HIGHEST_PERMITTED_STAGE = PromotionStage.ASSISTED
 
 
 def check_promotion(current: PromotionStage, target: PromotionStage) -> None:
@@ -46,6 +51,8 @@ def check_promotion(current: PromotionStage, target: PromotionStage) -> None:
         )
     if target.rung > HIGHEST_PERMITTED_STAGE.rung:
         raise InvariantViolation(
-            f"{target} is not available in this release: there is no executor, so "
-            f"nothing above {HIGHEST_PERMITTED_STAGE} can be verified"
+            f"{target} is not available in this release: a result is verified against "
+            "its own assertions, and nothing yet checks one medium's result against "
+            f"another's, so nothing above {HIGHEST_PERMITTED_STAGE} can be trusted "
+            "to run unattended"
         )

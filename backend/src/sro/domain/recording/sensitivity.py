@@ -105,7 +105,11 @@ def classify_header(name: str) -> Sensitivity:
         return Sensitivity.SESSION
     if lowered in _TRACE_HEADERS or any(hint in lowered for hint in _TRACE_HINTS):
         return Sensitivity.TRACE
-    if lowered in _TRANSPORT_HEADERS:
+    if lowered.startswith(":") or lowered in _TRANSPORT_HEADERS:
+        # HTTP/2 pseudo-headers (:method, :path, :scheme, :authority) are the
+        # request line, recorded by CDP as though they were headers. An executor
+        # that put them back on the wire would be sending the demonstration's
+        # request line inside a new request.
         return Sensitivity.TRANSPORT
     return Sensitivity.SEMANTIC
 

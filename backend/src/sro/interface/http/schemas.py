@@ -12,6 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from sro.domain.execution.run import Run, StepOutcome
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction
 from sro.domain.skill.skill import Skill, SkillVersion
@@ -384,3 +385,82 @@ class InductionResponse(BaseModel):
     step_count: int
     input_parameter_count: int
     derived_parameter_count: int
+
+
+class RunSkillRequest(BaseModel):
+    parameters: dict[str, str]
+    version: int | None = None
+
+    authorized_by: str | None = None
+    """Required above shadow. The human who allowed this run to write."""
+
+
+class StepOutcomeModel(BaseModel):
+    index: int
+    medium: str
+    disposition: str
+    intent: str
+    method: str | None
+    url: str | None
+    status_code: int | None
+    idempotency_key: str | None
+    assertion_failures: list[str]
+    detail: str | None
+
+    @classmethod
+    def of(cls, step: StepOutcome) -> StepOutcomeModel:
+        return cls(
+            index=step.index,
+            medium=step.medium.value,
+            disposition=step.disposition.value,
+            intent=step.intent,
+            method=step.method,
+            url=step.url,
+            status_code=step.status_code,
+            idempotency_key=step.idempotency_key,
+            assertion_failures=list(step.assertion_failures),
+            detail=step.detail,
+        )
+
+
+class RunModel(BaseModel):
+    id: str
+    skill_id: str
+    skill_version: int
+    stage: str
+    status: str
+    parameters: dict[str, str]
+    requested_by: str
+    authorized_by: str | None
+    started_at: datetime
+    ended_at: datetime | None
+    failure: str | None
+    steps: list[StepOutcomeModel]
+
+    @classmethod
+    def of(cls, run: Run) -> RunModel:
+        return cls(
+            id=run.id.value,
+            skill_id=run.skill_id.value,
+            skill_version=run.skill_version,
+            stage=run.stage.value,
+            status=run.status.value,
+            parameters=dict(run.parameters),
+            requested_by=run.requested_by.value,
+            authorized_by=run.authorized_by.value if run.authorized_by else None,
+            started_at=run.started_at,
+            ended_at=run.ended_at,
+            failure=run.failure,
+            steps=[StepOutcomeModel.of(step) for step in run.steps],
+        )
+
+
+class SessionHeadersRequest(BaseModel):
+    facility: str
+    headers: dict[str, str]
+    """Header name to value. Values go straight to the vault."""
+
+
+class SessionHeadersResponse(BaseModel):
+    stored: list[str]
+    """Key names only. A credential is never echoed back."""

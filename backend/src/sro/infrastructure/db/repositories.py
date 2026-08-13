@@ -13,10 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sro.application.ports.repositories import (
     ConnectionRepository,
     RecordingRepository,
+    RunRepository,
     SkillRepository,
     UnitOfWork,
 )
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.run import Run, RunId
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import RecordingId, SkillId, TenantId
@@ -28,13 +30,16 @@ from sro.infrastructure.db.mappers import (
     recording_to_row,
     row_to_connection,
     row_to_recording,
+    row_to_run,
     row_to_skill,
+    run_to_row,
     skill_to_row,
     update_connection_row,
     update_recording_row,
+    update_run_row,
     update_skill_row,
 )
-from sro.infrastructure.db.models import ConnectionRow, RecordingRow, SkillRow
+from sro.infrastructure.db.models import ConnectionRow, RecordingRow, RunRow, SkillRow
 
 
 class SqlRecordingRepository(RecordingRepository):
@@ -168,6 +173,42 @@ class SqlConnectionRepository(ConnectionRepository):
         return row
 
 
+class SqlRunRepository(RunRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, run: Run) -> None:
+        self._session.add(run_to_row(run))
+
+    async def get(self, tenant_id: TenantId, run_id: RunId) -> Run:
+        return row_to_run(await self._row(tenant_id, run_id))
+
+    async def save(self, run: Run) -> None:
+        update_run_row(await self._row(run.tenant_id, run.id), run)
+
+    async def list_for_tenant(
+        self,
+        tenant_id: TenantId,
+        *,
+        skill_id: SkillId | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[Run, ...]:
+        query = select(RunRow).where(RunRow.tenant_id == tenant_id.value)
+        if skill_id is not None:
+            query = query.where(RunRow.skill_id == skill_id.value)
+        query = query.order_by(RunRow.started_at.desc()).limit(limit).offset(offset)
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_run(row) for row in rows)
+
+    async def _row(self, tenant_id: TenantId, run_id: RunId) -> RunRow:
+        query = select(RunRow).where(RunRow.id == run_id.value, RunRow.tenant_id == tenant_id.value)
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        if row is None:
+            raise NotFound(f"run {run_id} not found")
+        return row
+
+
 class SqlUnitOfWork(UnitOfWork):
     """One session per block. The session opens on entry, not on construction,
     so a unit of work can be built once and used per request."""
@@ -181,6 +222,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.recordings = SqlRecordingRepository(self._session)
         self.skills = SqlSkillRepository(self._session)
         self.connections = SqlConnectionRepository(self._session)
+        self.runs = SqlRunRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

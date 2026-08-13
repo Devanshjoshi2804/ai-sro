@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.run import Run, RunId
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.identifiers import RecordingId, SkillId, TenantId
 from sro.domain.shared.objective import ObjectiveKey
@@ -67,12 +68,38 @@ class ConnectionRepository(Protocol):
     async def list_for_tenant(self, tenant_id: TenantId) -> tuple[Connection, ...]: ...
 
 
+class RunRepository(Protocol):
+    async def add(self, run: Run) -> None: ...
+
+    async def get(self, tenant_id: TenantId, run_id: RunId) -> Run: ...
+
+    async def save(self, run: Run) -> None:
+        """Overwrite the record of a run in progress.
+
+        A run is append-only in the domain, so this only ever grows the step
+        log; the repository rewrites the row because a run is one document.
+        """
+        ...
+
+    async def list_for_tenant(
+        self,
+        tenant_id: TenantId,
+        *,
+        skill_id: SkillId | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[Run, ...]:
+        """Newest first."""
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
     recordings: RecordingRepository
     skills: SkillRepository
     connections: ConnectionRepository
+    runs: RunRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

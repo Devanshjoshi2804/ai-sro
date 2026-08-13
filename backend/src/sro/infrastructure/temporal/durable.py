@@ -15,12 +15,22 @@ from temporalio.client import Client, WorkflowFailureError
 from temporalio.service import RPCError
 
 from sro.application.context import RequestContext
+from sro.application.execution.execute_skill import NotRunnable
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.induce_skill import InducedSkill
+from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import BrowserSessionId, RecordingId, SkillId
-from sro.infrastructure.temporal.activities import InductionRequest, ReapRequest
+from sro.infrastructure.temporal.activities import (
+    InductionRequest,
+    ReapRequest,
+    StartRunRequest,
+)
 from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
-from sro.infrastructure.temporal.workflows import InductionWorkflow, RecordingSessionWorkflow
+from sro.infrastructure.temporal.workflows import (
+    ExecutionWorkflow,
+    InductionWorkflow,
+    RecordingSessionWorkflow,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +100,39 @@ class TemporalDurableExecution:
             input_parameter_count=result.input_parameter_count,
             derived_parameter_count=result.derived_parameter_count,
         )
+
+    async def execute_skill(
+        self,
+        ctx: RequestContext,
+        *,
+        skill_id: SkillId,
+        parameters: dict[str, str],
+        version: int | None = None,
+        authorized_by: str | None = None,
+    ) -> RunId:
+        client = await self._connect()
+        request = StartRunRequest(
+            tenant_id=ctx.tenant_id.value,
+            principal_id=ctx.principal_id.value,
+            skill_id=skill_id.value,
+            parameters=dict(parameters),
+            version=version,
+            authorized_by=authorized_by,
+        )
+        handle = await client.start_workflow(
+            ExecutionWorkflow.run,
+            request,
+            # Unique per attempt: running the same skill again with the same
+            # parameters is a second, deliberate act -- not a duplicate to be
+            # folded into the first run's history.
+            id=f"run-{skill_id}-{uuid.uuid4().hex[:8]}",
+            task_queue=self._default_queue,
+        )
+        try:
+            run_id: str = await handle.result()
+        except WorkflowFailureError as exc:
+            raise NotRunnable(_root_message(exc)) from exc
+        return RunId(run_id)
 
     async def watch_recording(
         self,

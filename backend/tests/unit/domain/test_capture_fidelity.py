@@ -194,3 +194,10 @@ def test_a_vendor_named_csrf_header_is_still_a_csrf_header() -> None:
 
     assert classify_header("CSRF-ENCRYPT-TOKEN") is Sensitivity.CSRF
     assert classify_header("X-XSRF-HEADER") is Sensitivity.CSRF
+
+
+def test_http2_pseudo_headers_are_the_request_line_not_headers() -> None:
+    from sro.domain.recording.sensitivity import Sensitivity, classify_header
+
+    for name in (":method", ":path", ":scheme", ":authority"):
+        assert classify_header(name) is Sensitivity.TRANSPORT, name

@@ -6,7 +6,17 @@ place, and apart from the domain so the domain never learns it is stored.
 
 from __future__ import annotations
 
+from typing import Any
+
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
+from sro.domain.execution.run import (
+    Medium,
+    Run,
+    RunId,
+    RunStatus,
+    StepDisposition,
+    StepOutcome,
+)
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import (
     BrowserSessionId,
@@ -26,7 +36,7 @@ from sro.infrastructure.db.codec import (
     load_frames,
     load_versions,
 )
-from sro.infrastructure.db.models import ConnectionRow, RecordingRow, SkillRow
+from sro.infrastructure.db.models import ConnectionRow, RecordingRow, RunRow, SkillRow
 
 
 def objective_columns(key: ObjectiveKey) -> dict[str, str]:
@@ -155,4 +165,76 @@ def row_to_connection(row: ConnectionRow) -> Connection:
         status=ConnectionStatus(row.status),
         authenticated_at=row.authenticated_at,
         last_error=row.last_error,
+    )
+
+
+def run_to_row(run: Run) -> RunRow:
+    row = RunRow(id=run.id.value)
+    update_run_row(row, run)
+    return row
+
+
+def update_run_row(row: RunRow, run: Run) -> None:
+    row.tenant_id = run.tenant_id.value
+    row.skill_id = run.skill_id.value
+    row.skill_version = run.skill_version
+    row.stage = run.stage.value
+    row.status = run.status.value
+    row.requested_by = run.requested_by.value
+    row.authorized_by = run.authorized_by.value if run.authorized_by else None
+    row.parameters = dict(run.parameters)
+    row.derived = dict(run.derived)
+    row.steps = [_step_to_json(step) for step in run.steps]
+    row.started_at = run.started_at
+    row.ended_at = run.ended_at
+    row.failure = run.failure
+
+
+def row_to_run(row: RunRow) -> Run:
+    run = Run(
+        id=RunId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        skill_id=SkillId(row.skill_id),
+        skill_version=row.skill_version,
+        stage=PromotionStage(row.stage),
+        parameters=dict(row.parameters),
+        requested_by=PrincipalId(row.requested_by),
+        started_at=row.started_at,
+        authorized_by=PrincipalId(row.authorized_by) if row.authorized_by else None,
+        derived=dict(row.derived),
+    )
+    run.status = RunStatus(row.status)
+    run.steps = [_step_from_json(step) for step in row.steps]
+    run.ended_at = row.ended_at
+    run.failure = row.failure
+    return run
+
+
+def _step_to_json(step: StepOutcome) -> dict[str, Any]:
+    return {
+        "index": step.index,
+        "medium": step.medium.value,
+        "disposition": step.disposition.value,
+        "intent": step.intent,
+        "method": step.method,
+        "url": step.url,
+        "status_code": step.status_code,
+        "idempotency_key": step.idempotency_key,
+        "assertion_failures": list(step.assertion_failures),
+        "detail": step.detail,
+    }
+
+
+def _step_from_json(data: dict[str, Any]) -> StepOutcome:
+    return StepOutcome(
+        index=data["index"],
+        medium=Medium(data["medium"]),
+        disposition=StepDisposition(data["disposition"]),
+        intent=data["intent"],
+        method=data.get("method"),
+        url=data.get("url"),
+        status_code=data.get("status_code"),
+        idempotency_key=data.get("idempotency_key"),
+        assertion_failures=tuple(data.get("assertion_failures") or ()),
+        detail=data.get("detail"),
     )

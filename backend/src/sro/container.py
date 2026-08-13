@@ -15,11 +15,20 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.connection.connect_system import ConnectSystem, LoadSession, StoreSession
+from sro.application.connection.session_headers import StoreSessionHeaders
+from sro.application.execution.execute_skill import (
+    ExecuteSkill,
+    ExecuteStep,
+    FinishRun,
+    StartRun,
+)
+from sro.application.execution.read_runs import GetRun, ListRuns
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.durable import DurableExecution
+from sro.application.ports.http import HttpCaller
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.transcription import Transcriber
@@ -38,6 +47,7 @@ from sro.config import Settings, get_settings
 from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.session import create_engine, create_session_factory
+from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
 from sro.infrastructure.system import SystemClock, UuidFactory
@@ -62,6 +72,7 @@ class Container:
     browser: BrowserProvider
     transcriber: Transcriber
     vault: CredentialVault
+    http: HttpCaller
     durable: DurableExecution
     session_factory: async_sessionmaker[AsyncSession]
 
@@ -99,6 +110,9 @@ class Container:
     def store_session(self) -> StoreSession:
         return StoreSession(self.unit_of_work(), self.vault, self.clock, self.browser)
 
+    def store_session_headers(self) -> StoreSessionHeaders:
+        return StoreSessionHeaders(self.unit_of_work(), self.vault)
+
     def load_session(self) -> LoadSession:
         return LoadSession(self.unit_of_work(), self.vault)
 
@@ -125,6 +139,24 @@ class Container:
 
     def promote_skill(self) -> PromoteSkill:
         return PromoteSkill(self.unit_of_work(), self.clock)
+
+    def execute_skill(self) -> ExecuteSkill:
+        return ExecuteSkill(self.unit_of_work(), self.http, self.vault, self.clock, self.ids)
+
+    def start_run(self) -> StartRun:
+        return StartRun(self.unit_of_work(), self.clock, self.ids)
+
+    def execute_step(self) -> ExecuteStep:
+        return ExecuteStep(self.unit_of_work(), self.http, self.vault)
+
+    def finish_run(self) -> FinishRun:
+        return FinishRun(self.unit_of_work(), self.clock)
+
+    def get_run(self) -> GetRun:
+        return GetRun(self.unit_of_work())
+
+    def list_runs(self) -> ListRuns:
+        return ListRuns(self.unit_of_work())
 
 
 def _build_vault(settings: Settings) -> CredentialVault:
@@ -183,6 +215,7 @@ def build_container(settings: Settings | None = None) -> Container:
         ),
         transcriber=NullTranscriber(),
         vault=_build_vault(settings),
+        http=HttpxCaller(),
         durable=TemporalDurableExecution(
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),

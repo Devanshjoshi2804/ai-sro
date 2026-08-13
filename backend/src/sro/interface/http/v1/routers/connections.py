@@ -16,6 +16,8 @@ from sro.interface.http.schemas import (
     ConnectionModel,
     ConnectSystemRequest,
     OpenedConnectionResponse,
+    SessionHeadersRequest,
+    SessionHeadersResponse,
 )
 
 router = APIRouter(prefix="/connections", tags=["connections"])
@@ -77,3 +79,24 @@ async def store_session(
         browser_session_id=BrowserSessionId(browser_session_id),
     )
     return _model(connection)
+
+
+@router.post("/{connection_id}/session-headers")
+async def store_session_headers(
+    connection_id: str,
+    body: SessionHeadersRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+) -> SessionHeadersResponse:
+    """Headers the executor must send as this session and cannot derive.
+
+    The response names the keys and never the values: an endpoint that echoed a
+    credential back would put it in every proxy log between here and the caller.
+    """
+    written = await container.store_session_headers().execute(
+        ctx,
+        connection_id=ConnectionId(connection_id),
+        facility=body.facility,
+        headers=body.headers,
+    )
+    return SessionHeadersResponse(stored=list(written))

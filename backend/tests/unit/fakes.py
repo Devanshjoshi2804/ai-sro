@@ -10,14 +10,18 @@ from datetime import UTC, datetime, timedelta
 from itertools import count
 
 from sro.application.context import RequestContext
+from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
 from sro.application.induction.induce_skill import InducedSkill, InduceSkill
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
+from sro.application.ports.http import HttpResponse, TargetUnreachable
 from sro.application.ports.repositories import (
     ConnectionRepository,
     RecordingRepository,
+    RunRepository,
     SkillRepository,
 )
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.run import Run, RunId
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import (
@@ -47,12 +51,16 @@ class FakeIdFactory:
     def __init__(self) -> None:
         self._recordings = count(1)
         self._skills = count(1)
+        self._runs = count(1)
 
     def new_recording_id(self) -> RecordingId:
         return RecordingId(f"rec-{next(self._recordings)}")
 
     def new_skill_id(self) -> SkillId:
         return SkillId(f"skill-{next(self._skills)}")
+
+    def new_run_id(self) -> RunId:
+        return RunId(f"run-{next(self._runs)}")
 
 
 class FakeBrowserProvider:
@@ -134,8 +142,15 @@ class FakeDurableExecution:
     induction; what they skip is the scheduler, not the behaviour.
     """
 
-    def __init__(self, induce: InduceSkill, *, available: bool = True) -> None:
+    def __init__(
+        self,
+        induce: InduceSkill,
+        *,
+        execute: ExecuteSkill | None = None,
+        available: bool = True,
+    ) -> None:
         self._induce = induce
+        self._execute = execute
         self.available = available
         self.watching: list[str] = []
         self.finished: list[str] = []
@@ -149,6 +164,28 @@ class FakeDurableExecution:
         name: str | None = None,
     ) -> InducedSkill:
         return await self._induce.execute(ctx, first=first, second=second, name=name)
+
+    async def execute_skill(
+        self,
+        ctx: RequestContext,
+        *,
+        skill_id: SkillId,
+        parameters: dict[str, str],
+        version: int | None = None,
+        authorized_by: str | None = None,
+    ) -> RunId:
+        if self._execute is None:
+            raise NotImplementedError("this fake was not given an executor")
+        run = await self._execute.execute(
+            ctx,
+            ExecutionRequest(
+                skill_id=skill_id,
+                parameters=dict(parameters),
+                version=version,
+                authorized_by=authorized_by,
+            ),
+        )
+        return run.id
 
     async def watch_recording(
         self,
@@ -255,6 +292,71 @@ class FakeConnectionRepository:
         return tuple(c for (t, _), c in self.rows.items() if t == str(tenant_id))
 
 
+class FakeRunRepository:
+    def __init__(self) -> None:
+        self.rows: dict[tuple[str, str], Run] = {}
+
+    async def add(self, run: Run) -> None:
+        self.rows[(str(run.tenant_id), str(run.id))] = run
+
+    async def get(self, tenant_id: TenantId, run_id: RunId) -> Run:
+        try:
+            return self.rows[(str(tenant_id), str(run_id))]
+        except KeyError:
+            raise NotFound(f"run {run_id} not found") from None
+
+    async def save(self, run: Run) -> None:
+        await self.add(run)
+
+    async def list_for_tenant(
+        self,
+        tenant_id: TenantId,
+        *,
+        skill_id: SkillId | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[Run, ...]:
+        runs = [r for (t, _), r in self.rows.items() if t == str(tenant_id)]
+        if skill_id is not None:
+            runs = [r for r in runs if r.skill_id == skill_id]
+        runs.sort(key=lambda r: r.started_at, reverse=True)
+        return tuple(runs[offset : offset + limit])
+
+
+class FakeHttpCaller:
+    """Answers from a queue keyed by URL substring, and records what was sent.
+
+    Sending is the thing under test in an executor, so every call is kept: a
+    test asserts on the header a request carried, not only on what came back.
+    """
+
+    def __init__(self) -> None:
+        self.sent: list[dict[str, object]] = []
+        self.responses: list[HttpResponse] = []
+        self.unreachable = False
+
+    def answer(self, status_code: int = 200, text: str = "{}") -> None:
+        self.responses.append(HttpResponse(status_code=status_code, headers={}, text=text))
+
+    async def send(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        body: str | None = None,
+        timeout_s: float = 30.0,
+    ) -> HttpResponse:
+        self.sent.append(
+            {"method": method, "url": url, "headers": dict(headers or {}), "body": body}
+        )
+        if self.unreachable:
+            raise TargetUnreachable("connection reset")
+        if self.responses:
+            return self.responses.pop(0)
+        return HttpResponse(status_code=200, headers={}, text="{}")
+
+
 class FakeCredentialVault:
     """In memory, and asserts the one rule: nothing else may read a value."""
 
@@ -280,11 +382,13 @@ class FakeUnitOfWork:
     recordings: RecordingRepository
     skills: SkillRepository
     connections: ConnectionRepository
+    runs: RunRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
         self.skills = FakeSkillRepository()
         self.connections = FakeConnectionRepository()
+        self.runs = FakeRunRepository()
         self.commits = 0
         self.rollbacks = 0
 

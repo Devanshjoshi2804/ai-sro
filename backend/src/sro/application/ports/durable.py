@@ -16,7 +16,8 @@ from typing import Protocol
 
 from sro.application.context import RequestContext
 from sro.application.induction.induce_skill import InducedSkill
-from sro.domain.shared.identifiers import BrowserSessionId, RecordingId
+from sro.domain.execution.run import RunId
+from sro.domain.shared.identifiers import BrowserSessionId, RecordingId, SkillId
 
 
 class DurableExecution(Protocol):
@@ -29,6 +30,23 @@ class DurableExecution(Protocol):
         name: str | None = None,
     ) -> InducedSkill:
         """Run induction durably and wait for its result."""
+        ...
+
+    async def execute_skill(
+        self,
+        ctx: RequestContext,
+        *,
+        skill_id: SkillId,
+        parameters: dict[str, str],
+        version: int | None = None,
+        authorized_by: str | None = None,
+    ) -> RunId:
+        """Perform a skill durably and wait for it to finish.
+
+        Durable for a different reason again: a run touches a live warehouse one
+        step at a time, and a process that dies halfway must be resumable
+        without repeating the step that may already have landed.
+        """
         ...
 
     async def watch_recording(

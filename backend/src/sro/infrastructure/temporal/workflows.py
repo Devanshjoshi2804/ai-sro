@@ -19,6 +19,10 @@ with workflow.unsafe.imports_passed_through():
         InductionRequest,
         InductionResult,
         ReapRequest,
+        StartedRun,
+        StartRunRequest,
+        StepRequest,
+        StepResult,
     )
 
 _INDUCTION_RETRY = RetryPolicy(
@@ -87,3 +91,71 @@ class RecordingSessionWorkflow:
             retry_policy=RetryPolicy(maximum_attempts=3),
         )
         return abandoned
+
+
+# A read that failed to connect is worth another attempt. A write is not: the
+# first attempt may have arrived, and the target system has no way to tell us.
+_READ_RETRY = RetryPolicy(
+    initial_interval=timedelta(seconds=1),
+    maximum_attempts=3,
+    # A skill that may not be run is refused the same way every time.
+    non_retryable_error_types=["NotRunnable"],
+)
+_WRITE_RETRY = RetryPolicy(maximum_attempts=1)
+
+
+@workflow.defn
+class ExecutionWorkflow:
+    """Perform a skill, one step per activity.
+
+    The step is the unit of durability because it is the unit of damage. If this
+    process dies after step 7, the workflow resumes at step 8 -- and because the
+    run already records step 7, an activity asked to repeat it returns what
+    happened rather than doing it again.
+    """
+
+    @workflow.run
+    async def run(self, request: StartRunRequest) -> str:
+        """Returns the run id. What happened is on the run itself, which is the
+        record everything else reads."""
+        started: StartedRun = await workflow.execute_activity(
+            "start_run",
+            request,
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=_READ_RETRY,
+        )
+        step = StepRequest(
+            tenant_id=request.tenant_id,
+            principal_id=request.principal_id,
+            run_id=started.run_id,
+            index=0,
+        )
+
+        for index in range(started.step_count):
+            result: StepResult = await workflow.execute_activity(
+                "execute_step",
+                StepRequest(
+                    tenant_id=request.tenant_id,
+                    principal_id=request.principal_id,
+                    run_id=started.run_id,
+                    index=index,
+                ),
+                start_to_close_timeout=timedelta(minutes=2),
+                # Chosen per step: whether this one writes is known only after
+                # the first attempt, so the conservative policy applies to every
+                # step and the read-only ones lose a retry they rarely need.
+                retry_policy=_WRITE_RETRY,
+            )
+            if not result.ok:
+                # Later steps depend on this one having worked. Continuing would
+                # send calls built from values the system never returned.
+                break
+
+        await workflow.execute_activity(
+            "finish_run",
+            step,
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=_READ_RETRY,
+        )
+        run_id: str = started.run_id
+        return run_id

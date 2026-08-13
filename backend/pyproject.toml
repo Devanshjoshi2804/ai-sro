@@ -1,0 +1,195 @@
+[project]
+name = "sro"
+version = "0.1.0"
+description = "AI-SRO — skill capture and induction from browser demonstrations"
+requires-python = ">=3.12"
+
+dependencies = [
+    "fastapi>=0.115",
+    "python-multipart>=0.0.20",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "pgvector>=0.3.6",
+    "redis>=5.2",
+    "boto3>=1.35",
+    "httpx>=0.28",
+    "temporalio>=1.8",
+    "playwright>=1.49",
+    "opentelemetry-sdk>=1.29",
+    "opentelemetry-exporter-otlp>=1.29",
+    "opentelemetry-instrumentation-fastapi>=0.50b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "testcontainers[postgres,minio]>=4.9",
+    "schemathesis>=3.38",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "import-linter>=2.1",
+    "types-boto3>=1.35",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sro"]
+
+[tool.uv]
+package = true
+
+# =============================================================================
+# Ruff — lint + format. One tool, no black/isort/flake8 stack.
+# =============================================================================
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "N",         # pep8-naming
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "A",         # builtin shadowing
+    "C4",        # comprehensions
+    "DTZ",       # naive datetimes -- every timestamp in this codebase is tz-aware
+    "T20",       # no print()
+    "SIM",       # simplify
+    "PTH",       # pathlib over os.path
+    "RUF",
+    "ANN",       # every signature annotated
+    "ASYNC",
+    "S",         # bandit
+    "TID",       # tidy imports
+]
+ignore = [
+    "ANN401",    # typing.Any is banned by mypy config in domain/application anyway
+    "B008",      # FastAPI Depends() in defaults is the framework idiom
+    "N818",      # domain errors read as sentences: `raise InvariantViolation(...)`,
+                 # `raise NotFound(...)`. An `Error` suffix adds a syllable and no
+                 # information -- they all descend from DomainError already.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "ANN201", "ANN001"]   # asserts and loose annotations are fine in tests
+"migrations/*" = ["ANN", "E501", "INP001"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["sro"]
+
+# =============================================================================
+# Mypy — strict everywhere. The inner layers additionally forbid Any.
+# =============================================================================
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+disallow_any_explicit = false
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# The point of the domain and application layers is that they are fully typed
+# and framework-free. No escape hatches.
+module = ["sro.domain.*", "sro.application.*"]
+disallow_any_explicit = true
+disallow_any_generics = true
+
+[[tool.mypy.overrides]]
+# The one honest exception: JSON really is dynamic. Confining `Any` to this
+# module means the diff can address arbitrary payloads without the escape hatch
+# leaking into the rest of the application layer.
+module = ["sro.application.induction.jsonutil"]
+disallow_any_explicit = false
+
+[[tool.mypy.overrides]]
+module = ["pgvector.*", "testcontainers.*", "docker.*"]
+ignore_missing_imports = true
+
+# =============================================================================
+# Import Linter — the dependency rule, enforced. This is the load-bearing part
+# of the architecture; see docs/01-architecture.md.
+# =============================================================================
+[tool.importlinter]
+root_package = "sro"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layers point inward only"
+type = "layers"
+layers = [
+    "sro.interface",
+    "sro.application",
+    "sro.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain is pure — it imports nothing else in this codebase"
+type = "forbidden"
+source_modules = ["sro.domain"]
+forbidden_modules = [
+    "sro.application",
+    "sro.infrastructure",
+    "sro.interface",
+    "sro.container",
+    "sro.config",
+    "fastapi",
+    "sqlalchemy",
+    "temporalio",
+    "httpx",
+    "redis",
+    "boto3",
+    "playwright",
+]
+
+[[tool.importlinter.contracts]]
+name = "Application depends on abstractions, never on adapters"
+type = "forbidden"
+source_modules = ["sro.application"]
+forbidden_modules = [
+    "sro.infrastructure",
+    "sro.interface",
+    "sro.container",
+    "fastapi",
+    "sqlalchemy",
+    "temporalio",
+    "httpx",
+    "redis",
+    "boto3",
+    "playwright",
+]
+
+[[tool.importlinter.contracts]]
+name = "Infrastructure is reachable only through the composition root"
+type = "forbidden"
+source_modules = ["sro.interface"]
+forbidden_modules = ["sro.infrastructure"]
+# Indirect is allowed and is the intended path: routers reach adapters through
+# sro.container, which is what a composition root is for. What this forbids is a
+# router importing an adapter by name and binding itself to Postgres or Steel.
+allow_indirect_imports = true
+
+# =============================================================================
+# Pytest
+# =============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--strict-markers --strict-config"
+filterwarnings = ["error"]

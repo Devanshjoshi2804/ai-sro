@@ -1,0 +1,102 @@
+# CI. Mirrors `make check`, split so a frontend change does not run mypy.
+#
+# The dependency-rule check (`lint-imports`) runs on every pipeline. It is the
+# one gate that fails on architecture rather than on code, and a deliberate
+# `domain -> infrastructure` import must fail here. See docs/01-architecture.md.
+
+image: python:3.12
+
+definitions:
+  caches:
+    uv: ~/.cache/uv
+
+  services:
+    postgres:
+      image: pgvector/pgvector:pg16
+      variables:
+        POSTGRES_USER: sro
+        POSTGRES_PASSWORD: sro
+        POSTGRES_DB: sro_test
+
+  steps:
+    - step: &backend-quality
+        name: Backend — lint, types, dependency rule
+        caches: [uv]
+        script:
+          - curl -LsSf https://astral.sh/uv/install.sh | sh
+          - export PATH="$HOME/.local/bin:$PATH"
+          - cd backend
+          - uv sync --all-extras
+          - uv run ruff check .
+          - uv run ruff format --check .
+          - uv run mypy src tests
+          - uv run lint-imports
+
+    - step: &backend-tests
+        name: Backend — unit, contract, integration
+        caches: [uv]
+        services: [postgres]
+        script:
+          - curl -LsSf https://astral.sh/uv/install.sh | sh
+          - export PATH="$HOME/.local/bin:$PATH"
+          - cd backend
+          - uv sync --all-extras
+          - uv run pytest tests/unit tests/contract -q
+          # Integration points at the service container rather than starting its
+          # own: Docker-in-Docker is not available to a pipeline step.
+          # A disposable database by name: the integration fixtures truncate
+          # every table and refuse to run against anything not marked as such.
+          - export SRO_INTEGRATION_DATABASE_URL="postgresql+asyncpg://sro:sro@localhost:5432/sro_test"
+          - uv run pytest tests/integration -q
+          # The live-Steel capture tests skip themselves when no browser is
+          # reachable. They are proved locally against `make up`; running a
+          # privileged browser container here would not be worth the minutes.
+
+    - step: &frontend-quality
+        name: Frontend — lint, types, build
+        image: node:22
+        caches: [node]
+        script:
+          - cd frontend
+          - npm ci
+          - npm run lint
+          - npm run typecheck
+          - npm run format:check
+          - npm run build
+
+    - step: &contract-is-current
+        name: Contract — the committed OpenAPI matches the code
+        caches: [uv]
+        script:
+          - curl -LsSf https://astral.sh/uv/install.sh | sh
+          - export PATH="$HOME/.local/bin:$PATH"
+          - cd backend && uv sync --all-extras
+          - uv run python -m sro.interface.http.export_openapi > /tmp/openapi.json
+          # A drifted document means the generated frontend client no longer
+          # describes the API it talks to. Regenerate with `make types`.
+          - diff -u ../frontend/openapi.json /tmp/openapi.json
+
+pipelines:
+  pull-requests:
+    "**":
+      - parallel:
+          - step:
+              <<: *backend-quality
+              condition: { changesets: { includePaths: ["backend/**", "docs/**"] } }
+          - step:
+              <<: *backend-tests
+              condition: { changesets: { includePaths: ["backend/**"] } }
+          - step:
+              <<: *frontend-quality
+              condition: { changesets: { includePaths: ["frontend/**"] } }
+          - step:
+              <<: *contract-is-current
+              condition: { changesets: { includePaths: ["backend/**", "frontend/openapi.json"] } }
+
+  branches:
+    main:
+      - parallel:
+          - step: *backend-quality
+          - step: *backend-tests
+          - step: *frontend-quality
+          - step: *contract-is-current

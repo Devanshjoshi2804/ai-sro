@@ -1,0 +1,152 @@
+# Local development stack for AI-SRO v0.
+#
+# Every backing service the backend talks to has an adapter behind an application
+# port (see docs/01-architecture.md). Nothing here is imported by the domain or
+# application layers -- these are the concrete things `infrastructure/` binds to.
+#
+#   make up      start everything
+#   make down    stop everything
+#   make ps      health overview
+#
+# Host ports are chosen so the Next.js dev server can keep the conventional 3000.
+
+name: ai-sro
+
+services:
+  # ---------------------------------------------------------------------------
+  # Postgres + pgvector. Two logical databases: `sro` (ours) and `temporal`
+  # (Temporal's own persistence, created by init-db.sh).
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: sro
+      POSTGRES_PASSWORD: sro
+      POSTGRES_DB: sro
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sro -d sro"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ---------------------------------------------------------------------------
+  # Redis. Short-lived caches and per-tenant rate-limit counters.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ---------------------------------------------------------------------------
+  # MinIO. S3-compatible object store for capture artifacts: raw CDP event
+  # streams, screencast video, optional narration audio.
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: sro
+      MINIO_ROOT_PASSWORD: sro-secret
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Creates the bucket once, then exits. `make up` waits for it.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 sro sro-secret &&
+      mc mb --ignore-existing local/sro-artifacts &&
+      echo 'bucket ready'
+      "
+
+  # ---------------------------------------------------------------------------
+  # Temporal. Durable execution for recording sessions and skill induction.
+  # ---------------------------------------------------------------------------
+  temporal:
+    image: temporalio/auto-setup:1.25.2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: sro
+      POSTGRES_PWD: sro
+      POSTGRES_SEEDS: postgres
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+    ports:
+      - "7233:7233"
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  temporal-ui:
+    image: temporalio/ui:2.31.2
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8080:8080"
+
+  # ---------------------------------------------------------------------------
+  # Steel. Managed Chrome sandbox. The capture adapter creates a session over
+  # the REST API on 3000 and then attaches to raw CDP on 9223.
+  # See docs/07-adr/003-steel-for-browser-sessions.md
+  # ---------------------------------------------------------------------------
+  steel:
+    image: ghcr.io/steel-dev/steel-browser:latest
+    ports:
+      - "3010:3000"   # sessions API + debug UI  -> http://localhost:3010/ui
+      - "9223:9223"   # chrome devtools protocol
+    shm_size: "2gb"   # Chrome crashes with the 64MB default; see docs/05-testing.md
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry collector. Backend exports OTLP here; it prints to stdout in
+  # dev. Swap the exporter in otel-collector.yaml to ship somewhere real.
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+
+volumes:
+  postgres-data:
+  minio-data:

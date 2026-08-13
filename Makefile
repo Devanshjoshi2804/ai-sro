@@ -1,0 +1,95 @@
+# AI-SRO — top-level task runner.
+#
+# Every command a developer needs on day one lives here. If you find yourself
+# typing a long command twice, it belongs in this file.
+
+COMPOSE := docker compose -f infra/docker-compose.yml
+BACKEND := cd backend &&
+FRONTEND := cd frontend &&
+
+.DEFAULT_GOAL := help
+.PHONY: help up down ps logs reset install migrate revision api worker web \
+        lint lint-backend lint-frontend format test test-unit test-integration \
+        test-contract types check
+
+help: ## Show this help
+	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
+		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+
+# --- infrastructure ---------------------------------------------------------
+
+up: ## Start the local stack (postgres, redis, minio, temporal, steel, otel)
+	$(COMPOSE) up -d --wait
+
+down: ## Stop the local stack
+	$(COMPOSE) down
+
+ps: ## Service health overview
+	$(COMPOSE) ps
+
+logs: ## Tail all service logs
+	$(COMPOSE) logs -f
+
+reset: ## Destroy all local data and start clean
+	$(COMPOSE) down -v
+	$(MAKE) up
+	$(MAKE) migrate
+
+# --- backend ----------------------------------------------------------------
+
+install: ## Install backend and frontend dependencies
+	$(BACKEND) uv sync --all-extras
+	$(FRONTEND) npm ci
+
+migrate: ## Apply database migrations
+	$(BACKEND) uv run alembic upgrade head
+
+revision: ## Autogenerate a migration: make revision m="add foo"
+	$(BACKEND) uv run alembic revision --autogenerate -m "$(m)"
+
+api: ## Run the API with reload
+	$(BACKEND) uv run uvicorn sro.main:app --reload --port 8000
+
+worker: ## Run the Temporal worker
+	$(BACKEND) uv run python -m sro.infrastructure.temporal.worker
+
+# --- frontend ---------------------------------------------------------------
+
+web: ## Run the Next.js dev server on :3000
+	$(FRONTEND) npm run dev
+
+types: ## Regenerate frontend API types from the backend OpenAPI document
+	$(BACKEND) uv run python -m sro.interface.http.export_openapi > ../frontend/openapi.json
+	$(FRONTEND) npm run generate:types
+
+# --- quality ----------------------------------------------------------------
+
+lint: lint-backend lint-frontend ## Run every linter
+
+lint-backend: ## ruff + mypy --strict + import-linter
+	$(BACKEND) uv run ruff check .
+	$(BACKEND) uv run ruff format --check .
+	$(BACKEND) uv run mypy src
+	$(BACKEND) uv run lint-imports
+
+lint-frontend: ## eslint + tsc
+	$(FRONTEND) npm run lint
+	$(FRONTEND) npm run typecheck
+
+format: ## Autoformat both sides
+	$(BACKEND) uv run ruff check --fix .
+	$(BACKEND) uv run ruff format .
+	$(FRONTEND) npm run format
+
+test: test-unit test-integration ## Unit + integration tests
+
+test-unit: ## Fast tests. No Docker, no network.
+	$(BACKEND) uv run pytest tests/unit -q
+
+test-integration: ## Tests against real Postgres/MinIO via testcontainers
+	$(BACKEND) uv run pytest tests/integration -q
+
+test-contract: ## Fuzz the API against its own OpenAPI schema
+	$(BACKEND) uv run pytest tests/contract -q
+
+check: lint test ## What CI runs

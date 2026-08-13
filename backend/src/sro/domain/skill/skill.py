@@ -1,0 +1,182 @@
+"""Skill aggregate. See docs/06-glossary.md#skill."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+
+from sro.domain.shared.errors import InvariantViolation
+from sro.domain.shared.identifiers import PrincipalId, RecordingId, SkillId, TenantId
+from sro.domain.shared.objective import ObjectiveKey
+from sro.domain.skill.assertion import Assertion
+from sro.domain.skill.parameter import Parameter, ParameterKind
+from sro.domain.skill.plan import NetworkPlan, UiPlan
+from sro.domain.skill.promotion import PromotionStage, check_promotion
+
+
+@dataclass(frozen=True, slots=True)
+class SkillStep:
+    index: int
+    intent: str
+    network_plan: NetworkPlan | None = None
+    ui_plan: UiPlan | None = None
+    assertions: tuple[Assertion, ...] = ()
+    requires_human: bool = False
+
+    def __post_init__(self) -> None:
+        if self.index < 0:
+            raise InvariantViolation("SkillStep.index must be non-negative")
+        if not self.intent.strip():
+            raise InvariantViolation("SkillStep requires an intent")
+        if self.network_plan is None and self.ui_plan is None:
+            raise InvariantViolation(
+                f"step {self.index} has neither a network plan nor a UI plan; "
+                "there is no way to perform it"
+            )
+
+    @property
+    def placeholders(self) -> frozenset[str]:
+        names: set[str] = set()
+        if self.network_plan is not None:
+            names |= self.network_plan.placeholders
+        if self.ui_plan is not None:
+            names |= self.ui_plan.placeholders
+        for assertion in self.assertions:
+            names |= assertion.expected.placeholders
+        return frozenset(names)
+
+
+@dataclass(frozen=True, slots=True)
+class Provenance:
+    """Which demonstrations a version came from. Never optional."""
+
+    recording_ids: tuple[RecordingId, ...]
+    induced_at: datetime
+    induced_by: PrincipalId
+    note: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.recording_ids:
+            raise InvariantViolation("a skill version must cite the recordings it came from")
+        if self.induced_at.tzinfo is None:
+            raise InvariantViolation("Provenance.induced_at must be timezone-aware")
+
+
+@dataclass(eq=False)
+class SkillVersion:
+    """One revision. Steps and parameters are fixed; only the stage moves."""
+
+    version: int
+    steps: tuple[SkillStep, ...]
+    parameters: tuple[Parameter, ...]
+    provenance: Provenance
+    stage: PromotionStage = PromotionStage.RECORDED
+    promoted_at: datetime | None = None
+    promoted_by: PrincipalId | None = None
+
+    def __post_init__(self) -> None:
+        if self.version < 1:
+            raise InvariantViolation("version numbers start at 1")
+        if not self.steps:
+            raise InvariantViolation("a skill version needs at least one step")
+        self._check_step_indices()
+        self._check_parameters_declared()
+        self._check_derived_ordering()
+
+    @property
+    def inputs(self) -> tuple[Parameter, ...]:
+        return tuple(p for p in self.parameters if p.kind is ParameterKind.INPUT)
+
+    @property
+    def needs_human_step(self) -> bool:
+        return any(step.requires_human for step in self.steps)
+
+    def promote(self, to: PromotionStage, at: datetime, by: PrincipalId) -> None:
+        check_promotion(self.stage, to)
+        if at.tzinfo is None:
+            raise InvariantViolation("promotion timestamp must be timezone-aware")
+        self.stage = to
+        self.promoted_at = at
+        self.promoted_by = by
+
+    def _check_step_indices(self) -> None:
+        indices = [step.index for step in self.steps]
+        if indices != list(range(len(self.steps))):
+            raise InvariantViolation(f"step indices must be 0..n-1, got {indices}")
+
+    def _check_parameters_declared(self) -> None:
+        names = [p.name for p in self.parameters]
+        if len(names) != len(set(names)):
+            raise InvariantViolation("parameter names must be unique within a version")
+
+        declared = set(names)
+        for step in self.steps:
+            missing = step.placeholders - declared
+            if missing:
+                raise InvariantViolation(
+                    f"step {step.index} references undeclared parameters: "
+                    f"{', '.join(sorted(missing))}"
+                )
+
+    def _check_derived_ordering(self) -> None:
+        for param in self.parameters:
+            source = param.source_step_index
+            if param.kind is not ParameterKind.DERIVED or source is None:
+                continue
+            if source >= len(self.steps):
+                raise InvariantViolation(
+                    f"derived parameter {param.name!r} names step {source}, which does not exist"
+                )
+            first_use = next((s.index for s in self.steps if param.name in s.placeholders), None)
+            if first_use is not None and first_use <= source:
+                raise InvariantViolation(
+                    f"derived parameter {param.name!r} is used at step {first_use} "
+                    f"but only produced at step {source}"
+                )
+
+
+@dataclass(eq=False)
+class Skill:
+    id: SkillId
+    tenant_id: TenantId
+    objective_key: ObjectiveKey
+    name: str
+    created_at: datetime
+    _versions: list[SkillVersion] = field(default_factory=list, repr=False)
+
+    def __post_init__(self) -> None:
+        if not self.name.strip():
+            raise InvariantViolation("Skill requires a name")
+        if self.created_at.tzinfo is None:
+            raise InvariantViolation("Skill.created_at must be timezone-aware")
+
+    @property
+    def versions(self) -> tuple[SkillVersion, ...]:
+        return tuple(self._versions)
+
+    @property
+    def latest(self) -> SkillVersion:
+        if not self._versions:
+            raise InvariantViolation(f"skill {self.id} has no versions")
+        return self._versions[-1]
+
+    def version(self, number: int) -> SkillVersion:
+        for candidate in self._versions:
+            if candidate.version == number:
+                return candidate
+        raise InvariantViolation(f"skill {self.id} has no version {number}")
+
+    def next_version_number(self) -> int:
+        return len(self._versions) + 1
+
+    def add_version(self, version: SkillVersion) -> None:
+        """Append. Existing versions are never mutated by a re-induction."""
+        expected = self.next_version_number()
+        if version.version != expected:
+            raise InvariantViolation(
+                f"versions are append-only and sequential: expected v{expected}, "
+                f"got v{version.version}"
+            )
+        if version.stage is not PromotionStage.RECORDED:
+            raise InvariantViolation("a new version always starts at RECORDED")
+        self._versions.append(version)

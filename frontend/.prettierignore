@@ -1,0 +1,5 @@
+.next
+node_modules
+src/lib/api/generated.ts
+openapi.json
+src/components/ui

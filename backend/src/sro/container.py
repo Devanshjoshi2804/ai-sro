@@ -1,0 +1,127 @@
+"""Composition root. The only module allowed to import ``sro.infrastructure``.
+
+Everything above this line depends on protocols; the choice of Postgres, MinIO
+or Steel is made here and nowhere else. Swapping an adapter is an edit to this
+file, which is the whole point of the dependency rule.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from sro.application.induction.induce_skill import InduceSkill
+from sro.application.ports.blob import BlobStore
+from sro.application.ports.browser import BrowserProvider
+from sro.application.ports.capture import CaptureController
+from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock, IdFactory
+from sro.application.ports.transcription import Transcriber
+from sro.application.recording.attach_artifact import AttachArtifact
+from sro.application.recording.finish_recording import FinishRecording
+from sro.application.recording.ingest_capture_events import IngestCaptureEvents
+from sro.application.recording.start_recording import StartRecording
+from sro.application.skill.promote_skill import PromoteSkill
+from sro.config import Settings, get_settings
+from sro.infrastructure.blob.minio_store import MinioBlobStore
+from sro.infrastructure.db.repositories import SqlUnitOfWork
+from sro.infrastructure.db.session import create_engine, create_session_factory
+from sro.infrastructure.steel.client import SteelClient
+from sro.infrastructure.steel.supervisor import CaptureSupervisor
+from sro.infrastructure.system import SystemClock, UuidFactory
+from sro.infrastructure.telemetry.otel import configure_tracing
+from sro.infrastructure.transcription.null import NullTranscriber
+
+
+@dataclass
+class Container:
+    """Long-lived adapters, built once per process.
+
+    Use cases are cheap objects built per call: they hold a unit of work, which
+    must not be shared between concurrent requests.
+    """
+
+    settings: Settings
+    clock: Clock
+    ids: IdFactory
+    blobs: BlobStore
+    browser: BrowserProvider
+    transcriber: Transcriber
+    session_factory: async_sessionmaker[AsyncSession]
+
+    capture: CaptureController = field(init=False)
+    """Set by ``build_container``: the supervisor is built from the container's
+    own use-case factories, so it cannot be a constructor argument."""
+
+    def unit_of_work(self) -> UnitOfWork:
+        return SqlUnitOfWork(self.session_factory)
+
+    async def database_reachable(self) -> bool:
+        """Readiness probe. Lives here so the interface layer stays free of SQL."""
+        try:
+            async with self.session_factory() as session:
+                await session.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            return False
+        return True
+
+    def start_recording(self) -> StartRecording:
+        return StartRecording(self.unit_of_work(), self.browser, self.clock, self.ids)
+
+    def ingest_capture_events(self) -> IngestCaptureEvents:
+        return IngestCaptureEvents(self.unit_of_work())
+
+    def attach_artifact(self) -> AttachArtifact:
+        return AttachArtifact(self.unit_of_work(), self.blobs, self.clock, self.transcriber)
+
+    def finish_recording(self) -> FinishRecording:
+        return FinishRecording(self.unit_of_work(), self.browser, self.clock)
+
+    def induce_skill(self) -> InduceSkill:
+        return InduceSkill(self.unit_of_work(), self.clock, self.ids)
+
+    def promote_skill(self) -> PromoteSkill:
+        return PromoteSkill(self.unit_of_work(), self.clock)
+
+
+def build_container(settings: Settings | None = None) -> Container:
+    settings = settings or get_settings()
+    configure_tracing(
+        service_name=settings.service_name,
+        endpoint=settings.otlp_endpoint,
+        environment=settings.environment,
+    )
+
+    engine = create_engine(settings.database_url, echo=settings.debug)
+
+    container = Container(
+        settings=settings,
+        clock=SystemClock(),
+        ids=UuidFactory(),
+        blobs=MinioBlobStore(
+            endpoint_url=settings.s3_endpoint_url,
+            access_key=settings.s3_access_key,
+            secret_key=settings.s3_secret_key,
+            bucket=settings.s3_bucket,
+            region=settings.s3_region,
+        ),
+        browser=SteelClient(
+            settings.steel_base_url,
+            settings.steel_cdp_url,
+            session_timeout_seconds=settings.steel_session_timeout_seconds,
+        ),
+        transcriber=NullTranscriber(),
+        session_factory=create_session_factory(engine),
+    )
+    container.capture = CaptureSupervisor(
+        blobs=container.blobs,
+        ingest=container.ingest_capture_events,
+        artifacts=container.attach_artifact,
+        drain_interval_seconds=settings.capture_drain_interval_seconds,
+        inline_body_limit_bytes=settings.inline_body_limit_bytes,
+        screenshot_per_gesture=settings.capture_screenshot_per_frame,
+    )
+    return container

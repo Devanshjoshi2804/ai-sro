@@ -30,6 +30,12 @@ class StartRecordingRequest(BaseModel):
     start_url: str | None = None
     label: str | None = None
 
+    attach_to: str | None = None
+    """CDP endpoint of a browser the operator already has open.
+
+    When set, no hosted session is created and capture attaches to that browser
+    instead — the operator demonstrates in their own window."""
+
 
 class StartRecordingResponse(BaseModel):
     recording_id: str

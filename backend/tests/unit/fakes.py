@@ -60,6 +60,7 @@ class FakeBrowserProvider:
         self.available = available
         self.opened: list[BrowserSessionId] = []
         self.closed: list[BrowserSessionId] = []
+        self.navigated: list[tuple[BrowserSessionId, str]] = []
         self._counter = count(1)
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
@@ -77,6 +78,9 @@ class FakeBrowserProvider:
         if not self.available:
             raise BrowserUnavailable("fake provider is switched off")
         self.closed.append(session_id)
+
+    async def navigate(self, session_id: BrowserSessionId, url: str) -> None:
+        self.navigated.append((session_id, url))
 
     async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
         return ({"name": "JSESSIONID", "value": "fake-session", "domain": "wms.test"},)

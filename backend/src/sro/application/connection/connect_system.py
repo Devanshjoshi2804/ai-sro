@@ -74,6 +74,10 @@ class ConnectSystem:
             await uow.commit()
 
         session = await self._browser.open(start_url=connection.base_url)
+        # Opening "at" a URL is two steps: the provider ignores the start URL
+        # for an attached browser, so an unnavigated session would show the
+        # operator a blank page to sign into.
+        await self._browser.navigate(session.id, connection.base_url)
         return OpenedConnection(
             connection_id=connection.id,
             live_view_url=session.live_view_url,

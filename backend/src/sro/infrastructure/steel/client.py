@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from types import TracebackType
 from urllib.parse import urlsplit
 
 import httpx
+from playwright.async_api import Browser, async_playwright
 
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.domain.shared.identifiers import BrowserSessionId
@@ -88,6 +91,28 @@ class SteelClient:
                 f"could not release Steel session {session_id}: {exc}"
             ) from exc
 
+    async def navigate(self, session_id: BrowserSessionId, url: str) -> None:
+        async with self._attached() as browser:
+            context = browser.contexts[0] if browser.contexts else await browser.new_context()
+            page = context.pages[0] if context.pages else await context.new_page()
+            await page.goto(url, wait_until="domcontentloaded")
+
+    @asynccontextmanager
+    async def _attached(self) -> AsyncIterator[Browser]:
+        """A short-lived CDP attachment.
+
+        Deliberately not held open: these run against a browser a human is
+        using, and an idle connection to it is a way to lose their session
+        rather than keep it.
+        """
+        debugger_url = await self._websocket_debugger_url()
+        async with async_playwright() as driver:
+            browser = await driver.chromium.connect_over_cdp(debugger_url)
+            try:
+                yield browser
+            finally:
+                await browser.close()
+
     async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
         """Read the cookies through a short-lived CDP attachment.
 
@@ -95,16 +120,9 @@ class SteelClient:
         finished logging in, and an idle connection to the browser they are
         using is a way to lose their session rather than keep it.
         """
-        from playwright.async_api import async_playwright
-
-        debugger_url = await self._websocket_debugger_url()
-        async with async_playwright() as driver:
-            browser = await driver.chromium.connect_over_cdp(debugger_url)
-            try:
-                context = browser.contexts[0] if browser.contexts else None
-                cookies = await context.cookies() if context else []
-            finally:
-                await browser.close()
+        async with self._attached() as browser:
+            context = browser.contexts[0] if browser.contexts else None
+            cookies = await context.cookies() if context else []
         return tuple(dict(cookie) for cookie in cookies)
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:

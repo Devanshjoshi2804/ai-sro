@@ -25,6 +25,14 @@ class BrowserProvider(Protocol):
         """Idempotent -- crash recovery calls this on sessions already gone."""
         ...
 
+    async def navigate(self, session_id: BrowserSessionId, url: str) -> None:
+        """Put the session on a page.
+
+        Steel accepts a start URL when a session is created and does not act on
+        it, so opening a browser "at" somewhere is two steps rather than one.
+        """
+        ...
+
     async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
         """Every cookie the session holds.
 

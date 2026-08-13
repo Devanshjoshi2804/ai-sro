@@ -39,12 +39,17 @@ async def start_recording(
         ),
         start_url=body.start_url,
         label=body.label,
+        attach_to=body.attach_to,
     )
     # A stored session, if this system has one. Without it the demonstration
     # opens on a login page and the operator teaches signing in, which is a
     # different task from the one they meant to teach.
-    session_cookies = await container.load_session().execute(
-        ctx, target_system=body.objective_key.target_system
+    session_cookies = (
+        ()
+        if body.attach_to
+        else await container.load_session().execute(
+            ctx, target_system=body.objective_key.target_system
+        )
     )
 
     # Capture starts only once the recording is durable: attaching first would
@@ -53,7 +58,7 @@ async def start_recording(
         ctx,
         recording_id=started.recording_id,
         debugger_url=started.debugger_url,
-        start_url=body.start_url,
+        start_url=body.start_url if not body.attach_to else None,
         session_cookies=session_cookies,
     )
     # Best effort by design -- see DurableExecution.watch_recording. A scheduler

@@ -23,7 +23,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any
 
-from playwright.async_api import BrowserContext, CDPSession, Page, async_playwright
+from playwright.async_api import BrowserContext, CDPSession, Frame, Page, async_playwright
 from playwright.async_api import Playwright as PlaywrightDriver
 
 from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent, SnapshotEvent
@@ -165,16 +165,32 @@ class CaptureSession:
         await context.expose_binding("__sroRecord", self._on_gesture)
         await context.add_init_script(self._recorder_source)
         page.on("domcontentloaded", lambda _: self._spawn(self._reinstall_recorder()))
-        await page.evaluate(self._recorder_source)
+        page.on("framenavigated", lambda frame: self._spawn(self._install_in(frame)))
+        page.on("frameattached", lambda frame: self._spawn(self._install_in(frame)))
+        await self._reinstall_recorder()
 
     async def _reinstall_recorder(self) -> None:
+        """Install into every frame, not just the main one.
+
+        A DOM event does not cross a frame boundary, so a recorder living only
+        in the top document sees nothing an operator does inside an embedded
+        application. Blue Yonder's portal attaches one iframe per screen, which
+        puts every gesture that matters in a child frame -- capture ran against
+        it and recorded zero steps while the operator worked.
+        """
         page = self._page
         if page is None:
             return
+        for frame in page.frames:
+            await self._install_in(frame)
+
+    async def _install_in(self, frame: Frame) -> None:
         try:
-            await page.evaluate(self._recorder_source)
-        except Exception:  # a document torn down mid-injection is not an error
-            return
+            await frame.evaluate(self._recorder_source)
+        except Exception:
+            # A frame being torn down, or one from an origin we cannot reach.
+            # Neither is worth failing a recording over.
+            logger.debug("no recorder in frame %s", frame.url[:80], exc_info=True)
 
     async def _enable_domains(self) -> None:
         cdp = await self._require_context().new_cdp_session(self._require_page())

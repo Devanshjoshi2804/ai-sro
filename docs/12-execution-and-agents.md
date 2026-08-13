@@ -54,6 +54,25 @@ attempt is verified by:
 can run assisted indefinitely. Autonomy is earned by being checkable, not by
 succeeding quietly.
 
+### The post-condition is not always the state change
+
+Measured on the target task. Every inventory adjustment demonstrated on the Blue
+Yonder QA instance — including a change of one case — came back with *"The
+Adjustment requested is greater than permitted limit - An Approval is Required.
+The Location has been Locked."* The `PUT /data/WM/wm/inventory/adjust` returns
+200, the LPN's on-hand quantity does **not** change, and a row appears in
+Inventory ▸ Adjustments ▸ Approvals for a supervisor to approve or reject.
+
+So a read-back asserting "on-hand is now the requested quantity" fails on a
+successful run, and a verifier written to that assumption would classify every
+correct execution as a failure. The post-condition for this task is *an
+adjustment exists, pending approval, with these values*, and reaching the real
+quantity needs a second human step this system does not perform.
+
+Read as a rule rather than a Blue Yonder quirk: **the post-condition belongs to
+the demonstration, not to the writer's intent.** What the operator's read-back
+looked at after the write is the only honest source for it.
+
 ## Writes
 
 Every mutating step carries an idempotency key derived from the run and the

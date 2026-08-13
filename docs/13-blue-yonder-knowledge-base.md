@@ -1,6 +1,6 @@
 # The Blue Yonder SCE knowledge base
 
-What we now know about the target system, how it was established, and the four places it contradicts
+What we now know about the target system, how it was established, and the five places it contradicts
 something this repository currently assumes.
 
 The artifact is [`../knowledge-base/`](../knowledge-base/); its README describes the contents and the
@@ -19,7 +19,7 @@ validate a generated call against**"*. The consequence column can now be softene
 there is still no vendor specification, but there is a recorded one, and a generated call can be
 checked against `knowledge-base/blue-yonder-sce/http/status-matrix.json` before it is ever sent.
 
-## Four corrections
+## Five corrections
 
 ### 1. SCE's browser traffic is REST, not MOCA commands
 
@@ -121,6 +121,20 @@ a dead route returns 404 forever.
 
 Every mutating verification needs the positive form: read back and assert the *record's* absence
 signature, not the status code alone.
+
+### 5. Operational writes land in an approval queue, not in the stock figure
+
+Added after driving the write the base deliberately did not: an inventory
+adjustment on a live LPN. `PUT /data/WM/wm/inventory/adjust` answered 200 and the
+application answered *"An Approval is Required. The Location has been Locked."*
+On-hand did not move; a row appeared under Inventory ▸ Adjustments ▸ Approvals.
+
+Two consequences. The verifier consequence is in
+[`12-execution-and-agents.md`](12-execution-and-agents.md#the-post-condition-is-not-always-the-state-change).
+The coverage consequence is that the base's write contract, proven on nine
+Configuration resources, does not generalise to the operational tier: config
+writes take effect, operational writes queue. Anything asserted about one tier
+from evidence in the other is asserted, not observed.
 
 ## Where it fits the phases
 

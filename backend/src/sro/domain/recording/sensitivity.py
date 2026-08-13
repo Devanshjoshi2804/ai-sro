@@ -29,6 +29,13 @@ _CSRF_HEADERS = frozenset(
     {"x-csrf-token", "x-xsrf-token", "csrf-token", "x-requested-with", "x-csrftoken"}
 )
 
+_CSRF_HINTS = ("csrf", "xsrf")
+"""Vendors name this header what they like.
+
+Blue Yonder sends `CSRF-ENCRYPT-TOKEN`, which no exact list predicted, and it
+was written into a skill as a literal value -- a live session secret in the
+plane that is meant to hold none, and stale by the time anything replayed it."""
+
 _SESSION_COOKIE_HINTS = ("sess", "sid", "auth", "token", "jwt", "login", "sso")
 
 _TRACE_HEADERS = frozenset(
@@ -92,7 +99,7 @@ def classify_header(name: str) -> Sensitivity:
     lowered = name.lower().strip()
     if lowered in _AUTH_HEADERS:
         return Sensitivity.AUTH
-    if lowered in _CSRF_HEADERS:
+    if lowered in _CSRF_HEADERS or any(hint in lowered for hint in _CSRF_HINTS):
         return Sensitivity.CSRF
     if lowered == "cookie":
         return Sensitivity.SESSION

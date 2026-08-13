@@ -14,8 +14,11 @@ from sro.application.capture.events import (
     SnapshotEvent,
 )
 from sro.domain.recording.axgraph import AxGraph
-from sro.domain.recording.events import ActionFrame
+from sro.domain.recording.events import ActionFrame, ActionKind
 from sro.domain.recording.network import CapturedRequest
+
+_NOT_A_STEP = frozenset({ActionKind.SCROLL, ActionKind.HOVER})
+"""Gestures that move attention rather than change anything."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +60,13 @@ def assemble_frames(events: list[CaptureEvent]) -> AssemblyResult:
 
     for event in sorted(events, key=_sort_key):
         match event:
+            case InputEvent() if event.action.kind in _NOT_A_STEP:
+                # Moving the viewport is not a step, and treating it as one
+                # costs the step before it its own evidence: a scroll between a
+                # click and its responses opens a frame that absorbs them. Two
+                # runs then attribute the same calls to different steps and the
+                # diff calls that a divergence.
+                continue
             case InputEvent():
                 open_frames.append(_OpenFrame(event=event))
             case SnapshotEvent():

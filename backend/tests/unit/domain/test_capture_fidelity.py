@@ -185,3 +185,12 @@ class TestAxGraph:
         )
 
         assert len(graph.interactive) == 1
+
+
+def test_a_vendor_named_csrf_header_is_still_a_csrf_header() -> None:
+    """Blue Yonder calls it `CSRF-ENCRYPT-TOKEN`; an exact list did not catch it,
+    and the live token was written into a skill as a literal."""
+    from sro.domain.recording.sensitivity import Sensitivity, classify_header
+
+    assert classify_header("CSRF-ENCRYPT-TOKEN") is Sensitivity.CSRF
+    assert classify_header("X-XSRF-HEADER") is Sensitivity.CSRF

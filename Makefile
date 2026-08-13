@@ -8,7 +8,7 @@ BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
-.PHONY: help up down ps logs reset install migrate revision api worker web \
+.PHONY: help up down ps logs reset install migrate revision api worker web vault-key \
         lint lint-backend lint-frontend format test test-unit test-integration \
         test-contract types check
 
@@ -40,6 +40,9 @@ reset: ## Destroy all local data and start clean
 install: ## Install backend and frontend dependencies
 	$(BACKEND) uv sync --all-extras
 	$(FRONTEND) npm ci
+
+vault-key: ## Generate a vault key: export SRO_VAULT_KEY=$$(make -s vault-key)
+	@$(BACKEND) uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 
 migrate: ## Apply database migrations
 	$(BACKEND) uv run alembic upgrade head

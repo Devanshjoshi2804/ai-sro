@@ -21,10 +21,19 @@ class CaptureController(Protocol):
         recording_id: RecordingId,
         debugger_url: str,
         start_url: str | None = None,
+        session_cookies: tuple[dict[str, object], ...] = (),
     ) -> None: ...
 
     async def stop(self, ctx: RequestContext, *, recording_id: RecordingId) -> None:
         """Flush what is buffered, then release the session. Idempotent."""
+        ...
+
+    async def snapshot_cookies(self, recording_id: RecordingId) -> list[dict[str, object]]:
+        """The live session's cookies, for the vault.
+
+        On this port rather than the browser one because only the capture
+        session holds an attached CDP connection to read them through.
+        """
         ...
 
     async def stop_all(self) -> None:

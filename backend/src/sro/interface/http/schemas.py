@@ -36,6 +36,30 @@ class StartRecordingResponse(BaseModel):
     live_view_url: str
 
 
+class ConnectSystemRequest(BaseModel):
+    name: str
+    target_system: str
+    base_url: str
+
+
+class ConnectionModel(BaseModel):
+    id: str
+    name: str
+    target_system: str
+    base_url: str
+    status: str
+    authenticated_at: datetime | None
+    last_error: str | None
+
+
+class OpenedConnectionResponse(BaseModel):
+    connection_id: str
+    live_view_url: str
+    browser_session_id: str
+    """Handed back when the operator says they have signed in, so the session
+    they created is the one that gets kept."""
+
+
 class MediaModel(BaseModel):
     kind: str
     url: str

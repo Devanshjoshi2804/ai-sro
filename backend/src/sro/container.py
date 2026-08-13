@@ -8,11 +8,13 @@ file, which is the whole point of the dependency rule.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.application.connection.connect_system import ConnectSystem, LoadSession, StoreSession
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider
@@ -21,6 +23,7 @@ from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.transcription import Transcriber
+from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.get_recording import GetRecording
@@ -41,6 +44,7 @@ from sro.infrastructure.system import SystemClock, UuidFactory
 from sro.infrastructure.telemetry.otel import configure_tracing
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
 from sro.infrastructure.transcription.null import NullTranscriber
+from sro.infrastructure.vault.file_vault import FileCredentialVault
 
 
 @dataclass
@@ -57,6 +61,7 @@ class Container:
     blobs: BlobStore
     browser: BrowserProvider
     transcriber: Transcriber
+    vault: CredentialVault
     durable: DurableExecution
     session_factory: async_sessionmaker[AsyncSession]
 
@@ -88,6 +93,15 @@ class Container:
     def list_recordings(self) -> ListRecordings:
         return ListRecordings(self.unit_of_work())
 
+    def connect_system(self) -> ConnectSystem:
+        return ConnectSystem(self.unit_of_work(), self.browser, self.clock, self.ids)
+
+    def store_session(self) -> StoreSession:
+        return StoreSession(self.unit_of_work(), self.vault, self.clock, self.browser)
+
+    def load_session(self) -> LoadSession:
+        return LoadSession(self.unit_of_work(), self.vault)
+
     def get_recording(self) -> GetRecording:
         return GetRecording(self.unit_of_work())
 
@@ -111,6 +125,34 @@ class Container:
 
     def promote_skill(self) -> PromoteSkill:
         return PromoteSkill(self.unit_of_work(), self.clock)
+
+
+def _build_vault(settings: Settings) -> CredentialVault:
+    """A vault that refuses to start beats one that writes plaintext.
+
+    The failure is deferred to first use rather than to boot: reading recordings
+    and reviewing skills need no secrets, and an API that will not start because
+    nobody has generated a key yet is worse than one that says so when a
+    connection is attempted.
+    """
+    try:
+        return FileCredentialVault(path=Path(settings.vault_path), key=settings.vault_key)
+    except VaultUnavailable as exc:
+        return _UnavailableVault(str(exc))
+
+
+@dataclass(frozen=True, slots=True)
+class _UnavailableVault:
+    reason: str
+
+    async def store(self, key: str, value: str) -> None:
+        raise VaultUnavailable(self.reason)
+
+    async def get(self, key: str) -> str | None:
+        raise VaultUnavailable(self.reason)
+
+    async def delete(self, key: str) -> None:
+        raise VaultUnavailable(self.reason)
 
 
 def build_container(settings: Settings | None = None) -> Container:
@@ -140,6 +182,7 @@ def build_container(settings: Settings | None = None) -> Container:
             session_timeout_seconds=settings.steel_session_timeout_seconds,
         ),
         transcriber=NullTranscriber(),
+        vault=_build_vault(settings),
         durable=TemporalDurableExecution(
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),

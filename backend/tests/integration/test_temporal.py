@@ -31,7 +31,7 @@ from sro.infrastructure.temporal.durable import TemporalDurableExecution
 from sro.infrastructure.temporal.workflows import InductionWorkflow, RecordingSessionWorkflow
 from sro.infrastructure.transcription.null import NullTranscriber
 from tests import factories as f
-from tests.unit.fakes import FakeBrowserProvider
+from tests.unit.fakes import FakeBrowserProvider, FakeCredentialVault
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 ADDRESS = "localhost:7233"
@@ -68,6 +68,7 @@ def container(session_factory: async_sessionmaker[AsyncSession]) -> Container:
         ),
         browser=FakeBrowserProvider(),
         transcriber=NullTranscriber(),
+        vault=FakeCredentialVault(),
         durable=TemporalDurableExecution(
             address=ADDRESS,
             default_queue=TEST_DEFAULT_QUEUE,

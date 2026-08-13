@@ -25,6 +25,7 @@ from tests.unit.fakes import (
     FakeBlobStore,
     FakeBrowserProvider,
     FakeClock,
+    FakeCredentialVault,
     FakeDurableExecution,
     FakeIdFactory,
     FakeTranscriber,
@@ -52,6 +53,7 @@ class _FakeContainer(Container):
         # tests/integration/test_steel_capture.py.
         self.capture = FakeCaptureSupervisor()
         self.durable = FakeDurableExecution(self.induce_skill())
+        self.vault = FakeCredentialVault()
 
     def unit_of_work(self) -> UnitOfWork:
         return self._uow
@@ -61,6 +63,7 @@ class FakeCaptureSupervisor(CaptureController):
     def __init__(self) -> None:
         self.started: list[str] = []
         self.stopped: list[str] = []
+        self.restored = False
 
     async def start(
         self,
@@ -69,11 +72,16 @@ class FakeCaptureSupervisor(CaptureController):
         recording_id: RecordingId,
         debugger_url: str,
         start_url: str | None = None,
+        session_cookies: tuple[dict[str, object], ...] = (),
     ) -> None:
         self.started.append(str(recording_id))
+        self.restored = bool(session_cookies)
 
     async def stop(self, ctx: RequestContext, *, recording_id: RecordingId) -> None:
         self.stopped.append(str(recording_id))
+
+    async def snapshot_cookies(self, recording_id: RecordingId) -> list[dict[str, object]]:
+        return []
 
     async def stop_all(self) -> None:
         return None

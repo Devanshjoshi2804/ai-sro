@@ -6,6 +6,7 @@ place, and apart from the domain so the domain never learns it is stored.
 
 from __future__ import annotations
 
+from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import (
     BrowserSessionId,
@@ -25,7 +26,7 @@ from sro.infrastructure.db.codec import (
     load_frames,
     load_versions,
 )
-from sro.infrastructure.db.models import RecordingRow, SkillRow
+from sro.infrastructure.db.models import ConnectionRow, RecordingRow, SkillRow
 
 
 def objective_columns(key: ObjectiveKey) -> dict[str, str]:
@@ -124,3 +125,34 @@ def row_to_skill(row: SkillRow) -> Skill:
     )
     skill._versions.extend(load_versions(row.versions))
     return skill
+
+
+def connection_to_row(connection: Connection) -> ConnectionRow:
+    row = ConnectionRow(id=connection.id.value)
+    update_connection_row(row, connection)
+    return row
+
+
+def update_connection_row(row: ConnectionRow, connection: Connection) -> None:
+    row.tenant_id = connection.tenant_id.value
+    row.name = connection.name
+    row.target_system = connection.target_system
+    row.base_url = connection.base_url
+    row.status = connection.status.value
+    row.created_at = connection.created_at
+    row.authenticated_at = connection.authenticated_at
+    row.last_error = connection.last_error
+
+
+def row_to_connection(row: ConnectionRow) -> Connection:
+    return Connection(
+        id=ConnectionId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        name=row.name,
+        target_system=row.target_system,
+        base_url=row.base_url,
+        created_at=row.created_at,
+        status=ConnectionStatus(row.status),
+        authenticated_at=row.authenticated_at,
+        last_error=row.last_error,
+    )

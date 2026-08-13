@@ -17,7 +17,7 @@ import base64
 import contextlib
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
@@ -29,7 +29,7 @@ from playwright.async_api import Playwright as PlaywrightDriver
 from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent, SnapshotEvent
 from sro.application.ports.blob import BlobStore
 from sro.domain.recording.artifact import ArtifactKind
-from sro.domain.recording.network import Body, CapturedRequest, RedirectHop
+from sro.domain.recording.network import Body, CapturedRequest, Cookie, RedirectHop
 from sro.domain.recording.state import ConsoleMessage, PageEvent
 from sro.infrastructure.steel.cdp_mapping import (
     CdpPayload,
@@ -43,7 +43,7 @@ from sro.infrastructure.steel.cdp_mapping import (
     to_page_event,
     to_timing,
 )
-from sro.infrastructure.steel.redaction import redact_body
+from sro.infrastructure.steel.redaction import REDACTED, redact_body
 from sro.infrastructure.steel.video import Recorded, ScreencastRecorder
 
 logger = logging.getLogger(__name__)
@@ -202,6 +202,36 @@ class CaptureSession:
             "Page.windowOpen",
         ):
             cdp.on(method, self._page_event_handler(method))
+
+    async def snapshot_cookies(self) -> list[dict[str, Any]]:
+        """Every cookie the browser holds, for the vault.
+
+        The one place cookie *values* are read deliberately. They are a bearer
+        credential — whoever holds them is the operator until they expire — so
+        they go straight to the vault and never into a frame.
+        """
+        cdp = self._cdp
+        if cdp is None:
+            return []
+        try:
+            result = await cdp.send("Network.getAllCookies")
+        except Exception:
+            logger.warning("could not read the session cookies", exc_info=True)
+            return []
+        cookies: list[dict[str, Any]] = result.get("cookies", [])
+        return cookies
+
+    async def restore_cookies(self, cookies: list[dict[str, Any]]) -> bool:
+        """Start a session already logged in. Returns whether anything was set."""
+        cdp = self._cdp
+        if cdp is None or not cookies:
+            return False
+        try:
+            await cdp.send("Network.setCookies", {"cookies": cookies})
+        except Exception:
+            logger.warning("could not restore the stored session", exc_info=True)
+            return False
+        return True
 
     async def open_at(self, url: str) -> None:
         """Put the session on the page the operator asked to start from.
@@ -415,9 +445,21 @@ class CaptureSession:
         if pending is None:
             return
         pending.response_headers.update(to_headers(payload.get("headers")))
-        pending.cookies_set = to_cookies(
-            [entry.get("cookie", {}) for entry in payload.get("cookies", [])]
+        pending.cookies_set = self._safe_cookies(
+            to_cookies([entry.get("cookie", {}) for entry in payload.get("cookies", [])])
         )
+
+    def _safe_cookies(self, cookies: tuple[Cookie, ...]) -> tuple[Cookie, ...]:
+        """Cookies without their values.
+
+        A session cookie is a credential in the same sense a password is: anyone
+        who reads the recording can be that operator until it expires. The name,
+        domain, flags and expiry are the evidence — they say what the session
+        looked like — and the value is the key, which belongs in the vault.
+        """
+        if not self._redact_secrets:
+            return cookies
+        return tuple(replace(cookie, value=REDACTED) for cookie in cookies)
 
     async def _finish(self, payload: CdpPayload) -> None:
         request_id = str(payload.get("requestId"))

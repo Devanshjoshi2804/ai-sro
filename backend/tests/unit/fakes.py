@@ -12,7 +12,12 @@ from itertools import count
 from sro.application.context import RequestContext
 from sro.application.induction.induce_skill import InducedSkill, InduceSkill
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
-from sro.application.ports.repositories import RecordingRepository, SkillRepository
+from sro.application.ports.repositories import (
+    ConnectionRepository,
+    RecordingRepository,
+    SkillRepository,
+)
+from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import (
@@ -72,6 +77,9 @@ class FakeBrowserProvider:
         if not self.available:
             raise BrowserUnavailable("fake provider is switched off")
         self.closed.append(session_id)
+
+    async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
+        return ({"name": "JSESSIONID", "value": "fake-session", "domain": "wms.test"},)
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         if session_id in self.closed:
@@ -217,6 +225,48 @@ class FakeSkillRepository:
         return tuple(rows[offset : offset + limit])
 
 
+class FakeConnectionRepository:
+    def __init__(self) -> None:
+        self.rows: dict[tuple[str, str], Connection] = {}
+
+    async def add(self, connection: Connection) -> None:
+        self.rows[(str(connection.tenant_id), str(connection.id))] = connection
+
+    async def get(self, tenant_id: TenantId, connection_id: ConnectionId) -> Connection:
+        try:
+            return self.rows[(str(tenant_id), str(connection_id))]
+        except KeyError:
+            raise NotFound(f"connection {connection_id} not found") from None
+
+    async def save(self, connection: Connection) -> None:
+        await self.add(connection)
+
+    async def find_by_system(self, tenant_id: TenantId, target_system: str) -> Connection | None:
+        for (tenant, _), connection in self.rows.items():
+            if tenant == str(tenant_id) and connection.target_system == target_system:
+                return connection
+        return None
+
+    async def list_for_tenant(self, tenant_id: TenantId) -> tuple[Connection, ...]:
+        return tuple(c for (t, _), c in self.rows.items() if t == str(tenant_id))
+
+
+class FakeCredentialVault:
+    """In memory, and asserts the one rule: nothing else may read a value."""
+
+    def __init__(self) -> None:
+        self.secrets: dict[str, str] = {}
+
+    async def store(self, key: str, value: str) -> None:
+        self.secrets[key] = value
+
+    async def get(self, key: str) -> str | None:
+        return self.secrets.get(key)
+
+    async def delete(self, key: str) -> None:
+        self.secrets.pop(key, None)
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -225,10 +275,12 @@ class FakeUnitOfWork:
 
     recordings: RecordingRepository
     skills: SkillRepository
+    connections: ConnectionRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
         self.skills = FakeSkillRepository()
+        self.connections = FakeConnectionRepository()
         self.commits = 0
         self.rollbacks = 0
 

@@ -89,3 +89,23 @@ class SkillRow(Base):
             unique=True,
         ),
     )
+
+
+class ConnectionRow(Base):
+    __tablename__ = "connections"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    target_system: Mapped[str] = mapped_column(String(64), nullable=False)
+    base_url: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    authenticated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        # One connection per system per tenant: a second would mean two sessions
+        # racing each other into the same WMS.
+        Index("uq_connections_tenant_system", "tenant_id", "target_system", unique=True),
+    )

@@ -41,6 +41,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Connections */
+        get: operations["list_connections_v1_connections_get"];
+        put?: never;
+        /**
+         * Connect System
+         * @description Open a browser at the system. The operator signs in there, not here.
+         */
+        post: operations["connect_system_v1_connections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Store Session
+         * @description Keep the session the operator just created.
+         *
+         *     Called when they say they are signed in. The cookies are read out of the
+         *     browser and encrypted into the vault; nothing about them is returned here.
+         */
+        post: operations["store_session_v1_connections__connection_id__session_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/recordings": {
         parameters: {
             query?: never;
@@ -267,6 +311,32 @@ export interface components {
             /** Duration Ms */
             duration_ms?: number | null;
         };
+        /** ConnectSystemRequest */
+        ConnectSystemRequest: {
+            /** Name */
+            name: string;
+            /** Target System */
+            target_system: string;
+            /** Base Url */
+            base_url: string;
+        };
+        /** ConnectionModel */
+        ConnectionModel: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Target System */
+            target_system: string;
+            /** Base Url */
+            base_url: string;
+            /** Status */
+            status: string;
+            /** Authenticated At */
+            authenticated_at: string | null;
+            /** Last Error */
+            last_error: string | null;
+        };
         /**
          * Direction
          * @enum {string}
@@ -395,6 +465,15 @@ export interface components {
             /** Facility */
             facility: string;
             direction: components["schemas"]["Direction"];
+        };
+        /** OpenedConnectionResponse */
+        OpenedConnectionResponse: {
+            /** Connection Id */
+            connection_id: string;
+            /** Live View Url */
+            live_view_url: string;
+            /** Browser Session Id */
+            browser_session_id: string;
         };
         /** ParameterModel */
         ParameterModel: {
@@ -623,6 +702,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
+    list_connections_v1_connections_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionModel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_system_v1_connections_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectSystemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenedConnectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    store_session_v1_connections__connection_id__session_post: {
+        parameters: {
+            query: {
+                browser_session_id: string;
+            };
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

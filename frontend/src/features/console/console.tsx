@@ -17,6 +17,7 @@ import { SkillCard } from "@/features/console/skill-card";
 import { TeachPanel } from "@/features/console/teach-panel";
 import { useThread } from "@/features/console/thread-store";
 import { TopBar } from "@/features/console/top-bar";
+import { ConnectPanel, connectionKeys, listConnections } from "@/features/console/connect-panel";
 
 type Objective = {
   objective_type: string;
@@ -44,8 +45,10 @@ export function Console() {
   const [plusOpen, setPlusOpen] = useState(false);
   const [objective, setObjective] = useState<Objective | null>(null);
   const [active, setActive] = useState<{ recordingId: string; run: number } | null>(null);
+  const [connecting, setConnecting] = useState(false);
 
   const skills = useQuery({ queryKey: skillKeys.all, queryFn: listSkills });
+  const connections = useQuery({ queryKey: connectionKeys.all, queryFn: listConnections });
   const recordings = useQuery({ queryKey: recordingKeys.all, queryFn: listRecordings });
 
   const start = useMutation({
@@ -144,7 +147,11 @@ export function Console() {
         </div>
       </TopBar>
 
-      {tab === "teach" && active ? (
+      {connecting ? (
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ConnectPanel onDone={() => setConnecting(false)} />
+        </div>
+      ) : tab === "teach" && active ? (
         <div style={{ flex: 1, minHeight: 0 }}>
           <TeachPanel
             recordingId={active.recordingId}
@@ -172,6 +179,54 @@ export function Console() {
               overflow: "auto",
             }}
           >
+            <Section title="SYSTEMS">
+              {(connections.data ?? []).map((connection) => (
+                <div
+                  key={connection.id}
+                  style={{
+                    padding: "9px 10px",
+                    border: `1px solid ${ink.line}`,
+                    borderRadius: 8,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                  }}
+                >
+                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>{connection.name}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: "50%",
+                        background: connection.status === "connected" ? ink.goodDot : ink.textMuted,
+                      }}
+                    />
+                    <span style={{ fontSize: 11, color: ink.textSoft }}>
+                      {connection.status === "connected" ? "session held" : connection.status}
+                    </span>
+                  </span>
+                </div>
+              ))}
+              {(connections.data ?? []).length === 0 && (
+                <button
+                  onClick={() => setConnecting(true)}
+                  style={{
+                    padding: "9px 10px",
+                    fontSize: 12.5,
+                    color: ink.textMuted,
+                    background: "transparent",
+                    border: `1px dashed ${ink.line}`,
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  None connected — add one
+                </button>
+              )}
+            </Section>
+
             <Section title="SKILLS">
               {(skills.data ?? []).map((skill) => (
                 <Link
@@ -417,8 +472,11 @@ export function Console() {
                     <PlusItem
                       icon="⌗"
                       title="Connect a system"
-                      subtitle="Not built yet — credentials go to the vault"
-                      disabled
+                      subtitle="You sign in there; the session is kept encrypted"
+                      onClick={() => {
+                        setPlusOpen(false);
+                        setConnecting(true);
+                      }}
                     />
                   </div>
                 )}

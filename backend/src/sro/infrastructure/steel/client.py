@@ -88,6 +88,25 @@ class SteelClient:
                 f"could not release Steel session {session_id}: {exc}"
             ) from exc
 
+    async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
+        """Read the cookies through a short-lived CDP attachment.
+
+        Deliberately not held open: this runs once, when a human has just
+        finished logging in, and an idle connection to the browser they are
+        using is a way to lose their session rather than keep it.
+        """
+        from playwright.async_api import async_playwright
+
+        debugger_url = await self._websocket_debugger_url()
+        async with async_playwright() as driver:
+            browser = await driver.chromium.connect_over_cdp(debugger_url)
+            try:
+                context = browser.contexts[0] if browser.contexts else None
+                cookies = await context.cookies() if context else []
+            finally:
+                await browser.close()
+        return tuple(dict(cookie) for cookie in cookies)
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         """Ask Steel where the session can be driven.
 

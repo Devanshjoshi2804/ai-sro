@@ -25,6 +25,14 @@ class BrowserProvider(Protocol):
         """Idempotent -- crash recovery calls this on sessions already gone."""
         ...
 
+    async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
+        """Every cookie the session holds.
+
+        The only place cookie values are read on purpose. They are a bearer
+        credential, so the caller puts them in the vault and nowhere else.
+        """
+        ...
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         """Where a human drives this session, asked for after the fact.
 

@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     who is accountable for it.
     """
 
+    vault_path: str = "./.sro-vault"
+    vault_key: str | None = None
+    """Fernet key for the file vault. Without it the vault refuses to start
+    rather than writing plaintext. Generate one with `make vault-key`."""
+
     transcription_enabled: bool = False
     """Narration transcription is optional. Default binding is NullTranscriber."""
 

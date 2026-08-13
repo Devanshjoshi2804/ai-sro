@@ -10,22 +10,31 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from sro.application.ports.repositories import RecordingRepository, SkillRepository, UnitOfWork
+from sro.application.ports.repositories import (
+    ConnectionRepository,
+    RecordingRepository,
+    SkillRepository,
+    UnitOfWork,
+)
+from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import RecordingId, SkillId, TenantId
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
 from sro.infrastructure.db.mappers import (
+    connection_to_row,
     objective_columns,
     recording_to_row,
+    row_to_connection,
     row_to_recording,
     row_to_skill,
     skill_to_row,
+    update_connection_row,
     update_recording_row,
     update_skill_row,
 )
-from sro.infrastructure.db.models import RecordingRow, SkillRow
+from sro.infrastructure.db.models import ConnectionRow, RecordingRow, SkillRow
 
 
 class SqlRecordingRepository(RecordingRepository):
@@ -117,6 +126,48 @@ class SqlSkillRepository(SkillRepository):
         return row
 
 
+class SqlConnectionRepository(ConnectionRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, connection: Connection) -> None:
+        self._session.add(connection_to_row(connection))
+
+    async def get(self, tenant_id: TenantId, connection_id: ConnectionId) -> Connection:
+        return row_to_connection(await self._row(tenant_id, connection_id))
+
+    async def save(self, connection: Connection) -> None:
+        row = await self._row(connection.tenant_id, connection.id)
+        update_connection_row(row, connection)
+
+    async def find_by_system(self, tenant_id: TenantId, target_system: str) -> Connection | None:
+        query = select(ConnectionRow).where(
+            ConnectionRow.tenant_id == tenant_id.value,
+            ConnectionRow.target_system == target_system,
+        )
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        return row_to_connection(row) if row is not None else None
+
+    async def list_for_tenant(self, tenant_id: TenantId) -> tuple[Connection, ...]:
+        query = (
+            select(ConnectionRow)
+            .where(ConnectionRow.tenant_id == tenant_id.value)
+            .order_by(ConnectionRow.created_at.desc())
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_connection(row) for row in rows)
+
+    async def _row(self, tenant_id: TenantId, connection_id: ConnectionId) -> ConnectionRow:
+        query = select(ConnectionRow).where(
+            ConnectionRow.id == connection_id.value,
+            ConnectionRow.tenant_id == tenant_id.value,
+        )
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        if row is None:
+            raise NotFound(f"connection {connection_id} not found")
+        return row
+
+
 class SqlUnitOfWork(UnitOfWork):
     """One session per block. The session opens on entry, not on construction,
     so a unit of work can be built once and used per request."""
@@ -129,6 +180,7 @@ class SqlUnitOfWork(UnitOfWork):
         self._session = self._session_factory()
         self.recordings = SqlRecordingRepository(self._session)
         self.skills = SqlSkillRepository(self._session)
+        self.connections = SqlConnectionRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

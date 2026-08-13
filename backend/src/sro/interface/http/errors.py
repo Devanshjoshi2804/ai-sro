@@ -9,8 +9,10 @@ from __future__ import annotations
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from sro.application.connection.connect_system import NotAuthenticated
 from sro.application.induction.errors import InductionFailed
 from sro.application.ports.browser import BrowserUnavailable
+from sro.application.ports.vault import VaultUnavailable
 from sro.domain.shared.errors import Conflict, DomainError, InvariantViolation, NotFound
 
 _STATUS_BY_ERROR: dict[type[Exception], int] = {
@@ -19,6 +21,8 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     InvariantViolation: status.HTTP_422_UNPROCESSABLE_CONTENT,
     InductionFailed: status.HTTP_422_UNPROCESSABLE_CONTENT,
     BrowserUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    VaultUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    NotAuthenticated: status.HTTP_409_CONFLICT,
 }
 
 _TITLES = {
@@ -55,5 +59,11 @@ def _problem(request: Request, exc: Exception) -> JSONResponse:
 
 
 def install_error_handlers(app: FastAPI) -> None:
-    for error_type in (DomainError, InductionFailed, BrowserUnavailable):
+    for error_type in (
+        DomainError,
+        InductionFailed,
+        BrowserUnavailable,
+        VaultUnavailable,
+        NotAuthenticated,
+    ):
         app.add_exception_handler(error_type, _problem)

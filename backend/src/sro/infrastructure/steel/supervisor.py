@@ -71,6 +71,7 @@ class CaptureSupervisor:
         recording_id: RecordingId,
         debugger_url: str,
         start_url: str | None = None,
+        session_cookies: tuple[dict[str, object], ...] = (),
     ) -> None:
         session = CaptureSession(
             blob_store=self._blobs,
@@ -82,6 +83,11 @@ class CaptureSupervisor:
             redact_secrets=self._redact_secrets,
         )
         await session.attach(debugger_url)
+        # Cookies before navigation: restoring them afterwards means the first
+        # page load is the login screen, and the demonstration starts with a
+        # step nobody wants in the skill.
+        if session_cookies:
+            await session.restore_cookies([dict(cookie) for cookie in session_cookies])
         if start_url:
             await session.open_at(start_url)
 
@@ -104,6 +110,13 @@ class CaptureSupervisor:
             await self._store_video(ctx, recording_id, running.session)
         finally:
             await running.session.detach()
+
+    async def snapshot_cookies(self, recording_id: RecordingId) -> list[dict[str, object]]:
+        """Session cookies from a live capture, for the vault."""
+        running = self._running.get(recording_id.value)
+        if running is None:
+            return []
+        return await running.session.snapshot_cookies()
 
     async def stop_all(self) -> None:
         for key in list(self._running):

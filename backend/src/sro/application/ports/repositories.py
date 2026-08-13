@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.identifiers import RecordingId, SkillId, TenantId
 from sro.domain.shared.objective import ObjectiveKey
@@ -52,11 +53,26 @@ class SkillRepository(Protocol):
     ) -> tuple[Skill, ...]: ...
 
 
+class ConnectionRepository(Protocol):
+    async def add(self, connection: Connection) -> None: ...
+
+    async def get(self, tenant_id: TenantId, connection_id: ConnectionId) -> Connection: ...
+
+    async def save(self, connection: Connection) -> None: ...
+
+    async def find_by_system(self, tenant_id: TenantId, target_system: str) -> Connection | None:
+        """``None`` is meaningful: the caller offers to connect one instead."""
+        ...
+
+    async def list_for_tenant(self, tenant_id: TenantId) -> tuple[Connection, ...]: ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
     recordings: RecordingRepository
     skills: SkillRepository
+    connections: ConnectionRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

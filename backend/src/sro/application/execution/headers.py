@@ -8,6 +8,7 @@ would produce a 401 or, worse, a call that succeeds as somebody else.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from sro.application.ports.vault import CredentialVault
 from sro.domain.recording.sensitivity import Sensitivity
@@ -70,6 +71,34 @@ async def resolve_headers(
             _put(headers, plan.name, plan.value.render(values))
 
     return ResolvedHeaders(headers=headers, missing=tuple(dict.fromkeys(missing)))
+
+
+_ORIGIN_HEADERS = ("referer", "origin")
+
+
+def client_headers(plans: tuple[HeaderPlan, ...], url: str) -> dict[str, str]:
+    """Client-managed headers, set for *this* request rather than replayed.
+
+    `Referer` and `Origin` are recorded as client-managed because the captured
+    values describe the page a demonstration happened on, and replaying those is
+    misleading. Omitting them altogether turned out to be worse: Blue Yonder's
+    auth filter answers a same-origin API call with no `Referer` by redirecting
+    to the login page, so every replayed read came back 302 with a live session
+    in hand. A browser would have sent one; the executor sends the one that is
+    true of the call it is actually making.
+    """
+    parts = urlsplit(url)
+    if not parts.scheme or not parts.netloc:
+        return {}
+    origin = f"{parts.scheme}://{parts.netloc}"
+    observed = {plan.name.lower() for plan in plans if plan.managed}
+
+    headers: dict[str, str] = {}
+    if "referer" in observed:
+        headers["referer"] = f"{origin}/"
+    if "origin" in observed:
+        headers["origin"] = origin
+    return headers
 
 
 def _put(headers: dict[str, str], name: str, value: str) -> None:

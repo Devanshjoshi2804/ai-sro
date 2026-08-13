@@ -66,7 +66,7 @@ def _stable_response_fields(body_a: str | None, body_b: str | None) -> list[Asse
         and leaf == leaves_b[pointer]
         and leaf is not None
         and leaf != ""
-        and len(str(leaf)) <= MAX_ASSERTED_VALUE_LENGTH
+        and len(jsonutil.as_text(leaf)) <= MAX_ASSERTED_VALUE_LENGTH
     ]
     # A stable `status` witnesses success better than a stable `pageSize`.
     stable.sort(key=lambda item: 0 if _looks_like_a_success_marker(item[0]) else 1)
@@ -75,7 +75,7 @@ def _stable_response_fields(body_a: str | None, body_b: str | None) -> list[Asse
         Assertion(
             kind=AssertionKind.RESPONSE_FIELD_EQUALS,
             pointer=pointer,
-            expected=Template(str(leaf)),
+            expected=Template(jsonutil.as_text(leaf)),
         )
         for pointer, leaf in stable[:MAX_FIELD_ASSERTIONS]
     ]

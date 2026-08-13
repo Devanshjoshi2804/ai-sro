@@ -148,6 +148,10 @@ def artifact(kind: ArtifactKind = ArtifactKind.VIDEO, **overrides: Any) -> Media
     return MediaArtifact(**{**defaults, **overrides})
 
 
+def body(text: str) -> Body:
+    return Body(text=text, size_bytes=len(text), mime_type="application/json")
+
+
 def network_plan(**overrides: Any) -> NetworkPlan:
     defaults: dict[str, Any] = {
         "method": "POST",

@@ -10,6 +10,7 @@ import pytest
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest, NotRunnable
+from sro.application.induction.assertions import extract
 from sro.domain.execution.run import RunStatus, StepDisposition
 from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.identifiers import SkillId
@@ -131,7 +132,12 @@ async def test_an_assisted_run_sends_the_write_with_the_live_session() -> None:
 
     assert len(http.sent) == 1
     sent = http.sent[0]
-    assert sent["headers"] == {"cookie": "session=live", "Content-Type": "application/json"}
+    assert sent["headers"] == {
+        # `referer` is set for this call, not replayed from the demonstration.
+        "referer": "https://wms.test/",
+        "cookie": "session=live",
+        "Content-Type": "application/json",
+    }
     assert sent["body"] == '{"shipmentId": "555"}'
     assert run.steps[0].disposition is StepDisposition.PERFORMED
     assert run.status is RunStatus.SUCCEEDED
@@ -248,3 +254,56 @@ async def test_a_timeout_on_a_write_says_the_call_may_have_landed() -> None:
 
     assert run.status is RunStatus.FAILED
     assert "may have arrived" in (run.steps[0].detail or "")
+
+
+async def test_a_same_origin_referer_is_set_for_the_call_being_made() -> None:
+    """Blue Yonder redirects an API call with no `Referer` to the login page,
+    however good the session is. The captured value belongs to a page that no
+    longer exists, so the executor sends one true of this request instead."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    await _skill(uow, f.skill_version(steps=(_write_step(),)), PromotionStage.ASSISTED)
+
+    await _executor(uow, http, vault).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    headers = http.sent[0]["headers"]
+    assert isinstance(headers, dict)
+    assert headers["referer"] == "https://wms.test/"
+    assert "origin" not in headers, "only the headers the demonstration carried"
+
+
+async def test_a_boolean_matches_what_induction_wrote_down() -> None:
+    """The WMS answers `"approvalRequired": true`. Induction rendered that with
+    Python's `str` -- "True" -- and the executor read the live value back as
+    "true", so a run that did exactly the right thing reported a mismatch
+    against itself."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    answer = '{"approvalRequired": true}'
+    http.answer(status_code=200, text=answer)
+
+    evidence = extract(
+        f.frame(requests=(f.request(response_body=f.body(answer)),)),
+        f.frame(requests=(f.request(response_body=f.body(answer)),)),
+    )
+    step = f.step(index=0, network_plan=_write_step().network_plan, assertions=evidence.assertions)
+    await _skill(uow, f.skill_version(steps=(step,)), PromotionStage.ASSISTED)
+
+    run = await _executor(uow, http, vault).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert any(a.pointer == "/approvalRequired" for a in evidence.assertions)
+    assert run.steps[0].assertion_failures == ()

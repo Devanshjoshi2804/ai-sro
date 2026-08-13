@@ -41,7 +41,7 @@ def check(
                 if not _has(document, pointer):
                     failures.append(f"response has no {pointer}, expected {expected!r}")
                 else:
-                    actual = _text(jsonutil.get(document, pointer))
+                    actual = jsonutil.as_text(jsonutil.get(document, pointer))
                     if actual != expected:
                         failures.append(f"{pointer} is {actual!r}, expected {expected!r}")
 
@@ -60,7 +60,7 @@ def extract(response: HttpResponse, pointer: str) -> str | None:
     document = _parse(response.text)
     if not _has(document, pointer):
         return None
-    return _text(jsonutil.get(document, pointer))
+    return jsonutil.as_text(jsonutil.get(document, pointer))
 
 
 def _parse(text: str) -> JsonValue:
@@ -78,11 +78,3 @@ def _has(document: JsonValue, pointer: str) -> bool:
     except (KeyError, IndexError, TypeError, ValueError):
         return False
     return True
-
-
-def _text(value: JsonValue) -> str:
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if value is None:
-        return ""
-    return value if isinstance(value, str) else json.dumps(value)

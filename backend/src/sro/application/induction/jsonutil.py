@@ -6,6 +6,7 @@ dependency. Reach for ``jsonpointer`` if that stops being true.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from typing import Any
 
@@ -43,6 +44,23 @@ def leaves(value: JsonValue, prefix: str = "") -> Iterator[tuple[str, JsonValue]
             yield from leaves(child, f"{prefix}/{index}")
     else:
         yield prefix, value
+
+
+def as_text(value: JsonValue) -> str:
+    """One rendering of a JSON scalar, used by whoever writes an expectation and
+    by whoever checks it.
+
+    Python's ``str`` renders JSON ``true`` as ``"True"``. Induction wrote that
+    into an assertion and the executor read the live response back as ``"true"``,
+    so a run that did exactly the right thing reported a mismatch against
+    itself. The rendering has to be the same rule on both sides, so it is one
+    function.
+    """
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return ""
+    return value if isinstance(value, str) else json.dumps(value)
 
 
 def get(document: JsonValue, pointer: str) -> JsonValue:

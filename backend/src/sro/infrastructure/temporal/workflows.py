@@ -121,6 +121,9 @@ class ExecutionWorkflow:
         started: StartedRun = await workflow.execute_activity(
             "start_run",
             request,
+            # Named activities carry no type information, so the converter
+            # hands back a dict unless the shape is stated here.
+            result_type=StartedRun,
             start_to_close_timeout=timedelta(seconds=30),
             retry_policy=_READ_RETRY,
         )
@@ -140,6 +143,7 @@ class ExecutionWorkflow:
                     run_id=started.run_id,
                     index=index,
                 ),
+                result_type=StepResult,
                 start_to_close_timeout=timedelta(minutes=2),
                 # Chosen per step: whether this one writes is known only after
                 # the first attempt, so the conservative policy applies to every

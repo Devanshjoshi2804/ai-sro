@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sro.application.context import RequestContext
-from sro.application.execution.headers import resolve_headers
+from sro.application.execution.headers import client_headers, resolve_headers
 from sro.application.execution.verify import check, extract
 from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
@@ -203,8 +203,9 @@ class ExecuteStep:
                 {},
             )
 
+        headers = {**client_headers(plan.headers, url), **resolved.headers}
         try:
-            response = await self._http.send(plan.method, url, headers=resolved.headers, body=body)
+            response = await self._http.send(plan.method, url, headers=headers, body=body)
         except TargetUnreachable as error:
             detail = str(error)
             if mutating:

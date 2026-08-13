@@ -275,6 +275,86 @@ async def test_a_demonstration_is_recorded_as_a_playable_video(steel: SteelClien
     recorded.path.unlink(missing_ok=True)
 
 
+LOGIN_PAGE = """
+<!doctype html><title>WMS login</title>
+<form id="login" onsubmit="return false">
+  <input id="user" name="username" value="">
+  <input id="pw" type="password" name="password" value="">
+  <button id="go" type="button" onclick="send()">Sign in</button>
+</form>
+<script>
+function send() {
+  fetch('/api/session', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      username: document.getElementById('user').value,
+      password: document.getElementById('pw').value,
+      facility: 'DC01',
+    }),
+  });
+}
+</script>"""
+
+
+async def test_a_password_never_reaches_the_recording(steel: SteelClient) -> None:
+    """The one thing capture does not keep.
+
+    Teaching a WMS task starts with logging in. Everything else in the session
+    is evidence; the password is a key to the customer's system, and an evidence
+    store holding keys is a credential store nobody agreed to run.
+    """
+    session = await steel.open()
+    capture = CaptureSession(blob_store=FakeBlobStore(), key_prefix="acme/rec-login", video=False)
+
+    try:
+        await capture.attach(session.debugger_url)
+        page = capture.page
+        await page.route(
+            "https://wms.test/login",
+            lambda route: route.fulfill(status=200, content_type="text/html", body=LOGIN_PAGE),
+        )
+        await page.route(
+            "**/api/session",
+            lambda route: route.fulfill(
+                status=200, content_type="application/json", body='{"ok": true}'
+            ),
+        )
+        await page.goto("https://wms.test/login")
+        await page.fill("#user", "clerk")
+        await page.fill("#pw", "hunter2-very-secret")
+        await page.click("#go")
+        await page.wait_for_timeout(1200)
+
+        capture.flush_incomplete()
+        batch = capture.drain()
+    finally:
+        await capture.detach()
+        await steel.close(session.id)
+
+    everything = repr(batch.events)
+    assert "hunter2-very-secret" not in everything, "the password reached the evidence plane"
+    # The username is ordinary business data and must survive.
+    assert "clerk" in everything
+
+    typed = [event for event in batch.events if isinstance(event, InputEvent)]
+    secret_inputs = [event for event in typed if event.action.secret]
+    assert secret_inputs, "the password field was not recognised as a credential"
+    assert all(event.action.value is None for event in secret_inputs)
+
+    login = next(
+        (
+            event
+            for event in batch.events
+            if isinstance(event, RequestEvent) and "api/session" in event.request.url
+        ),
+        None,
+    )
+    assert login is not None and login.request.request_body is not None
+    assert "password" in login.request.request_body.redacted_fields
+    assert "clerk" in (login.request.request_body.text or "")
+
+
 async def test_the_session_api_shape_is_what_the_adapter_expects(steel: SteelClient) -> None:
     session = await steel.open()
     try:

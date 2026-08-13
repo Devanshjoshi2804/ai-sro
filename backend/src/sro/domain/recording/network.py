@@ -86,6 +86,14 @@ class Body:
     encoding: str | None = None
     """``base64`` when the payload is binary."""
 
+    redacted_fields: tuple[str, ...] = ()
+    """Fields whose values were replaced before the body was ever stored.
+
+    Only credentials, matched by field name. Recorded so a reviewer can see that
+    something was removed and what it was called -- a silent redaction is
+    indistinguishable from a capture bug.
+    """
+
     @property
     def is_inline(self) -> bool:
         return self.text is not None

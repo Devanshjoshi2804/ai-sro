@@ -33,6 +33,23 @@
 
   const MAX_TEXT = 200;
 
+  // A credential field is recognised where it is typed, not later. Anything
+  // matched here has its value dropped before it leaves the page: the evidence
+  // plane keeps everything a demonstration did, and a password is not that --
+  // it is a key to the customer's system.
+  const SECRET_NAME = /pass|pwd|secret|token|otp|pin\b|cvv|ssn|security.?(code|answer)/i;
+  const isSecretField = (el) => {
+    if (!el || el.nodeType !== 1) return false;
+    if ((el.type || '').toLowerCase() === 'password') return true;
+    const autocomplete = (el.getAttribute('autocomplete') || '').toLowerCase();
+    if (autocomplete.includes('password') || autocomplete === 'one-time-code') return true;
+    return SECRET_NAME.test(
+      [el.name, el.id, el.getAttribute('aria-label'), el.getAttribute('placeholder')]
+        .filter(Boolean)
+        .join(' '),
+    );
+  };
+
   const cssPath = (el) => {
     const parts = [];
     let node = el;
@@ -71,6 +88,9 @@
 
   // Best-effort label. The authoritative accessible name comes from the AX tree.
   const label = (el) => {
+    // Never for a credential field: the last fallback below is `el.value`, so a
+    // password with no label would become its own accessible name.
+    if (isSecretField(el)) return null;
     const aria = el.getAttribute('aria-label');
     if (aria) return aria;
     const labelledBy = el.getAttribute('aria-labelledby');
@@ -86,18 +106,24 @@
 
   const describe = (el) => {
     if (!el || el.nodeType !== 1) return null;
+    const secret = isSecretField(el);
     const box = el.getBoundingClientRect();
     const attributes = {};
     for (const attr of el.attributes || []) {
       // Values are captured; nothing here is filtered. Storage-side policy
       // decides what may leave the evidence plane.
+      // `value` on a credential field is the credential itself: omit the
+      // attribute rather than blanking it, so nothing downstream stringifies a
+      // placeholder into the recording.
+      if (attr.name === 'value' && secret) continue;
       attributes[attr.name] = String(attr.value).slice(0, 512);
     }
     return {
       tag: el.tagName.toLowerCase(),
       role: el.getAttribute('role') || null,
       name: label(el),
-      text: (el.innerText || '').trim().slice(0, MAX_TEXT) || null,
+      secret,
+      text: secret ? null : (el.innerText || '').trim().slice(0, MAX_TEXT) || null,
       testId:
         el.getAttribute('data-testid') ||
         el.getAttribute('data-test-id') ||
@@ -147,7 +173,14 @@
       return;
     }
     const kind = el.tagName === 'SELECT' ? 'select' : 'type';
-    emit({ kind, target: describe(el), value: el.value ?? null, modifiers: [] });
+    const secret = isSecretField(el);
+    emit({
+      kind,
+      target: describe(el),
+      value: secret ? null : (el.value ?? null),
+      secret,
+      modifiers: [],
+    });
   });
 
   listen('keydown', (e) => {

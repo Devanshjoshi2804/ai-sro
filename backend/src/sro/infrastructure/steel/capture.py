@@ -43,6 +43,7 @@ from sro.infrastructure.steel.cdp_mapping import (
     to_page_event,
     to_timing,
 )
+from sro.infrastructure.steel.redaction import redact_body
 from sro.infrastructure.steel.video import Recorded, ScreencastRecorder
 
 logger = logging.getLogger(__name__)
@@ -107,12 +108,14 @@ class CaptureSession:
         screenshot_per_gesture: bool = True,
         video: bool = True,
         video_fps: int = 2,
+        redact_secrets: bool = True,
     ) -> None:
         self._blobs = blob_store
         self._prefix = key_prefix.rstrip("/")
         self._inline_limit = inline_body_limit_bytes
         self._screenshot = screenshot_per_gesture
         self._video_fps = video_fps
+        self._redact_secrets = redact_secrets
         self._recorder = ScreencastRecorder() if video else None
 
         self._events: list[CaptureEvent] = []
@@ -358,7 +361,17 @@ class CaptureSession:
         post_data = request.get("postData")
         body = None
         if post_data:
-            body = Body(text=str(post_data), size_bytes=len(str(post_data).encode()))
+            raw = str(post_data)
+            content_type = to_headers(request.get("headers")).get("Content-Type")
+            if self._redact_secrets:
+                text, redacted = redact_body(raw, content_type=content_type)
+            else:
+                text, redacted = raw, ()
+            body = Body(
+                text=text,
+                size_bytes=len(text.encode()),
+                redacted_fields=redacted,
+            )
 
         self._pending[request_id] = _PendingRequest(
             request_id=request_id,
@@ -441,11 +454,15 @@ class CaptureSession:
             return None
 
         if len(raw) <= self._inline_limit:
+            redacted: tuple[str, ...] = ()
+            if self._redact_secrets and not base64_encoded:
+                text, redacted = redact_body(text, content_type=pending.mime_type)
             return Body(
                 text=text,
                 size_bytes=len(raw),
                 mime_type=pending.mime_type,
                 encoding="base64" if base64_encoded else None,
+                redacted_fields=redacted,
             )
 
         uri = await self._blobs.put(

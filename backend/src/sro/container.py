@@ -154,5 +154,6 @@ def build_container(settings: Settings | None = None) -> Container:
         screenshot_per_gesture=settings.capture_screenshot_per_frame,
         video=settings.capture_video,
         video_fps=settings.capture_video_fps,
+        redact_secrets=settings.capture_redact_secret_values,
     )
     return container

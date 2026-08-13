@@ -314,10 +314,18 @@ def to_input_action(payload: CdpPayload) -> InputAction:
     """
     target = payload.get("target")
     fingerprint = _to_dom_fingerprint(target) if target else None
+    secret = bool(payload.get("secret"))
     return InputAction(
         kind=ActionKind(str(payload.get("kind", "click"))),
         target=fingerprint,
-        value=str(payload["value"]) if payload.get("value") is not None else None,
+        # Belt and braces: the page already dropped it, and a page is not a
+        # trustworthy place to enforce this.
+        value=(
+            None
+            if secret
+            else (str(payload["value"]) if payload.get("value") is not None else None)
+        ),
+        secret=secret,
         modifiers=frozenset(str(m) for m in payload.get("modifiers", [])),
     )
 

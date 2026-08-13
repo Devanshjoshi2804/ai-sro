@@ -35,11 +35,26 @@ class InputAction:
     modifiers: frozenset[str] = frozenset()
     """``ctrl``, ``shift``, ``alt``, ``meta`` -- a shift-click is a different action."""
 
+    secret: bool = False
+    """The value was typed into a credential field.
+
+    The one thing capture does not keep. Everything else is evidence of what
+    happened; a password is an access token to the customer's system, and
+    storing it would turn the evidence plane into a credential store. What is
+    recorded is that a credential was entered, and where -- enough to replay the
+    step from the vault, and useless to anyone who reads the recording.
+    """
+
     def __post_init__(self) -> None:
         if self.kind in _ACTIONS_NEEDING_TARGET and self.target is None:
             raise InvariantViolation(f"{self.kind} action requires a target element")
-        if self.kind in _ACTIONS_NEEDING_VALUE and self.value is None:
+        if self.kind in _ACTIONS_NEEDING_VALUE and self.value is None and not self.secret:
             raise InvariantViolation(f"{self.kind} action requires a value")
+        if self.secret and self.value is not None:
+            raise InvariantViolation(
+                "a secret input must not carry its value; capture redacts credentials "
+                "at the point of observation, not later"
+            )
 
 
 @dataclass(frozen=True)

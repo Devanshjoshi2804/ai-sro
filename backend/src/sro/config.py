@@ -54,6 +54,15 @@ class Settings(BaseSettings):
     the live view away from the operator (Chrome allows one consumer per page).
     """
 
+    capture_redact_secret_values: bool = True
+    """Remove credential values at the point of capture.
+
+    The single exception to keeping everything. A password is not evidence of
+    what happened; it is a key to the customer's system. Turning this off makes
+    the evidence store a credential store -- do not, without a decision that says
+    who is accountable for it.
+    """
+
     transcription_enabled: bool = False
     """Narration transcription is optional. Default binding is NullTranscriber."""
 

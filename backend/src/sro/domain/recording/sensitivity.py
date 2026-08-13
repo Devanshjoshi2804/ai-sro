@@ -7,6 +7,7 @@ skills keep a vault reference instead of a secret, telemetry keeps neither.
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 
 _AUTH_HEADERS = frozenset(
@@ -100,6 +101,51 @@ def classify_header(name: str) -> Sensitivity:
     if lowered in _TRANSPORT_HEADERS:
         return Sensitivity.TRANSPORT
     return Sensitivity.SEMANTIC
+
+
+_SECRET_TOKENS = frozenset(
+    {
+        "password",
+        "passwd",
+        "passphrase",
+        "pass",
+        "pwd",
+        "secret",
+        "token",
+        "otp",
+        "pin",
+        "cvv",
+        "ssn",
+        "credential",
+        "credentials",
+        "apikey",
+        "accesstoken",
+        "refreshtoken",
+        "securitycode",
+        "securityanswer",
+    }
+)
+
+_WORDS = re.compile(r"[A-Za-z][a-z0-9]*")
+
+
+def is_secret_field(name: str) -> bool:
+    """Whether a form or JSON field holds a credential.
+
+    Used on request bodies: a login POST carries the password the operator typed,
+    and the evidence plane keeps bodies verbatim. Matched by field name rather
+    than by inspecting values -- a name is a decision the target system already
+    made, while guessing from values would redact real business data.
+
+    Matched on whole words rather than substrings, in both ``snake_case`` and
+    ``camelCase``. Substring matching redacts ``passenger_count``, and a
+    redaction that eats business data is how people learn to switch it off.
+    """
+    words = [word.lower() for word in _WORDS.findall(name)]
+    if any(word in _SECRET_TOKENS for word in words):
+        return True
+    # Compounds that only read as credentials when joined: apiKey, api_key.
+    return "".join(words) in _SECRET_TOKENS
 
 
 def classify_cookie(name: str) -> Sensitivity:

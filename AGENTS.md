@@ -138,6 +138,13 @@ Background in [`docs/03-backend-walkthrough.md`](docs/03-backend-walkthrough.md)
   nobody. Only traffic with no frame at all is orphaned.
 - `sro.observability.configure_logging` exists because uvicorn configures only
   its own loggers. Without it every capture diagnostic goes nowhere.
+- **Credential values never reach storage.** The single exception to keeping
+  everything: the page recorder drops the value of a credential field, and
+  credential-named body fields are replaced before the body is written. Matched
+  by field name on whole words, never by inspecting values. Watch the indirect
+  routes — the accessible-name fallback reads `el.value`, and a blanked
+  attribute can arrive as the string `"None"`. See
+  [`docs/11-capture-completeness.md`](docs/11-capture-completeness.md).
 
 Steel quirks, all worked around in `infrastructure/steel/client.py`: health is at
 `/v1/health`; session URLs are reported as seen from inside its container; Chrome

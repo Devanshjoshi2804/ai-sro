@@ -51,6 +51,7 @@ class CaptureSupervisor:
         screenshot_per_gesture: bool = True,
         video: bool = True,
         video_fps: int = 2,
+        redact_secrets: bool = True,
     ) -> None:
         self._blobs = blobs
         self._ingest = ingest
@@ -60,6 +61,7 @@ class CaptureSupervisor:
         self._screenshot = screenshot_per_gesture
         self._video = video
         self._video_fps = video_fps
+        self._redact_secrets = redact_secrets
         self._running: dict[str, _Running] = {}
 
     async def start(
@@ -77,6 +79,7 @@ class CaptureSupervisor:
             screenshot_per_gesture=self._screenshot,
             video=self._video,
             video_fps=self._video_fps,
+            redact_secrets=self._redact_secrets,
         )
         await session.attach(debugger_url)
         if start_url:

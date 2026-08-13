@@ -16,6 +16,7 @@ import { ink, mono } from "@/features/console/theme";
 import { SkillCard } from "@/features/console/skill-card";
 import { TeachPanel } from "@/features/console/teach-panel";
 import { useThread } from "@/features/console/thread-store";
+import { TopBar } from "@/features/console/top-bar";
 
 type Objective = {
   objective_type: string;
@@ -130,38 +131,7 @@ export function Console() {
         overflow: "hidden",
       }}
     >
-      <nav
-        style={{
-          display: "flex",
-          alignItems: "stretch",
-          background: ink.bar,
-          padding: "0 14px",
-          height: 46,
-          flex: "0 0 auto",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 9, paddingRight: 18 }}>
-          <span
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: "50%",
-              background: ink.accent,
-              color: "#fff",
-              fontWeight: 800,
-              fontSize: 13,
-              display: "grid",
-              placeItems: "center",
-            }}
-          >
-            g
-          </span>
-          <span style={{ fontSize: 13.5, fontWeight: 700, color: ink.barText }}>
-            Grey<span style={{ color: ink.accent }}>Orange</span>{" "}
-            <span style={{ color: ink.barMuted, fontWeight: 600 }}>AI-SRO</span>
-          </span>
-        </div>
-
+      <TopBar>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
           <Tab active={tab === "chat"} onClick={() => setTab("chat")} dot="#5A5C60">
             Threads
@@ -172,33 +142,7 @@ export function Console() {
             </Tab>
           )}
         </div>
-
-        <span style={{ flex: 1 }} />
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            fontSize: 11.5,
-            color: "#7A7C7F",
-            fontWeight: 600,
-          }}
-        >
-          <span>
-            tenant <span style={{ color: ink.barText }}>acme</span>
-          </span>
-          <span
-            style={{
-              padding: "3px 8px",
-              border: "1px solid #3A3C3F",
-              borderRadius: 5,
-              color: ink.barText,
-            }}
-          >
-            HIGHEST STAGE · SHADOW
-          </span>
-        </div>
-      </nav>
+      </TopBar>
 
       {tab === "teach" && active ? (
         <div style={{ flex: 1, minHeight: 0 }}>

@@ -105,3 +105,39 @@ product feature. Printing the same payload to stdout puts it in a log aggregator
 a third-party APM, a support ticket screenshot and a laptop scrollback.
 
 Same bytes, entirely different blast radius.
+
+## The one exception: credentials
+
+Everything a demonstration does is kept verbatim, with one exception, and it is
+worth stating as loudly as the rule it breaks.
+
+**A password is not evidence of what happened.** It is a key to the customer's
+system. Keeping it would make the evidence store a credential store, with none
+of the handling, rotation or blast-radius thinking that implies — and teaching
+any WMS task starts with logging in, so this is not hypothetical.
+
+Credential values are therefore removed **at the point of observation**, never
+filtered on the way out:
+
+- The page recorder recognises a credential field (`type="password"`,
+  `autocomplete`, or a field *named* like one) and drops the value before it
+  leaves the page. The action still records that a credential was entered and
+  where.
+- Request and response bodies have credential-named fields replaced before the
+  body is ever written, and the field names are kept in `Body.redacted_fields`
+  so a reviewer can see that something was removed and what it was called. A
+  silent redaction is indistinguishable from a capture bug.
+
+Matched by field **name**, not by inspecting values — a name is a decision the
+target system already made, and guessing from values would eat real business
+data. Matched on whole words in both `snake_case` and `camelCase`, because
+substring matching redacts `passenger_count`, and a redaction that eats business
+data is how people learn to switch it off.
+
+Two routes that leaked in the first implementation and are now covered by a
+live-browser test: the accessible-name fallback (`el.value` becomes the label of
+an unlabelled field) and an attribute blanked to `null` arriving server-side as
+the string `"None"`.
+
+`SRO_CAPTURE_REDACT_SECRET_VALUES=false` turns it off. Nothing in the product
+does that, and doing it needs a decision that names who is accountable.

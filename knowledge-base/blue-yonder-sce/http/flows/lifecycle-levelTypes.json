@@ -1,0 +1,147 @@
+{
+  "screen": "levelTypes",
+  "phases": {
+    "create": [
+      "POST levelTypes -> 201",
+      "GET levelTypes -> 200"
+    ],
+    "edit": [
+      "PUT levelTypes/000000000000028*!SG -> 200",
+      "GET levelTypes -> 200"
+    ],
+    "copy": [],
+    "delete": [
+      "DELETE levelTypes/000000000000028*!SG -> 200"
+    ]
+  },
+  "code": "ZV6281",
+  "rowKey": "ZV6281",
+  "createApplied": {
+    "levelTypeName": "ZV6281",
+    "levelTypeDescription": "ZV flow",
+    "totalLevelUnits": 1
+  },
+  "linkFound": true,
+  "editFormFound": true,
+  "copySelect": {
+    "idx": 0,
+    "selected": 1
+  },
+  "copyInvoke": {
+    "invoked": "doCopy"
+  },
+  "deleteSelect": {
+    "idx": 0,
+    "selected": 1
+  },
+  "deleteInvoke": {
+    "invoked": "doDelete"
+  },
+  "allCalls": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locationTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locationTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "levelTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "aisles",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "categoryCounts",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "buildings",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locationTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "dockDoorAreas",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "levelTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "dockDoorAreas",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "levelTypes",
+      "status": 201,
+      "body": "{\"warehouseId\":\"SG\",\"levelTypeId\":\"\",\"levelTypeName\":\"ZV6281\",\"levelTypeDescription\":\"ZV flow\",\"totalLevelUnits\":1,\"horizontalAlignmentFlag\":false,\"verticalAlignmentFlag\":false,\"displayPendingIndicatorFlag\":false,\"maxWeight\":0,\"location\":\"\",\"usedFlag\":false,\"self_uri\":\"\",\"maxWeightValidationFlag\":false}"
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "levelTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "PUT",
+      "url": "levelTypes/000000000000028*!SG",
+      "status": 200,
+      "body": "{\"warehouseId\":\"SG\",\"levelTypeId\":\"000000000000028\",\"levelTypeName\":\"ZV6281\",\"levelTypeDescription\":\"ZV edited\",\"totalLevelUnits\":1,\"horizontalAlignmentFlag\":false,\"verticalAlignmentFlag\":false,\"displayPendingIndicatorFlag\":false,\"maxWeight\":0,\"location\":\"\",\"usedFlag\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/levelTypes/000000000000028%2A%21SG\",\"resourceId\":\"000000000000028*!SG\",\"maxWeightValidationFlag\":false}"
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "levelTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "delete",
+      "method": "DELETE",
+      "url": "levelTypes/000000000000028*!SG",
+      "status": 200,
+      "body": "{\"warehouseId\":\"SG\",\"levelTypeId\":\"000000000000028\",\"levelTypeName\":\"ZV6281\",\"levelTypeDescription\":\"ZV edited\",\"totalLevelUnits\":1,\"horizontalAlignmentFlag\":false,\"verticalAlignmentFlag\":false,\"displayPendingIndicatorFlag\":false,\"maxWeight\":0,\"location\":\"\",\"usedFlag\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/levelTypes/000000000000028%2A%21SG\",\"resourceId\":\"000000000000028*!SG\",\"maxWeightValidationFlag\":false}"
+    }
+  ]
+}

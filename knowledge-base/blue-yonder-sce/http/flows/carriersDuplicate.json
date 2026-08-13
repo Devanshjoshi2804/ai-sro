@@ -1,0 +1,12 @@
+{
+  "spec": "carriersDuplicate",
+  "resource": "carriers",
+  "applied": {
+    "carrierCode": "001",
+    "carrierName": "ZV dup probe"
+  },
+  "invalid": [],
+  "calls": [],
+  "writes": [],
+  "edges": []
+}

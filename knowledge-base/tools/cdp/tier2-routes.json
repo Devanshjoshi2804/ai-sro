@@ -1,0 +1,576 @@
+{
+ "receiving": [
+  {
+   "text": "Workstation",
+   "href": "#/wm.workstation"
+  },
+  {
+   "text": "SG",
+   "href": "#/refs-Site"
+  },
+  {
+   "text": "Dashboard",
+   "href": "#wm.receiving/wm.receiving.dashboard////"
+  },
+  {
+   "text": "Staging",
+   "href": "#wm.receiving/wm.staging////"
+  },
+  {
+   "text": "Door Activity",
+   "href": "#wm.receiving/wm.dooractivity////"
+  },
+  {
+   "text": "Appointments",
+   "href": "#wm.receiving/wm.appointments////"
+  },
+  {
+   "text": "Inbound Shipments",
+   "href": "#wm.receiving/wm.receiving.inboundloads////"
+  },
+  {
+   "text": "Check In",
+   "href": "#wm.receiving/wm.checkin////"
+  },
+  {
+   "text": "Transport Equipment",
+   "href": "#wm.receiving/wm.transportequipment////"
+  },
+  {
+   "text": "Work Queue",
+   "href": "#wm.receiving/wm.workqueue////"
+  },
+  {
+   "text": "Workflows",
+   "href": "#wm.receiving/wm.workflowhistory////"
+  },
+  {
+   "text": "Print Compliant Labels",
+   "href": "#wm.receiving/wm.printcompliantlabels////"
+  },
+  {
+   "text": "Inventory",
+   "href": "#wm.receiving/wm.inventorydisplay////"
+  },
+  {
+   "text": "History",
+   "href": "#wm.receiving/wm.dailytransaction////"
+  },
+  {
+   "text": "Send RF Message",
+   "href": "#wm.receiving/wm.rfmessage////"
+  },
+  {
+   "text": "Log Indirect Work",
+   "href": "#wm.receiving/wm.lmindirect////"
+  },
+  {
+   "text": "Receiving Assets Display Serialized",
+   "href": "#wm.receiving/Receiving-Assets-Display-Serialized////"
+  },
+  {
+   "text": "Receiving Assets Display Non Serialized",
+   "href": "#wm.receiving/Receiving-Assets-Display-Non-Serialized////"
+  },
+  {
+   "text": "Transport Equipment User Assignment",
+   "href": "#wm.receiving/Transport-Equipment-User-Assignment////"
+  },
+  {
+   "text": "RF Display",
+   "href": "#wm.receiving/RFT-Display////"
+  },
+  {
+   "text": "Warehouse Equipment Operations",
+   "href": "#wm.receiving/wm.equipment.warehouseequipmentoperational////"
+  },
+  {
+   "text": "Work Operation Override",
+   "href": "#wm.receiving/wm.common.workoperationoverride////"
+  }
+ ],
+ "shipping": [
+  {
+   "text": "Workstation",
+   "href": "#/wm.workstation"
+  },
+  {
+   "text": "SG",
+   "href": "#/refs-Site"
+  },
+  {
+   "text": "Dashboard",
+   "href": "#wm.shipping/wm.shipping.dashboard////"
+  },
+  {
+   "text": "Staging",
+   "href": "#wm.shipping/wm.staging////"
+  },
+  {
+   "text": "Door Activity",
+   "href": "#wm.shipping/wm.dooractivity////"
+  },
+  {
+   "text": "Appointments",
+   "href": "#wm.shipping/wm.appointments////"
+  },
+  {
+   "text": "Loads",
+   "href": "#wm.shipping/wm.shipping.loads////"
+  },
+  {
+   "text": "Parcel",
+   "href": "#wm.shipping/wm.shipping.parcel////"
+  },
+  {
+   "text": "Parcel Audit Log",
+   "href": "#wm.shipping/wm.shipping.parcelauditlog////"
+  },
+  {
+   "text": "Check In",
+   "href": "#wm.shipping/wm.checkin////"
+  },
+  {
+   "text": "Transport Equipment",
+   "href": "#wm.shipping/wm.transportequipment////"
+  },
+  {
+   "text": "Manifesting",
+   "href": "#wm.shipping/wm.shipping.manifesting////"
+  },
+  {
+   "text": "Work Queue",
+   "href": "#wm.shipping/wm.workqueue////"
+  },
+  {
+   "text": "Workflows",
+   "href": "#wm.shipping/wm.workflowhistory////"
+  },
+  {
+   "text": "Print Compliant Labels",
+   "href": "#wm.shipping/wm.printcompliantlabels////"
+  },
+  {
+   "text": "Inventory",
+   "href": "#wm.shipping/wm.inventorydisplay////"
+  },
+  {
+   "text": "Shipment Delivery",
+   "href": "#wm.shipping/wm.shipping.delivery////"
+  },
+  {
+   "text": "History",
+   "href": "#wm.shipping/wm.dailytransaction////"
+  },
+  {
+   "text": "Send RF Message",
+   "href": "#wm.shipping/wm.rfmessage////"
+  },
+  {
+   "text": "Order Line Mass Update",
+   "href": "#wm.shipping/wm.orderlinemassupdate////"
+  },
+  {
+   "text": "Log Indirect Work",
+   "href": "#wm.shipping/wm.lmindirect////"
+  },
+  {
+   "text": "Shipment Mass Update",
+   "href": "#wm.shipping/wm.shipmentmassupdate////"
+  },
+  {
+   "text": "Shipped LPN Activity",
+   "href": "#wm.shipping/wm.shipping.shippedlpns////"
+  },
+  {
+   "text": "Bundling",
+   "href": "#wm.shipping/wm.parcel.bundling////"
+  },
+  {
+   "text": "RF Display",
+   "href": "#wm.shipping/RFT-Display////"
+  },
+  {
+   "text": "Warehouse Equipment Operations",
+   "href": "#wm.shipping/wm.equipment.warehouseequipmentoperational////"
+  },
+  {
+   "text": "Work Operation Override",
+   "href": "#wm.shipping/wm.common.workoperationoverride////"
+  }
+ ],
+ "picking": [
+  {
+   "text": "Workstation",
+   "href": "#/wm.workstation"
+  },
+  {
+   "text": "SG",
+   "href": "#/refs-Site"
+  },
+  {
+   "text": "Dashboard",
+   "href": "#wm.picking/wm.outbounddashboard////"
+  },
+  {
+   "text": "Waves and Picks",
+   "href": "#wm.picking/wm.wavesandpicks////"
+  },
+  {
+   "text": "Inventory",
+   "href": "#wm.picking/wm.inventorydisplay////"
+  },
+  {
+   "text": "Workflows",
+   "href": "#wm.picking/wm.workflowhistory////"
+  },
+  {
+   "text": "Print Compliant Labels",
+   "href": "#wm.picking/wm.printcompliantlabels////"
+  },
+  {
+   "text": "Work Queue",
+   "href": "#wm.picking/wm.workqueue////"
+  },
+  {
+   "text": "Pick Confirmation",
+   "href": "#wm.picking/wm.picking.pickconfirmation////"
+  },
+  {
+   "text": "Order Sequence Processing",
+   "href": "#wm.picking/wm.picking.listsforsequenceorders////"
+  },
+  {
+   "text": "History",
+   "href": "#wm.picking/wm.dailytransaction////"
+  },
+  {
+   "text": "Send RF Message",
+   "href": "#wm.picking/wm.rfmessage////"
+  },
+  {
+   "text": "Order Line Mass Update",
+   "href": "#wm.picking/wm.orderlinemassupdate////"
+  },
+  {
+   "text": "Log Indirect Work",
+   "href": "#wm.picking/wm.lmindirect////"
+  },
+  {
+   "text": "Shipment Mass Update",
+   "href": "#wm.picking/wm.shipmentmassupdate////"
+  },
+  {
+   "text": "Voice Tracing",
+   "href": "#wm.picking/wm.picking.voicetrace////"
+  },
+  {
+   "text": "RF Display",
+   "href": "#wm.picking/RFT-Display////"
+  },
+  {
+   "text": "Warehouse Equipment Operations",
+   "href": "#wm.picking/wm.equipment.warehouseequipmentoperational////"
+  },
+  {
+   "text": "Work Operation Override",
+   "href": "#wm.picking/wm.common.workoperationoverride////"
+  }
+ ],
+ "outboundPlanner": [
+  {
+   "text": "Workstation",
+   "href": "#/wm.workstation"
+  },
+  {
+   "text": "SG",
+   "href": "#/refs-Site"
+  },
+  {
+   "text": "Dashboard",
+   "href": "#wm.outboundplanner/wm.outbounddashboard////"
+  },
+  {
+   "text": "Outbound",
+   "href": "#wm.outboundplanner/wm.outboundplanner.outbounddisplay////"
+  },
+  {
+   "text": "Waves and Picks",
+   "href": "#wm.outboundplanner/wm.wavesandpicks////"
+  },
+  {
+   "text": "Inventory",
+   "href": "#wm.outboundplanner/wm.inventorydisplay////"
+  },
+  {
+   "text": "Work Queue",
+   "href": "#wm.outboundplanner/wm.workqueue////"
+  },
+  {
+   "text": "Send RF Message",
+   "href": "#wm.outboundplanner/wm.rfmessage////"
+  },
+  {
+   "text": "Order Line Mass Update",
+   "href": "#wm.outboundplanner/wm.orderlinemassupdate////"
+  },
+  {
+   "text": "Log Indirect Work",
+   "href": "#wm.outboundplanner/wm.lmindirect////"
+  },
+  {
+   "text": "Shipment Mass Update",
+   "href": "#wm.outboundplanner/wm.shipmentmassupdate////"
+  },
+  {
+   "text": "RF Display",
+   "href": "#wm.outboundplanner/RFT-Display////"
+  },
+  {
+   "text": "Plannable Order Details",
+   "href": "#wm.outboundplanner/Plannable-Order-Details////"
+  }
+ ],
+ "inventory": [
+  {
+   "text": "Workstation",
+   "href": "#/wm.workstation"
+  },
+  {
+   "text": "SG",
+   "href": "#/refs-Site"
+  },
+  {
+   "text": "Dashboard",
+   "href": "#wm.inventory/wm.inventory.dashboard////"
+  },
+  {
+   "text": "Inventory",
+   "href": "#wm.inventory/wm.inventorydisplay////"
+  },
+  {
+   "text": "Footprints",
+   "href": "#wm.inventory/wm.inventory.footprints////"
+  },
+  {
+   "text": "Item Lots",
+   "href": "#wm.inventory/wm.inventory.itemlots////"
+  },
+  {
+   "text": "Holds",
+   "href": "#wm.inventory/wm.inventory.holds////"
+  },
+  {
+   "text": "Adjustments",
+   "href": "#wm.inventory/wm.inventory.adjustments////"
+  },
+  {
+   "text": "Counts",
+   "href": "#wm.inventory/wm.inventory.counts////"
+  },
+  {
+   "text": "Location Audit",
+   "href": "#wm.inventory/wm.inventory.locationaudit////"
+  },
+  {
+   "text": "Work Queue",
+   "href": "#wm.inventory/wm.workqueue////"
+  },
+  {
+   "text": "Workflows",
+   "href": "#wm.inventory/wm.workflowhistory////"
+  },
+  {
+   "text": "Print Compliant Labels",
+   "href": "#wm.inventory/wm.printcompliantlabels////"
+  },
+  {
+   "text": "History",
+   "href": "#wm.inventory/wm.dailytransaction////"
+  },
+  {
+   "text": "Send RF Message",
+   "href": "#wm.inventory/wm.rfmessage////"
+  },
+  {
+   "text": "Log Indirect Work",
+   "href": "#wm.inventory/wm.lmindirect////"
+  },
+  {
+   "text": "Items Not Assigned To A Location",
+   "href": "#wm.inventory/wm-inventory-Itemnotassignedtoalocation////"
+  },
+  {
+   "text": "Non Serialized Handling Unit Adjustment ",
+   "href": "#wm.inventory/Non-Serialized-Handling-Unit-Adjustment-Operations////"
+  },
+  {
+   "text": "RF Display",
+   "href": "#wm.inventory/RFT-Display////"
+  },
+  {
+   "text": "WCS Inventory Discrepancy Display",
+   "href": "#wm.inventory/WCS-Inventory-Discrepancy-Display////"
+  },
+  {
+   "text": "WCS Inventory Snapshot",
+   "href": "#wm.inventory/WCS-Inventory-Snapshot////"
+  },
+  {
+   "text": "Distribution Status Display",
+   "href": "#wm.inventory/Distribution-Status-Display////"
+  },
+  {
+   "text": "Distribution Status Store Schedule",
+   "href": "#wm.inventory/Distribution-Status-Store-Schedule////"
+  },
+  {
+   "text": "BY GO Inventory Recon",
+   "href": "#wm.inventory/BY-GO-Inventory-Recon-YhpDFJGpR4CKx8Wj_1Px5g////"
+  }
+ ],
+ "yard": [
+  {
+   "text": "Workstation",
+   "href": "#/wm.workstation"
+  },
+  {
+   "text": "SG",
+   "href": "#/refs-Site"
+  },
+  {
+   "text": "Door Activity",
+   "href": "#wm.yard/wm.dooractivity////"
+  },
+  {
+   "text": "Appointments",
+   "href": "#wm.yard/wm.appointments////"
+  },
+  {
+   "text": "Check In",
+   "href": "#wm.yard/wm.checkin////"
+  },
+  {
+   "text": "Transport Equipment",
+   "href": "#wm.yard/wm.transportequipment////"
+  },
+  {
+   "text": "Check Out",
+   "href": "#wm.yard/wm.yard.checkout////"
+  },
+  {
+   "text": "Workflows",
+   "href": "#wm.yard/wm.workflowhistory////"
+  },
+  {
+   "text": "Work Queue",
+   "href": "#wm.yard/wm.workqueue////"
+  },
+  {
+   "text": "History",
+   "href": "#wm.yard/wm.dailytransaction////"
+  },
+  {
+   "text": "Transport Activity",
+   "href": "#wm.yard/wm.yard.traileractivity////"
+  },
+  {
+   "text": "Send RF Message",
+   "href": "#wm.yard/wm.rfmessage////"
+  },
+  {
+   "text": "RF Display",
+   "href": "#wm.yard/RFT-Display////"
+  }
+ ],
+ "systemAdmin": [
+  {
+   "text": "Workstation",
+   "href": "#/wm.workstation"
+  },
+  {
+   "text": "SG",
+   "href": "#/refs-Site"
+  },
+  {
+   "text": "Deferred Executions",
+   "href": "#mcs-SystemAdmin/Deferred-Executions-2019-1-0////"
+  },
+  {
+   "text": "Integration Errors",
+   "href": "#mcs-SystemAdmin/wm.config.integration.inboundissues////"
+  }
+ ],
+ "specialPack": [
+  {
+   "text": "Workstation",
+   "href": "#/wm.workstation"
+  },
+  {
+   "text": "SG",
+   "href": "#/refs-Site"
+  },
+  {
+   "text": "GMI Special Pack Operations",
+   "href": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/Special-Pack-Operations-V01////"
+  },
+  {
+   "text": "Waves and Picks",
+   "href": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.wavesandpicks////"
+  },
+  {
+   "text": "Outbound",
+   "href": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.outboundplanner.outbounddisplay////"
+  },
+  {
+   "text": "Inbound Shipments",
+   "href": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.receiving.inboundloads////"
+  },
+  {
+   "text": "Work Queue",
+   "href": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.workqueue////"
+  },
+  {
+   "text": "Inventory",
+   "href": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.inventorydisplay////"
+  },
+  {
+   "text": "Staging",
+   "href": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.staging////"
+  },
+  {
+   "text": "Transport Equipment",
+   "href": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.transportequipment////"
+  },
+  {
+   "text": "Items",
+   "href": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.config.inventory.items.itemoverrides////"
+  }
+ ],
+ "operationsAdmin": [
+  {
+   "text": "Workstation",
+   "href": "#/wm.workstation"
+  },
+  {
+   "text": "SG",
+   "href": "#/refs-Site"
+  },
+  {
+   "text": "Integration Errors",
+   "href": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/wm.config.integration.inboundissues////"
+  },
+  {
+   "text": "GMI Trailer KPI Exclude Operations",
+   "href": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/GMI-Trailer-KPI-Exclude-Operations-aNz8Q7ZCQZST0v_clpA2sg////"
+  },
+  {
+   "text": "Configuration/Carriers",
+   "href": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/wm.config.partners.carriers.main////"
+  },
+  {
+   "text": "Reset User Account",
+   "href": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/Reset-User-Account-XONli7jZQpi1WTzmnoJDCg////"
+  }
+ ]
+}

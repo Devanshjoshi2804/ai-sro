@@ -1,0 +1,82 @@
+{
+  "wizards": {
+    "Storage Locations": {
+      "hash": "#wm.config/wm.config.warehouse.locations.storage////",
+      "entry": "Actions menu > Add",
+      "steps": [
+        {
+          "title": "",
+          "fields": [
+            {
+              "field": "searchFilter",
+              "label": "",
+              "required": false,
+              "type": "textfield",
+              "value": ""
+            },
+            {
+              "field": "loctype",
+              "label": "2. Select a location type",
+              "required": false,
+              "type": "combobox",
+              "value": 10022,
+              "options": [
+                {
+                  "v": 10000,
+                  "t": "Damaged"
+                },
+                {
+                  "v": 10023,
+                  "t": "Distribute to Storage"
+                },
+                {
+                  "v": 10622,
+                  "t": "Grey Matter Controlled Storage"
+                },
+                {
+                  "v": 10624,
+                  "t": "Grey Matter DAMAGES"
+                },
+                {
+                  "v": 10623,
+                  "t": "Grey Matter LOST"
+                },
+                {
+                  "v": 10022,
+                  "t": "Storage"
+                }
+              ]
+            }
+          ],
+          "buttons": [
+            {
+              "text": "",
+              "disabled": false,
+              "dom": "rpHelpButton-1368"
+            },
+            {
+              "text": "Add",
+              "itemId": "addButton",
+              "disabled": false,
+              "dom": "button-1230"
+            },
+            {
+              "text": "Delete",
+              "itemId": "deleteButton",
+              "disabled": true,
+              "dom": "button-1231"
+            },
+            {
+              "text": "Next",
+              "itemId": "next",
+              "disabled": true,
+              "dom": "button-1226"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "generated_by": "tools/cdp/walk-wizard.mjs",
+  "readOnly": "walks forward and cancels; never clicks Finish/Save"
+}

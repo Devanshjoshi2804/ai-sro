@@ -1,0 +1,261 @@
+{
+  "ts": "2026-08-10T05:59:59Z",
+  "test": "write-permission-test-1",
+  "target": "warehouse ZZTEST01",
+  "method": "POST",
+  "url": "/data/WM/wm/warehouses/async?siteId=SG",
+  "asyncResourceGroupId": 1565890,
+  "asyncResourceId": 10051406,
+  "asynchronousStatus": "FAILURE",
+  "errorCode": "2966",
+  "errorMessage": "The same Pick Method, Work Type, Threshold Flag, Default Flag, Destination Move Zone combination already exists.",
+  "mocaCommandLeaked": "create warehouse WHERE ... wh_id = ZZTEST01 | publish data where res_id = ZZTEST01",
+  "outcome": "no record created, no reversal needed",
+  "note": "confirms REST layer wraps MOCA commands via async job pattern; contradicts earlier NOTES.md claim of no MOCA"
+}
+{
+  "ts": "2026-08-10T06:12:00Z",
+  "test": "write-permission-test-2",
+  "target": "warehouse SG (Edit Warehouse)",
+  "field": "Description",
+  "original_value": "Social Circle General Mills",
+  "planned_new_value": "Social Circle General Mills [claude-write-test 2026-08-10]",
+  "plan": "save -> verify new value persisted -> revert to original -> verify reverted"
+}
+{
+  "ts": "2026-08-10T06:14:52Z",
+  "test": "write-permission-test-2",
+  "target": "warehouse SG (Edit Warehouse)",
+  "method": "PUT",
+  "url": "/data/WM/wm/warehouses/SG",
+  "status": 200,
+  "attempted_value": "Social Circle General Mills TEST WRITE",
+  "persisted_value": "Social Circle General Mills ",
+  "finding": "Description field silently truncates client-side around 28-29 chars; truncation happens before the request body is built, so it is not a server-side rejection. Data-integrity gotcha for anyone scripting writes to this field.",
+  "next": "revert to exact original value Social Circle General Mills (no trailing space) and verify"
+}
+{
+  "ts": "2026-08-10T06:18:05Z",
+  "test": "write-permission-test-2",
+  "target": "warehouse SG (Edit Warehouse)",
+  "method": "PUT",
+  "url": "/data/WM/wm/warehouses/SG",
+  "status": 200,
+  "persisted_value": "Social Circle General Mills",
+  "outcome": "REVERTED - matches original exactly",
+  "cycle": "create->verify->reverse COMPLETE"
+}
+{
+  "ts": "2026-08-10T06:29:00Z",
+  "test": "edge-case-writes-direct-api",
+  "summary": "Attempted direct fetch() writes (no ExtJS Ajax stack) against /data/WM/wm/warehouses/SG, from both top page and correct iframe context, with session cookies + JDA-CSRF cookie mirrored as csrf-encrypt-token header.",
+  "results": [
+    {"case":"no-op PUT, wrong query params","status":404,"body":"empty"},
+    {"case":"no-op PUT, matched query params","status":404,"body":"empty"},
+    {"case":"PUT + x-requested-with header","status":404,"body":"empty"},
+    {"case":"PUT scoped to iframe JS realm (correct referer)","status":404,"body":"empty"},
+    {"case":"GET nonexistent warehouse ZZNOTREAL","status":400,"body":"structured JSON errorCode 910 Invalid input value for input argument: warehouseId"},
+    {"case":"GET SG after all attempts","status":200,"description":"Social Circle General Mills","note":"unchanged, no corruption from failed attempts"}
+  ],
+  "finding": "Real csrf-encrypt-token header used by the live app (captured earlier, ~88 chars, base64-like) does NOT match the readable JDA-CSRF cookie (36 chars, UUID-like). Mirroring the cookie value as the header is not sufficient. All direct PUT attempts hit a bare 404 with empty body (looks like a gateway/WAF block before reaching app error handling), whereas GET errors return structured JSON with errorCode/userMessage. Conclusion: writes cannot be replayed via plain fetch/cookie-jar regardless of frame origin or headers tried; whatever mints csrf-encrypt-token is internal to the ExtJS Ajax stack and was not reverse-engineered in this pass (bounded effort, flagged as open item).",
+  "no_state_changed": true
+}
+{
+  "ts": "2026-08-10T06:38:23Z",
+  "test": "interactive-login-automation",
+  "result": "SUCCESS on retry (single flow). First attempt FAILED with 400 at blueyonderalphaus.b2clogin.com/oauth2/authresp because a second tab ran a concurrent auth flow in the same shared cookie store, corrupting BOTH sessions (nonce/state collision).",
+  "auth_chain_corrected": "Portal -> Azure B2C (blueyonderalphaus tenant, policy b2c_1a_signin_group_17) -> IdP chooser (Kenco SSO / Local WMS users / BY Support Sign In) -> for Local WMS users: Keycloak realm bf56-001-eus2 (client bf56-001-eus2-liam) at keycloak-service-exec-wms-keycloak-prod.us.live.external.byp.ai -> back through B2C authresp -> blueyonderus.b2clogin.com (second B2C tenant) -> Portal",
+  "finding": "Concurrent login/session flows in one shared-cookie browser context break Blue Yonder auth entirely (both tabs killed). Directly validates SRO design doc section 6: one browser per worker, isolated cookie stores per session."
+}
+{
+  "ts": "2026-08-10T06:45:00Z",
+  "test": "direct-api-write-BREAKTHROUGH",
+  "method": "PUT",
+  "url": "/data/WM/wm/warehouses/SG",
+  "auth_header_used": "CSRF-ENCRYPT-TOKEN (sourced from Ext.Ajax.defaultHeaders, NOT the JDA-CSRF cookie)",
+  "put1_status": 200, "put1_persisted": "Social Circle General Mills API TEST",
+  "revert_status": 200, "revert_persisted": "Social Circle General Mills",
+  "conclusion": "CORRECTS earlier KB conclusion. Direct-API writes DO work via plain fetch with session cookie + correct CSRF-ENCRYPT-TOKEN header. Earlier 404s were caused by using the wrong token value (JDA-CSRF cookie, 36 chars) instead of the real one (Ext.Ajax.defaultHeaders, 88 chars) -- not by frame/referer/gateway blocking as hypothesized."
+}
+{"ts":"2026-08-10T06:52:18.922Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T06:52:40.568Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T06:52:40.570Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{
+  "ts": "2026-08-10T07:22:00Z",
+  "area": "Partners",
+  "test": "edit-verify-revert",
+  "target": "client PEETS",
+  "method": "PUT",
+  "url": "/data/WM/wm/clients/PEETS",
+  "field": "bolaPrefix",
+  "sequence": [
+    {"step": "edit", "value_sent": "TEST", "status": 200, "verified": "TEST"},
+    {"step": "revert attempt 1", "value_sent": null, "status": 200, "verified": "TEST", "outcome": "FAILED - null silently ignored, field unchanged"},
+    {"step": "revert attempt 2", "value_sent": "", "status": 200, "verified": null, "outcome": "SUCCESS - empty string clears the field"}
+  ],
+  "finding": "null in a PUT body does not clear a field on this API - it is silently treated as absent/no-change. Must send empty string to clear a text field that started null. This likely applies broadly across /data/WM/wm/* collections, not just clients.",
+  "final_state": "reverted correctly, confirmed null"
+}
+{"ts":"2026-08-10T07:24:17.280Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:24:17.637Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:24:17.638Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{
+  "ts": "2026-08-10T07:28:00Z",
+  "area": "Partners",
+  "test": "edit-attempt-FAILED-SILENTLY",
+  "target": "supplier ----*!0062507272345 (NETRUSH HEBRON)",
+  "method": "PUT",
+  "url": "/data/WM/wm/suppliers/{id}",
+  "field": "receivingPhone",
+  "value_sent": "555-TEST-02",
+  "status": 200,
+  "response_body_field_value": null,
+  "finding": "Server returned 200 and echoed back the record with receivingPhone still null -- the write was silently ignored, not even partially applied. Worse than an error: looks identical to a successful no-op write. Suppliers resource is likely read-only/EDI-synced via this endpoint despite exposing a PUT route. NOT added to write-endpoints.json -- no field could be shown to actually persist.",
+  "no_state_changed": true,
+  "next": "try a different, more clearly editable Partners screen (Transport Modes / Carrier PRO Number) for the areas second verified endpoint"
+}
+{
+  "ts": "2026-08-10T07:41:15Z",
+  "area": "Partners",
+  "test": "create-verify-delete-verify CASCADE",
+  "target": "client ZZTEST (full lifecycle)",
+  "sequence": "POST addresses -> POST clients -> POST clientWarehouse -> POST packingConfigurations, all 201",
+  "verify": "GET clients/ZZTEST -> 200, GET packingConfigurations -> 1 row, all confirmed to exist",
+  "cleanup": "DELETE packingConfigurations/ZZTEST*!SG -> 200, DELETE clientWarehouse/ZZTEST*!SG -> 200, DELETE clients/ZZTEST -> 200, DELETE addresses/A000365873 -> 200",
+  "final_verify": "GET clients/ZZTEST -> 404 structured error, GET addresses/A000365873 -> 404 structured error",
+  "outcome": "CLEAN - full CRUD lifecycle proven, no orphan data left",
+  "note": "user correctly flagged that only PUT had been tested so far; this is the first full create+delete cycle"
+}
+{"ts":"2026-08-10T07:43:14.042Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:43:14.408Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:43:14.410Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:44:31.863Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:46:03.596Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:46:03.970Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:46:03.971Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{
+  "ts": "2026-08-10T07:48:00Z",
+  "test": "http-verb-coverage-check",
+  "probed": ["OPTIONS /clients/PEETS", "OPTIONS /clients (collection)", "OPTIONS /warehouses/SG", "HEAD /clients/PEETS", "PATCH /clients/PEETS"],
+  "result": "all five returned Cloudflare error 520 (Web server is returning an unknown error) -- rejected at the CDN/WAF layer, never reached the app origin",
+  "conclusion": "Only GET, POST, PUT, DELETE are usable against this deployment. PATCH is not available (no partial-update alternative to full-record PUT). OPTIONS-based capability discovery (Allow header) is not available either -- cannot ask the server what it supports, must discover verbs empirically per resource as already being done.",
+  "session_check": "confirmed healthy after probes, GET /clients/PEETS still 200, PEETS unaffected"
+}
+{"ts":"2026-08-10T07:50:24.775Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:50:25.146Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T07:50:25.148Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{
+  "ts": "2026-08-10T08:04:41Z",
+  "area": "Partners > Clients > Groups tab",
+  "tests": [
+    {"op": "create", "target": "clientGroup ZZTEST", "method": "POST", "url": "/data/WM/wm/clientGroups", "status": 201, "single_resource": true},
+    {"op": "verify-exists", "status": 200},
+    {"op": "delete", "method": "DELETE", "url": "/data/WM/wm/clientGroups/ZZTEST", "status": 200},
+    {"op": "verify-gone", "status": 404},
+    {"op": "edit-verify-revert", "target": "clientGroup DUNKIN.clientGroupDescription", "method": "PUT", "before": "DUNKIN", "after_edit": "DUNKIN TEST", "after_revert": "DUNKIN", "all_status": 200}
+  ],
+  "outcome": "CLEAN - full CRUD (PUT/POST/DELETE) proven for clientGroups, unlike clients this is a single-resource create (no cascade)"
+}
+{
+  "ts": "2026-08-10T08:17:08Z",
+  "area": "Partners > Existing Customers",
+  "tests": [
+    {"op": "edit-verify-revert", "target": "customer 0000000040.manufacturerId", "before": null, "after_edit": "ZZTEST", "after_revert_sent": "", "after_revert_verified": null, "note": "unlike suppliers, customers ARE writable"},
+    {"op": "create", "target": "customer ZZTEST", "cascade": "POST addresses -> POST customers", "status": [201, 201]},
+    {"op": "verify-exists", "status": 200},
+    {"op": "delete", "cascade": "DELETE customers/----*!ZZTEST -> DELETE addresses/A000365874", "status": [200, 200]},
+    {"op": "verify-gone", "status": [404, 404]}
+  ],
+  "findings": [
+    "Conditional required-field business rule: Customer Type is mandatory when Cross Dock Order Lines OR Pallet Building is left at default \"Inherit from customer type\". Not visible from field asterisks alone.",
+    "CRITICAL TOOLING GAP: the Error messagebox shown for the above validation failure NEVER appeared in any accessibility-tree snapshot, despite being a real, on-screen, correctly-positioned modal DOM element (confirmed via getBoundingClientRect). It silently left a page-covering .x-mask.modal-mask active, which absorbed every subsequent Save click with zero visible symptom (no error, no network request, nothing) for two full attempts. Diagnosed only by directly querying Ext.ComponentQuery for floating modal components. This means: any automation against this app that relies on accessibility snapshots to detect error dialogs WILL silently hang/fail on this exact class of error. Must additionally check for document.querySelectorAll(\".x-mask.modal-mask\") + Ext.ComponentQuery.query(\"[floating]\") as a fallback error-detection method."
+  ]
+}
+{"ts":"2026-08-10T08:22:40.348Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T08:22:40.731Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T08:22:40.733Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T08:25:52.891Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{
+  "ts": "2026-08-10T09:32:15Z",
+  "area": "Partners > Existing Carriers",
+  "tests": [
+    {"op": "edit-verify-revert", "target": "carrier EXLA.accountNumber", "before": null, "after_edit": "ZZTEST123", "after_revert_sent": "", "after_revert_verified": null, "all_status": 200},
+    {"op": "create", "target": "carrier ZZTEST", "method": "POST", "url": "/data/WM/wm/carriers", "status": 201, "single_resource": true, "note": "no address cascade this time -- Carrier Address is optional here, unlike clients/customers"},
+    {"op": "verify-exists", "status": 200},
+    {"op": "delete", "method": "DELETE", "url": "/data/WM/wm/carriers/ZZTEST", "status": 200},
+    {"op": "verify-gone", "status": 404}
+  ],
+  "outcome": "CLEAN - full CRUD proven for carriers"
+}
+{
+  "ts": "2026-08-10T09:35:00Z",
+  "area": "Partners > Transport Modes",
+  "finding": "CORRECTED earlier false-negative: transportModes is NOT empty (21 real records) and NOT siteId-scoped. Adding siteId/subsites query params to GET /data/WM/wm/transportModes causes a 500, not an empty result -- the real app calls it with NO query params at all. This is a global (non-warehouse-scoped) reference collection (warehouseId is null on every record).",
+  "tests": [
+    {"op": "edit-verify-revert", "target": "transportMode AF.transportModeDescription", "before": "Air Freight", "after_edit": "Air Freight TEST", "after_revert": "Air Freight", "all_status": 200},
+    {"op": "create", "target": "transportMode ZZ", "method": "POST", "status": 201, "single_resource": true},
+    {"op": "verify-exists", "status": 200},
+    {"op": "delete", "status": 200},
+    {"op": "verify-gone", "status": 404}
+  ],
+  "outcome": "CLEAN - full CRUD proven for transportModes"
+}
+{
+  "ts": "2026-08-10T09:40:00Z",
+  "area": "Partners > Carrier Cross Reference",
+  "tests": [
+    {"op": "edit-verify-revert", "target": "FDE2*!ENVEYO*!FDE2.taxID", "before": null, "after_edit": "ZZTEST", "after_revert": null, "all_status": 200},
+    {"op": "create", "target": "ZZTEST*!ENVEYO*!ZZ", "status": 201},
+    {"op": "verify-exists", "status": 200},
+    {"op": "delete", "status": 200},
+    {"op": "verify-gone", "status": 404}
+  ],
+  "outcome": "CLEAN - full CRUD proven for carrierCrossReferences",
+  "milestone": "PARTNERS AREA COMPLETE - all 8 screens covered (Suppliers, Clients, Client Groups, Existing Customers, Customer Types, Existing Carriers, Transport Modes, Carrier PRO Number, Carrier Cross Reference)"
+}
+{"ts":"2026-08-10T09:41:01.537Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T09:41:02.007Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T09:41:02.010Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{
+  "ts": "2026-08-10T09:50:12Z",
+  "area": "Partners > Suppliers",
+  "test": "CORRECTION - re-tested with proper required fields (Client*, Supplier Address*) via real Add form",
+  "sequence": "POST addresses (201) -> POST suppliers (201), 2-resource cascade",
+  "verify": "GET suppliers/----*!ZZTEST -> 200",
+  "cleanup": "DELETE suppliers/----*!ZZTEST -> 200, DELETE addresses/A000365875 -> 200",
+  "final_verify": "both -> 404",
+  "finding": "MAJOR CORRECTION to earlier finding. Suppliers is NOT fully read-only/write-rejected. POST (create) and DELETE both work cleanly. Only PUT (edit an EXISTING record) is silently ignored -- confirmed separately, the earlier test. This is a real, specific asymmetry: likely the system blocks direct edits to EDI-synced supplier records to protect host-sync integrity, while still allowing brand-new manually-added suppliers to be created and removed. Do not generalize \"suppliers PUT rejected\" into \"suppliers read-only\" -- they are different claims.",
+  "list_call_captured": "GET /data/WM/wm/suppliers?query=[]&offset=0&limit=50&siteId=SG&subsites=---- -- confirms pagination pattern: empty query=[] for no filter, offset/limit for paging, matches ExtJS pagingtoolbar page size (50 here)."
+}
+{"ts":"2026-08-10T09:53:50.050Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{
+  "ts": "2026-08-10T09:57:42Z",
+  "area": "Partners > Carrier PRO Number",
+  "test": "PROPER retry with POST and DELETE per user request",
+  "finding_1": "Carrier* field is a remote SEARCH combobox (magnifying-glass icon), not a local-store combobox. Typing text into it visually fills the box but leaves the underlying model value null -- confirmed via Ext form.getForm().findField(carrier).getValue() === null after typing EXLA. This is a THIRD distinct combobox failure mode, different from both (a) local-store comboboxes where typed text matching a real option DOES bind (Client* on Clients/Customers forms), and (b) the Customer Type case where setValue() fixed it cleanly. Here, even calling field.setValue(EXLA) directly left the field VALID:FALSE -- it likely requires an actual record object from a remote query, not just a string, to satisfy forceSelection validation.",
+  "finding_2": "Clicking Save on this invalid form produced ZERO symptoms -- no error dialog (unlike Existing Customers case), no invisible mask, literally no network request at all. Only detectable by directly querying Ext.ComponentQuery.query(form).getForm().getFields() for isValid()===false fields. This is a CLEANER failure mode than the invisible-dialog case (no red herring UI state to dismiss) but requires the same defensive check: after any Save click, verify a request actually fired AND check form validity directly, never assume silence means either success or a visible error.",
+  "resolution": "Bypassed the UI picker entirely -- POST directly with a real existing addressId (A000022452, BP Lubricants) + carrier EXLA + a new poolPointAddressId (ZZTEST). 201 success.",
+  "tests": [
+    {"op": "create", "method": "POST", "url": "/data/WM/wm/carrierProNumbers", "status": 201, "resourceId": "A000022452*!EXLA*!ZZTEST"},
+    {"op": "verify-exists", "status": 200},
+    {"op": "delete", "status": 200},
+    {"op": "verify-gone", "status": 404}
+  ],
+  "outcome": "CLEAN - full CRUD (PUT from earlier + POST/DELETE now) proven for carrierProNumbers"
+}
+{"ts":"2026-08-10T10:01:29.938Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T10:01:30.314Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T10:01:30.316Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T10:02:54.959Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T10:02:55.327Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-10T10:02:55.329Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-11T06:31:51.909Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-11T06:31:52.277Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-11T06:31:52.279Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-11T06:32:15.533Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-11T06:32:56.160Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-11T06:32:56.517Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-11T06:32:56.519Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-12T06:06:56.382Z","method":"PUT","path":"/data/WM/wm/notAllowlisted","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-12T06:06:56.749Z","method":"PUT","path":"/data/WM/wm/deleteEverything","blocked":true,"reason":"not in verified write-endpoint catalogue"}
+{"ts":"2026-08-12T06:06:56.751Z","method":"POST","path":"/data/WM/wm/warehouses/SG","blocked":true,"reason":"not in verified write-endpoint catalogue"}

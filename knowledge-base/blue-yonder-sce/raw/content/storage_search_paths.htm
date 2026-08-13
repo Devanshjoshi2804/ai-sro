@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Inbound|Storage" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Storage Search Paths</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#StorageSearchPaths">Storage Search Paths</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Storagesearchpathsetup">Storage search path setup</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Storagezoneselectionprocess">Storage zone selection process</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Locationutilizationpercentage">Location utilization percentage</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ExamplePrioritizingzonesbasedonquantity">Example: Prioritizing zones based on quantity</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Manageavailablesearchpathcriteria">Manage available search path criteria</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyastoragesearchpath">Add or modify a storage search path</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteastoragesearchpath">Delete a storage search path</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#StorageSearchPathfields">Storage Search Path fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#StorageZoneRulefields">Storage Zone Rule fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="StorageSearchPaths" data-magellan-target="StorageSearchPaths"><a name="aanchor232"></a>
+                                                            <MadCap:concept term="WM" />Storage Search Paths</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#StorageSearchPaths">Storage Search Paths</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Storagesearchpathsetup">Storage search path setup</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Storagezoneselectionprocess">Storage zone selection process</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Locationutilizationpercentage">Location utilization percentage</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ExamplePrioritizingzonesbasedonquantity">Example: Prioritizing zones based on quantity</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Manageavailablesearchpathcriteria">Manage available search path criteria</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyastoragesearchpath">Add or modify a storage search path</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteastoragesearchpath">Delete a storage search path</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#StorageSearchPathfields">Storage Search Path fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#StorageZoneRulefields">Storage Zone Rule fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A search path is a configuration that is used to specify the storage zone to which inventory should be directed during putaway. A search path can be restricted to inventory coming from a specific source movement zone, and to inventory that matches specific criteria (such as item, item family, inventory status, and handling unit type) defined for the search path. </p>
+                                                        <p>Storage zone rules (associated with a search path) specify the zone to which matching inventory can be directed, criteria for finding an optimal location, and capacity restrictions for the zone.</p>
+                                                        <p>The application processes search paths in order of priority. When it finds a path that matches the inventory to be put away, it searches the path's storage zone rules in sequential order to find an optimal location. </p>
+                                                        <h2 id="Storagesearchpathsetup" data-magellan-target="Storagesearchpathsetup"><a name="Storage_search_path_setup"></a>Storage search path setup</h2>
+                                                        <p>You use the following steps to configure the application to automatically direct inventory to a storage location following receiving or inventory identification:</p>
+                                                        <ol>
+                                                            <li value="1">Configure the storage building sequence. A storage building sequence identifies, for a building, the sequence in which the application attempts to store inventory that is received into the building. Typically the building in which the inventory is received or identified is first in the sequence. If the application cannot find a storage location for the inventory in the first building, it attempts to find a location in the next sequential building.</li>
+                                                            <li value="2">Optionally, configure location preference rules. A location preference rule specifies a location or range of locations, rather than a storage zone, to which specific inventory should be directed during putaway. </li>
+                                                            <li value="3">Optionally, select additional inventory or item attributes for use in search path configurations. If the criteria that you want to use for directing inventory to a storage zone is not available, you can add the fields to the criteria selection page prior to configuring storage search paths.</li>
+                                                            <li value="4">Configure storage search paths. A storage search path has two components:<ul><li>Inventory criteria, such as item family and inventory status, that defines the inventory that can be stored using the path.  </li><li>One or more rules that identify the storage zones to which the inventory should be directed. Each rule is configured with location selection criteria, and zone and aisle capacity restrictions that the application uses to find an optimal location within the zone.</li></ul></li>
+                                                        </ol>
+                                                        <h2 id="Storagezoneselectionprocess" data-magellan-target="Storagezoneselectionprocess"><a name="Storage_zone_selection_process"></a>Storage zone selection process</h2>
+                                                        <p>The application performs the following steps to select a storage location for received or identified inventory:</p>
+                                                        <ol>
+                                                            <li value="1">Evaluates the location preference rule, if any, to determine if there is a match for the inventory. If there is a match, then the application directs putaway to the location and does not continue to search the storage search paths. </li>
+                                                            <li value="2">Uses the following process to evaluate storage search paths:<ol><li value="1">Evaluates search paths in priority order to find a path that matches the inventory.</li><li value="2">Evaluates the path's storage zone rules in sequential order with the following exceptions:<ul><li>If a building sequence has been defined, the application searches for storage zones located in the first building in the sequence. If a location is not found, it searches for storage zones in the next sequential building; and so on.</li><li>Zones in which the inventory quantity is below the minimum inventory level are evaluated first, regardless of sequence order.</li><li>Zones in which the inventory quantity is greater than the maximum inventory level are evaluated last, regardless of sequence order.</li><li>Zones that contain more LPNs of an item than the value specified for maximum LPNs per aisle are only attempted after every other rule has been evaluated.</li></ul></li><li value="3">Finds a location based on the location selection criteria defined for the rule.</li></ol></li>
+                                                            <li value="3">If a suitable location is found, the application directs putaway to the location. If a suitable location is not found, the operator is directed to select a location manually. </li>
+                                                        </ol>
+                                                        <h2 id="Locationutilizationpercentage" data-magellan-target="Locationutilizationpercentage"><a name="Location_utilization_percentage"></a>Location utilization percentage</h2>
+                                                        <p>The utilization percentage for a location determines the percentage of a location's capacity that inventory must fill before it can be stored in the location. When using location utilization percentage, you can configure multiple storage zone rules for the same storage zone with different utilization percentages that the application considers in sequence. For example, assume two similar rules are created for the same zone, with the only difference being the first rule has a <b>Location Utilization Percentage</b> of 75%, and the second rule is 50%. If the application attempts to allocate a location based on the first rule  but cannot find a location that the inventory will fill to at least 75%, then a second attempt is made to allocate a location that the inventory will fill to at least 50%.</p>
+                                                        <p>If Warehouse Labor Management is integrated and you set a <b>Proximity</b> value for a storage zone,  then the application first sorts the locations in the zone according the proximity value before applying the remaining conditions in the storage zone rules. For example, if you define that the inventory should be stored in locations that are closest to the primary pick location for the item, the application sorts by proximity to the pick location and then evaluates the conditions on the search path. </p>
+                                                        <p>If <b>Last Location</b>, <b>Mixed Location</b>, or <b>Match Velocity</b> is set to Yes on the allocation rule, the application first finds locations according to the configurations, (as well as the <b>Location Status</b> - Empty or Partially Full), but the utilization percentage still must be met before inventory can be stored.  If you always want to use last location, then the utilization percentage should not be defined. </p>
+                                                        <p>A lower percentage can lead to high-capacity locations being used for smaller pallets, which may limit the available storage capacity for larger pallets. Alternatively, a higher percentage requires that larger pallets are stored in the zone so that locations do not remain unallocated due to putaway quantities not satisfying the utilization percentage.</p>
+                                                        <p>The percentage applies to a single putaway quantity.&#160;Another putaway attempt in a partially full location will consider the existing inventory before calculating the utilization percentage. For example, if the location utilization percentage is set to 75% and the location currently is 25% occupied, then additional inventory to be put away must occupy at least 50% of the total capacity so that the total quantity in the location meets the utilization percentage. </p>
+                                                        <h2 id="ExamplePrioritizingzonesbasedonquantity" data-magellan-target="ExamplePrioritizingzonesbasedonquantity"><a name="Example:_Prioritizing_zones_based_on_quantity"></a>Example: Prioritizing zones based on quantity</h2>
+                                                        <p>In the following example, the application compares the quantity of an item in each zone that can be used to store the item to the minimum and maximum level values.</p>
+                                                        <table style="width: 492.6667;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Storage zone rule sequence</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Current quantity</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Minimum level</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Maximum level</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Actual putaway sequence </p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="98.53333333333333" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Each Pickface</p>
+                                                                    </td>
+                                                                    <td width="81.46666666666667" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">140</p>
+                                                                    </td>
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">100</p>
+                                                                    </td>
+                                                                    <td width="114" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">500</p>
+                                                                    </td>
+                                                                    <td width="114.66666666666667" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Bins</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="98.53333333333333" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Bins</p>
+                                                                    </td>
+                                                                    <td width="81.46666666666667" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">10</p>
+                                                                    </td>
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">50</p>
+                                                                    </td>
+                                                                    <td width="114" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">100</p>
+                                                                    </td>
+                                                                    <td width="114.66666666666667" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Each Pickface</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="98.53333333333333" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Case Pickface</p>
+                                                                    </td>
+                                                                    <td width="81.46666666666667" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">250</p>
+                                                                    </td>
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">200</p>
+                                                                    </td>
+                                                                    <td width="114" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">1000</p>
+                                                                    </td>
+                                                                    <td width="114.66666666666667" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Case Pickface</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="98.53333333333333" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Rack Storage</p>
+                                                                    </td>
+                                                                    <td width="81.46666666666667" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">1300</p>
+                                                                    </td>
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">0</p>
+                                                                    </td>
+                                                                    <td width="114" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">0</p>
+                                                                    </td>
+                                                                    <td width="114.66666666666667" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Rack Storage</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="98.53333333333333" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Tunnel Storage</p>
+                                                                    </td>
+                                                                    <td width="81.46666666666667" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">800</p>
+                                                                    </td>
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">400</p>
+                                                                    </td>
+                                                                    <td width="114" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="bodytextright">600</p>
+                                                                    </td>
+                                                                    <td width="114.66666666666667" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Bulk Storage</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="98.53333333333333" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Bulk Storage</p>
+                                                                    </td>
+                                                                    <td width="81.46666666666667" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p class="bodytextright">600</p>
+                                                                    </td>
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p class="bodytextright">0</p>
+                                                                    </td>
+                                                                    <td width="114" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p class="bodytextright">0</p>
+                                                                    </td>
+                                                                    <td width="114.66666666666667" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>Tunnel Storage</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>The result is that the application uses the actual putaway sequence for the following reasons:</p>
+                                                        <ul>
+                                                            <li>The Bins zone is a higher priority than the Each Pickface because its quantity of 10 is less than its minimum level of 50, and the Each Pickface is already above its minimum level.</li>
+                                                            <li>The Tunnel Storage zone is a lower priority than the Bulk Storage zone because its quantity of 800 is greater than its maximum level, and Bulk Storage had no maximum level specified.</li>
+                                                        </ul>
+                                                        <h2 id="Manageavailablesearchpathcriteria" data-magellan-target="Manageavailablesearchpathcriteria"><a name="Manage_available_search_path_criteria"></a>Manage available search path criteria</h2>
+                                                        <p>You can specify the criteria that is made available for use in a search path. For example, you may want to add Item Family to your criteria so that you can configure a storage path that directs a particular item family to a specific storage zone.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If the warehouse uses an item hierarchy or if user-defined inventory attributes have been enabled, those fields are also displayed for selection.</p>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inbound &gt; Storage &gt; Storage Search Paths</span>.</li>
+                                                            <li value="2">Above the grid, click <span class="specialbold">Manage fields</span>.</li>
+                                                            <li value="3">To make criteria available for use, in the <b>Available </b>column, select the check box next to the criteria. A check mark in the <span class="specialbold">In Use</span> column indicates that the criteria is currently used in a search path configuration. </li>
+                                                            <li value="4">
+                                                                <p>To make criteria unavailable for use, deselect the check box next to the criteria.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: You cannot deselect criteria that is currently in use.</p>
+                                                            </li>
+                                                            <li value="5">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Addormodifyastoragesearchpath" data-magellan-target="Addormodifyastoragesearchpath"><a name="Add_or_modify_a_storage_search_path"></a>Add or modify a storage search path</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inbound &gt; Storage &gt; Storage Search Paths</span>.</li>
+                                                            <li value="2">Perform one of the following tasks:<ul><li>To add a search path, click <b>Add</b>.</li><li>To modify a search path, in the grid, click the search path name.</li><li>To copy a search path, in the grid, select the check box next to the search path, and then click <b>Copy</b>.</li></ul></li>
+                                                            <li value="3">
+                                                                <p>Enter information in the <a href="#Storage_Search_Path_fields">Storage Search Path fields</a>. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the warehouse uses a user-defined item hierarchy or if user-defined inventory attributes are enabled, those fields are available for selection. Field descriptions are not provided for user-defined fields.</p>
+                                                            </li>
+                                                            <li value="4">To add inventory criteria:<ol><li value="1">Click <span class="specialbold">Manage Fields</span>. </li><li value="2"><p>In the <b>Available </b>column, select the check box next to the criteria. A check mark in the <span class="specialbold">In Use</span> column indicates that the criteria is currently used in a search path configuration. </p><p class="Note"><b class="NoteHeadingBold">Note</b>: You cannot deselect criteria that is currently in use.</p></li><li value="3">Click <b>Save</b>.</li></ol></li>
+                                                            <li value="5">Define and prioritize the rules for finding a storage zone and location:<ol><li value="1">Click <span class="specialbold">Zone Rules</span>. The Storage Zone Rules page is displayed.</li><li value="2">Perform one of the following tasks:<ul><li>To add a storage zone rule, click <b>Add</b>.</li><li>To modify a storage zone rule, in the grid, click the storage zone.</li><li>To copy a storage zone rule, in the grid, select the check box next to the storage zone, and then click <b>Copy</b>.</li></ul></li><li value="3">Enter information in the <a href="#Storage_Zone_Rule_fields">Storage Zone Rule fields</a>.</li><li value="4">To select the units of measure (UOMs) that can be stored in the zone:<ol><li value="1">Click <span class="specialbold">Manage units of measure for this zone</span>.</li><li value="2">Select the check box next to the UOMs that can be stored in the zone.</li><li value="3">Click <b>Save</b>.</li></ol></li><li value="5">Click <b>Apply</b>. </li><li value="6">To delete a storage zone rule:<ol><li value="1">In the grid, select the check box next to the storage zone rule to delete.</li><li value="2">Click <b>Delete</b>. A confirmation message is displayed.</li><li value="3">Click <b>OK</b>.</li></ol></li></ol></li>
+                                                            <li value="6">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Deleteastoragesearchpath" data-magellan-target="Deleteastoragesearchpath"><a name="Delete_a_storage_search_path"></a>Delete a storage search path</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inbound &gt; Storage &gt; Storage Search Paths</span>.</li>
+                                                            <li value="2">In the grid, select the check box next to the search path name to delete.</li>
+                                                            <li value="3">Click <b>Delete</b>. A confirmation message is displayed.</li>
+                                                            <li value="4">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="StorageSearchPathfields" data-magellan-target="StorageSearchPathfields"><a name="Storage_Search_Path_fields"></a>Storage Search Path fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Priority</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Number that determines the priority in which the application evaluates in the storage search path in relation to other search paths when attempting to find a putaway location for inventory. The application begins by evaluating the path with the lowest priority (1), and then moves to the search path with the next highest priority.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Search Path Name</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Name for the search path. It is helpful to provide a name that briefly describes the inventory for which the search path was created.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Item Client</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Name of the client who stores this item in the facility. This field is only displayed in a 3PL environment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Item</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifier for an item. An item is any specific piece of inventory that is stored or processed within the application. Items can be raw materials, packaging materials, in-process materials, supplies, and finished goods. In some warehouses, items are called stock keeping units (SKUs). Before the application can effectively store, track, and manipulate inventory, you must assign an item identifier and define the attributes of each item you want to track. When defining an item, you specify information such as how the item is packaged and handled, along with details that define how it should be received, stored, allocated, shipped, counted, and valued (cost information).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Item Family</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Identifier used to group similar items together. Typically, all of the items within a family have the same material handling characteristics.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Supplier</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a supplier. A supplier can be an individual, organization, or another warehouse within your own organization from which you repeatedly receive inventory or handling units.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Handling Unit Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Category that classifies a group of handling units (for example, pallets, totes, transport equipment, or vehicles) that share the same characteristics such as size and weight, as well as whether they are serialized, temporary, or considered a container. The application tracks the on-hand quantity of handling units by type and, for serialized handling units, by handling unit identifier.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Receiving Movement Zone</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Movement zone in which the inventory to be put away was received or identified.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">LPN&#160;Composition</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Identifier that describes the inventory's physical composition. The application uses this value to direct inventory with a matching value to locations specified by the search path rule.</p>
+                                                                        <p>For example, you can direct inventory that meets the criteria for Heavy to floor-level pick locations. The values for physical composition are defined by the LPN composition attributes. See <a href="storage_settings.htm#Configure_storage_settings">Configure storage settings</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Inventory Status</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Value that defines the quality or disposition of the inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Consigned</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the supplier has retained ownership of the inventory that was received or identified into the warehouse. If consignment is tracked, ownership remains with the supplier until a certain point during warehouse processing, at which time ownership of the inventory is automatically transferred to the warehouse. Consignment tracking is configured by supplier.</p>
+                                                                        <p>If No, ownership of the inventory is automatically transferred to the warehouse when it is received or identified.</p>
+                                                                        <p>If No Preference, then the  search path can be used for inventory that is consigned or not consigned.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Held</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the path is used for inventory to which a hold has been applied. A hold is an attribute of inventory independent of the inventory status associated with that inventory. A hold can indicate that inventory is not available for use or distribution. Optionally, a hold can be configured to allow inventory to which the hold is applied to be shipped.</p>
+                                                                        <p>If No, the path is not used for inventory to which a hold has been applied.</p>
+                                                                        <p>If No Preference, then the search path can be used for inventory either on hold or not on hold. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Customs Item Type</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Category that defines the type of customs tracking that is required for the item. Only displayed if Customs functionality is enabled.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Customs</span>: Customs duties need to be paid for the item. Available if the address for the warehouse is designated as a Customs site type. </li>
+                                                                            <li><span class="specialbold">Excise</span>: Excise duties need to be paid for the item; customs duties may also be required. Available if the address for the warehouse is designated as a Customs and Excise site type. </li>
+                                                                            <li><span class="specialbold">No selection (blank)</span>: Inventory for the item is not bonded.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Item Family Group</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Name used to group similar item families together. Typically, all of the item families within a group have the same material handling characteristics. Item family groups can be used for sorting and reporting purposes, and as criteria, for example, for storage paths and work assignment rules.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">ABC Code</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Code that the application refers to during the cycle counting process to categorize item numbers and storage locations to determine how often inventory needs to be counted in a single period. ABC code only applies to locations when the application is configured to automatically generate inventory counts by location. The values for ABC codes are defined in inventory count settings.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Aging Profile</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Name of the aging profile representing the aging process assigned to this item. An inventory aging profile is a configuration that defines a series of inventory statuses, each of which is associated with an age, such as 2 hours, 10 days, or 4 weeks. You assign an aging profile to a date-tracked item when you want the application to automatically update the inventory status of inventory for the item as it ages in the warehouse. </p>
+                                                                        <p>Included in the aging profile is the option to define an "Expired" status. The application uses the age of the "Expired" status to calculate the expiration date of an item that is tracked by its expiration date. An aging profile is required if the item is date-tracked by both manufactured date and expiration date. This field only available if the item requires this attribute.&#160;</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Color</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>User-defined value for the color of the item. Enter a value if you want to track, report on, or search for inventory based on this attribute. For example, this value can be displayed in inventory and item reports, and can be used to find matching inventory for the purpose of applying a hold or performing an inventory status change operation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Customs VAT&#160;Code</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Code for the value added tax (VAT) for the item. A customs VAT is charged on goods and some services that are imported from countries outside the European Unit (EU) and brought into the United Kingdom (UK) from other EU countries. It is also charged on most goods and services that VAT-registered businesses provide in the UK.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Standard</span>: The standard customs VAT rate is charged for this item. </li>
+                                                                            <li><span class="specialbold">Zero</span>: No customs VAT is charged for this item.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Origin Code</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Identifier assigned to an item to identify the item's country of origin. It is typically used for export paperwork. Origin codes are user defined.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Department</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a department within the customer's facility. A department can be specified for a customer type, customer, order, order line, distribution, and item. It can be used to group information for the purpose of sorting and searching data, consolidating distribution inventory in customer-specific storage locations, and to help customers direct inventory to the proper department when it arrives at their facility.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Fit</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>User-defined value for the fit of the item. Enter a value if you want to track, report on, or search for inventory based on this attribute. For example, this value can be displayed in inventory and item reports, and can be used to find matching inventory for the purpose of applying a hold or performing an inventory status change operation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Duty Stamp Tracked</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the item requires a duty stamp. Select Yes if the value for<span class="specialbold"> Customs Item Type</span> is <span class="specialbold">Excise </span>and the item contains over 30% alcohol by volume in containers that are 35 cubic liters or larger. </p>
+                                                                        <p>If No, the item does not require a duty stamp. </p>
+                                                                        <p>Only available if the value for <span class="specialbold">Customs Item Type</span> on the order is <span class="specialbold">Excise</span>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Item Type</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>User-defined code that you can use to group similar items. This value is not used in warehouse processing, but can be displayed in shipped history reports.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Size</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>User-defined value for the size of the item. Enter a value if you want to track, report on, or search for inventory based on this attribute. For example, this value can be displayed in inventory and item reports, and can be used to find matching inventory for the purpose of applying a hold or performing an inventory status change operation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Style</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>User-defined value for the style of the item. Enter a value if you want to track, report on, or search for inventory based on this attribute. For example, this value can be displayed in inventory and item reports, and can be used to find matching inventory for the purpose of applying a hold or performing an inventory status change operation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Velocity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifies the speed at which inventory stored in a location moves in and out of the warehouse. Velocity is used to optimize warehouse space and inventory handling by placing fast moving items in the best locations for quick picking, and slower moving items in the less accessible storage locations. The application accomplishes this by attempting to match the velocity of the item with the velocity of the location when finding a location for storing the item. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Weight Class</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Value (such as Heavy, Medium, or Light) that represents the relative weight of the item. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">WIP&#160;Supply Item</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                        <p>If Yes, then the item is used in work order processing as a component in a top-level item; however, it is not allocated, picked, or delivered to a production staging location, line, or station. Instead, a supply item is typically stored in or near the production area (such as in a non-inventory tracked work-in-process supply locations) and is used by multiple production lines and top-level items. Cellophane and other wrapping materials are examples of supply items. Supply items are charged to a work order, either by specifying them in a bill of material (BOM) used to create the work order, or by specifying them when the work order is closed.</p>
+                                                                        <p>If No, the item is not a supply item.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="StorageZoneRulefields" data-magellan-target="StorageZoneRulefields"><a name="Storage_Zone_Rule_fields"></a>Storage Zone Rule fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Sequence</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Number that determines the sequence in which the application evaluates the storage zone rule in relation to other storage zone rules assigned to the search path. When evaluating the rules for location selection, the application begins by evaluating the rule with the lowest priority (1), and then moves to the next storage zone rule in sequential order. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Building</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Building in which the storage zone is located. A building is a warehouse entity consisting of one or more zones. Inventory and location information can be reported by building.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Storage Zone</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>A storage zone represents a group of locations that have the same attributes (consolidation, item mixing, date control, and others) for storing inventory. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Last Location</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application attempts to select the last location to which identical inventory was stored. When the last location reaches capacity, inventory is directed to a new location, based on the next sequential applicable storage zone rule, and that becomes the new last location for the item. If, during putaway to the last location, an operator overrides the putaway location, then the location to which the operator deposits the inventory becomes the new last location for the item. Additionally, if new inventory to be stored in an item's last location violates mixing rules, or the last location is a piece of transport equipment used for storage that has been dispatched or converted to shipping transport equipment, the application finds a different location, which becomes the item's new last location. The last location for an item is cleared when the location is emptied and there is no pending inventory to the location.</p>
+                                                                        <p>If No, the application does not attempt to find the last location to which identical inventory was deposited.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Location Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Identifies the type of location to which inventory should be directed first.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Empty</span>: Find and fill empty locations first, before attempting to fill partially filled locations. Select this option, for example, if you want to store fast-moving items in multiple locations so that multiple operators do not have to access the same location to pick the item.</li>
+                                                                            <li><span class="specialbold">Partially Full</span>: Find and fill locations that contain inventory first, before attempting to fill empty locations. Select this option, for example, if space is limited and you want to consolidate inventory if possible.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Mixed Location</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application attempts to find a partially filled location that already contains mixed inventory. The partially-filled, mixed-inventory location does not need to contain inventory that matches the inventory being put away.</p>
+                                                                        <p>If No, the application does not attempt to find a partially filled mixed location first and instead searches for an empty location, or a location that only contains the inventory that is being put away.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Match Velocity</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application attempts to find a location with a velocity setting that is the same as or lower then the item being put away. Select this option if you want to avoid placing low velocity items in higher velocity locations.</p>
+                                                                        <p>If No, the application does not attempt to match the velocity of the item with the velocity of the location. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Location Utilization Percentage</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Percentage of a location's capacity that inventory must fill before it can be stored in the location. If the inventory for a single putaway quantity does not fill the location to at least the defined percentage, then the application looks for another location according to the storage zone rules. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Location utilization percentage is only applicable to locations in the storage zone with a capacity code of Pallet or Volume. If the location capacity code is Pallet, then the utilization percentage is based on the height of the location. If the location capacity code is Volume, then the utilization percentage is based on the volume of the location. </p>
+                                                                        <p>For example, assume the <b>Location Utilization Percentage</b> is 75, the capacity code for a location is Pallet, and the location height is 72 inches. In order for the application to allocate the location to store a pallet, in addition to satisfying the other storage zone rule criteria, the pallet must be at least 54 inches tall (.75 x 72 = 54), which fills the location to 75%. If the pallet is less than 54 inches tall, then it does not meet the utilization percentage, and the application searches for another location. Location utilization is useful to ensure that smaller pallets (in height or volume)&#160;are not stored in locations that could be more efficiently used for larger pallets.</p>
+                                                                        <p>The height and volume of a full pallet is determined by the item's footprint (pallet dimensions). For partial pallets, the application calculates the pallet height by using the height of a case, the number of cases on the pallet, and the number of cases per tier (as defined in the footprint). If a pallet has mixed items, the application calculates the pallet height based on the tallest case and number of tiers. Similarly, when calculating utilization by volume for a mixed-item pallet, the application uses the largest case volume and number of tiers.</p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>:&#160;</p>
+                                                                            <ul>
+                                                                                <li>
+                                                                                    <p>If an item has an assigned location as defined in the location preference rules, then utilization percentage is not considered because storage search paths are not used. </p>
+                                                                                </li>
+                                                                                <li>
+                                                                                    <p>Location utilization should not be used in locations where pallets are stacked vertically. Storage zone rules for zones with locations that utilize pallet stack height and vertical stacking methods should have a <b>Location Utilization Percentage</b> of 0 (zero) or null (blank).</p>
+                                                                                </li>
+                                                                                <li>
+                                                                                    <p>If <b>Last Location</b> is set to Yes and you want to ensure that the last location is always used when there is available capacity, then do not define a location utilization percentage. If you do, then the inventory must satisfy the utilization percentage before it can be stored in the last location.</p>
+                                                                                </li>
+                                                                            </ul>
+                                                                        </div>
+                                                                        <p>For more information, see <a href="#Location_utilization_percentage">Location utilization percentage</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Zone Inventory Level - Minimum</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Minimum level of inventory based on pallet quantity (as defined by the pallet equivalent UOM on the item footprint) that must remain in the zone. Warehouse Management will keep inventory in the zone at or above this level. Warehouse Management considers the unit (or each) quantity on a pallet when calculating inventory levels.</p>
+                                                                        <p>For example, if the minimum level is 1 pallet, and 1 pallet equivalent UOM of inventory that meets the search path criteria contains 10 eaches, then the minimum quantity is 10 eaches, even if it resides on multiple partial pallets (such as 4 on one pallet and 6 on another).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Zone Inventory Level - Maximum</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Maximum level of inventory based on pallet quantity (as defined by the pallet equivalent UOM on the item footprint) that can reside in the zone. Warehouse Management will keep inventory in the zone at or below this level. Warehouse Management considers the unit (or each) quantity on a pallet when calculating inventory levels.</p>
+                                                                        <p>If a pallet equivalent UOM of inventory that meets the search path criteria contains 100 eaches, and you define the maximum value as 5, then the application attempts to keep inventory in this storage zone at or below 500 eaches.</p>
+                                                                        <p>For example, assume a pallet equivalent UOM of an item contains 100 eaches, and the maximum inventory level for the zone is set as 2 (2 pallets = 200 eaches). If 1 full pallet and 1 partial pallet with a quantity of 50 (150 eaches total) are already stored in the zone, and if a third pallet with a partial quantity equal to or less than 50 eaches is being stored, then Warehouse Management evaluates the zone in sequence. However, if the third pallet has a unit quantity greater than 50 eaches, the application evaluates the zone last  to avoid exceeding the zone maximum inventory level, if possible.</p>
+                                                                        <p>   If location level capacity is found in a zone that is over its maximum inventory level, additional inventory can still be stored in the zone. However, zones in which the inventory quantity is greater than the maximum level are evaluated last, regardless of sequence order. If a building sequence has been defined, the application does not evaluate the second building unless there are no available locations in the search path zones in the first building.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Use Item in Inventory Level Calculation (Zone)</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then if a specific item is not already specified on the search path, the application uses the current search item for the calculation of pallet quantity for the zone, using the pallet equivalent UOM defined on the item footprint.</p>
+                                                                        <p>This means that a search path is not needed for every individual item.</p>
+                                                                        <p>If No, then if an item is not specified on the search path, the application uses the criteria on the search path to calculate pallet quantity for the zone. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Aisle Inventory Level - Maximum</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Maximum level of inventory based on pallet quantity (as defined by the pallet equivalent UOM on the item footprint) that can be stored in a single aisle of the storage zone. Warehouse Management will keep inventory in an aisle at or below this level. Warehouse Management considers the unit (or each) quantity on a pallet when calculating inventory levels. </p>
+                                                                        <p>If a pallet equivalent UOM of inventory that meets the search path criteria contains 100 eaches, and you define the maximum value as 10, then inventory in an aisle in this zone is kept at or below 1000 eaches.</p>
+                                                                        <p>For example, assume a pallet equivalent UOM of a certain item contains 100 eaches and the maximum inventory level for the aisle is set as 10 (10 pallets =1000 eaches). If 9 full pallets and 1 pallet with a quantity of 50 (950 eaches total) are already stored in the aisle, then Warehouse Management allows another pallet to be stored in the same aisle as long as its unit quantity is equal to or less than 50 eaches. However, if the pallet has a unit quantity greater than 50 eaches, it could not be stored in the same aisle because it exceeds the maximum level of 1000 eaches (or 10 full pallet quantities).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Use Item in Inventory Level Calculation (Aisle)</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                        <p>If Yes, then if a specific item is not already specified on the search path, the application uses the current search item for the calculation of pallet quantity for the aisle, using the pallet equivalent UOM defined on the item footprint.</p>
+                                                                        <p>This means that a search path is not needed for every individual item.</p>
+                                                                        <p>If No, then if an item is not specified on the search path, the application uses the criteria on the search path to calculate pallet quantity for the aisle.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

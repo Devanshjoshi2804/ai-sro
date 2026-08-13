@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Shared functions" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Inventory</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Inventory">Inventory</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Inventorymovement">Inventory movement</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventoryadjustmentsoverview">Inventory adjustments overview</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventorystatuschange">Inventory status change</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Clientownershiptransfer">Client ownership transfer</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Managementofbondedinventory">Management of bonded inventory</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ShippedLPNreuse">Shipped LPN reuse</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Inventory" data-magellan-target="Inventory"><a name="aanchor410"></a>
+                                                            <MadCap:concept term="WM" />Inventory</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Inventory">Inventory</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Inventorymovement">Inventory movement</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventoryadjustmentsoverview">Inventory adjustments overview</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventorystatuschange">Inventory status change</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Clientownershiptransfer">Client ownership transfer</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Managementofbondedinventory">Management of bonded inventory</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ShippedLPNreuse">Shipped LPN reuse</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>The Inventory page is accessible from the following modules: <b>Inventory</b>, <b>Outbound Planner</b>, <b>Picking</b>, <b>Production</b>, <b>Receiving</b>, or <b>Shipping</b>. </p>
+                                                        <p>This page provides visibility to inventory at the warehouse and LPNs that have been shipped. When you first access the Inventory page and select a tab, you must enter search criteria to retrieve data. </p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: It is highly recommended that you limit the number of search criteria used in a single query on the Inventory page. Additional criteria increase the query's complexity, which could  negatively affect application performance. If a search that uses multiple criteria is required for a regular business workflow, consider creating a custom report or Page Builder page to retrieve the data. See<a href="admin/reports.htm"> Reports - Administration</a> and <a href="admin/page_builder.htm">Page Builder</a>.</p>
+                                                        <p>The Inventory page consists of the following tabs:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">On-Site</span>: Displays the locations, items, and LPNs in the warehouse (designated as four-wall). You can deselect the Show Four-Wall Inventory Only check box to include inventory and locations that are not four-wall, and therefore may not actually be on-site. For example, if the check box is deselected, the On-Site tab displays inventory associated with ASNs that have not yet been received. </li>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: The subtabs display the number of records that were returned based on the search criteria.</p>
+                                                            <ul>
+                                                                <li><span class="specialbold">Locations</span>: Displays information for the locations that match the search criteria. For example, if you search for not pickable locations using the quick filter, the application displays all of the locations that have the <b>Pickable</b> field set to No. You can also search for an item-specific attribute, such as hazardous items, to view the locations that contain hazardous inventory. You can perform actions on locations and also view detailed location information. See <a href="procedures_for_locations.htm">Procedures for locations</a>. </li>
+                                                                <li>
+                                                                    <p><span class="specialbold">Items</span>: Displays information for all of the items in the warehouse. For example, if you search for hazardous inventory, the Items subtab lists all of the items that are considered hazardous. You can perform actions on items and also view detailed item information. See <a href="procedures_for_items.htm">Procedures for items</a>. </p>
+                                                                    <p class="Note"><b class="NoteHeadingBold">Note</b>: The Items subtab displays the total quantity of an item in the warehouse regardless of the search criteria. For example, if you search for an item with a specific inventory status, such as held inventory, the quantity displayed is the total warehouse quantity and not only the held quantity.   </p>
+                                                                </li>
+                                                                <li><span class="specialbold">LPNs</span>: Displays information for the LPNs that match the search criteria. For example, if you search for hazardous inventory, the LPNs tab lists all of the LPNs that contain an item that is considered hazardous. You can perform actions on LPNs and also view detailed LPN information. See <a href="procedures_for_lpns.htm">Procedures for LPNs</a>. </li>
+                                                            </ul>
+                                                            <li><span class="specialbold">Shipped</span>: Displays the LPNs that have been shipped from the warehouse. You cannot perform actions on shipped LPNs. However, if you click an item in the grid to display its details, you can perform actions on the item. Actions performed on an item that was accessed from the Shipped grid do not impact shipped inventory. </li>
+                                                            <p>You use the Shipped tab to view historical data for the LPNs that have been shipped. The application supports reusing LPN identifiers after they are shipped, so this tab can display multiple records for a single LPN, depending on how many times it was shipped and reintroduced into the application. See <a href="#Shipped_LPN_reuse">Shipped LPN reuse</a> and <a href="procedures_for_lpns.htm#View_shipped_inventory">View shipped inventory</a>.</p>
+                                                        </ul>
+                                                        <h2 id="Inventorymovement" data-magellan-target="Inventorymovement"><a name="Inventory_movement"></a>Inventory movement</h2>
+                                                        <p>You use move inventory to transfer inventory from one location to another. You can choose to move inventory immediately or create a move work request in the work queue. Work that has been released to the work queue can be performed by an RF operator. A move work request creates a replenishment work in the work queue. You can also choose to move the inventory at an LPN or sub-LPN level.</p>
+                                                        <p>The source and destination areas must be configured in the inventory move configuration to move the inventory. </p>
+                                                        <ul>
+                                                            <li>When you move the inventory immediately, the following conditions apply:<ul><li>When you move a full LPN or sub-LPNs  from the location, you must provide the destination location and the move reason.</li><li>When you move a partial LPN (less than the quantity of an LPN or sub-LPN), you must modify the Destination LPN value, and specify the destination location and move reason. </li><p class="Note"><b class="NoteHeadingBold">Note</b>: The areas to and from which inventory moves can be performed and the zones in which operators are allowed to move a partial quantity is determined based on the inventory moves configuration. See <a href="inventory_move_settings.htm">Inventory Move Settings</a>.</p></ul></li>
+                                                            <li>When you create a move request in the work queue, the following condition apply:<ul><li>When you move a full LPN from the location, you must specify the destination location value.</li><li>When you move a partial LPN (less than the quantity of an LPN or sub-LPN) with the <span class="specialbold">Round Up</span> field set to Yes, the inventory count is updated to the next highest unit of measure for the LPN defined in the item footprint configuration. This creates a replenishment work in the work queue.</li><p>For example, if the <span class="specialbold">Round Up</span> option is enabled, a pallet quantity is five cases, and you select to move three cases, then the application creates an inventory move work from the location for a full pallet (five cases). If this option is disabled, the inventory move from the location is done for three cases.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: For <span class="specialbold">Round Up</span>, the areas to and from which inventory moves can be performed is determined based on the warehouse storage location configuration. The source location must be configured as pickable and the destination location must be configured for replenishments. See <a href="storage_locations.htm">Storage Locations</a>.</p></ul></li>
+                                                        </ul>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You need to modify the Destination LPN value only if you move a partial LPN, in order to deposit the partial quantity to another LPN in the destination location.</p>
+                                                        <h2 id="Inventoryadjustmentsoverview" data-magellan-target="Inventoryadjustmentsoverview"><a name="Inventory_adjustments_overview"></a>Inventory adjustments overview</h2>
+                                                        <p>Inventory adjustments are performed to modify the quantity of inventory in a storage location. For example, if you found inventory that had not been identified, you can perform an inventory adjustment to add the inventory to the proper storage location.</p>
+                                                        <p>In addition, you can use inventory adjustments to modify inventory quantities. For example, if a pallet is received and put away at 12 cases per pallet and later it is determined that the pallet contained only 10 cases, you can perform an inventory adjustment to modify the quantity that is actually stored in the storage location.</p>
+                                                        <p>An inventory adjustment is made when there is a noted discrepancy in physical inventory. The effect of an inventory adjustment is to bring book values (logical counts) into agreement with physical counts.</p>
+                                                        <p>The following manual inventory adjustments can be made:</p>
+                                                        <ul>
+                                                            <li>Adding inventory to a storage location, such as when inventory is found that has not been identified.</li>
+                                                            <li>Removing inventory from the storage location, such as when inventory is lost. </li>
+                                                            <li>Modifying inventory quantities within a storage location, such as when inventory is damaged.</li>
+                                                        </ul>
+                                                        <p>You can perform adjustments at an LPN, sub-LPN, or detail-LPN level.</p>
+                                                        <p>When you adjust inventory, the application places the storage location in error. You can choose to keep the storage locations in error to prevent any inventory activity from taking place in the location. If you choose to keep the location in error, then after the adjustments are made and you want to use the location again, you must reset the location status. Inventory adjustment transactions are sent (played) to the host automatically, if configured to do so; otherwise, you must do so manually.</p>
+                                                        <p>Some manual inventory adjustments require approval by an authorized user, such as a supervisor. When a user performs an inventory adjustment that is equal to or exceeds a cost or unit adjustment threshold defined for the user, user's role, warehouse or (in a 3PL environment) for a client or client group, the adjusted location is locked, and the adjustment is not processed until it has been approved. </p>
+                                                        <p>You use Inventory Adjustment Approval to view inventory adjustments that require approval and either approve or reject each adjustment. For details on Adjustment approvals, see <a href="adjustments.htm">Adjustments</a>.</p>
+                                                        <h2 id="Inventorystatuschange" data-magellan-target="Inventorystatuschange"><a name="Inventory_status_change"></a>Inventory status change</h2>
+                                                        <p>You can change an inventory status when an item is identified and received into your facility, and thereafter, as needed. However, you cannot change the status of inventory in the following situations:</p>
+                                                        <ul>
+                                                            <li>Inventory is reserved for an order. To change the status of inventory that is reserved, you must first cancel the reservation or the pick work for that inventory. </li>
+                                                            <li>Inventory is pending or waiting to be put away in a location. </li>
+                                                            <li>The status change violates the inventory aging profile assigned to the inventory.</li>
+                                                            <li>The role to which you are assigned is not authorized to perform it. The settings to restrict inventory status changes are defined in the Inventory Status Settings configuration. The inventory status change operation is possible only if the user's role is authorized to perform it.</li>
+                                                        </ul>
+                                                        <p>If you are using aging profiles for date-tracked items, you can still manually change the inventory statuses, but only to a status that is later in the aging progression. The exception to this is when a backwards change coordinates with the application-calculated status. For example, if you manually changed an inventory status from First Quality to Second Quality, you can manually go back to First Quality if the inventory's age is within the window defined for the First Quality status.</p>
+                                                        <p>You can also choose multiple LPNs and change the inventory status.</p>
+                                                        <h2 id="Clientownershiptransfer" data-magellan-target="Clientownershiptransfer"><a name="Client_ownership_transfer"></a>Client ownership transfer</h2>
+                                                        <p>Client ownership transfer enables you to change one or more of the following inventory attributes:</p>
+                                                        <ul>
+                                                            <li>Item</li>
+                                                            <li>Client</li>
+                                                            <li>Footprint</li>
+                                                        </ul>
+                                                        <p>You can transfer inventory from one client to another client, from one item to another item, and from one footprint to another footprint. When you transfer inventory, you enter a reason and comment for why the transfer was made. If the transfer is successful, the application logs two daily transactions: one to record the deletion of the original inventory and one to record the creation of the new or transferred inventory.</p>
+                                                        <div class="Note">
+                                                            <p><b class="NoteHeadingBold">Notes</b>:
+        <ul><li>You cannot perform a client ownership transfer for inventory that is serialized, allocated, picked, pending a move, associated with a distribution, or in a location with an active cycle count in progress.</li><li>You cannot perform the client transfer operation if doing so would violate mixing restrictions that are configured for the location.</li></ul></p>
+                                                        </div>
+                                                        <h2 id="Managementofbondedinventory" data-magellan-target="Managementofbondedinventory"><a name="Management_of_bonded_inventory"></a>Management of bonded inventory</h2>
+                                                        <p>Bonded inventory requires strict control and tracking during all movements, transactions, LPN transfers, adjustments, cycle counts, inventory reconciliation, client transfers, and security.</p>
+                                                        <p>The application supports the management of bonded inventory through the following activities:</p>
+                                                        <ul>
+                                                            <li>Movements and transactions using standard and customs inventory attributes. </li>
+                                                            <li>Transfers by tracking the rotation number as part of the movement process. If part of an LPN or a case is transferred to another LPN, the rotation number stays with the items that are transferred to the new LPN. For example, if you have a case of an item that is bonded and you move part of that case to another LPN or case, then the rotation number that was assigned to it when it was received is associated with the new inventory detail record that is created.</li>
+                                                            <li>Adjustments and cycle counts by tracking the rotation number in the process.</li>
+                                                            <li>Inventory reconciliation by tracking the consignment and rotation number for inventory.</li>
+                                                            <li>Client transfers (the transfer of customs inventory from one client to another) by assigning a new rotation number to the inventory and notifying the duty management application when the transfer is made.</li>
+                                                            <li>Security by supporting the creation of a user role that determines which users are allowed to perform the functions needed to support bonded inventory and the interaction with the duty management application; for example, to change the consignment status from Pending to Complete.</li>
+                                                        </ul>
+                                                        <h2 id="ShippedLPNreuse" data-magellan-target="ShippedLPNreuse"><a name="Shipped_LPN_reuse"></a>Shipped LPN reuse</h2>
+                                                        <p>The application supports the ability to reuse LPNs that have been shipped (such as when an LPN is returned to the warehouse, with or without inventory). When an LPN is shipped from the warehouse, the application creates a historical record for that specific instance, which includes related inventory and shipping attributes. A single LPN can be associated with many historical records.</p>
+                                                        <p>For example, assume a warehouse ships inventory on pallets (each associated with a permanent LPN) and also receives returned inventory using the same LPNs. When inventory is returned to the warehouse, the application accepts the LPN (along with any new inventory attributes, if applicable) while still maintaining history of the previous instances the LPN was shipped. The LPN can then be shipped and reused again as needed by your operational requirements. </p>
+                                                        <p>You can view shipped LPN information using the Shipped tab on the Inventory page, and you can generate reports that contain shipped LPN information. Historical records of shipped LPNs can be archived and purged to remove them from the production instance of the application using the same archive and purge job for dispatched transport equipment. </p>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly"> In this section</p>
+                                                        <div class="MCMiniTocBox_0 miniToc nocontent" data-mc-depth="1" data-mc-toc="True">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

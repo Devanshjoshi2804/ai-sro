@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Inventory|Movement" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Movement Zones</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#MovementZones">Movement Zones</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Movementzonereplenishmentattributes">Movement zone replenishment attributes</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Zoneconsolidation">Zone consolidation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyamovementzone">Add or modify a movement zone</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteamovementzone">Delete a movement zone</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Consolidatezones">Consolidate zones</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#MovementZonesfields">Movement Zones fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="MovementZones" data-magellan-target="MovementZones"><a name="aanchor491"></a>
+                                                            <MadCap:concept term="WM" />Movement Zones</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#MovementZones">Movement Zones</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Movementzonereplenishmentattributes">Movement zone replenishment attributes</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Zoneconsolidation">Zone consolidation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyamovementzone">Add or modify a movement zone</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteamovementzone">Delete a movement zone</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Consolidatezones">Consolidate zones</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#MovementZonesfields">Movement Zones fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A movement zone represents a group of locations that have the same attributes (such as for splitting LPNs, replenishments, and inventory consolidation) for moving inventory. Any location to or from which inventory is moved using directed work must belong to a movement zone; therefore, most locations in the warehouse will belong to a movement zone. </p>
+                                                        <p>For example, storage locations to which inventory can be deposited and processing locations to which inventory can be moved for packing are the types of locations that must be assigned to a movement zone for the application to select those locations for putaway or deposit. Another example is pickup and deposit (P&amp;D) locations situated at the end of an aisle where inventory is temporarily deposited prior to putaway.</p>
+                                                        <p>Each source, hop (intermediate stop), and destination location that you want to include in a movement path must be assigned to a movement zone so that inventory transfers and moves can take place from one zone to the next. For example, for an operator to be directed to deposit picked inventory to a wrapper location prior to ship staging, a movement zone must be defined for the picking locations, wrapper locations, and staging locations. The picking movement zone is the source, the wrapper movement zone is the hop, and the staging movement zone is the destination.</p>
+                                                        <p>To accomplish the move, the application evaluates the locations assigned to the wrapper movement zone and directs the operator to the optimal location in the wrapper zone to deposit the inventory. After being wrapped, the inventory is directed to an appropriate staging location.</p>
+                                                        <p>When you define a movement zone, you specify the following attributes:</p>
+                                                        <ul>
+                                                            <li>General attributes that define how the application manages inventory moves into and out of locations in the zone.</li>
+                                                            <li>Directed work that is generated automatically when inventory is deposited to the movement zone. This is an optional configuration that automates the next move; otherwise, operators use manual moves to take inventory to its next location in the path.</li>
+                                                            <li>Graphic display of the movement zone drawn on the warehouse or building map.</li>
+                                                        </ul>
+                                                        <h2 id="Movementzonereplenishmentattributes" data-magellan-target="Movementzonereplenishmentattributes"><a name="Movement_zone_replenishment_attributes"></a>Movement zone replenishment attributes</h2>
+                                                        <p>When you configure replenishment attributes for a movement zone, you define whether the application attempts to fill the pickfaces for an item during an emergency or demand replenishment. For example, if a pickface that has a capacity of 2,000 units has 200 remaining and an order needs 500 units, the application creates an emergency replenishment for 300 units to fill the order. However, if one LPN contains 1,000 units, instead of creating an emergency replenishment for 300, the application moves the entire load to the pickface during the replenishment. Once the order is filled with the 200 units originally in the location and 300 units from the replenishment, the pickface now contains 700 units. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The application attempts to move additional inventory to a pickface in the highest quantity possible without creating a move to the pickface in addition to the moves required by the emergency or demand replenishment. </p>
+                                                        <p>In addition, if Slotting is installed and enabled in Warehouse Management, you can configure the following attributes for a movement zone:</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Slotting is only used to slot pickface locations.</p>
+                                                        <ul>
+                                                            <li>The default inventory status for manual and dynamically generated (as a result of Slotting integration) replenishment item configurations. This is the default inventory status required for inventory used to replenish locations in the zone. </li>
+                                                            <li>The default method for calculating replenishment points for dynamically created replenishment item configurations for the movement zone. The replenishment points can be calculated by either a percentage of a location's capacity or a unit quantity. You define values for the following points:<ul><li><span class="specialbold"> Minimum: </span>If a location falls below the minimum value (percentage or unit quantity) when executing a slotting plan, then Warehouse Management automatically replenishes the location.</li><li><span class="specialbold">Maximum</span>: Represents the maximum value (percentage or unit quantity) to which you want Warehouse Management to fill a location during an automatic replenishment resulting from the execution a slotting plan.</li></ul></li>
+                                                        </ul>
+                                                        <p><a name="Zone_consolidation"></a>
+                                                        </p>
+                                                        <h2 id="Zoneconsolidation" data-magellan-target="Zoneconsolidation">Zone consolidation</h2>
+                                                        <p>You can use the Consolidate action, available from any zone configuration grid, to consolidate zones that share a common configuration into a single (original) zone. You can consolidate the following types of zones: count zones, movement zones, pick zones, storage zones, and work zones. See <a href="#Consolidate_zones">Consolidate zones</a>.</p>
+                                                        <p>When you select a zone and use the Consolidate action, the application presents a list of zones that have a configuration that matches the selected (original) zone. You can then select one or more of the matching zones to consolidate to the original zone. </p>
+                                                        <p>During consolidation, the application performs the following tasks:</p>
+                                                        <ul>
+                                                            <li>Updates all the configurations and references for the zones that are being consolidated to now use the original zone. For example, if PickZone2 and PickZone3 are consolidated into PickZone1, then the locations assigned to PickZone2 and PickZone3 are reassigned to PickZone1. </li>
+                                                            <li>Removes the consolidated zones and retains the original zone.</li>
+                                                            <li>Displays a progress bar that shows the processing status of the consolidation. </li>
+                                                            <li>When consolidation is complete, displays the list of any remaining consolidation candidates that match the original zone. This allows you to continue consolidating to the original zone.</li>
+                                                        </ul>
+                                                        <p>The same process is available for location types using the location type configuration. See <a href="location_types.htm#Location_type_consolidation">Location type consolidation</a>.</p>
+                                                        <h2 id="Addormodifyamovementzone" data-magellan-target="Addormodifyamovementzone"><a name="Add_or_modify_a_movement_zone"></a>Add or modify a movement zone</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inventory &gt; Movement &gt; Movement Zones</span>.</li>
+                                                            <li value="2">Perform one of the following tasks:<ul><li>To add a movement zone, from the <b>Actions</b> drop-down list, select <b>Add</b>.</li><li>To modify a movement zone, in the grid, click the movement zone.</li><li>To copy a movement zone, in the grid, select the check box next to the movement zone, and then from the <b>Actions</b> drop-down list, select <b>Copy</b>.</li></ul></li>
+                                                            <li value="3">Enter information in the <a href="#Movement_Zones_fields">Movement Zones fields</a>.</li>
+                                                            <li value="4">Click <span class="specialbold">DIRECTED MOVES</span> or <b>Next</b>.</li>
+                                                            <li value="5">To enable the application to generate directed work to move inventory out the zone after the inventory has been deposited to the zone:<ol><li value="1">Perform one of the following tasks:<ul><li>To add a directed move, click <b>Add</b>.</li><li>To modify a directed move, in the grid, click the destination zone.</li></ul></li><li value="2"><p>Enter information in the following fields:</p><table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0"><col class="TableStyle-Field_Descriptions-Column-Column1" /><col class="TableStyle-Field_Descriptions-Column-Column2" /><thead><tr class="TableStyle-Field_Descriptions-Head-Header1"><th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th><th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th></tr></thead><tbody><tr class="TableStyle-Field_Descriptions-Body-Body1"><td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Destination Zone</td><td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1"><p>The movement zone to which inventory should be moved next.</p></td></tr><tr class="TableStyle-Field_Descriptions-Body-Body2"><td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Operation Code</td><td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2"><p>Operation for the directed work that is generated to move inventory to the destination zone.</p></td></tr><tr class="TableStyle-Field_Descriptions-Body-Body1"><td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Priority</td><td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1"><p>Priority at which the directed work is placed into the work queue initially to accomplish the work. If you do not provide a value for <b>Priority</b>, then the work enters the work queue at the base priority defined for the operation.</p></td></tr></tbody></table></li><li value="3">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="6">Click <b>LAYOUT</b> or <b>Next</b>. </li>
+                                                            <li value="7">To draw the zone on the warehouse map for the selected building:<ol><li value="1">Click <b>View</b>, and then select the check box for each option that you want to display on the map. </li><li value="2">Click <b>Draw</b>, and then move and size the shape on the page.</li></ol></li>
+                                                            <li value="8">
+                                                                <p>Click <b>Finish</b>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: To assign locations to a movement zone, see the information on modifying multiple locations in <a href="locations.htm#Location_configuration_process">Location configuration process</a>.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Deleteamovementzone" data-magellan-target="Deleteamovementzone"><a name="Delete_a_movement_zone"></a>Delete a movement zone</h2>
+                                                        <p>You cannot delete a movement zone if a location is assigned to it.</p>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inventory &gt; Movement &gt; Movement Zones</span>.</li>
+                                                            <li value="2">In the grid, select the check box next to the movement zone to delete. </li>
+                                                            <li value="3">From the <b>Actions</b> drop-down list, select <b>Delete</b>. A confirmation message is displayed.</li>
+                                                            <li value="4">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <p><a name="Consolidate_zones"></a>
+                                                        </p>
+                                                        <h2 id="Consolidatezones" data-magellan-target="Consolidatezones">Consolidate zones</h2>
+                                                        <p>You use the following procedure to consolidate zones that have the same configurations into a single (original) zone. See <a href="#Zone_consolidation">Zone consolidation</a>. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Zones cannot be consolidated if outstanding work references the selected zone.</p>
+                                                        <ol>
+                                                            <li value="1">Perform one of the following tasks:<ul><li>For count zones, select <b>Configuration &gt; Inventory &gt; Counting &gt; Count Zones.</b></li><li>For movement zones, select <b>Configuration &gt; Inventory &gt; Movement &gt; Movement Zones.</b></li><li>For pick zones, select <b>Configuration &gt; Outbound &gt; Allocation &gt; Pick Zones.</b></li><li>For storage zones, select <b>Configuration &gt; Inbound &gt; Storage &gt; Storage Zones.</b></li><li>For work zones, select <b>Configuration &gt; Work &gt; Work &gt; Work Zones.</b></li></ul></li>
+                                                            <li value="2">In the grid, select the zone to which duplicate zones will be consolidated. This becomes the original zone that remains after the duplicate zones have been removed. This is also the zone to which references and configurations are reassigned.</li>
+                                                            <li value="3">From the <b>Actions</b> drop-down list, select <b>Consolidate</b>. A list of zones that have the same configuration as the original zone are displayed.</li>
+                                                            <li value="4">In the grid, select the check box next to the zones to consolidate. The selected zones will be removed after consolidation takes place.</li>
+                                                            <li value="5">Click <b>Save</b>. The selected zones are removed, and the Consolidation page displays the remaining zones, if any, that match the original zone.</li>
+                                                        </ol>
+                                                        <h2 id="MovementZonesfields" data-magellan-target="MovementZonesfields"><a name="Movement_Zones_fields"></a>Movement Zones fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Zone Name</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Name for a group of locations that share the same attributes for moving inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Building</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Building in which the movement zone is located. A building is a warehouse entity consisting of one or more zones. Inventory and location information can be reported by building.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Description</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Text that further describes the zone.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Split Transfers</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the movement zone supports the splitting of LPNs during an LPN transfer. When an LPN is moved out of the movement zone, if its details (sub-LPNs or detail LPNs) have different next locations on the movement path, the application prompts the user to split the LPN and the application updates the picking information for all of the sub-LPNs and detail LPNs on the LPN. </p>
+                                                                        <p>If your warehouse is configured for picking to handling unit slots, then the sub handling unit (such as a tote) must be deposited individually off of the master handling unit (such as a trolley). For example, when an operator is in a location that is located in a movement zone configured for LPN splitting and the operator deposits a master handling unit LPN, the operator is prompted to scan or create an LPN for each slot deposit. When the sub handling unit in the slot is deposited, it is no longer associated with the master handling unit.</p>
+                                                                        <p>If No, the zone does not support LPN splitting during an LPN transfer. If your warehouse is configured for picking to handling unit slots, then slots remain on the master handling unit during deposit.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Scan New LPNs</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when an operator splits a quantity off of an LPN during an inventory transfer or cross docking, the operator can enter a new LPN for the quantity (for example, from a roll of pre-printed labels). </p>
+                                                                        <p>If No, then when an operator splits an LPN, the application generates a new LPN for the quantity that was split off from the original LPN.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Destination Locations</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application clears the assignment of a destination location from an LPN if the LPN is staged before being put away. When a destination location is allocated for putaway, the application reserves the location for the quantity of inventory pending to the location. By clearing the destination location, the pending quantity is removed, and the reserved space in the location can be used for other inventory. When the operator resumes putaway of the LPN, the application re-allocates a destination location for the inventory.</p>
+                                                                        <p>If No, the application does not clear the assignment of a destination location from an LPN when the LPN is staged before being put away. When putaway is resumed, the operator is directed to the location that was originally reserved.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Recalculate Putaway Location</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application should recalculate and find the most appropriate putaway location, including cross dock opportunities, when inventory is picked up from locations in the area. This is done to ensure that the most current data is used in determining a putaway location.</p>
+                                                                        <p>If No, the application does not recalculate the best putaway location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Fill to Capacity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then the application will attempt to fill a location during an emergency or demand replenishment. When a replenishment is generated to fill an order, the application also attempts to move additional product to fill the pickface. The application only attempts to move additional product so as not to create an additional move to the pickface or to surpass the capacity of the location.</p>
+                                                                        <p>For example, if a pickface that has a capacity of 2,000 units has 200 remaining and an order needs 500 units, the application creates an emergency replenishment for 300 units to fill the order. However, if one load contains 1,000 units, instead of creating an emergency replenishment for 300, the application directs the entire load to the pickface during the replenishment. Once the order is filled with the 200 units originally in the location and 300 units from the replenishment, 700 units remain the pickface.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The application attempts to move additional inventory to a pickface in the highest quantity possible without creating a move to the pickface in addition to the moves required by the emergency or demand replenishment.</p>
+                                                                        <p>If No, the application will not attempt to fill the location when generating an emergency or demand replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Allow Dynamic Pick Face Triggered Replenishments</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when an item is stored in a dynamic pickface location in this zone and the inventory level reaches the defined replenishment minimum, the application attempts to create a triggered replenishment. An item is stored dynamically if the item's replenishment configuration specifies a movement zone but not a specific location. When the item is stored in the zone, the application dynamically selects a storage location not already associated with an item. Select Yes if you want to continue using the application-selected location for items that are stored dynamically.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If you select Yes and want to clear the dynamic location of inventory, you must either cancel the replenishment or move the inventory to a different location.</p>
+                                                                        <p>If No, then when an item is stored in a dynamic pickface location in this zone and the inventory level reaches the defined replenishment minimum, a triggered replenishment is not created. Select No if you do not want locations in the zone to be refilled with the item was dynamically assigned to the location during a previous replenishment process.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: This configuration only affects triggered replenishments. If additional inventory for an item in a dynamic location is needed for an order, the application can still generate an emergency replenishment to the location. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Ignore Mixing Restrictions on Release</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then the application does not validate mixing restrictions when a demand replenishment is released. If you select Yes, then the application validates mixing restrictions for demand replenishments to locations in the zone when the replenishment work is unlocked. If a zone is configured for pre-inventory allocation (PIA) and if demand replenishments are configured to be created in a Locked status, it is possible for multiple demand replenishments to be created for a single location. With this field set to Yes, the application can release a demand replenishment in a Locked status to a location even if the location contains inventory that cannot be mixed with the replenishment inventory at the time of allocation. When a locked replenishment no longer violates the mixing restrictions and the location has available capacity, the application unlocks the work so that it can be performed.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If the replenishment work is manually unlocked, the application does not validate the mixing restrictions. </p>
+                                                                        <p>Select Yes if you want to allow multiple PIA demand replenishments to be allocated for a location regardless of whether the mixing restrictions are satisfied at the time of allocation. </p>
+                                                                        <p>If No, then the application validates the mixing restrictions when the replenishment inventory is allocated.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Allow Overpicking Replenishments</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, an operator can override the application and pick a quantity greater than the application-directed value during replenishment to a location in this zone. For example, if the current quantity on hand in the destination location is completely allocated, the operator can choose to overpick during replenishment knowing that picking will deplete the quantity in the destination location. Because overpicking during replenishment could overfill a location, you may not want to enable this feature where it is not physically possible to overfill a location, such as in a narrow aisle.</p>
+                                                                        <p>If No, the operator is not allowed to override the application-directed value.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Cancel Associated Picks or Shorts</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application cancels the associated picks when an emergency or demand replenishment is cancelled, and cancels the associated replenishment, if necessary, when an order pick is cancelled. Specifically, if you select Yes, then the application cancels associated picks and replenishments in the following ways:</p>
+                                                                        <ul>
+                                                                            <li>When an order pick cannot be fulfilled, the short allocation results in an emergency replenishment. If the replenishment pick is cancelled, then the associated short allocation (unfulfilled order pick) is also cancelled, or cancelled and reallocated, depending on the cancel code. If the unfulfilled order pick is cancelled instead, the emergency replenishment is only cancelled if no other short allocations or orders require the inventory.  </li>
+                                                                            <li>When pre-inventory allocation (PIA) is used and a PIA pick cannot be fulfilled, the application creates a demand replenishment. If the demand replenishment is cancelled, then the associated PIA pick is also cancelled. If the PIA pick is cancelled instead, then the demand replenishment is only cancelled if no other outstanding picks require the inventory; the demand replenishment may also be regenerated if the PIA pick is cancelled with reallocation. If a PIA pick associated to a pending top-off, triggered, or manual replenishment is cancelled, then regardless of this configuration, the replenishment is not cancelled.</li>
+                                                                        </ul>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If an emergency replenishment or demand replenishment pick is cancelled with reallocation, the replenishment pick is cancelled, but the original unfulfilled order pick is reprocessed by the application.</p>
+                                                                        <p>When an order pick or PIA pick is cancelled, the application considers this configuration for the source movement zone associated with the pick. When a demand or emergency replenishment is cancelled, the application considers this configuration for the destination movement zone.</p>
+                                                                        <p>Select Yes, for example, in a zone where dynamic pickfaces are used so that if an order is cancelled, the pending replenishment to fill the dynamic pickface is also cancelled (if no other outstanding picks require the inventory). If no other inventory exists in the location, this allows the application to reuse the location for other inventory.</p>
+                                                                        <p>If No, then the application does not cancel the associated order pick when a replenishment pick is cancelled, and does not cancel the associated replenishment when an order pick is cancelled.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Allocate Maximum UOM</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application can allocate inventory out of the zone at a larger UOM that what is required for a replenishment pick. The allocated UOM is moved to an intermediate location (such as a pickup and deposit location) from which the replenishment pick can be performed. Following the pick, the remaining inventory must be returned to storage. </p>
+                                                                        <p>Select Yes, for example, if inventory required for replenishment resides in a location that is only accessible by full pallet material handling equipment. The application can allocate a full pallet from a location in the zone, move it to a pickup and deposit location, and then allocate replenishment picks at a lower UOM level, such as cases. After the case picks are performed, the pallet LPN with the remaining inventory must be returned to storage.</p>
+                                                                        <p>If No, then during replenishment processing, the application is not allowed to allocate inventory out of the zone at a larger UOM than what is required for a replenishment. For example, select No to prevent the application from allocating a pallet LPN from the zone to satisfy a case (sub-LPN) replenishment quantity.</p>
+                                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>:&#160;If this zone is the source zone for replenishments to a destination movement zone configured with the <b>Split Replenishment Residuals</b> field is set to Yes, then the <b>Allocate Maximum UOM</b> must be set to No.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Split replenishment residuals</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then if a replenishment pick exceeds the quantity needed for the replenishment request, and the residual inventory does not fit in the destination location, then the residual inventory can be split and directed elsewhere. If configured to do so, residual inventory can be used to fulfill cross docks; otherwise, the application runs putaway to find a location. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Additional configuration is required for this functionality. See <a href="splitting_replenishment_residuals.htm" class="MCXref xref">Splitting replenishment residuals</a>.</p>
+                                                                        <p>For example, assume that a pickface location has a capacity of 50 eaches, and that the location currently has a quantity of 10 eaches. If an order requires 30 eaches, then the application creates a replenishment to fulfill the order. If this field is set to Yes and the application allocates more than the destination location can hold, then at the replenishment location, the application prompts the operator to deposit 40 eaches to fill the location to capacity. After the operator completes the deposit, the application processes the residual inventory from the replenishment pick. If configured to do so, the residual inventory can be used to fulfill cross dock opportunities. If there are no cross docks or that functionality is disabled, then the application runs putaway to find a location for the residual inventory. If allowed, the operator can override the application-directed location.  </p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>: </p>
+                                                                            <ul>
+                                                                                <li>Splitting replenishment residuals can be used to avoid returning partial pallets to storage where they can no longer be allocated as a full pallet quantity.</li>
+                                                                                <li>If the <b>Overfill</b> field is set to Yes in the replenishment settings configuration, then when prompted with the deposit quantity that fills the replenishment location, the operator can override the quantity with a quantity that exceeds the location capacity. </li>
+                                                                                <li>If this field is set to Yes, then the <b>Allocate Maximum UOM</b>&#160;field on the source movement zone must be set to No.</li>
+                                                                            </ul>
+                                                                        </div>
+                                                                        <p>If No, then replenishments cannot be split.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Display Case Equivalent on Replenishment Split</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when splitting replenishment residuals is enabled and a replenishment is split, the application displays the deposit quantity to the replenishment location in the item’s case-equivalent UOM. For example, If the location can hold 40.5 cases (45 eaches), then with this field set to Yes, the application displays a deposit quantity of 40 cases. The remaining 5 eaches that would fill the replenishment location are instead included in the residual quantity for splitting. Select Yes to ensure that replenishment deposits to locations in this zone are always completed in quantities of the case-equivalent UOM. If at least 1 case-equivalent UOM will not fit in the location, then the application displays the next smallest UOM that can fit in the location.</p>
+                                                                        <p>If No, then the application displays the deposit quantity UOM based on the location’s capacity and what is needed to fill the location. For example, if the replenishment location can hold 40.5 cases, then with this field set to No, the system displays a deposit quantity of 45 eaches to fill the location. With this field set to No, operators may be required to deposit partial cases (case-equivalent UOM) to reach location capacity.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Default Replen Config Inventory Status</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Slotting is installed and enabled in Warehouse Management, this is the default inventory status to use when creating replenishment item configurations. This value is displayed as the default inventory status when you manually create replenishment item configurations for this movement zone. This is also the inventory status that application uses when dynamically creating replenishment item configurations during the slotting plan execution.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Default Replen Configuration Level</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Slotting is installed and enabled in Warehouse Management, this value indicates how the application determines quantity when creating replenishment item configurations for this movement zone. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Percentage</span>: Percentage of a location's maximum capacity (defined for a location).</li>
+                                                                            <li><span class="specialbold">Units</span>: Number of units per location. </li>
+                                                                        </ul>
+                                                                        <p>See <a href="#Movement_zone_replenishment_attributes">Movement zone replenishment attributes</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Default Replen Minimum</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Minimum value (percentage or unit quantity) representing the point at which a location should be replenished (refilled). If the amount in a location falls below the minimum value when executing a slotting plan, Warehouse Management automatically generates a replenishment to fill the location. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Default Replen Maximum</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Maximum value (percentage or unit quantity) representing the amount to which a location should be filled during an automatic replenishment resulting from the execution of a slotting plan. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Attachment Strategy</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Method by which the application handles the deposit of a partial LPN to locations in the movement zone. A partial LPN is a sub-LPN (such as a case) or a detail LPN (such as an each or piece). The attachment strategy determines whether the application attaches a partial LPN of inventory to an existing LPN when a partial LPN is deposited to a location in the movement zone, and if so, how the attachment takes place.</p>
+                                                                        <p>The attachment strategy only applies to the deposit of sub-LPNs and detail LPNs; full LPNs are not attached to other LPNs based on the attachment strategy. If you want all inventory to be on one LPN in a location, you must enable the attach to any strategy before the location contains any inventory.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The <span class="specialbold">Attachment Strategy</span> field on a movement zone and the <span class="specialbold">Automatic LPN Consolidation</span> field on a storage zone are mutually exclusive. To avoid unexpected behavior, if a location belongs to a movement zone with this field set to attach (any value besides Never Attach), then the location's storage zone must be configured with the <span class="specialbold">Automatic LPN Consolidation</span> field set to No. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Never Attach</span>: When a partial LPN of inventory is moved to a location, a new LPN is created on which to attach or deposit the inventory. </li>
+                                                                            <li><span class="specialbold">Attach To Any</span>: When a partial LPN of inventory is moved to a location that already contains inventory, the application attaches the inventory to any existing LPN in the location. If a location does not contain inventory, the application creates a new LPN number for the partial LPN. This strategy is typically used in movement zones that allow only case or each picking, where all the inventory resides on a single LPN.</li>
+                                                                            <li><span class="specialbold">Attach If Exists</span>: When a partial LPN of inventory is moved to a location that already contains inventory, the application attaches the inventory to any existing LPN in the location. If a location does not contain inventory, the operator is not allowed to deposit a partial LPN in the location.</li>
+                                                                            <li><span class="specialbold">Attach If Unique</span>: When a partial LPN of inventory is moved to a location that already contains inventory, an operator is required to identify the LPN on which the partial LPN is deposited. If a location does not contain inventory, the application creates a new LPN number for the partial LPN. This strategy is typically used in movement zones that allow LPN (pallet) picking.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Quantity Verification Only</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then in locations where inventory is stored in cases (sub-LPNs), the operator is allowed to directly perform each picks from and inventory counts on cases in the location without entering the inventory identifier (sub-LPN) of the source case. Instead, the operator enters a quantity. Set this field to Yes when you do not need to track the carton contents in the source location from which the operator performs counts and each (piece) picks. This field only applies to locations in which inventory is stored in cases and, for picking, only applies to each picks that are sourced from cases (sub-LPNs).</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If this field is set to Yes and multiple sub-LPNs are deposited to a location in this zone, then the application consolidates the sub-LPNs onto a single sub-LPN. If there is inventory in the location, the deposited sub-LPNs are consolidated with the existing sub-LPN. However, the application does not consolidate sub-LPNs with serialized inventory.</p>
+                                                                        <p>If No, then when picking or counting at locations used to store sub-LPNs, the operator is required to enter an inventory identifier (sub-LPN) to confirm the case that is counted or from which a quantity is picked. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Audit</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, operators performing distribution deposit are required to perform an audit upon completing the deposit process for a distribution. During the audit, the operator is required to enter whether there is residual inventory on the LPN after the deposit work is completed. If there is residual inventory, the operator enters the quantity and the application compares the entered residual quantity against the expected residual quantity. If the quantities match, the audit passes and the operator is directed to place the residual inventory in a storage location determined by putaway. If the residual inventory does not match the quantity expected by the application, the audit fails and the inventory is directed to an exception location where it can be determined what caused the discrepancy in the residual inventory.</p>
+                                                                        <p>If No, operators are not required to perform a distribution audit upon completing the deposit process for a distribution. You would typically select No only in situations where all of the picked inventory is expected to be distributed, such as when eaches are picked for e-commerce orders and distributed to cartons for shipment.  </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">RF Display Warning</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then an RF message is displayed when the application cannot reserve a location in the next zone of a movement path for the entire quantity being moved. This functionality is used when the application is configured to delay reserving the next deposit location in a movement path until the operator picks up the inventory from its current location.</p>
+                                                                        <p>For example, assume an operator picks up two LPNs from their current location to move them to the next zone in the movement path. If there are no locations available, the application presents a pickup and deposit (P&amp;D) location in which all the inventory can be deposited. If a location in the next movement zone is available for depositing a partial quantity, the message indicates that locations are not available for all inventory and prompts the operator to either deposit the partial inventory to the intended zone (the remaining inventory is directed to an application-suggested P&amp;D location), or deposit the entire quantity to the P&amp;D location. For partial deposits, the application identifies the specific LPNs to be deposited to each location. You might select Yes if you want to give operators control over whether a partial deposit is made, and in some cases, to bypass a partial deposit so that the entire deposit to the next location can be made at one time.</p>
+                                                                        <p>If No, then an RF message is not displayed. If you select No and the application cannot find any locations, the operator is directed to deposit the inventory to an application-suggested P&amp;D location. If a location is available for a portion of the inventory, then the operator is directed to deposit a partial quantity to the location in the next movement zone and the remaining inventory to a P&amp;D location. For partial deposits, the application identifies the specific LPNs to be deposited to each location. You might select No if it is common for processing locations to be mostly full (eliminating the extra step of operators responding to the prompt), and if you always want to deposit as much inventory as possible to the next hop location. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Inventory Close</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application automatically closes a shipping container when the last pick for the shipment is deposited in the container by an operator performing distribution deposit. Distribution deposit is the process of depositing picked inventory to a consolidation location in order to fulfill a distribution shipment. For example, if a distribution is for three items (requiring three picks) and the operator already deposited two picks into a shipping container, then when the operator deposits the third pick, the application automatically closes the container. Depending on the Automatic Pickup configuration for the location type, closed containers are either moved automatically to the operator's RF device or the application creates directed work for another operator to move the inventory to its next location. If there are multiple containers for the shipment, then all of the containers are closed and ready to be moved to their next location when the last pick is deposited to the final shipping container. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If you select Yes, then you must also configure the application to reserve locations in the distribution deposit movement zone by shipment. See <a href="processing_location_reservation.htm" class="MCXref xref">Processing Location Reservation</a>.</p>
+                                                                        <p>If No, then the operator must manually close the containers for a shipment during distribution deposit.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Distribution Exception Location</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Location to which the operator is directed to deposit unexpected residual inventory. After the operator completes the deposit work for an LPN at the required distribution locations, the operator is directed to perform an audit to determine if there is any residual inventory. During the application-generated audit, the operator enters the quantity of residual inventory, if any. The application compares the residual quantity against the expected residual quantity. If the quantities match, the audit passes and the operator is directed to place the residual inventory in a storage location determined by putaway. If the quantities do not match, the audit fails and the inventory is directed to the distribution exception location where the cause of the discrepancy can be determined.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Allow Pallet Build</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, pallet building is allowed in the movement zone. Pallet building is a process in which cases or cartons are consolidated to create a new pallet.</p>
+                                                                        <p>If No, pallet building is not allowed in the movement zone.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pre-Stage</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                        <p>If Yes, indicates that this movement zone is used for pre-staging before the final staging location.</p>
+                                                                        <p>A pre-stage movement zone is used in the outbound work sequencing process to provide buffer hop locations in the movement path to which picked inventory can be deposited. If a pre-stage movement zone is defined in the movement path, then pick work that would otherwise be locked at source locations (and only unlocked based on outbound work sequence) would be unlocked immediately for picking to pre-stage locations. This is done so that pick work in the work queue for smaller UOMs (which typically have a longer lead time) can be unlocked for picking but not for staging. At the pre-stage location, transfer work to staging for the picked inventory is locked in the work queue until the work sequencing process unlocks it.</p>
+                                                                        <p>For example, assume that outbound work sequencing is enabled, the work release sequencing type on the outbound load is by stop, and movement paths for case pick and each pick locations among other hops (like Print/Wrapper stations) include a pre-stage movement zone. Assume also that movement paths for pallet picks have other hops (like Print/Wrapper stations) but not a pre-staging hop. During allocation, pick work for the load is created in the work queue. Case pick or Each pick work having a pre-stage movement zone defined as a hop in the movement path are not locked (ignoring any outbound work sequence). However, subsequent work out of the pre-staging hop to the staging destination is locked. Pallet pick work is locked at source zones and will be unlocked along with any locked transfers out of pre-stage by outbound work sequence only after all the cases and eaches are pre staged. When the first stop is completely staged, then pick and transfer work for stop 2 is unlocked for delivery to staging; and so on.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If a movement path contains pre-stage zones, the application does not override the initial status of work created for an operation. For example, if an operation is configured to be created with an initial status of Locked and pre-staging is used, the work to pick inventory to the pre-stage zone remains in a locked status until manually unlocked. Therefore, to ensure that work is available for operators to complete prior to pre-staging, the <b>Initial Creation Status</b> field for the operation should be set to Pending. This field is only available if outbound work sequencing is enabled. See <a href="outbound_staging.htm#Outbound_work_sequencing">Outbound work sequencing</a>.</p>
+                                                                        <p>If No, then this movement zone is not used for pre-staging.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

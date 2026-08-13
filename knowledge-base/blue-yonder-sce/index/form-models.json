@@ -1,0 +1,2842 @@
+[
+ {
+  "screen": "suppliers",
+  "route": "#wm.config/wm.config.partners.suppliers////",
+  "total": 25,
+  "required": [
+   {
+    "field": "supplierNumber",
+    "label": "Supplier",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 32
+   },
+   {
+    "field": "clientId",
+    "label": "Client",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "addressName",
+    "label": "Supplier Address",
+    "required": true,
+    "type": "wmAddress",
+    "value": {
+     "modified": {},
+     "data": {
+      "resourceId": "",
+      "addressId": "",
+      "hostExternalId": "",
+      "addressName": "",
+      "addressLine1": "",
+      "addressLine2": "",
+      "addressLine3": "",
+      "addressCity": "",
+      "addressState": "",
+      "addressPostalCode": "",
+      "addressType": "",
+      "clientId": "",
+      "countryName": "",
+      "phoneNumber": "",
+      "timeZoneCode": "",
+      "firstName": "",
+      "lastName": "",
+      "localeId": "",
+      "customsSiteType": "",
+      "globalLocationNumber": "",
+      "customsTaxSite": "",
+      "temporary": false,
+      "residentialAddress": false,
+      "receivingWebAddress": "",
+      "contactName": "",
+      "contactPhone": "",
+      "attentionPhone": "",
+      "faxNumber": "",
+      "email": "",
+      "contactTitle": "",
+      "attentionName": "",
+      "shippingPhone": "",
+      "shippingWebAddress": "",
+      "shippingContactName": "",
+      "shippingContactPhone": "",
+      "shippingAttentionPhone": "",
+      "shippingFax": "",
+      "shippingEmail": "",
+      "shippingContactTitle": "",
+      "shippingAttentionName": "",
+      "honorific": "",
+      "addressDistrict": "",
+      "poBoxFlag": false,
+      "poolPointFlag": false,
+      "poolRatingServiceName": "",
+      "region": "",
+      "latitude": "",
+      "longitude": ""
+     },
+     "hasListeners": {},
+     "events": {},
+     "stores": [],
+     "phantom": true,
+     "internalId": "ext-record-1406",
+     "id": "WM.data.model.Address-ext-record-1406"
+    },
+    "maxLength": 40
+   }
+  ],
+  "all": [
+   {
+    "field": "supplierNumber",
+    "label": "Supplier",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 32
+   },
+   {
+    "field": "trustedFlag",
+    "label": "Trusted",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "autoReceiveFlag",
+    "label": "Auto Receive Trusted ASNs",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "clientId",
+    "label": "Client",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "barCodeTemplateId",
+    "label": "Barcode Template",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "serialNumberTypeId",
+    "label": "Serial Number Type",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "addressName",
+    "label": "Supplier Address",
+    "required": true,
+    "type": "wmAddress",
+    "value": {
+     "modified": {},
+     "data": {
+      "resourceId": "",
+      "addressId": "",
+      "hostExternalId": "",
+      "addressName": "",
+      "addressLine1": "",
+      "addressLine2": "",
+      "addressLine3": "",
+      "addressCity": "",
+      "addressState": "",
+      "addressPostalCode": "",
+      "addressType": "",
+      "clientId": "",
+      "countryName": "",
+      "phoneNumber": "",
+      "timeZoneCode": "",
+      "firstName": "",
+      "lastName": "",
+      "localeId": "",
+      "customsSiteType": "",
+      "globalLocationNumber": "",
+      "customsTaxSite": "",
+      "temporary": false,
+      "residentialAddress": false,
+      "receivingWebAddress": "",
+      "contactName": "",
+      "contactPhone": "",
+      "attentionPhone": "",
+      "faxNumber": "",
+      "email": "",
+      "contactTitle": "",
+      "attentionName": "",
+      "shippingPhone": "",
+      "shippingWebAddress": "",
+      "shippingContactName": "",
+      "shippingContactPhone": "",
+      "shippingAttentionPhone": "",
+      "shippingFax": "",
+      "shippingEmail": "",
+      "shippingContactTitle": "",
+      "shippingAttentionName": "",
+      "honorific": "",
+      "addressDistrict": "",
+      "poBoxFlag": false,
+      "poolPointFlag": false,
+      "poolRatingServiceName": "",
+      "region": "",
+      "latitude": "",
+      "longitude": ""
+     },
+     "hasListeners": {},
+     "events": {},
+     "stores": [],
+     "phantom": true,
+     "internalId": "ext-record-1406",
+     "id": "WM.data.model.Address-ext-record-1406"
+    },
+    "maxLength": 40
+   },
+   {
+    "field": "firstName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "lastName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "addressLine1",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressLine2",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressCity",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 70
+   },
+   {
+    "field": "addressState",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 40
+   },
+   {
+    "field": "addressPostalCode",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "countryName",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "receiveStatus",
+    "label": "Receive Status",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "lotFormatId",
+    "label": "Lot Format",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "assetType",
+    "label": "Handling Unit Type",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "isTrackConsignmentsFlag",
+    "label": "Enable Consignment Tracking",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "trackConsignment",
+    "label": "Track Consignments",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "consignmentType",
+    "label": "Consignment Change Point",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "consignmentDays",
+    "label": "Consignment Days",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 4
+   },
+   {
+    "field": "customsSiteType",
+    "label": "Customs Site Type",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "globalLocationNumber",
+    "label": "Global Location Number",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "customsTaxSite",
+    "label": "Customs Tax Site",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   }
+  ]
+ },
+ {
+  "screen": "clients",
+  "route": "#wm.config/wm.config.partners.clients////",
+  "total": 28,
+  "required": [
+   {
+    "field": "clientId",
+    "label": "Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 32
+   },
+   {
+    "field": "addressName",
+    "label": "Address",
+    "required": true,
+    "type": "combo",
+    "value": null,
+    "maxLength": 40
+   }
+  ],
+  "all": [
+   {
+    "field": "clientId",
+    "label": "Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 32
+   },
+   {
+    "field": "addressName",
+    "label": "Address",
+    "required": true,
+    "type": "combo",
+    "value": null,
+    "maxLength": 40
+   },
+   {
+    "field": "firstName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "lastName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "addressLine1",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressLine2",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressCity",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 70
+   },
+   {
+    "field": "addressState",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressPostalCode",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "countryName",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "lotFormatId",
+    "label": "Lot Format",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "assigned",
+    "label": "Enabled for SG",
+    "required": false,
+    "type": "rpToggle",
+    "value": true
+   },
+   {
+    "field": "autoPopulateSupplierLotNum",
+    "label": "Auto Populated Supplier Lot Number",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "allowSupplierLotChange",
+    "label": "Allow Supplier Lot Change",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "packAtInventoryArrivalFlag",
+    "label": "Prevent Packing",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "captureItemPerSerialNumberFlag",
+    "label": "Capture Serialized Inventory",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "inboundTransFullValidationFlag",
+    "label": "Full Validation Of Inbound Transactions",
+    "required": false,
+    "type": "rpToggle",
+    "value": true
+   },
+   {
+    "field": "translatedWarehouseId",
+    "label": "Translated Warehouse",
+    "required": false,
+    "type": "wmWarehouse",
+    "value": null
+   },
+   {
+    "field": "dateWindow",
+    "label": "Outbound Date Window",
+    "required": false,
+    "type": "duration",
+    "value": null,
+    "maxLength": 20
+   },
+   {
+    "field": "inventoryRotationMethod",
+    "label": "Inventory Rotation Method",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "deliverySequenceLoadingOrder",
+    "label": "Delivery Sequence Loading Order",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "minExtremeTolerancePercent",
+    "label": "Minimum Extreme Tolerance (%)",
+    "required": false,
+    "type": "numberfield",
+    "value": null,
+    "maxLength": 3
+   },
+   {
+    "field": "maxExtremeTolerancePercent",
+    "label": "Maximum Extreme Tolerance (%)",
+    "required": false,
+    "type": "numberfield",
+    "value": null,
+    "maxLength": 3
+   },
+   {
+    "field": "promptFlag",
+    "label": "Suppress Out of Tolerance Prompt",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "caseLevelCaptureFlag",
+    "label": "Require Sub-LPN Capture",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "delayCaptureFlag",
+    "label": "Delay Capture Until Loading",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "allowCancelFlag",
+    "label": "Allow Cancel Capture",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "approvalRequiredFlag",
+    "label": "Require Out of Tolerance Approval",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   }
+  ]
+ },
+ {
+  "screen": "customers",
+  "route": "#wm.config/wm.config.partners.customers.main////",
+  "total": 24,
+  "required": [
+   {
+    "field": "customerNumber",
+    "label": "Customer",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "clientId",
+    "label": "Client",
+    "required": true,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "addressName",
+    "label": "Customer Address",
+    "required": true,
+    "type": "wmAddress",
+    "value": {
+     "modified": {},
+     "data": {
+      "resourceId": "",
+      "addressId": "",
+      "hostExternalId": "",
+      "addressName": "",
+      "addressLine1": "",
+      "addressLine2": "",
+      "addressLine3": "",
+      "addressCity": "",
+      "addressState": "",
+      "addressPostalCode": "",
+      "addressType": "",
+      "clientId": "",
+      "countryName": "",
+      "phoneNumber": "",
+      "timeZoneCode": "",
+      "firstName": "",
+      "lastName": "",
+      "localeId": "",
+      "customsSiteType": "",
+      "globalLocationNumber": "",
+      "customsTaxSite": "",
+      "temporary": false,
+      "residentialAddress": false,
+      "receivingWebAddress": "",
+      "contactName": "",
+      "contactPhone": "",
+      "attentionPhone": "",
+      "faxNumber": "",
+      "email": "",
+      "contactTitle": "",
+      "attentionName": "",
+      "shippingPhone": "",
+      "shippingWebAddress": "",
+      "shippingContactName": "",
+      "shippingContactPhone": "",
+      "shippingAttentionPhone": "",
+      "shippingFax": "",
+      "shippingEmail": "",
+      "shippingContactTitle": "",
+      "shippingAttentionName": "",
+      "honorific": "",
+      "addressDistrict": "",
+      "poBoxFlag": false,
+      "poolPointFlag": false,
+      "poolRatingServiceName": "",
+      "region": "",
+      "latitude": "",
+      "longitude": ""
+     },
+     "hasListeners": {},
+     "events": {},
+     "stores": [],
+     "phantom": true,
+     "internalId": "ext-record-1573",
+     "id": "WM.data.model.Address-ext-record-1573"
+    },
+    "maxLength": 40
+   }
+  ],
+  "all": [
+   {
+    "field": "customerNumber",
+    "label": "Customer",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "customerType",
+    "label": "Customer Type",
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "clientId",
+    "label": "Client",
+    "required": true,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "departmentNumber",
+    "label": "Department",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "addressName",
+    "label": "Customer Address",
+    "required": true,
+    "type": "wmAddress",
+    "value": {
+     "modified": {},
+     "data": {
+      "resourceId": "",
+      "addressId": "",
+      "hostExternalId": "",
+      "addressName": "",
+      "addressLine1": "",
+      "addressLine2": "",
+      "addressLine3": "",
+      "addressCity": "",
+      "addressState": "",
+      "addressPostalCode": "",
+      "addressType": "",
+      "clientId": "",
+      "countryName": "",
+      "phoneNumber": "",
+      "timeZoneCode": "",
+      "firstName": "",
+      "lastName": "",
+      "localeId": "",
+      "customsSiteType": "",
+      "globalLocationNumber": "",
+      "customsTaxSite": "",
+      "temporary": false,
+      "residentialAddress": false,
+      "receivingWebAddress": "",
+      "contactName": "",
+      "contactPhone": "",
+      "attentionPhone": "",
+      "faxNumber": "",
+      "email": "",
+      "contactTitle": "",
+      "attentionName": "",
+      "shippingPhone": "",
+      "shippingWebAddress": "",
+      "shippingContactName": "",
+      "shippingContactPhone": "",
+      "shippingAttentionPhone": "",
+      "shippingFax": "",
+      "shippingEmail": "",
+      "shippingContactTitle": "",
+      "shippingAttentionName": "",
+      "honorific": "",
+      "addressDistrict": "",
+      "poBoxFlag": false,
+      "poolPointFlag": false,
+      "poolRatingServiceName": "",
+      "region": "",
+      "latitude": "",
+      "longitude": ""
+     },
+     "hasListeners": {},
+     "events": {},
+     "stores": [],
+     "phantom": true,
+     "internalId": "ext-record-1573",
+     "id": "WM.data.model.Address-ext-record-1573"
+    },
+    "maxLength": 40
+   },
+   {
+    "field": "firstName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "lastName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "addressLine1",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressLine2",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressCity",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 70
+   },
+   {
+    "field": "addressState",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressPostalCode",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "countryName",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "ASNSystem",
+    "label": "ASN System",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "manufacturerId",
+    "label": "Manufacturer",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "partialFlag",
+    "label": "Partial Orders",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "backOrderFlag",
+    "label": "Back Orders",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "splitFlag",
+    "label": "Case Splitting",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "crossDockFlag",
+    "label": "Cross Dock Order Lines",
+    "required": false,
+    "type": "combo",
+    "value": -1,
+    "maxLength": 60
+   },
+   {
+    "field": "createShipmentBy",
+    "label": "Create Shipment By",
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "palletBuildingConsolidateBy",
+    "label": "Pallet Building",
+    "required": false,
+    "type": "combo",
+    "value": "",
+    "maxLength": 60
+   },
+   {
+    "field": "workReleaseType",
+    "label": "Work Sequencing Release Type",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "storeType",
+    "label": "Customer Category",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "storeGroup",
+    "label": "Customer Group",
+    "required": false,
+    "type": "combo",
+    "value": null
+   }
+  ]
+ },
+ {
+  "screen": "carriers",
+  "route": "#wm.config/wm.config.partners.carriers.main////",
+  "total": 16,
+  "required": [
+   {
+    "field": "carrierCode",
+    "label": "Carrier",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "carrierName",
+    "label": "Carrier Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   }
+  ],
+  "all": [
+   {
+    "field": "carrierCode",
+    "label": "Carrier",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "carrierName",
+    "label": "Carrier Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "scacCode",
+    "label": "SCAC",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "addressName",
+    "label": "Carrier Address",
+    "required": false,
+    "type": "wmAddress",
+    "value": {
+     "modified": {},
+     "data": {
+      "resourceId": "",
+      "addressId": "",
+      "hostExternalId": "",
+      "addressName": "",
+      "addressLine1": "",
+      "addressLine2": "",
+      "addressLine3": "",
+      "addressCity": "",
+      "addressState": "",
+      "addressPostalCode": "",
+      "addressType": "",
+      "clientId": "",
+      "countryName": "",
+      "phoneNumber": "",
+      "timeZoneCode": "",
+      "firstName": "",
+      "lastName": "",
+      "localeId": "",
+      "customsSiteType": "",
+      "globalLocationNumber": "",
+      "customsTaxSite": "",
+      "temporary": false,
+      "residentialAddress": false,
+      "receivingWebAddress": "",
+      "contactName": "",
+      "contactPhone": "",
+      "attentionPhone": "",
+      "faxNumber": "",
+      "email": "",
+      "contactTitle": "",
+      "attentionName": "",
+      "shippingPhone": "",
+      "shippingWebAddress": "",
+      "shippingContactName": "",
+      "shippingContactPhone": "",
+      "shippingAttentionPhone": "",
+      "shippingFax": "",
+      "shippingEmail": "",
+      "shippingContactTitle": "",
+      "shippingAttentionName": "",
+      "honorific": "",
+      "addressDistrict": "",
+      "poBoxFlag": false,
+      "poolPointFlag": false,
+      "poolRatingServiceName": "",
+      "region": "",
+      "latitude": "",
+      "longitude": ""
+     },
+     "hasListeners": {},
+     "events": {},
+     "stores": [],
+     "phantom": true,
+     "internalId": "ext-record-1616",
+     "id": "WM.data.model.Address-ext-record-1616"
+    },
+    "maxLength": 40
+   },
+   {
+    "field": "firstName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "lastName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "addressLine1",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressLine2",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressCity",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 70
+   },
+   {
+    "field": "addressState",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 40
+   },
+   {
+    "field": "addressPostalCode",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "countryName",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "accountNumber",
+    "label": "Account",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "autoCloseShipments",
+    "label": "Automatically Close Shipments",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "timeToWait",
+    "label": "Wait Time",
+    "required": false,
+    "type": "numberfield",
+    "value": null,
+    "maxLength": 8
+   },
+   {
+    "field": "manifestStatusForAutoClose",
+    "label": "Manifest Status",
+    "required": false,
+    "type": "combo",
+    "value": null
+   }
+  ]
+ },
+ {
+  "screen": "carrierProNumbers",
+  "route": "#wm.config/wm.config.partners.carriers.carrierpronumber////",
+  "total": 16,
+  "required": [
+   {
+    "field": "carrier",
+    "label": "Carrier",
+    "required": true,
+    "type": "carrierLookup",
+    "value": null
+   },
+   {
+    "field": "addressName",
+    "label": "Carrier Facility Address",
+    "required": true,
+    "type": "wmAddress",
+    "value": {
+     "modified": {},
+     "data": {
+      "resourceId": "",
+      "addressId": "",
+      "hostExternalId": "",
+      "addressName": "",
+      "addressLine1": "",
+      "addressLine2": "",
+      "addressLine3": "",
+      "addressCity": "",
+      "addressState": "",
+      "addressPostalCode": "",
+      "addressType": "",
+      "clientId": "",
+      "countryName": "",
+      "phoneNumber": "",
+      "timeZoneCode": "",
+      "firstName": "",
+      "lastName": "",
+      "localeId": "",
+      "customsSiteType": "",
+      "globalLocationNumber": "",
+      "customsTaxSite": "",
+      "temporary": false,
+      "residentialAddress": false,
+      "receivingWebAddress": "",
+      "contactName": "",
+      "contactPhone": "",
+      "attentionPhone": "",
+      "faxNumber": "",
+      "email": "",
+      "contactTitle": "",
+      "attentionName": "",
+      "shippingPhone": "",
+      "shippingWebAddress": "",
+      "shippingContactName": "",
+      "shippingContactPhone": "",
+      "shippingAttentionPhone": "",
+      "shippingFax": "",
+      "shippingEmail": "",
+      "shippingContactTitle": "",
+      "shippingAttentionName": "",
+      "honorific": "",
+      "addressDistrict": "",
+      "poBoxFlag": false,
+      "poolPointFlag": false,
+      "poolRatingServiceName": "",
+      "region": "",
+      "latitude": "",
+      "longitude": ""
+     },
+     "hasListeners": {},
+     "events": {},
+     "stores": [],
+     "phantom": true,
+     "internalId": "ext-record-1646",
+     "id": "WM.data.model.Address-ext-record-1646"
+    },
+    "maxLength": 40
+   }
+  ],
+  "all": [
+   {
+    "field": "carrier",
+    "label": "Carrier",
+    "required": true,
+    "type": "carrierLookup",
+    "value": null
+   },
+   {
+    "field": "addressName",
+    "label": "Carrier Facility Address",
+    "required": true,
+    "type": "wmAddress",
+    "value": {
+     "modified": {},
+     "data": {
+      "resourceId": "",
+      "addressId": "",
+      "hostExternalId": "",
+      "addressName": "",
+      "addressLine1": "",
+      "addressLine2": "",
+      "addressLine3": "",
+      "addressCity": "",
+      "addressState": "",
+      "addressPostalCode": "",
+      "addressType": "",
+      "clientId": "",
+      "countryName": "",
+      "phoneNumber": "",
+      "timeZoneCode": "",
+      "firstName": "",
+      "lastName": "",
+      "localeId": "",
+      "customsSiteType": "",
+      "globalLocationNumber": "",
+      "customsTaxSite": "",
+      "temporary": false,
+      "residentialAddress": false,
+      "receivingWebAddress": "",
+      "contactName": "",
+      "contactPhone": "",
+      "attentionPhone": "",
+      "faxNumber": "",
+      "email": "",
+      "contactTitle": "",
+      "attentionName": "",
+      "shippingPhone": "",
+      "shippingWebAddress": "",
+      "shippingContactName": "",
+      "shippingContactPhone": "",
+      "shippingAttentionPhone": "",
+      "shippingFax": "",
+      "shippingEmail": "",
+      "shippingContactTitle": "",
+      "shippingAttentionName": "",
+      "honorific": "",
+      "addressDistrict": "",
+      "poBoxFlag": false,
+      "poolPointFlag": false,
+      "poolRatingServiceName": "",
+      "region": "",
+      "latitude": "",
+      "longitude": ""
+     },
+     "hasListeners": {},
+     "events": {},
+     "stores": [],
+     "phantom": true,
+     "internalId": "ext-record-1646",
+     "id": "WM.data.model.Address-ext-record-1646"
+    },
+    "maxLength": 40
+   },
+   {
+    "field": "firstName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "lastName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "addressLine1",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressLine2",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressCity",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 70
+   },
+   {
+    "field": "addressState",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 40
+   },
+   {
+    "field": "addressPostalCode",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "countryName",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "checkDigitMethod",
+    "label": "Check Digit Method",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "prefix",
+    "label": "Prefix",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "numberLength",
+    "label": "Number Length",
+    "required": false,
+    "type": "numberfield",
+    "value": null,
+    "maxLength": 2
+   },
+   {
+    "field": "separator",
+    "label": "Separator",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 1
+   },
+   {
+    "field": "format",
+    "label": "Format",
+    "required": false,
+    "type": "textfield",
+    "value": ""
+   },
+   {
+    "field": "nextValue",
+    "label": "Next Value",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   }
+  ]
+ },
+ {
+  "screen": "carrierCrossReferences",
+  "route": "#wm.config/wm.config.partners.carriers.crossreferences////",
+  "total": 17,
+  "required": [
+   {
+    "field": "carrier",
+    "label": "Carrier",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "serviceLevel",
+    "label": "Service Level",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "destinationName",
+    "label": "External System Name",
+    "required": true,
+    "type": "combo",
+    "value": null
+   }
+  ],
+  "all": [
+   {
+    "field": "carrier",
+    "label": "Carrier",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "serviceLevel",
+    "label": "Service Level",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "destinationName",
+    "label": "External System Name",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "serviceName",
+    "label": "Parcel Manifest Service",
+    "required": false,
+    "type": "textfield",
+    "value": ""
+   },
+   {
+    "field": "destinationCarrier",
+    "label": "External System Carrier",
+    "required": false,
+    "type": "textfield",
+    "value": ""
+   },
+   {
+    "field": "destinationLevel",
+    "label": "External System Service Level",
+    "required": false,
+    "type": "textfield",
+    "value": ""
+   },
+   {
+    "field": "serviceTitle",
+    "label": "Service Title",
+    "required": false,
+    "type": "textfield",
+    "value": ""
+   },
+   {
+    "field": "serverPrintsLabelFlag",
+    "label": "External System Prints Labels",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "addressName",
+    "label": "COD Address",
+    "required": false,
+    "type": "wmAddress",
+    "value": {
+     "modified": {},
+     "data": {
+      "resourceId": "",
+      "addressId": "",
+      "hostExternalId": "",
+      "addressName": "",
+      "addressLine1": "",
+      "addressLine2": "",
+      "addressLine3": "",
+      "addressCity": "",
+      "addressState": "",
+      "addressPostalCode": "",
+      "addressType": "",
+      "clientId": "",
+      "countryName": "",
+      "phoneNumber": "",
+      "timeZoneCode": "",
+      "firstName": "",
+      "lastName": "",
+      "localeId": "",
+      "customsSiteType": "",
+      "globalLocationNumber": "",
+      "customsTaxSite": "",
+      "temporary": false,
+      "residentialAddress": false,
+      "receivingWebAddress": "",
+      "contactName": "",
+      "contactPhone": "",
+      "attentionPhone": "",
+      "faxNumber": "",
+      "email": "",
+      "contactTitle": "",
+      "attentionName": "",
+      "shippingPhone": "",
+      "shippingWebAddress": "",
+      "shippingContactName": "",
+      "shippingContactPhone": "",
+      "shippingAttentionPhone": "",
+      "shippingFax": "",
+      "shippingEmail": "",
+      "shippingContactTitle": "",
+      "shippingAttentionName": "",
+      "honorific": "",
+      "addressDistrict": "",
+      "poBoxFlag": false,
+      "poolPointFlag": false,
+      "poolRatingServiceName": "",
+      "region": "",
+      "latitude": "",
+      "longitude": ""
+     },
+     "hasListeners": {},
+     "events": {},
+     "stores": [],
+     "phantom": true,
+     "internalId": "ext-record-3270",
+     "id": "WM.data.model.Address-ext-record-3270"
+    },
+    "maxLength": 40
+   },
+   {
+    "field": "firstName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "lastName",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "addressLine1",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressLine2",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressCity",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 70
+   },
+   {
+    "field": "addressState",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "addressPostalCode",
+    "label": null,
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "countryName",
+    "label": null,
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   }
+  ]
+ },
+ {
+  "screen": "transportModes",
+  "route": "#wm.config/wm.config.partners.carriers.transportmodes////",
+  "total": 9,
+  "required": [
+   {
+    "field": "transportMode",
+    "label": "Transport Mode",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "transportModeDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 2000
+   }
+  ],
+  "all": [
+   {
+    "field": "transportMode",
+    "label": "Transport Mode",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "transportModeDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 2000
+   },
+   {
+    "field": "smallPackageFlag",
+    "label": "Parcel",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "directFlag",
+    "label": "Direct",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "palletBuildConsolidationBy",
+    "label": "Pallet Building",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "warehouseEnabled",
+    "label": null,
+    "required": false,
+    "type": "enableToggle",
+    "value": false
+   },
+   {
+    "field": "lockUser",
+    "label": "Lock User",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "maximumUsers",
+    "label": "Maximum Users",
+    "required": false,
+    "type": "numberfield",
+    "value": 0,
+    "maxLength": 8
+   },
+   {
+    "field": "billOfLadingBreakLevel",
+    "label": "Bill of Lading Break Level",
+    "required": false,
+    "type": "combo",
+    "value": null
+   }
+  ]
+ },
+ {
+  "screen": "customerTypes",
+  "route": "#wm.config/wm.config.partners.customers.types////",
+  "total": 18,
+  "required": [
+   {
+    "field": "customerType",
+    "label": "Customer Type",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 4
+   },
+   {
+    "field": "longDescription",
+    "label": "Customer Type Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 2000
+   }
+  ],
+  "all": [
+   {
+    "field": "customerType",
+    "label": "Customer Type",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 4
+   },
+   {
+    "field": "longDescription",
+    "label": "Customer Type Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 2000
+   },
+   {
+    "field": "departmentNumber",
+    "label": "Department",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "manufacturerId",
+    "label": "Manufacturer",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "createShipmentBy",
+    "label": "Create Shipment By",
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "palletBuildingConsolidateBy",
+    "label": "Pallet Building",
+    "required": false,
+    "type": "combo",
+    "value": "",
+    "maxLength": 60
+   },
+   {
+    "field": "allocationSearchPath",
+    "label": "Allocation Search Path Group",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "inventoryRotationMethod",
+    "label": "Inventory Rotation Method",
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "inventoryStatusProgression",
+    "label": "Allocation Profile",
+    "required": false,
+    "type": "combo",
+    "value": null,
+    "maxLength": 60
+   },
+   {
+    "field": "reservationPriority",
+    "label": "Reservation Priority",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 1
+   },
+   {
+    "field": "bulkPickingFlag",
+    "label": "Bulk Picking",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "dateControlledInvFlag",
+    "label": "Date-Controlled Items",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "minimumShelfLife",
+    "label": "Shelf Life",
+    "required": false,
+    "type": "duration",
+    "value": null
+   },
+   {
+    "field": "outboundDateWindow",
+    "label": "Outbound Date Window",
+    "required": false,
+    "type": "duration",
+    "value": null
+   },
+   {
+    "field": "freshnessDateCode",
+    "label": "Freshness Date",
+    "required": false,
+    "type": "radiogroup",
+    "value": {}
+   },
+   {
+    "field": "freshnessDateCode",
+    "label": null,
+    "required": false,
+    "type": "radiofield",
+    "value": false
+   },
+   {
+    "field": "freshnessDateCode",
+    "label": null,
+    "required": false,
+    "type": "radiofield",
+    "value": false
+   },
+   {
+    "field": "crossDockFlag",
+    "label": "Cross Dock Order Lines",
+    "required": false,
+    "type": "combo",
+    "value": -1
+   }
+  ]
+ },
+ {
+  "screen": "clientGroups",
+  "route": "#wm.config/wm.config.partners.clients////",
+  "error": "no visible Add button"
+ },
+ {
+  "screen": "businessUnits",
+  "route": "#wm.config/wm.config.warehouse.businessunits////",
+  "total": 2,
+  "required": [
+   {
+    "field": "businessUnit",
+    "label": "Business Unit",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "businessUnitDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 2000
+   }
+  ],
+  "all": [
+   {
+    "field": "businessUnit",
+    "label": "Business Unit",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "businessUnitDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 2000
+   }
+  ]
+ },
+ {
+  "screen": "buildings",
+  "route": "#wm.config/wm.config.warehouse.buildings////",
+  "total": 1,
+  "required": [],
+  "all": [
+   {
+    "field": "fileuploadfield-3711-inputEl",
+    "label": null,
+    "required": false,
+    "type": "filefield",
+    "value": ""
+   }
+  ]
+ },
+ {
+  "screen": "areas",
+  "route": "#wm.config/wm.config.warehouse.areas////",
+  "total": 5,
+  "required": [
+   {
+    "field": "areaCode",
+    "label": "Enter a name for the area.",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "longDescription",
+    "label": "Enter a description for the area.",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 2000
+   },
+   {
+    "field": "buildingId",
+    "label": "Select the building where the area resides.",
+    "required": true,
+    "type": "combobox",
+    "value": "B1"
+   }
+  ],
+  "all": [
+   {
+    "field": "areaCode",
+    "label": "Enter a name for the area.",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "longDescription",
+    "label": "Enter a description for the area.",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 2000
+   },
+   {
+    "field": "lostLocation",
+    "label": "Enter the location designated for lost inventory in this area.",
+    "required": false,
+    "type": "locationLookup",
+    "value": null
+   },
+   {
+    "field": "buildingId",
+    "label": "Select the building where the area resides.",
+    "required": true,
+    "type": "combobox",
+    "value": "B1"
+   },
+   {
+    "field": "businessUnit",
+    "label": "Select the business unit where the area resides.",
+    "required": false,
+    "type": "combobox",
+    "value": null
+   }
+  ]
+ },
+ {
+  "screen": "locationTypes",
+  "route": "#wm.config/wm.config.warehouse.locations.locationtypes////",
+  "error": "no visible Add button"
+ },
+ {
+  "screen": "levelTypes",
+  "route": "#wm.config/wm.config.warehouse.locations.leveltypes////",
+  "total": 10,
+  "required": [
+   {
+    "field": "levelTypeName",
+    "label": "Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 14
+   },
+   {
+    "field": "levelTypeDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 250
+   },
+   {
+    "field": "totalLevelUnits",
+    "label": "Total Level Units",
+    "required": true,
+    "type": "numberfield",
+    "value": null
+   }
+  ],
+  "all": [
+   {
+    "field": "levelTypeName",
+    "label": "Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 14
+   },
+   {
+    "field": "levelTypeDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 250
+   },
+   {
+    "field": "maxWeightValidationFlag",
+    "label": "Maximum Weight Validation",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "maxWeight",
+    "label": "Maximum Weight",
+    "required": false,
+    "type": "uom.field"
+   },
+   {
+    "field": "totalLevelUnits",
+    "label": "Total Level Units",
+    "required": true,
+    "type": "numberfield",
+    "value": null
+   },
+   {
+    "field": "horizontalAlignmentFlag",
+    "label": "Enforce Horizontal Alignment",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "verticalAlignmentFlag",
+    "label": "Enforce Vertical Alignment",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "displayPendingIndicatorFlag",
+    "label": "Display Pending Inventory Indicator",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "levelTypeId",
+    "label": null,
+    "required": false,
+    "type": "hidden",
+    "value": ""
+   },
+   {
+    "field": "warehouseId",
+    "label": null,
+    "required": false,
+    "type": "hidden",
+    "value": "SG"
+   }
+  ]
+ },
+ {
+  "screen": "equipmentTypes",
+  "route": "#wm.config/wm.config.equipment.equipment.warehouseequipmenttype////",
+  "total": 7,
+  "required": [
+   {
+    "field": "vehicleTypeId",
+    "label": "Warehouse Equipment Type",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "longDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 250
+   },
+   {
+    "field": "voiceCode",
+    "label": "Voice Code",
+    "required": true,
+    "type": "numberfield",
+    "value": null
+   },
+   {
+    "field": "vehicleLimit",
+    "label": "LPN Warehouse Equipment Type Limit",
+    "required": true,
+    "type": "numberfield",
+    "value": null
+   }
+  ],
+  "all": [
+   {
+    "field": "vehicleTypeId",
+    "label": "Warehouse Equipment Type",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "longDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 250
+   },
+   {
+    "field": "voiceCode",
+    "label": "Voice Code",
+    "required": true,
+    "type": "numberfield",
+    "value": null
+   },
+   {
+    "field": "captureEquipment",
+    "label": "Capture Warehouse Equipment",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "useWorkAreaMove",
+    "label": "Work Area Associations",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "locationAccessFlag",
+    "label": null,
+    "required": false,
+    "type": "hidden",
+    "value": ""
+   },
+   {
+    "field": "vehicleLimit",
+    "label": "LPN Warehouse Equipment Type Limit",
+    "required": true,
+    "type": "numberfield",
+    "value": null
+   }
+  ]
+ },
+ {
+  "screen": "locationAccessGroups",
+  "route": "#wm.config/wm.config.equipment.equipment.locationaccessgroups////",
+  "total": 3,
+  "required": [
+   {
+    "field": "codeValue",
+    "label": "Location Access Group",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "longDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 2000
+   },
+   {
+    "field": "shortDescription",
+    "label": "Short Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   }
+  ],
+  "all": [
+   {
+    "field": "codeValue",
+    "label": "Location Access Group",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 30
+   },
+   {
+    "field": "longDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textarea",
+    "value": "",
+    "maxLength": 2000
+   },
+   {
+    "field": "shortDescription",
+    "label": "Short Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   }
+  ],
+  "error": "TimeoutError: locator.click: Timeout 30000ms exceeded."
+ },
+ {
+  "screen": "transportEquipmentType",
+  "route": "#wm.config/wm.config.equipment.equipment.transportequipmenttype////",
+  "total": 4,
+  "required": [
+   {
+    "field": "trailerType",
+    "label": "Equipment",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 5
+   },
+   {
+    "field": "longDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 250
+   },
+   {
+    "field": "shortDescription",
+    "label": "Short Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 250
+   }
+  ],
+  "all": [
+   {
+    "field": "trailerType",
+    "label": "Equipment",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 5
+   },
+   {
+    "field": "longDescription",
+    "label": "Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 250
+   },
+   {
+    "field": "shortDescription",
+    "label": "Short Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 250
+   },
+   {
+    "field": "transportEquipmentTypeAccessFlag",
+    "label": null,
+    "required": false,
+    "type": "hidden",
+    "value": ""
+   }
+  ]
+ },
+ {
+  "screen": "printers",
+  "route": "#wm.config/wm.config.equipment.hardware.printers////",
+  "total": 12,
+  "required": [
+   {
+    "field": "printerAddress",
+    "label": "Printer Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "printerType",
+    "label": "Printer Type",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "printerName",
+    "label": "Printer Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "label": "Printer Status",
+    "required": true,
+    "type": "radiogroup",
+    "value": {}
+   }
+  ],
+  "all": [
+   {
+    "field": "printerAddress",
+    "label": "Printer Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "TCPAddress",
+    "label": "Printer Network Address",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "printerType",
+    "label": "Printer Type",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "printerName",
+    "label": "Printer Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "printerLanguage",
+    "label": "Printer Language",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "serverQueueFlag",
+    "label": "Use Print Queue",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "printQueue",
+    "label": "Print Queue Location",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 80
+   },
+   {
+    "label": "Printer Status",
+    "required": true,
+    "type": "radiogroup",
+    "value": {}
+   },
+   {
+    "field": "printerStatus",
+    "label": null,
+    "required": false,
+    "type": "radiofield",
+    "value": false
+   },
+   {
+    "field": "printerStatus",
+    "label": null,
+    "required": false,
+    "type": "radiofield",
+    "value": false
+   },
+   {
+    "field": "printerStatus",
+    "label": null,
+    "required": false,
+    "type": "radiofield",
+    "value": false
+   },
+   {
+    "field": "reRoutePrinter",
+    "label": "Route To Printer",
+    "required": false,
+    "type": "combo",
+    "value": null
+   }
+  ]
+ },
+ {
+  "screen": "rfDevices",
+  "route": "#wm.config/wm.config.equipment.hardware.rfdevices////",
+  "total": 11,
+  "required": [
+   {
+    "field": "deviceCode",
+    "label": "Device Code",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "localeId",
+    "label": "Locale",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "deviceName",
+    "label": "Device Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "rfVendorName",
+    "label": "Vendor Name",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "terminalID",
+    "label": "Terminal",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "terminalType",
+    "label": "Terminal Type",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "displayWidth",
+    "label": "Width",
+    "required": true,
+    "type": "numberfield",
+    "value": null,
+    "maxLength": 8
+   },
+   {
+    "field": "displayHeight",
+    "label": "Height",
+    "required": true,
+    "type": "numberfield",
+    "value": null,
+    "maxLength": 8
+   }
+  ],
+  "all": [
+   {
+    "field": "deviceCode",
+    "label": "Device Code",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "localeId",
+    "label": "Locale",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "deviceName",
+    "label": "Device Name",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "rfVendorName",
+    "label": "Vendor Name",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "terminalID",
+    "label": "Terminal",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "terminalType",
+    "label": "Terminal Type",
+    "required": true,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "displayWidth",
+    "label": "Width",
+    "required": true,
+    "type": "numberfield",
+    "value": null,
+    "maxLength": 8
+   },
+   {
+    "field": "displayHeight",
+    "label": "Height",
+    "required": true,
+    "type": "numberfield",
+    "value": null,
+    "maxLength": 8
+   },
+   {
+    "field": "homeWorkArea",
+    "label": "Home Work Area",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "printerAddress",
+    "label": "Report Printer",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "labelPrinterAddress",
+    "label": "Label Printer",
+    "required": false,
+    "type": "combo",
+    "value": null
+   }
+  ]
+ },
+ {
+  "screen": "voiceDevices",
+  "route": "#wm.config/wm.config.equipment.hardware.voicedevices////",
+  "total": 7,
+  "required": [
+   {
+    "field": "deviceCode",
+    "label": "Device",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "localeId",
+    "label": "Voice Locale",
+    "required": true,
+    "type": "combo",
+    "value": "US_ENGLISH"
+   },
+   {
+    "field": "deviceName",
+    "label": "Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   }
+  ],
+  "all": [
+   {
+    "field": "deviceCode",
+    "label": "Device",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "localeId",
+    "label": "Voice Locale",
+    "required": true,
+    "type": "combo",
+    "value": "US_ENGLISH"
+   },
+   {
+    "field": "deviceName",
+    "label": "Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "voiceTerminalId",
+    "label": "Voice Terminal",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 40
+   },
+   {
+    "field": "homeWorkArea",
+    "label": "Home Work Area",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "printerAddress",
+    "label": "Report Printer",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "labelPrinterAddress",
+    "label": "Label Printer",
+    "required": false,
+    "type": "combo",
+    "value": null
+   }
+  ]
+ },
+ {
+  "screen": "workstations",
+  "route": "#wm.config/wm.config.equipment.hardware.workstations////",
+  "total": 22,
+  "required": [
+   {
+    "field": "deviceCode",
+    "label": "Workstation ID",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "deviceName",
+    "label": "Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   }
+  ],
+  "all": [
+   {
+    "field": "deviceCode",
+    "label": "Workstation ID",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "touchscreenDeviceFlag",
+    "label": "Touchscreen",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "deviceName",
+    "label": "Description",
+    "required": true,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 20
+   },
+   {
+    "field": "movementZoneId",
+    "label": "Movement Zone",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "printerAddress",
+    "label": "Report Printer",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "labelPrinterAddress",
+    "label": "Label Printer",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "scaleCommCmd",
+    "label": "Scale Type",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "scaleCommAddr",
+    "label": "Scale Network Address",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 100
+   },
+   {
+    "field": "scaleCommPort",
+    "label": "Scale Port Number",
+    "required": false,
+    "type": "textfield",
+    "value": "",
+    "maxLength": 10
+   },
+   {
+    "field": "scannerSerialConfiguration",
+    "label": "Scanner",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "productionStation",
+    "label": "Production Line",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "outboundProcessingFlag",
+    "label": "Processing with Workstation",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "specialHandlingLocation",
+    "label": "Exception Handling Location",
+    "required": false,
+    "type": "locationLookup",
+    "value": null
+   },
+   {
+    "field": "consolidateAtPackStationFlag",
+    "label": "Consolidate at Pack Station",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "manifestCartonFlag",
+    "label": "Manifest at Pack Station",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "packoutMovementZoneId",
+    "label": "Processing Movement Zone",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "label": "Allowed Scans",
+    "required": false,
+    "type": "checkboxgroup",
+    "value": {}
+   },
+   {
+    "field": "suppressCartonTypeChangeFlag",
+    "label": "Suppress Carton Type Change Confirmation",
+    "required": false,
+    "type": "rpToggle",
+    "value": false
+   },
+   {
+    "field": "nextFocus",
+    "label": "Next Field",
+    "required": false,
+    "type": "combo",
+    "value": null
+   },
+   {
+    "field": "LOCATION",
+    "label": null,
+    "required": false,
+    "type": "checkbox",
+    "value": false
+   },
+   {
+    "field": "LOAD",
+    "label": null,
+    "required": false,
+    "type": "checkbox",
+    "value": false
+   },
+   {
+    "field": "SUBLOAD",
+    "label": null,
+    "required": false,
+    "type": "checkbox",
+    "value": false
+   }
+  ]
+ }
+]

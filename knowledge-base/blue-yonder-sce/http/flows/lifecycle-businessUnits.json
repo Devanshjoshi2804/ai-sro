@@ -1,0 +1,59 @@
+{
+  "screen": "businessUnits",
+  "phases": {
+    "create": [
+      "POST businessUnits -> 201",
+      "GET businessUnits -> 200"
+    ],
+    "edit": [
+      "PUT businessUnits/ZV75253*!SG -> 200"
+    ],
+    "copy": [],
+    "delete": []
+  },
+  "code": "ZV75253",
+  "rowKey": "ZV75253",
+  "createApplied": {
+    "businessUnit": "ZV75253",
+    "businessUnitDescription": "ZV flow"
+  },
+  "linkFound": true,
+  "editFormFound": true,
+  "copySelect": {
+    "idx": 0,
+    "selected": 1
+  },
+  "copyInvoke": {
+    "error": "button missing or disabled"
+  },
+  "deleteSelect": {
+    "idx": 0,
+    "selected": 1
+  },
+  "deleteInvoke": {
+    "error": "TypeError: this._getDeletionStores is not a function"
+  },
+  "allCalls": [
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "businessUnits",
+      "status": 201,
+      "body": "{\"businessUnit\":\"ZV75253\",\"businessUnitDescription\":\"ZV flow\",\"warehouseId\":\"SG\",\"areaCount\":0,\"itemCount\":0}"
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "businessUnits",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "PUT",
+      "url": "businessUnits/ZV75253*!SG",
+      "status": 200,
+      "body": "{\"businessUnit\":\"ZV75253\",\"businessUnitDescription\":\"ZV edited\",\"warehouseId\":\"SG\",\"areaCount\":0,\"itemCount\":0,\"resourceId\":\"ZV75253*!SG\"}"
+    }
+  ]
+}

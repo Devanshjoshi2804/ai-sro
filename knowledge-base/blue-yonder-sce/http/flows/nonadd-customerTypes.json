@@ -1,0 +1,78 @@
+{
+  "target": "customerTypes",
+  "phases": {
+    "create": [
+      "POST customerTypes -> 201",
+      "GET customerTypes -> 200"
+    ],
+    "edit": [],
+    "copy": [],
+    "delete": []
+  },
+  "createFields": {
+    "customerType": "ZVN4",
+    "longDescription": "ZV nonadd probe"
+  },
+  "rowNode": "gridview-8224-record-ZVN4",
+  "rowSelected": {
+    "grid": "rpFilterableGrid-8215",
+    "idx": 76
+  },
+  "copyButtonAvailable": true,
+  "copyOpensForm": false,
+  "deleteButtonAvailable": true,
+  "deleteConfirmDialog": false,
+  "code": "ZVN4522",
+  "rowKey": "ZVN4",
+  "allCalls": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "clients",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locations",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "customerDistributionStagingLocations",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "customerDistributionStorageRules",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locations",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "customerTypes",
+      "status": 201,
+      "body": "{\"customerType\":\"ZVN4\",\"freshnessDateCode\":\"\",\"minimumShelfLife\":0,\"inventoryStatusProgression\":\"\",\"shipLabel\":\"\",\"createShipmentBy\":\"\",\"carrierGroup\":\"\",\"manufacturerId\":\"\",\"departmentNumber\":\"\",\"inventoryRotationMethod\":\"\",\"requiredForTMSPlanning\":\"\",\"palletBuildingConsolidateBy\":\"\",\"fullSingleItemPalletEncoding\":\"\",\"mixedPartialPalletEncoding\":\"\",\"fullSingleItemCartonEncoding\":\"\",\"mixedPartialCartonEncoding\":\"\",\"URNFormat\":\"\",\"absoluteGroup\":\"\",\"earlyDeliveryThreshold\":0,\"lateDeliveryThreshold\":0,\"quantityOvershipLimit\":0,\"maxQuantityOvershipPercentage\":0,\"quantityUndershipLimit\":0,\"maxQuantityUndershipPercentage\":0,\"shipDateValidationTransitService\":\"\",\"allowSourceFacilityOverridesFlag\":false,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"undershippingRule\":\"\",\"overshippingRule\":\"\",\"shipmentModificationRuleCode\":\"\",\"allocationSearchPath\":\"\",\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"wrapped\":\"\",\"doubleWrapped\":\"\",\"label4Sides\":\"\",\"slipSheet\":\"\",\"loadAttribute5\":\"\",\"bulkPickingFlag\":false,\"longDescription\":\"ZV nonadd probe\",\"shotDescription\":\"\",\"reservationPriority\":\"\",\"crossDockFlag\":-1,\"dateControlledInvFlag\":false,\"displayedPalletBuildingConsolidateBy\":\"Inherit from transport mode\"}"
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "customerTypes",
+      "status": 200,
+      "body": null
+    }
+  ]
+}

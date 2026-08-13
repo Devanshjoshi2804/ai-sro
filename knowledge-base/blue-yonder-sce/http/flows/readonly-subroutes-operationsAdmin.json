@@ -1,0 +1,153 @@
+{
+  "readOnly": true,
+  "results": [
+    {
+      "area": "operationsAdmin",
+      "label": "Workstation",
+      "route": "#/wm.workstation",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/refs/data/api/v1/rp/admin/sessionKeepAlive",
+          "status": 200,
+          "rowCount": null
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST api/v1/rp/admin/sessionKeepAlive"
+      ]
+    },
+    {
+      "area": "operationsAdmin",
+      "label": "SG",
+      "route": "#/refs-Site",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "operationsAdmin",
+      "label": "Integration Errors",
+      "route": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/wm.config.integration.inboundissues////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "operationsAdmin",
+      "label": "GMI Trailer KPI Exclude Operations",
+      "route": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/GMI-Trailer-KPI-Exclude-Operations-aNz8Q7ZCQZST0v_clpA2sg////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices",
+          "status": 200,
+          "rowCount": 199
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/currencies",
+          "status": 200,
+          "rowCount": 7
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/mu",
+          "status": 200,
+          "rowCount": 34
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+          "status": 200,
+          "rowCount": 8
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "operationsAdmin",
+      "label": "Configuration/Carriers",
+      "route": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/wm.config.partners.carriers.main////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/transportModes",
+          "status": 200,
+          "rowCount": 21
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierServiceLevels",
+          "status": 200,
+          "rowCount": 2225
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers",
+          "status": 200,
+          "rowCount": 25
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes",
+          "status": 200,
+          "rowCount": 5
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/listCountries",
+          "status": 200,
+          "rowCount": 288
+        },
+        {
+          "seq": 5,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/listStates",
+          "status": 200,
+          "rowCount": 213
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "operationsAdmin",
+      "label": "Reset User Account",
+      "route": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/Reset-User-Account-XONli7jZQpi1WTzmnoJDCg////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    }
+  ]
+}

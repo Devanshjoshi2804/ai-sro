@@ -1,0 +1,132 @@
+{
+  "screen": "carriers",
+  "phases": {
+    "create": [
+      "POST carriers -> 201",
+      "GET carriers -> 200"
+    ],
+    "edit": [
+      "GET carriers -> 200",
+      "GET carrierServiceLevels -> 200",
+      "PUT carriers/ZV3628 -> 200",
+      "GET carriers -> 200"
+    ],
+    "copy": [],
+    "delete": [
+      "DELETE carriers/ZV3628 -> 200",
+      "GET carriers -> 200"
+    ]
+  },
+  "code": "ZV3628",
+  "rowKey": "ZV3628",
+  "createApplied": {
+    "carrierCode": "ZV3628",
+    "carrierName": "ZV flow"
+  },
+  "createBlocked": [
+    {
+      "xtype": "quicktip",
+      "title": "&#160;",
+      "text": "Previous Page"
+    }
+  ],
+  "broughtIntoView": {
+    "done": true,
+    "method": "loadPage",
+    "page": 64,
+    "total": 1582,
+    "lastPage": 64,
+    "tried": [
+      64
+    ]
+  },
+  "linkFound": true,
+  "linkVia": ".rpux-link-grid-column-link",
+  "editFormFound": true,
+  "copySelect": {
+    "idx": 6,
+    "selected": 1
+  },
+  "copyInvoke": {
+    "invoked": "doCopy"
+  },
+  "deleteSelect": {
+    "idx": 6,
+    "selected": 1
+  },
+  "deleteInvoke": {
+    "invoked": "doDelete"
+  },
+  "allCalls": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locales",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "warehouses",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "carriers",
+      "status": 201,
+      "body": "{\"scacCode\":\"\",\"accountNumber\":\"\",\"addressId\":\"\",\"addressName\":\"\",\"address_uri\":\"\",\"carrierDetails_uri\":\"\",\"address\":null,\"carrierDetails\":null,\"timeToWait\":null,\"autoCloseShipments\":false,\"carrierCode\":\"ZV3628\",\"carrierName\":\"ZV flow\",\"currencyCode\":\"\",\"manifestStatusForAutoClose\":\"\"}"
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "carriers",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "carriers",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "carrierServiceLevels",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "PUT",
+      "url": "carriers/ZV3628",
+      "status": 200,
+      "body": "{\"scacCode\":\"\",\"accountNumber\":\"\",\"addressId\":\"\",\"addressName\":\"\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/ZV3628/addresses\",\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/ZV3628/carrierDetails\",\"address\":null,\"carrierDetails\":[{\"allowBundling\":null,\"allowFluidLoading\":null,\"allowShipStagingOverride\":null,\"bookingRequiredBeforeTendering\":null,\"carrierCode\":\"NONE\",\"carrierCodeServiceLevel\":null,\"carrierType\":null,\"currencyCode\":null,\"dateLastModified\":null,\"forceSinglePackageParcelShipments\":null,\"internationalDelivery\":null,\"lastModifiedBy\":null,\"maximumValue\":null,\"maximumVolume\":null,\"maximumWeight\":null,\"releaseValue\":null,\"releaseValueUnitType\":null,\"resourceId\":\"NONE*!NONE\",\"saturdayDelivery\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/NONE%2A%21NONE\",\"serviceLevel\":\"NONE\",\"serviceLevelName\":null,\"unitInsuranceValue\":null}],\"timeToWait\":null,\"autoCloseShipments\":false,\"carrierCode\":\"ZV3628\",\"carrierName\":\"ZV edited\",\"currencyCode\":\"\",\"manifestStatusForAutoClose\":\"\",\"resourceId\":\"ZV3628\"}"
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "carriers",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "delete",
+      "method": "DELETE",
+      "url": "carriers/ZV3628",
+      "status": 200,
+      "body": "{\"scacCode\":\"\",\"accountNumber\":\"\",\"addressId\":\"\",\"addressName\":\"\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/ZV3628/addresses\",\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/ZV3628/carrierDetails\",\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"NONE\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":null,\"addressType\":null,\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":null,\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":null,\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":null,\"poolPointFlag\":null,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":null,\"residentialAddress\":null,\"resourceId\":\"NONE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/NONE\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":null,\"timeZone\":null,\"user\":null},\"carrierDetails\":[{\"allowBundling\":null,\"allowFluidLoading\":null,\"allowShipStagingOverride\":null,\"bookingRequiredBeforeTendering\":null,\"carrierCode\":\"NONE\",\"carrierCodeServiceLevel\":null,\"carrierType\":null,\"currencyCode\":null,\"dateLastModified\":null,\"forceSinglePackageParcelShipments\":null,\"internationalDelivery\":null,\"lastModifiedBy\":null,\"maximumValue\":null,\"maximumVolume\":null,\"maximumWeight\":null,\"releaseValue\":null,\"releaseValueUnitType\":null,\"resourceId\":\"NONE*!NONE\",\"saturdayDelivery\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/NONE%2A%21NONE\",\"serviceLevel\":\"NONE\",\"serviceLevelName\":null,\"unitInsuranceValue\":null}],\"timeToWait\":null,\"autoCloseShipments\":false,\"carrierCode\":\"ZV3628\",\"carrierName\":\"ZV edited\",\"currencyCode\":\"\",\"manifestStatusForAutoClose\":\"\",\"resourceId\":\"ZV3628\"}"
+    },
+    {
+      "phase": "delete",
+      "method": "GET",
+      "url": "carriers",
+      "status": 200,
+      "body": null
+    }
+  ]
+}

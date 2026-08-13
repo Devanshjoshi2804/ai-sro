@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Shared functions" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Workflows</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Workflows">Workflows</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Tabs">Tabs</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Subtabs">Subtabs </a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Automaticworkflowprocess">Automatic workflow process</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#RFoperatorworkflowprocessscenario">RF operator workflow process scenario</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Workflows" data-magellan-target="Workflows"><a name="aanchor183"></a>
+                                                            <MadCap:concept term="WM" />Workflows</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Workflows">Workflows</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Automaticworkflowprocess">Automatic workflow process</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#RFoperatorworkflowprocessscenario">RF operator workflow process scenario</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>The Workflows page is accessible from the following modules: <b>Inventory</b>, <b>Picking</b>, <b>Production</b>, <b>Receiving</b>, <b>Shipping</b>, or <b>Yard</b>. </p>
+                                                        <p>This page provides visibility into the various workflows that are scheduled, in-process, or complete. On a daily basis, operators and users perform extra handling of product in the warehouse to check the quality of, add value to, or handle unique situations (such as damaged) of inventory and equipment. These activities are known as workflows. You can use the application to automate this process so that your operators are prompted to perform the activity and, based on the results of the activity, the application automatically takes the appropriate actions.</p>
+                                                        <p>A workflow is an application-directed operation to be performed on inventory, work orders, component items, or transport equipment at a pre-defined breakpoint or exit point (workflow exit point), in the warehouse.</p>
+                                                        <h3 id="Tabs" data-magellan-target="Tabs">Tabs</h3>
+                                                        <p>The Workflows page consists of the following tabs:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Inbound</span>: Displays inbound workflows as they transition through various statuses. An inbound workflow is used for operations performed on inventory that is received from an external source, typically prior to the inventory being stored or cross docked. See <a href="inbound_workflows.htm">Inbound Workflows</a>.</li>
+                                                            <li><span class="specialbold">Outbound</span>: Displays outbound workflows as they transition through various statuses. An outbound workflow is used for operations performed on picked inventory prior to loading. See <a href="outbound_workflows.htm">Outbound Workflows</a>.</li>
+                                                            <li><span class="specialbold">Equip/Production</span>: Displays the production, warehouse equipment, and transport equipment workflows as they transition through various statuses. A production workflow is used for operations performed on a bill of material, work order, component item, top-level item, or production station. A warehouse equipment workflow is used for operations performed on a bill of material (BOM), work order, component item, top-level item, production station, or vehicle. A transport equipment workflow is used for operation performed on inbound and outbound transport equipment, such as receiving and shipping trailers. See <a href="production_workflows.htm">Production Workflows</a>, <a href="warehouse_equipment_workflows.htm">Warehouse Equipment Workflows</a>, and <a href="transport_equipment_workflows.htm">Transport Equipment Workflows</a>.</li>
+                                                            <li><span class="specialbold">Background</span>: Displays the history of the background workflows that have been performed. A background workflow is used for an operation that is performed by the application without visual interaction with a user and as the result of internal application processes, such as printing labels, producing shipment documentation, and performing validations to meet the customer's specifications. See <a href="background_workflows.htm">Background Workflows</a>.</li>
+                                                            <li><span class="specialbold">RF Operator</span>: Displays the history of the RF operator workflows that have been performed. An RF operator workflow is used to validate the receiving and picking activities of an RF operator by directing the operator to deposit inbound or picked inventory to a pickup and deposit location where it can be verified before being directed to its final destination. See <a href="rf_operator_workflows.htm">RF Operator Workflows</a>.</li>
+                                                        </ul>
+                                                        <h3 id="Subtabs" data-magellan-target="Subtabs">Subtabs </h3>
+                                                        <p>The Inbound, Outbound, and Equip/Production tabs contain some or all of the following subtabs:</p>
+                                                        <ul>
+                                                            <li>
+                                                                <p><span class="specialbold">Planned</span>: Displays the workflows that are planned for inbound or outbound inventory. Workflows that fail and are rescheduled are displayed on this subtab. Additional information for each workflow is also displayed, some of which includes the date and time at which it was planned, the purpose of the workflow, and the inbound shipment or outbound order associated with the inventory on which the workflow is to be performed. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The Planned subtab is not displayed on the Equip/Production tab. </p>
+                                                            </li>
+                                                            <li><span class="specialbold">In Process</span>: Displays the workflows that need to be performed or have been acknowledged and are currently being performed, but not yet complete. Additional information is also displayed, some of which includes the user completing the workflow (if confirmed) and the exit point at which the workflow was executed. Workflows that are reversed are also displayed on this subtab. </li>
+                                                            <li><span class="specialbold">Failed</span>: Displays the workflow attempts that have failed. You can expand a failed workflow to view information such as the instructions included in the workflow and the operator responses. </li>
+                                                            <li><span class="specialbold">History</span>: Displays the history of completed failed and passed workflow attempts. You can expand a workflow to view information such as the instructions included in the workflow and the operator responses.</li>
+                                                        </ul>
+                                                        <h2 id="Automaticworkflowprocess" data-magellan-target="Automaticworkflowprocess"><a name="Automatic_workflow_process"></a>Automatic workflow process</h2>
+                                                        <p>Workflows may be confirmed in-line during normal warehouse processes, such as receiving, picking, shipping, work order processing, and working with transport equipment or RF devices. The following is the process:</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>When a workflow is required, an RF screen or workstation window is displayed and asks you if you want to confirm the workflow. You can choose to perform the workflow or skip it (because it does not need to be performed or you decide to perform it later. If the workflow is required and you choose not to confirm it, the current warehouse process cannot be completed. If the warehouse process has already been completed (for example, at the Post Identify workflow exit point), the application does not allow you to continue with the next process on the inventory (for example, putaway) until the required workflow is completed.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Warehouse and transport equipment workflows (except those that are work order related) cannot be cancelled by the operator prompted to perform the workflow. The operator must confirm the workflow and any workflow instructions configured for that workflow.</p>
+                                                            </li>
+                                                            <li value="2">If you choose to confirm the workflow and the workflow has instructions assigned to it, the application displays the workflow instructions. You can choose to perform the workflow instructions or skip them.</li>
+                                                            <li value="3">If you choose to confirm a workflow instruction, after performing the workflow instruction and responding to the prompt (Yes or No acknowledge), if the workflow instruction has actions assigned to it, the application performs those actions. If the action displays an RF screen or workstation windows, such as the standard workflow confirmation value entry screen or window, you can respond appropriately.</li>
+                                                            <li value="4">You can continue the process until you have confirmed or skipped all of the workflow instructions assigned to the workflow.</li>
+                                                            <li value="5">
+                                                                <p>If another workflow is required, the entire process starts over. You repeat the process until you have confirmed or skipped all of the workflows.</p>
+                                                                <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: If you skip any required workflows or workflow instructions, you cannot complete the specific warehouse process that was interrupted by the workflow. </p>
+                                                            </li>
+                                                            <li value="6">After you confirm all of the required workflows and workflow instructions, you can resume the warehouse process. </li>
+                                                        </ol>
+                                                        <h2 id="RFoperatorworkflowprocessscenario" data-magellan-target="RFoperatorworkflowprocessscenario"><a name="RF_operator_workflow_process"></a>RF operator workflow process scenario</h2>
+                                                        <p>A facility has hired a temporary or new worker to perform receiving or picking work using an RF device. Prior to beginning the work, a supervisor has created an RF operator workflow that would require the untrained RF operator to temporarily deposit received or picked inventory into a pick up and deposit location where it is validated for accuracy by another worker. The RF operator workflow process can be illustrated by the following:</p>
+                                                        <ol>
+                                                            <li value="1">The temporary or new RF operator identifies or picks the inventory.</li>
+                                                            <li value="2">An RF screen informs the operator to move the inventory to a specific location for validation.</li>
+                                                            <li value="3">
+                                                                <p>The operator moves the inventory to the workflow location and the application automatically completes the workflow.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the operator deposits the inventory in a pick up and deposit location other than the one for the workflow, the application does not complete the workflow. Instead, when the next operator picks up the inventory to move it (this may be the same operator or another operator), the application directs the inventory to the location for the RF operator workflow.</p>
+                                                            </li>
+                                                            <li value="4">An experienced operator prints out the RF Operator Workflow Report and uses it to validate the inventory. </li>
+                                                            <li value="5">
+                                                                <p>After validation, the new RF operator (or another operator, depending on your business process) chooses the Transfer option from the RF device menu, scans the LPN and is directed to deposit the inventory in a location, such as storage or staging.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Work is not automatically created to move the inventory from the validation pick up and deposit location to its next location.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly"> In this section</p>
+                                                        <div class="MCMiniTocBox_0 miniToc nocontent" data-mc-depth="1" data-mc-toc="True">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

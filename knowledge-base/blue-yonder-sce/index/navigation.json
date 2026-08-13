@@ -1,0 +1,2598 @@
+[
+ {
+  "name": "Close Equipment",
+  "pages": [],
+  "children": [
+   {
+    "name": "Dispatch",
+    "pages": [
+     "/content/procedures_for_door_activity.htm",
+     "/content/procedures_for_staging.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Leave at Door",
+    "pages": [
+     "/content/procedures_for_door_activity.htm",
+     "/content/procedures_for_staging.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Turnaround",
+    "pages": [
+     "/content/procedures_for_door_activity.htm",
+     "/content/procedures_for_staging.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Configuration",
+  "pages": [],
+  "children": [
+   {
+    "name": "Advanced",
+    "pages": [],
+    "children": [
+     {
+      "name": "Copy Language Entries",
+      "pages": [
+       "/content/copy_language_entries.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Data Protection",
+      "pages": [
+       "/content/data_protection.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Item Velocity",
+      "pages": [
+       "/content/item_velocity.htm",
+       "/content/items_page.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Reasons",
+      "pages": [
+       "/content/reasons.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Velocity Type",
+      "pages": [
+       "/content/velocity_types.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Velocity Types",
+      "pages": [
+       "/content/velocity_types.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Equipment",
+    "pages": [
+     "/content/printers.htm",
+     "/content/rf_devices.htm",
+     "/content/workstations.htm"
+    ],
+    "children": [
+     {
+      "name": "Equipment",
+      "pages": [],
+      "children": [
+       {
+        "name": "Location Access Groups",
+        "pages": [
+         "/content/location_access_groups.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Transport Equipment Type",
+        "pages": [
+         "/content/transport_equipment_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Warehouse Equipment Type",
+        "pages": [
+         "/content/warehouse_equipment_type.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Hardware",
+      "pages": [],
+      "children": [
+       {
+        "name": "Hardware Settings",
+        "pages": [
+         "/content/hardware_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "RF Devices",
+        "pages": [
+         "/content/rf_devices.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Voice Devices",
+        "pages": [
+         "/content/voice_devices.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Workstations",
+        "pages": [
+         "/content/workstations.htm"
+        ],
+        "children": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Inbound",
+    "pages": [],
+    "children": [
+     {
+      "name": "Receiving",
+      "pages": [],
+      "children": [
+       {
+        "name": "Close Inbound Shipment",
+        "pages": [
+         "/content/close_inbound_shipment.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Dock Lane Assignment",
+        "pages": [
+         "/content/dock_lane_assignment_inbound.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inbound Customs",
+        "pages": [
+         "/content/inbound_customs.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inbound Identification",
+        "pages": [
+         "/content/inbound_identification.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inbound Optimal Door Assignment",
+        "pages": [
+         "/content/inbound_optimal_door_assignment.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inbound Pallet Build",
+        "pages": [
+         "/content/inbound_pallet_build.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inbound Shipments",
+        "pages": [
+         "/content/inbound_shipments_config.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Over Receiving",
+        "pages": [
+         "/content/over_receiving.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Reverse Receiving",
+        "pages": [
+         "/content/reverse_receiving.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Returns",
+      "pages": [
+       "/content/returns_config.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Storage",
+      "pages": [],
+      "children": [
+       {
+        "name": "Location Preference Rules",
+        "pages": [
+         "/content/location_preference_rules.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pallet Stack Methods",
+        "pages": [
+         "/content/pallet_stack_methods.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Storage Building Sequence",
+        "pages": [
+         "/content/storage_building_sequence.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Storage Mixing Restrictions",
+        "pages": [
+         "/content/storage_mixing_restrictions.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Storage Override Reasons",
+        "pages": [
+         "/content/storage_override_reasons.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Storage Search Paths",
+        "pages": [
+         "/content/storage_search_paths.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Storage Settings",
+        "pages": [
+         "/content/storage_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Storage Velocity",
+        "pages": [
+         "/content/storage_velocity.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Storage Zones",
+        "pages": [
+         "/content/count_zones.htm",
+         "/content/movement_zones.htm",
+         "/content/pick_zones.htm",
+         "/content/storage_zones.htm",
+         "/content/work_zones.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Voice Putaway",
+        "pages": [
+         "/content/voice_putaway.htm"
+        ],
+        "children": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Integration",
+    "pages": [],
+    "children": [
+     {
+      "name": "Billing",
+      "pages": [
+       "/content/billing.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Event Management",
+      "pages": [
+       "/content/event_management.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "General Integration",
+      "pages": [
+       "/content/general_integration.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Host",
+      "pages": [],
+      "children": [
+       {
+        "name": "Location Transaction",
+        "pages": [
+         "/content/location_transactions.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Movement Transaction",
+        "pages": [
+         "/content/movement_transactions.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Transaction Grouping",
+        "pages": [
+         "/content/transaction_grouping.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Reports and Labels",
+      "pages": [],
+      "children": [
+       {
+        "name": "Document Types",
+        "pages": [
+         "/content/document_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Label Formats",
+        "pages": [
+         "/content/label_formats.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Transportation Manager",
+      "pages": [
+       "/content/transportation_manager.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Warehouse Labor Management",
+      "pages": [
+       "/content/warehouse_labor_management.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "WCS Integration",
+      "pages": [
+       "/content/warehouse_control_system_integration.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Inventory",
+    "pages": [
+     "/content/item_overrides.htm"
+    ],
+    "children": [
+     {
+      "name": "Barcodes",
+      "pages": [],
+      "children": [
+       {
+        "name": "Barcode Settings",
+        "pages": [
+         "/content/barcode_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Barcode Templates",
+        "pages": [
+         "/content/barcode_templates.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Counting",
+      "pages": [],
+      "children": [
+       {
+        "name": "Count Release Rules",
+        "pages": [
+         "/content/count_release_rules.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Count Settings",
+        "pages": [
+         "/content/count_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Count Types",
+        "pages": [
+         "/content/count_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Count Zones",
+        "pages": [
+         "/content/count_zones.htm",
+         "/content/movement_zones.htm",
+         "/content/pick_zones.htm",
+         "/content/storage_zones.htm",
+         "/content/work_zones.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Voice Counting",
+        "pages": [
+         "/content/voice_counting.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Holds",
+      "pages": [],
+      "children": [
+       {
+        "name": "Existing Holds",
+        "pages": [
+         "/content/existing_holds.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Hold Reasons",
+        "pages": [
+         "/content/hold_reasons.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Hold Types",
+        "pages": [
+         "/content/hold_types.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Inventory Adjustment Settings",
+      "pages": [
+       "/content/inventory_adjustment_settings.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Inventory Adjustments",
+      "pages": [],
+      "children": [
+       {
+        "name": "Adjustment Reasons",
+        "pages": [
+         "/content/adjustment_reasons.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Approval Reasons",
+        "pages": [
+         "/content/approval_reasons.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inventory Adjustment Thresholds",
+        "pages": [
+         "/content/inventory_adjustment_thresholds.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Inventory Moves",
+      "pages": [],
+      "children": [
+       {
+        "name": "Inventory Move Release Rules",
+        "pages": [
+         "/content/inventory_move_release_rules.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inventory Move Settings",
+        "pages": [
+         "/content/inventory_move_settings.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Inventory Settings",
+      "pages": [
+       "/content/inventory_settings.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Inventory Status",
+      "pages": [],
+      "children": [
+       {
+        "name": "Aging Profiles",
+        "pages": [
+         "/content/aging_profiles.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Allocation Profiles",
+        "pages": [
+         "/content/allocation_profiles.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inventory Status Settings",
+        "pages": [
+         "/content/inventory_status_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inventory Statuses",
+        "pages": [
+         "/content/inventory_statuses.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Items",
+      "pages": [],
+      "children": [
+       {
+        "name": "Alternate Item Types",
+        "pages": [
+         "/content/alternate_item_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Commodities",
+        "pages": [
+         "/content/commodities.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Footprints",
+        "pages": [
+         "/content/footprints.htm",
+         "/content/footprints_config.htm",
+         "/content/item_overrides.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Item Families",
+        "pages": [
+         "/content/item_families.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Item Hierarchy Setup",
+        "pages": [
+         "/content/item_hierarchy_setup.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Item Override Config",
+        "pages": [
+         "/content/item_override_configuration.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Item Overrides",
+        "pages": [
+         "/content/footprints.htm",
+         "/content/footprints_config.htm",
+         "/content/item_overrides.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Item Style Attributes",
+        "pages": [
+         "/content/item_style_attributes.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Items",
+        "pages": [
+         "/content/footprints.htm",
+         "/content/footprints_config.htm",
+         "/content/item_overrides.htm",
+         "/content/items_page.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Serial Number Types",
+        "pages": [
+         "/content/serial_number_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "User Defined Inventory Attributes",
+        "pages": [
+         "/content/user_defined_inventory_attributes.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "LPN Handling",
+      "pages": [],
+      "children": [
+       {
+        "name": "Handling Unit Settings",
+        "pages": [
+         "/content/handling_unit_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Handling Unit Types",
+        "pages": [
+         "/content/handling_unit_types_section.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Handling Units",
+        "pages": [
+         "/content/handling_units.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "LPN Attributes",
+        "pages": [
+         "/content/lpn_attributes.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Movement",
+      "pages": [],
+      "children": [
+       {
+        "name": "Movement Path Criteria",
+        "pages": [
+         "/content/movement_path_criteria.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Movement Paths",
+        "pages": [
+         "/content/movement_paths.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Movement Zones",
+        "pages": [
+         "/content/count_zones.htm",
+         "/content/movement_zones.htm",
+         "/content/pick_zones.htm",
+         "/content/storage_zones.htm",
+         "/content/work_zones.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Processing Location Reservation",
+        "pages": [
+         "/content/processing_location_reservation.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Replenishments",
+      "pages": [],
+      "children": [
+       {
+        "name": "Pick Methods",
+        "pages": [
+         "/content/pick_methods_replen.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Replenishment Search Paths",
+        "pages": [
+         "/content/replenishment_search_paths.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Replenishment Settings",
+        "pages": [
+         "/content/replenishment_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Voice Replenishments",
+        "pages": [
+         "/content/voice_replenishments.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Units of Measure",
+      "pages": [
+       "/content/units_of_measure.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Outbound",
+    "pages": [],
+    "children": [
+     {
+      "name": "Allocation",
+      "pages": [],
+      "children": [
+       {
+        "name": "Allocation Building Sequence",
+        "pages": [
+         "/content/allocation_building_sequence.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Allocation Inventory Selection",
+        "pages": [
+         "/content/allocation_inventory_selection.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Allocation Rules",
+        "pages": [
+         "/content/allocation_rules.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Allocation Search Paths",
+        "pages": [
+         "/content/allocation_search_paths.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Automatic Allocation",
+        "pages": [
+         "/content/automatic_allocation.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Manual Allocation",
+        "pages": [
+         "/content/manual_allocation.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pick Zones",
+        "pages": [
+         "/content/count_zones.htm",
+         "/content/movement_zones.htm",
+         "/content/pick_zones.htm",
+         "/content/storage_zones.htm",
+         "/content/work_zones.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Post Allocation",
+        "pages": [
+         "/content/post_allocation.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Distribution",
+      "pages": [],
+      "children": [
+       {
+        "name": "Distribution Rule Sets",
+        "pages": [
+         "/content/distribution_rule_sets.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Distribution Types",
+        "pages": [
+         "/content/distribution_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Outbound Routes",
+        "pages": [
+         "/content/outbound_routes.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Voice Distributions",
+        "pages": [
+         "/content/voice_distribution.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Order Processing",
+      "pages": [],
+      "children": [
+       {
+        "name": "Order Consolidation",
+        "pages": [
+         "/content/order_consolidation.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Outbound Note Types",
+        "pages": [
+         "/content/outbound_note_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Outbound Order Settings",
+        "pages": [
+         "/content/outbound_order_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Outbound Order Types",
+        "pages": [
+         "/content/outbound_order_types.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Packing",
+      "pages": [],
+      "children": [
+       {
+        "name": "Pack Station",
+        "pages": [
+         "/content/settings_and_pack_station.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Packing Settings",
+        "pages": [
+         "/content/settings_and_pack_station.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Picking",
+      "pages": [],
+      "children": [
+       {
+        "name": "Bulk Picking",
+        "pages": [
+         "/content/bulk_picking.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pick Cancellation",
+        "pages": [
+         "/content/pick_cancellation.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pick Cartonization",
+        "pages": [
+         "/content/pick_cartonization.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pick Labels",
+        "pages": [
+         "/content/pick_labels.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pick Methods",
+        "pages": [
+         "/content/parcel_config.htm",
+         "/content/pick_methods.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pick Pre-Validation Scheme",
+        "pages": [
+         "/content/pick_pre-validation_scheme.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pick Release",
+        "pages": [
+         "/content/pick_release.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pick Settings",
+        "pages": [
+         "/content/pick_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pick Verification",
+        "pages": [
+         "/content/pick_verification.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Voice Picking",
+        "pages": [
+         "/content/voice_picking.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Work Assignments",
+        "pages": [
+         "/content/procedures_for_work_assignment_configuration.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Production",
+      "pages": [],
+      "children": [
+       {
+        "name": "Production Lines",
+        "pages": [
+         "/content/production_lines_config.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Production Settings",
+        "pages": [
+         "/content/production_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Work Order Types",
+        "pages": [
+         "/content/work_order_types.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "RF Outbound Audit Settings",
+      "pages": [
+       "/content/rf_outbound_audit_settings.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Shipping",
+      "pages": [],
+      "children": [
+       {
+        "name": "Carrier Selection",
+        "pages": [
+         "/content/carrier_selection.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Cartonization",
+        "pages": [
+         "/content/cartonization.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Dock Lane Assignment",
+        "pages": [
+         "/content/dock_lane_assignment.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "LPN Mixing Restrictions",
+        "pages": [
+         "/content/lpn_mixing_restrictions.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Outbound Customs",
+        "pages": [
+         "/content/outbound_customs.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Outbound Loading",
+        "pages": [
+         "/content/outbound_loading.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Outbound Paperwork",
+        "pages": [
+         "/content/outbound_paperwork.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Outbound Staging",
+        "pages": [
+         "/content/outbound_staging.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Parcel",
+        "pages": [
+         "/content/parcel_config.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Parcel Handler",
+        "pages": [
+         "/content/parcel_handler_sec.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Voice Loading",
+        "pages": [
+         "/content/voice_loading.htm"
+        ],
+        "children": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Partners",
+    "pages": [],
+    "children": [
+     {
+      "name": "Carriers",
+      "pages": [],
+      "children": [
+       {
+        "name": "Carrier Cross Reference",
+        "pages": [
+         "/content/carrier_cross_references.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Carrier PRO Number",
+        "pages": [
+         "/content/carrier_pro_numbers.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Existing Carriers",
+        "pages": [
+         "/content/existing_carriers.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Transport Modes",
+        "pages": [
+         "/content/transport_modes.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Clients",
+      "pages": [
+       "/content/clients.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Customers",
+      "pages": [],
+      "children": [
+       {
+        "name": "Customer Types",
+        "pages": [
+         "/content/customer_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Existing Customers",
+        "pages": [
+         "/content/existing_customers.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Suppliers",
+      "pages": [
+       "/content/suppliers.htm"
+      ],
+      "children": [
+       {
+        "name": "Existing Suppliers",
+        "pages": [
+         "/content/suppliers.htm"
+        ],
+        "children": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Warehouse",
+    "pages": [],
+    "children": [
+     {
+      "name": "Areas",
+      "pages": [
+       "/content/areas.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Buildings",
+      "pages": [
+       "/content/buildings.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Location",
+      "pages": [],
+      "children": [
+       {
+        "name": "Staging Locations",
+        "pages": [
+         "/content/staging_locations.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Locations",
+      "pages": [],
+      "children": [
+       {
+        "name": "Aisles",
+        "pages": [
+         "/content/aisles.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Dock Access Groups",
+        "pages": [
+         "/content/dock_access_groups.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Dock Locations",
+        "pages": [
+         "/content/dock_locations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Level Types",
+        "pages": [
+         "/content/level_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Location Sequences",
+        "pages": [
+         "/content/location_sequences.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Location Types",
+        "pages": [
+         "/content/location_types.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pickup & Deposit Locations",
+        "pages": [
+         "/content/pickup_and_deposit_locations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Pickup and Deposit Locations",
+        "pages": [
+         "/content/pickup_and_deposit_locations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Processing Locations",
+        "pages": [
+         "/content/processing_locations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Production Locations",
+        "pages": [
+         "/content/production_locations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Staging Locations",
+        "pages": [
+         "/content/staging_locations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Storage Locations",
+        "pages": [
+         "/content/storage_locations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Yard Locations",
+        "pages": [
+         "/content/yard_locations.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Warehouse",
+      "pages": [
+       "/content/warehouses.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Work",
+    "pages": [],
+    "children": [
+     {
+      "name": "Warehouse Workflows",
+      "pages": [],
+      "children": [
+       {
+        "name": "Background",
+        "pages": [
+         "/content/background_workflows.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Background Workflows",
+        "pages": [
+         "/content/background_workflows.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Inbound Workflows",
+        "pages": [
+         "/content/inbound_workflows.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Outbound Workflows",
+        "pages": [
+         "/content/outbound_workflows.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Production Workflows",
+        "pages": [
+         "/content/production_workflows.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "RF Operator Workflows",
+        "pages": [
+         "/content/rf_operator_workflows.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Transport Equipment Workflows",
+        "pages": [
+         "/content/transport_equipment_workflows.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Warehouse Equipment Workflows",
+        "pages": [
+         "/content/warehouse_equipment_workflows.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Workflow Exit Points",
+        "pages": [
+         "/content/workflow_exit_points.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Work",
+      "pages": [],
+      "children": [
+       {
+        "name": "Equipment Limits",
+        "pages": [
+         "/content/equipment_limits.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Work Activities",
+        "pages": [
+         "/content/work_activities.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Work Area Associations",
+        "pages": [
+         "/content/work_area_associations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Work Areas",
+        "pages": [
+         "/content/work_areas.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Work Operations",
+        "pages": [
+         "/content/work_operations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Work RF Settings",
+        "pages": [
+         "/content/work_rf_settings.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Work Zones",
+        "pages": [
+         "/content/count_zones.htm",
+         "/content/movement_zones.htm",
+         "/content/pick_zones.htm",
+         "/content/storage_zones.htm",
+         "/content/work_zones.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "Workflows",
+      "pages": [],
+      "children": [
+       {
+        "name": "Master Workflows",
+        "pages": [
+         "/content/master_workflows.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Sampling Configurations",
+        "pages": [
+         "/content/sampling_configurations.htm"
+        ],
+        "children": []
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Dashboard",
+  "pages": [],
+  "children": [
+   {
+    "name": "Issues",
+    "pages": [
+     "/content/dashboard_obp.htm",
+     "/content/dashboard_picking.htm",
+     "/content/procedures_for_shorts_and_replenishments.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Event Management",
+  "pages": [],
+  "children": [
+   {
+    "name": "Administration",
+    "pages": [],
+    "children": [
+     {
+      "name": "Event Subscribers",
+      "pages": [
+       "/content/em/event_subscribers.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Events",
+      "pages": [
+       "/content/em/event_configuration.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Find Alert",
+      "pages": [
+       "/content/em/find_alert.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Held Alerts",
+      "pages": [
+       "/content/em/held_alerts.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "System Configuration",
+      "pages": [
+       "/content/em/system_configuration.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "User Configuration",
+      "pages": [
+       "/content/em/user_configuration.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Alert Inbox",
+    "pages": [
+     "/content/em/events.htm"
+    ],
+    "children": [
+     {
+      "name": "Alerts",
+      "pages": [
+       "/content/em/alerts.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Configuration",
+    "pages": [
+     "/content/em/configuration.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Extensions",
+  "pages": [],
+  "children": [
+   {
+    "name": "Column Editor",
+    "pages": [
+     "/content/admin/column_editor.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Field Editor",
+    "pages": [
+     "/content/admin/field_editor.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Menu Editor",
+    "pages": [
+     "/content/admin/menu_editor.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Message Editor",
+    "pages": [
+     "/content/admin/message_editor.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Page Builder",
+    "pages": [
+     "/content/admin/chart.htm",
+     "/content/admin/dashboard.htm",
+     "/content/admin/external_page.htm",
+     "/content/admin/form.htm",
+     "/content/admin/grid.htm",
+     "/content/admin/page_builder.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Inventory",
+  "pages": [],
+  "children": [
+   {
+    "name": "Adjustments",
+    "pages": [
+     "/content/adjustments.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Configuration)",
+    "pages": [
+     "/content/configuration_invmod.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Counts",
+    "pages": [
+     "/content/procedures_for_counts.htm"
+    ],
+    "children": [
+     {
+      "name": "History",
+      "pages": [
+       "/content/procedures_for_counts.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Scheduled",
+      "pages": [
+       "/content/procedures_for_counts.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Templates",
+      "pages": [
+       "/content/procedures_for_counts.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Dashboard",
+    "pages": [
+     "/content/dashboard_inventory.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Footprints",
+    "pages": [
+     "/content/footprints.htm",
+     "/content/footprints_config.htm",
+     "/content/item_overrides.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Holds",
+    "pages": [
+     "/content/procedures_for_holds.htm",
+     "/content/procedures_for_items.htm",
+     "/content/procedures_for_locations.htm",
+     "/content/procedures_for_lpns.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Inventory Issues",
+    "pages": [
+     "/content/inventory_issues.htm"
+    ],
+    "children": [
+     {
+      "name": "Expiring",
+      "pages": [
+       "/content/procedures_for_inventory_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Location Overrides",
+      "pages": [
+       "/content/procedures_for_inventory_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Locations in Error",
+      "pages": [
+       "/content/procedures_for_inventory_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Mixing Violations",
+      "pages": [
+       "/content/procedures_for_inventory_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "No Location",
+      "pages": [
+       "/content/procedures_for_inventory_issues.htm",
+       "/content/procedures_for_receiving_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Not Pickable",
+      "pages": [
+       "/content/procedures_for_inventory_issues.htm",
+       "/content/procedures_for_picking_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Not Receivable",
+      "pages": [
+       "/content/procedures_for_inventory_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Not Shippable",
+      "pages": [
+       "/content/procedures_for_inventory_issues.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Item Lots",
+    "pages": [
+     "/content/item_lots.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Non Serialized Handling Unit Adjustment Operations",
+    "pages": [
+     "/content/non_serialized_handling_unit_adjustments.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Labor",
+  "pages": [],
+  "children": [
+   {
+    "name": "Dashboard",
+    "pages": [
+     "/content/labor_approvals_widget.htm"
+    ],
+    "children": [
+     {
+      "name": "Performance",
+      "pages": [
+       "/content/labor_performance_widget.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Productivity",
+      "pages": [
+       "/content/labor_productivity_widget.htm",
+       "/content/labor_tab.htm",
+       "/content/labor_tab_picking.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "User Sign On",
+    "pages": [
+     "/content/user_sign_on_wlm.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "On-Site",
+  "pages": [],
+  "children": [
+   {
+    "name": "LPNs",
+    "pages": [
+     "/content/procedures_for_lpns.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Outbound",
+  "pages": [],
+  "children": [
+   {
+    "name": "Picking",
+    "pages": [],
+    "children": [
+     {
+      "name": "Work Assignments",
+      "pages": [
+       "/content/procedures_for_work_assignment_configuration.htm"
+      ],
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Outbound Planner",
+  "pages": [],
+  "children": [
+   {
+    "name": "Configuration)",
+    "pages": [
+     "/content/configuration_obpmod.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Dashboard",
+    "pages": [
+     "/content/dashboard_obp.htm",
+     "/content/dashboard_picking.htm",
+     "/content/labor_productivity_widget.htm",
+     "/content/labor_tab.htm",
+     "/content/labor_tab_picking.htm"
+    ],
+    "children": [
+     {
+      "name": "Labor",
+      "pages": [
+       "/content/labor_productivity_widget.htm",
+       "/content/labor_tab.htm",
+       "/content/labor_tab_picking.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Outbound",
+    "pages": [
+     "/content/dashboard_obp.htm",
+     "/content/dashboard_picking.htm",
+     "/content/procedures_for_shorts_and_replenishments.htm"
+    ],
+    "children": [
+     {
+      "name": "Loads",
+      "pages": [
+       "/content/procedures_for_loads.htm",
+       "/content/procedures_for_loads_outbound.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Orders",
+      "pages": [
+       "/content/procedures_for_orders.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Shipments",
+      "pages": [
+       "/content/procedures_for_orders.htm",
+       "/content/procedures_for_shipments.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Waves and Picks",
+    "pages": [],
+    "children": [
+     {
+      "name": "Waves",
+      "pages": [
+       "/content/dashboard_obp.htm",
+       "/content/dashboard_picking.htm",
+       "/content/procedures_for_shorts_and_replenishments.htm"
+      ],
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Packing",
+  "pages": [],
+  "children": [
+   {
+    "name": "Packing",
+    "pages": [
+     "/content/procedures_for_packing.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Picking",
+  "pages": [],
+  "children": [
+   {
+    "name": "Configuration)",
+    "pages": [
+     "/content/configuration_pickmod.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Dashboard",
+    "pages": [
+     "/content/dashboard_obp.htm",
+     "/content/dashboard_picking.htm",
+     "/content/labor_productivity_widget.htm",
+     "/content/labor_tab.htm",
+     "/content/labor_tab_picking.htm"
+    ],
+    "children": [
+     {
+      "name": "Labor",
+      "pages": [
+       "/content/labor_productivity_widget.htm",
+       "/content/labor_tab.htm",
+       "/content/labor_tab_picking.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Order Sequence Processing",
+    "pages": [
+     "/content/order_sequence_processing.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Picking Issues",
+    "pages": [
+     "/content/picking_issues.htm"
+    ],
+    "children": [
+     {
+      "name": "Cancelled Picks",
+      "pages": [
+       "/content/procedures_for_picking_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Not Pickable",
+      "pages": [
+       "/content/procedures_for_picking_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Orders Not Allocated",
+      "pages": [
+       "/content/procedures_for_picking_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Picked UOM Discrepancy",
+      "pages": [
+       "/content/procedures_for_picking_issues.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Picks and Waves",
+    "pages": [],
+    "children": [
+     {
+      "name": "Waves",
+      "pages": [
+       "/content/procedures_for_loads.htm",
+       "/content/procedures_for_loads_outbound.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Voice Tracing",
+    "pages": [
+     "/content/voice_tracing.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Waves and Picks",
+    "pages": [],
+    "children": [
+     {
+      "name": "Waves",
+      "pages": [
+       "/content/dashboard_obp.htm",
+       "/content/dashboard_picking.htm",
+       "/content/procedures_for_orders.htm",
+       "/content/procedures_for_shipments.htm",
+       "/content/procedures_for_shorts_and_replenishments.htm"
+      ],
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Production",
+  "pages": [],
+  "children": [
+   {
+    "name": "Bill of Materials",
+    "pages": [
+     "/content/bill_of_materials_config.htm",
+     "/content/bill_of_materials_prod.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Component Serial Number",
+    "pages": [
+     "/content/component_serial_number.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Production Lines",
+    "pages": [
+     "/content/procedures_for_work_orders.htm",
+     "/content/production_lines.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Work Orders",
+    "pages": [
+     "/content/procedures_for_work_orders.htm",
+     "/content/production_lines.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Receiving",
+  "pages": [],
+  "children": [
+   {
+    "name": "Dashboard",
+    "pages": [
+     "/content/dashboard_receiving.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Inbound Shipments",
+    "pages": [
+     "/content/procedures_for_check_in.htm",
+     "/content/procedures_for_inbound_shipments.htm",
+     "/content/procedures_for_lpns.htm",
+     "/content/procedures_for_staging.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Receiving Issues",
+    "pages": [
+     "/content/procedures_for_receiving_issues.htm",
+     "/content/receiving_issues.htm"
+    ],
+    "children": [
+     {
+      "name": "Damaged",
+      "pages": [
+       "/content/procedures_for_receiving_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Distribution Exceptions",
+      "pages": [
+       "/content/procedures_for_receiving_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Inbound Quality Issues",
+      "pages": [
+       "/content/procedures_for_receiving_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Location Overrides",
+      "pages": [
+       "/content/procedures_for_receiving_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "No Location",
+      "pages": [
+       "/content/procedures_for_inventory_issues.htm",
+       "/content/procedures_for_receiving_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Not Expected",
+      "pages": [
+       "/content/procedures_for_receiving_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Shortages",
+      "pages": [
+       "/content/procedures_for_receiving_issues.htm"
+      ],
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Returns",
+  "pages": [],
+  "children": [
+   {
+    "name": "Return Arrival LPNs",
+    "pages": [
+     "/content/return_arrival_lpns.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Return Orders",
+    "pages": [
+     "/content/return_orders.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Return Processing",
+    "pages": [
+     "/content/returns_processing.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Shipping",
+  "pages": [],
+  "children": [
+   {
+    "name": "Bundling",
+    "pages": [],
+    "children": [
+     {
+      "name": "Bundle",
+      "pages": [
+       "/content/bundling.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Unbundle",
+      "pages": [
+       "/content/bundling.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Dashboard",
+    "pages": [
+     "/content/dashboard_shipping.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Loads",
+    "pages": [
+     "/content/dashboard_obp.htm",
+     "/content/dashboard_picking.htm",
+     "/content/procedures_for_loads.htm",
+     "/content/procedures_for_loads_outbound.htm",
+     "/content/procedures_for_orders.htm",
+     "/content/procedures_for_shipments.htm",
+     "/content/procedures_for_shorts_and_replenishments.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Parcel",
+    "pages": [
+     "/content/procedures_for_parcels.htm"
+    ],
+    "children": [
+     {
+      "name": "Manifests",
+      "pages": [
+       "/content/procedures_for_parcels.htm"
+      ],
+      "children": [
+       {
+        "name": "Closed",
+        "pages": [
+         "/content/procedures_for_parcels.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Open",
+        "pages": [
+         "/content/procedures_for_parcels.htm"
+        ],
+        "children": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Parcel Audit Log",
+    "pages": [
+     "/content/parcel_audit_log.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Shipment Delivery",
+    "pages": [
+     "/content/shipment_delivery.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Shipped LPN Activity",
+    "pages": [
+     "/content/shipped_lpn_activity.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Shipping Issues",
+    "pages": [
+     "/content/shipping_issues.htm"
+    ],
+    "children": [
+     {
+      "name": "Not Shippable Inventory",
+      "pages": [
+       "/content/procedures_for_shipping_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Problem Inventory",
+      "pages": [
+       "/content/procedures_for_shipping_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "RF Outbound Audit",
+      "pages": [
+       "/content/procedures_for_shipping_issues.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Short",
+      "pages": [
+       "/content/procedures_for_shipping_issues.htm"
+      ],
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Shipping or Receiving",
+  "pages": [],
+  "children": [
+   {
+    "name": "Door Activity",
+    "pages": [
+     "/content/procedures_for_lpns.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Staging",
+    "pages": [
+     "/content/procedures_for_lpns.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "System Administrator",
+  "pages": [],
+  "children": [
+   {
+    "name": "Authorization",
+    "pages": [],
+    "children": [
+     {
+      "name": "Permissions",
+      "pages": [
+       "/content/admin/permissions.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Roles",
+      "pages": [
+       "/content/admin/roles.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Users",
+      "pages": [
+       "/content/admin/users.htm"
+      ],
+      "children": []
+     }
+    ]
+   },
+   {
+    "name": "Configuration",
+    "pages": [
+     "/content/admin/address.htm",
+     "/content/admin/catalog.htm",
+     "/content/admin/city_postal_codes.htm",
+     "/content/admin/code_maintenance-supervisor.htm",
+     "/content/admin/config.htm",
+     "/content/admin/countries.htm",
+     "/content/admin/currency.htm",
+     "/content/admin/database_archive.htm",
+     "/content/admin/defaults.htm",
+     "/content/admin/dynamic_variable_configuration.htm",
+     "/content/admin/index_lookup.htm",
+     "/content/admin/inputs.htm",
+     "/content/admin/locales.htm",
+     "/content/admin/lookup.htm",
+     "/content/admin/measurement_units.htm",
+     "/content/admin/media_config.htm",
+     "/content/admin/media_file_types.htm",
+     "/content/admin/message_catalog.htm",
+     "/content/admin/states.htm",
+     "/content/admin/system_audit_record.htm",
+     "/content/admin/system_control_numbers.htm",
+     "/content/admin/table_definition.htm",
+     "/content/admin/time_zone_display.htm",
+     "/content/admin/valid_possibility.htm",
+     "/content/admin/validate.htm"
+    ],
+    "children": [
+     {
+      "name": "Policy",
+      "pages": [],
+      "children": [
+       {
+        "name": "Policy History",
+        "pages": [
+         "/content/policies/policy_history.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Policy Maintenance",
+        "pages": [
+         "/content/work_operations.htm"
+        ],
+        "children": []
+       },
+       {
+        "name": "Policy Maintenance - Override",
+        "pages": [
+         "/content/policies/policy_maintenance_-_override.htm"
+        ],
+        "children": []
+       }
+      ]
+     },
+     {
+      "name": "System",
+      "pages": [
+       "/content/admin/load_file_operations.htm"
+      ],
+      "children": [
+       {
+        "name": "Database Archive",
+        "pages": [
+         "/content/admin/procedures_for_archiving_and_purging.htm"
+        ],
+        "children": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Deferred Executions",
+    "pages": [
+     "/content/admin/deferred_executions.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Integration Errors",
+    "pages": [
+     "/content/admin/integration_errors.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Reports/labels",
+    "pages": [],
+    "children": [
+     {
+      "name": "Archive",
+      "pages": [
+       "/content/admin/archive.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Operations",
+      "pages": [
+       "/content/admin/operations.htm"
+      ],
+      "children": []
+     },
+     {
+      "name": "Reports",
+      "pages": [
+       "/content/admin/reports.htm"
+      ],
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "name": "System Management",
+  "pages": [],
+  "children": [
+   {
+    "name": "Monitor",
+    "pages": [
+     "/content/admin/system_management.htm"
+    ],
+    "children": []
+   }
+  ]
+ },
+ {
+  "name": "Yard",
+  "pages": [],
+  "children": [
+   {
+    "name": "Check Out",
+    "pages": [
+     "/content/check_out_.htm"
+    ],
+    "children": []
+   },
+   {
+    "name": "Transport Activity",
+    "pages": [
+     "/content/transport_activity.htm"
+    ],
+    "children": []
+   }
+  ]
+ }
+]

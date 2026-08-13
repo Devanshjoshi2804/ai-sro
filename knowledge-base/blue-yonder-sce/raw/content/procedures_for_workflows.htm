@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Shared functions|Workflows" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Procedures for workflows</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Proceduresforworkflows">Procedures for workflows</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Confirmaworkflow">Confirm a workflow</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Manuallyperformaworkflow">Manually perform a workflow</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Reverseaconfirmedworkflow">Reverse a confirmed  workflow</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Assignauserorroletoperformaworkflow">Assign a user or role to perform a workflow</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewworkflows">View workflows</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#InboundWorkflowfields">Inbound Workflow fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#OutboundWorkflowfields">Outbound Workflow fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#EquipProductionWorkflowfields">Equip/Production Workflow fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#BackgroundWorkflowfields">Background Workflow fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#RFOperatorWorkflowfields">RF Operator Workflow fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Proceduresforworkflows" data-magellan-target="Proceduresforworkflows"><a name="aanchor49"></a>
+                                                            <MadCap:concept term="WM" />Procedures for workflows</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Proceduresforworkflows">Procedures for workflows</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Confirmaworkflow">Confirm a workflow</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Manuallyperformaworkflow">Manually perform a workflow</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Reverseaconfirmedworkflow">Reverse a confirmed  workflow</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Assignauserorroletoperformaworkflow">Assign a user or role to perform a workflow</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewworkflows">View workflows</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#InboundWorkflowfields">Inbound Workflow fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#OutboundWorkflowfields">Outbound Workflow fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#EquipProductionWorkflowfields">Equip/Production Workflow fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#BackgroundWorkflowfields">Background Workflow fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#RFOperatorWorkflowfields">RF Operator Workflow fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>You can perform these procedures using the Workflows page, which  is accessible from the following modules: <b>Inventory</b>, <b>Picking</b>, <b>Production</b>, <b>Receiving</b>, <b>Shipping</b>, or <b>Yard</b>. </p>
+                                                        <h2 id="Confirmaworkflow" data-magellan-target="Confirmaworkflow"><a name="Confirm_a_workflow"></a>Confirm a workflow</h2>
+                                                        <ol>
+                                                            <li value="1">If you are prompted to confirm a workflow, perform one of the following tasks:<ul><li><p>To continue without completing the workflow, in the <b>Perform Workflow</b> field, select <b>No</b>, and then click <b>Complete</b>. The workflow remains incomplete and is displayed on the In Process tab.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: If, during warehouse operations, you are prompted to perform a required workflow, and you set the <b>Perform Workflow</b> field to No, you are returned to the same workflow execution page until it is complete. You cannot continue with the warehouse process until you perform the workflow.</p></li><li>To acknowledge that you will perform the workflow, in the <b>Perform Workflow</b> field, select <b>Yes</b>. If the workflow includes instructions, the configured user instructions are displayed.</li></ul></li>
+                                                            <li value="2">To complete a workflow having no user instructions, click <b>Complete</b>.</li>
+                                                            <li value="3">To complete a workflow having user instructions that do not require a response, click <b>Complete</b>.</li>
+                                                            <li value="4">
+                                                                <p>To complete a workflow having user instructions:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: You may click <b>Cancel</b> at any time while performing inbound or outbound user instructions, or non-inventory user instructions for work orders or work order details. In those cases, if you click <b>Cancel</b> in the middle of a series of user instructions, the associated workflow will not be marked as completed successfully, even if you complete some of the user instructions. You cannot cancel a warehouse equipment workflow; you must complete it.</p>
+                                                                <ol>
+                                                                    <li value="1">
+                                                                        <p>To answer all instructions at once with a single selection, select <b>Yes to All</b>.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: This check box is available only if your application is configured to display it.</p>
+                                                                    </li>
+                                                                    <li value="2">To pass a user instruction, select <b>Yes</b>.</li>
+                                                                    <li value="3">
+                                                                        <p>To fail a user instruction, select <b>No</b>.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If you complete a workflow with a No response to any instruction, the workflow is marked as FAIL.</p>
+                                                                    </li>
+                                                                    <li value="4">Continue performing the user instructions until you have performed all of them.</li>
+                                                                    <li value="5">
+                                                                        <p>Click <b>Complete</b>.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Based on your responses to the user instructions, the application may trigger a corresponding action. The triggered action may execute a web form, generate an Event Management alert, print a report, run a MOCA command, change the status of inventory, or apply a hold to inventory on the current LPN.</p>
+                                                                    </li>
+                                                                    <li value="6">If the workflow is configured to prompt for values, enter the requested information in the fields.</li>
+                                                                    <li value="7">
+                                                                        <p>Click <b>OK</b>.</p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>: Based on the application configuration, you may encounter the following scenarios:</p>
+                                                                            <ul>
+                                                                                <li>If the application is configured to reschedule the workflow on failure, the workflow and its configured user instructions are displayed until the workflow is successfully completed.</li>
+                                                                                <li>If the application is configured to fail the workflow if the response to a user instruction is No, then the subsequent user instructions cannot be performed.</li>
+                                                                            </ul>
+                                                                        </div>
+                                                                    </li>
+                                                                </ol>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Manuallyperformaworkflow" data-magellan-target="Manuallyperformaworkflow"><a name="Manually_perform_a_workflow"></a>Manually perform a workflow</h2>
+                                                        <p>Use this procedure to perform workflows that have been skipped or added after the workflow exit point has passed (meaning the application will not automatically prompt you to confirm the workflow). </p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewW" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewW"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Workflows page</a>.
+<div style="display: none;" data-mc-target-name="ViewW"><ol data-mc-continue="true"><li value="1"><p style="font-weight: normal;">Select one of the following modules: <span class="specialbold">Inventory,</span> <span class="specialbold">Picking,</span> <span class="specialbold">Production,</span> <span class="specialbold">Receiving,</span><span class="specialbold"> Shipping,</span> <span style="font-weight: normal;">or </span><span class="specialbold">Yard</span>.</p></li><li value="2"><p>Select<span class="specialbold"> Workflows</span>.</p></li></ol></div></li>
+                                                            <li value="2">Select the type of workflow to perform (<span class="specialbold">Inbound</span>, <span class="specialbold">Outbound</span>, or <span class="specialbold">Equip/Production</span>) and then select <span class="specialbold">In Process</span>.</li>
+                                                            <li value="3">In the grid, select the row for the workflow to perform.</li>
+                                                            <li value="4">
+                                                                <p>Click <span class="specialbold">Perform Workflow</span>. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If you are performing an Inbound workflow, then you must select <span class="specialbold">Perform Workflow</span> from the <span class="specialbold">Actions</span> drop-down list. If <span class="specialbold">Perform Workflow</span> is not enabled, then you have selected a workflow that has already been acknowledged. </p>
+                                                            </li>
+                                                            <li value="5"><a href="#Confirm_a_workflow">Confirm a workflow</a>.</li>
+                                                        </ol>
+                                                        <h2 id="Reverseaconfirmedworkflow" data-magellan-target="Reverseaconfirmedworkflow"><a name="Reverse_a_confirmed__workflow"></a>Reverse a confirmed  workflow</h2>
+                                                        <p>After a workflow is confirmed, you may need to reverse the confirmation because it was incorrectly applied, needs to be reapplied, or to handle errors.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: Reversing a workflow only changes the workflow from being completed back to in process. It does not undo any workflow instruction actions that were performed when the workflow was originally completed. </p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewW3" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewW3"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Workflows page</a>.
+<div style="display: none;" data-mc-target-name="ViewW3"><ol data-mc-continue="true"><li value="1"><p style="font-weight: normal;">Select one of the following modules: <span class="specialbold">Inventory,</span> <span class="specialbold">Picking,</span> <span class="specialbold">Production,</span> <span class="specialbold">Receiving,</span><span class="specialbold"> Shipping,</span> <span style="font-weight: normal;">or </span><span class="specialbold">Yard</span>.</p></li><li value="2"><p>Select<span class="specialbold"> Workflows</span>.</p></li></ol></div></li>
+                                                            <li value="2">Select the type of workflow to perform (<span class="specialbold">Inbound</span>, <span class="specialbold">Outbound</span>, or <span class="specialbold">Equip/Production</span>).</li>
+                                                            <li value="3">Perform one of the following tasks:<ul><li>To reverse a workflow that failed, select <span class="specialbold">Failed</span>. </li><li>To reverse a workflow that passed, select <span class="specialbold">History</span>.</li></ul><p class="Note"><b class="NoteHeadingBold">Note</b>: You can also reverse a failed workflow from the <b class="SpecialBold">History</b> tab.</p></li>
+                                                            <li value="4">Select the row of the workflow to reverse, and then click <span class="specialbold">Reverse Workflow</span>. A confirmation message is displayed. </li>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: If you are reversing an Inbound workflow, then you must select <b>Reverse Workflow</b> from the <b>Actions</b> drop-down list.</p>
+                                                            <li value="5">Click <b>OK</b>. The workflow is reversed and is displayed on the <span class="specialbold">In Process</span> tab.</li>
+                                                        </ol>
+                                                        <h2 id="Assignauserorroletoperformaworkflow" data-magellan-target="Assignauserorroletoperformaworkflow">Assign a user or role to perform a workflow</h2>
+                                                        <p>You use this procedure to limit the user or role to which the application presents an incomplete inbound workflow for inventory received through an inbound shipment. When the assigned user (or a user within the assigned role) logs in to an RF device and selects directed work, the application prompts the user to perform the inbound workflow. </p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: The operator and the equipment that the operator is logged in on must be authorized to perform the operation (INBSERV operation) before the application will prompt the operator to complete the workflow.</p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewW1" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewW1"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Workflows page</a>.
+<div style="display: none;" data-mc-target-name="ViewW1"><ol data-mc-continue="true"><li value="1"><p style="font-weight: normal;">Select one of the following modules: <span class="specialbold">Inventory,</span> <span class="specialbold">Picking,</span> <span class="specialbold">Production,</span> <span class="specialbold">Receiving,</span><span class="specialbold"> Shipping,</span> <span style="font-weight: normal;">or </span><span class="specialbold">Yard</span>.</p></li><li value="2"><p>Select<span class="specialbold"> Workflows</span>.</p></li></ol></div></li>
+                                                            <li value="2">Select <span class="specialbold">Inbound</span>, and then select <span class="specialbold">In Process</span>. </li>
+                                                            <li value="3">In the grid, select the row for the workflow to assign.</li>
+                                                            <li value="4">From the <span class="specialbold">Actions </span>drop-down list, perform one of the following tasks:<ul><li>To assign a user, select <span class="specialbold">Assign User</span>. The Inbound Workflow Assign User window is displayed.</li><li>To assign a role, select <span class="specialbold">Assign Role</span>. The Inbound Workflow Assign Role window is displayed.</li></ul></li>
+                                                            <li value="5">Select the user or role to perform the workflow, and then click <b>OK</b>. Directed work is created, which you can view on the Work Queue page.</li>
+                                                        </ol>
+                                                        <h2 id="Viewworkflows" data-magellan-target="Viewworkflows"><a name="View_workflows"></a>View workflows</h2>
+                                                        <ol>
+                                                            <li value="1"> <a targets="ViewW2" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewW2"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Workflows page</a>.
+<div style="display: none;" data-mc-target-name="ViewW2"><ol data-mc-continue="true"><li value="1"><p style="font-weight: normal;">Select one of the following modules: <span class="specialbold">Inventory,</span> <span class="specialbold">Picking,</span> <span class="specialbold">Production,</span> <span class="specialbold">Receiving,</span><span class="specialbold"> Shipping,</span> <span style="font-weight: normal;">or </span><span class="specialbold">Yard</span>.</p></li><li value="2"><p>Select<span class="specialbold"> Workflows</span>.</p></li></ol></div></li>
+                                                            <li value="2">To view inbound workflows, select <span class="specialbold">Inbound</span>, and view information in the <a href="#Inbound_workflow_fields">Inbound Workflow fields</a>. Select <span class="specialbold">Planned</span>, <span class="specialbold">In Process</span>, <span class="specialbold">Failed</span>, or <span class="specialbold">History</span> to view the workflows in each processing state. See <a href="workflows.htm">Workflows</a>. </li>
+                                                            <li value="3">To view outbound workflows, select <span class="specialbold">Outbound</span>, and view information in the <a href="#Outbound_workflow_fields">Outbound Workflow fields</a>. Select <span class="specialbold">Planned</span>, <span class="specialbold">In Process</span>, <span class="specialbold">Failed</span>, or <span class="specialbold">History</span> to view the workflows in each processing state.</li>
+                                                            <li value="4">To view equipment or production workflows, select <span class="specialbold">Equip/Production</span>, and view information in the <a href="#Equip/Production_workflow_fields">Equip/Production Workflow fields</a>. Select <span class="specialbold">In Process</span>, <span class="specialbold">Failed</span>, or <span class="specialbold">History</span> to view the workflows in each processing state.</li>
+                                                            <li value="5">To view background workflows, select <span class="specialbold">Background</span>, and view information in the <a href="#Background_workflow_fields">Background Workflow fields</a>.</li>
+                                                            <li value="6">To view RF operator workflows, select <span class="specialbold">RF Operator</span>, and view information in the <a href="#RF_Operator_workflow_fields">RF Operator Workflow fields</a>.</li>
+                                                        </ol>
+                                                        <h2 id="InboundWorkflowfields" data-magellan-target="InboundWorkflowfields"><a name="Inbound_workflow_fields"></a>Inbound Workflow fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Added</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Date and time when the workflow request was initiated by the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Workflow</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a workflow process.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Workflow Rate</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Sampling rate to be applied on LPNs for the workflow. The rate is a percentage (such as 10, 25, or 50 percent) of a quantity of LPNs. For example, if you define a sampling rate of 25% for the first 200 LPNs that are processed for an inbound shipment, then the application prompts the user to perform the workflow on a random selection of 50 LPNs out of the 200 that are processed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Required</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>A check mark in this column indicates that the user is required to complete the workflow before returning to their interrupted work. If the user does not complete the workflow, the application does not allow the user to continue to process the inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Shipment</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an outbound shipment. A shipment is a group of orders or order lines that are allocated together and shipped to the same location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Planned Order</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for an inbound order that is associated with a specific supplier.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Order Line</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique number that identifies the order line. The number corresponds to the line's position on the order. The first order line is automatically assigned a line number of 0001. Additional order lines are then automatically numbered sequentially, beginning with 0002.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Supplier</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a supplier. A supplier can be an individual, organization, or another warehouse within your own organization from which you repeatedly receive inventory or handling units.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">LPN</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for inventory. Typically, an LPN refers to a pallet; however, it can refer to inventory received at less than pallet quantity. The LPN is the license plate by which the inventory is tracked in the facility. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Item</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for an item. An item is any specific piece of inventory that is stored or processed within the application. Items can be raw materials, packaging materials, in-process materials, supplies, and finished goods. In some warehouses, items are called stock keeping units (SKUs).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Client</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a client who houses inventory within a multi-client (third-party logistics) warehouse. The client identifier distinguishes one client from another so that the application can effectively manage inventory and activities for multiple clients in the same warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Progress</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Percentage of inventory for which the workflow has been performed. Additionally, an X of Y value displays the quantity of inventory for which the workflow has been performed out of the total quantity; for example, (50 of 100). </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Quantity of inventory on which the workflow has been performed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">User</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>User that is performing (or performed) the workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Device</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Identifier for the RF device or workstation on which the workflow is being (or was) performed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Completed</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Date and time at which the workflow was completed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Exit Point</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Point in the warehouse process at which the application executes  workflows to which the exit point has been assigned.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Results</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Execution status of the workflow (PASS or FAIL).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Instruction</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Instruction for the RF operator performing the workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Sequence Number</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number that defines the sequence in which the application processes the list of instructions. The application prompts the instructions in sequential order (starting with 1) to the RF operator.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Instruction Type</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Type of action performed by an RF operator in response to a workflow instruction.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Response</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Answer provided by the RF operator for the workflow instruction.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Prompt</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Value provided by an RF operator for the configured prompt variable during the completion of a workflow instruction.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Value Entered</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Value entered by the user of the specified variable when the workflow has been performed. The field name of the variable is configured to display as a confirmation value (<span class="specialbold">Confirmation Value</span> is set to <span class="specialbold">Using the default "Confirmation Value" variable</span>) or a description of the specified variable (<span class="specialbold">Confirmation Value</span> is set to <span class="specialbold">Specify a prompt using an existing system variable</span>).</p>
+                                                                        <p>The <span class="specialbold">Confirmation Value</span> field is configured for a master workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="OutboundWorkflowfields" data-magellan-target="OutboundWorkflowfields"><a name="Outbound_workflow_fields"></a>Outbound Workflow fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Added</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Date and time when the workflow request was initiated by the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Workflow</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a workflow process.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Workflow Rate</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Sampling rate to be applied on LPNs for the workflow. The rate is a percentage (such as 10, 25, or 50 percent) of a quantity of LPNs. For example, if you define a sampling rate of 25% for the first 200 LPNs that are processed for an inbound shipment, then the application prompts the user to perform the workflow on a random selection of 50 LPNs out of the 200 that are processed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Required</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>A check mark in this column indicates that the user is required to complete the workflow before returning to their interrupted work. If the user does not complete the workflow, the application does not allow the user to continue to process the inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Load</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a load. A load is one or more shipments grouped together into one or more stops that are shipped on a single piece of transport equipment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Shipment</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for an outbound shipment. A shipment is a group of orders or order lines that are allocated together and shipped to the same location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Order</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique number that identifies an order. An order is a request for a supply of material or product. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Order Line</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique number that identifies the order line. The number corresponds to the line's position on the order. The first order line is automatically assigned a line number of 0001. Additional order lines are then automatically numbered sequentially, beginning with 0002.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">LPN</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for inventory. Typically, an LPN refers to a pallet; however, it can refer to inventory received at less than pallet quantity. The LPN is the license plate by which the inventory is tracked in the facility. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Item</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for the item being processed and shipped from the warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Client</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a client who houses inventory within a multi-client (third-party logistics) warehouse. The client identifier distinguishes one client from another so that the application can effectively manage inventory and activities for multiple clients in the same warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Route to</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Name and address of the distributor or organization to which the shipment is initially sent.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Departure Time</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Date and time that the transport equipment associated with a load is scheduled to depart from the warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Progress</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Percentage of inventory for which the workflow has been performed. Additionally, an X of Y value displays the quantity of inventory for which the workflow has been performed out of the total quantity; for example, (50 of 100). </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Quantity</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Quantity of inventory on which the workflow has been performed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Exit Point</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Point in the warehouse process at which the application executes  workflows to which the exit point has been assigned.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">User</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>User that is performing (or performed) the workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Device</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for the RF device or workstation on which the workflow is being (or was) performed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Completed</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Date and time at which the workflow was completed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Results</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Execution status of the workflow (PASS or FAIL).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Instruction</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Instruction for the RF operator performing the workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Sequence Number</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number that defines the sequence in which the application processes the list of instructions. The application prompts the instructions in sequential order (starting with 1) to the RF operator.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Instruction Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Type of action performed by an RF operator in response to a workflow instruction.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Response</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Answer provided by the RF operator for the workflow instruction.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Prompt</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Value provided by an RF operator for the configured prompt variable during the completion of a workflow instruction.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">Value Entered</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Value entered by the user of the specified variable when the workflow has been performed. The field name of the variable is configured to display as a confirmation value (<span class="specialbold">Confirmation Value</span> is set to <span class="specialbold">Using the default "Confirmation Value" variable</span>) or a description of the specified variable (<span class="specialbold">Confirmation Value</span> is set to <span class="specialbold">Specify a prompt using an existing system variable</span>).</p>
+                                                                        <p>The <span class="specialbold">Confirmation Value</span> field is configured for a master workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="EquipProductionWorkflowfields" data-magellan-target="EquipProductionWorkflowfields"><a name="Equip/Production_workflow_fields"></a>Equip/Production Workflow fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Added</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Date and time when the workflow request was initiated by the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Workflow</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a workflow process.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Exit Point</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Point in the warehouse process at which the application executes  workflows to which the exit point has been assigned.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Required</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>A check mark in this column indicates that the user is required to complete the workflow before returning to their interrupted work. If the user does not complete the workflow, the application does not allow the user to continue to process the inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Equipment Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Type of equipment on which the workflow is being (or was) performed, such as transport equipment or warehouse equipment. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Equipment</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for the equipment on which the workflow is being (or was) performed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Carrier</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Identifier for a carrier that delivers inbound inventory to the warehouse or outbound shipments to a customer. This is the identifier that will be displayed to users on the application windows and reports. In the application, a carrier can be associated with a customer, order, inbound shipment, outbound shipment, load, and service levels (such as Ground, Next Day, and Saturday Delivery).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Item</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for the item being processed and shipped from the warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">User</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>User that is performing (or performed) the workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Device</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for the RF device or workstation on which the workflow is being (or was) performed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Work Order</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Identifier for a work order. A work order is an internal order used to find, allocate, and deliver product to a work-in-process area for assembly or disassembly, conversion, kitting, or repackaging.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Work Order Revision</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for one instance of a work order that allows you to use a standard work order multiple times.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Work Order Line</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a work order line. The number corresponds to the order line's position in the work order.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Results</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Execution status of the workflow (PASS or FAIL).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Instruction</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Instruction for the RF operator performing the workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Sequence Number</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number that defines the sequence in which the application processes the list of instructions. The application prompts the instructions in sequential order (starting with 1) to the RF operator.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Instruction Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Type of action performed by an RF operator in response to a workflow instruction.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Response</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Answer provided by the RF operator for the workflow instruction.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Prompt</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Value provided by an RF operator for the configured prompt variable during the completion of a workflow instruction.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">Value Entered</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Value entered by the user of the specified variable when the workflow has been performed. The field name of the variable is configured to display as a confirmation value (<span class="specialbold">Confirmation Value</span> is set to <span class="specialbold">Using the default "Confirmation Value" variable</span>) or a description of the specified variable (<span class="specialbold">Confirmation Value</span> is set to <span class="specialbold">Specify a prompt using an existing system variable</span>).</p>
+                                                                        <p>The <span class="specialbold">Confirmation Value</span> field is configured for a master workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="BackgroundWorkflowfields" data-magellan-target="BackgroundWorkflowfields"><a name="Background_workflow_fields"></a>Background Workflow fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Added</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Date and time when the workflow request was initiated by the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Workflow</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a workflow process.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Exit Point</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Point in the warehouse process at which the application executes  workflows to which the exit point has been assigned.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Equipment Number</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for the equipment used in the workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Shipment</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an outbound shipment. A shipment is a group of orders or order lines that are allocated together and shipped to the same location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Stop</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for a stop. A stop is a collection of one or more outbound shipments making up a delivery to a single customer.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">PRO Number</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Progressive routing order (PRO) number assigned to a load, shipment, or stop. A PRO number is assigned as a reference to a shipment for a carrier, and is used by the carrier for most correspondence in relation to tracking the shipment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">LPN</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for inventory. Typically, an LPN refers to a pallet; however, it can refer to inventory received at less than pallet quantity. The LPN is the license plate by which the inventory is tracked in the facility. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Item</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an item. An item is any specific piece of inventory that is stored or processed within the application. Items can be raw materials, packaging materials, in-process materials, supplies, and finished goods. In some warehouses, items are called stock keeping units (SKUs).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Quantity</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Quantity of inventory on which the workflow has been performed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Carton</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a carton involved in the workflow. A carton is a corrugated box or container of any size that serves as packaging for an items.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Source</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Location where the workflow originated.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Destination</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Identifier for the location where the workflow was completed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">User</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>User that is performing (or performed) the workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="RFOperatorWorkflowfields" data-magellan-target="RFOperatorWorkflowfields"><a name="RF_Operator_workflow_fields"></a>RF Operator Workflow fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Added </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Date and time when the workflow request was initiated by the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Workflow</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a workflow process.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Exit Point</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Point in the warehouse process at which the application executes  workflows to which the exit point has been assigned.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Required</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>A check mark in this column indicates that the user is required to complete the workflow before returning to their interrupted work. If the user does not complete the workflow, the application does not allow the user to continue to process the inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">User</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>User that is performing (or performed) the workflow.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Device</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifier for the RF device or workstation on which the workflow is being (or was) performed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Completed</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Date and time at which the workflow was completed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Supplier</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a supplier. A supplier can be an individual, organization, or another warehouse within your own organization from which you repeatedly receive inventory or handling units.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Inbound Shipment</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier used for inventory tracking for an inbound shipment of inventory. An inbound shipment is a group of orders that are transported to the warehouse together or received together. When inventory arrives at the warehouse on a piece of transport equipment, an inbound shipment represents the contents of the transport equipment; however, one or more inbound shipments can be associated with a piece of transport equipment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Inbound Order</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifier for an inbound order or planned inbound order that is associated with a specific supplier.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Inbound Order Line</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an inbound order line. The order line is the section of an order that provides detailed information about an individual item that the order requests.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Outbound Load</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for a load. A load is one or more shipments grouped together into one or more stops that are shipped on a single piece of transport equipment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Shipment</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an outbound shipment. A shipment is a group of orders or order lines that are allocated together and shipped to the same location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Outbound Order</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for an outbound order. An order is a request for a supply of material or product.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Outbound Order Line</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Identifier for an outbound order line.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">LPN</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for inventory. Typically, an LPN refers to a pallet; however, it can refer to inventory received at less than pallet quantity. The LPN is the license plate by which the inventory is tracked in the facility. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Item</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an item. An item is any specific piece of inventory that is stored or processed within the application. Items can be raw materials, packaging materials, in-process materials, supplies, and finished goods. In some warehouses, items are called stock keeping units (SKUs).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Client</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for a client who houses inventory within a multi-client (third-party logistics) warehouse. The client identifier distinguishes one client from another so that the application can effectively manage inventory and activities for multiple clients in the same warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Route to</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Name and address of the distributor or organization to which the shipment is initially sent.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                        <p>Quantity of inventory on which the workflow has been performed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

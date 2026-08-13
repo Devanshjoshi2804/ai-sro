@@ -1,0 +1,205 @@
+{
+  "screen": "outboundPlanner",
+  "route": "#wm.outboundplanner/wm.outbounddashboard////",
+  "readOnly": true,
+  "calls": [
+    {
+      "seq": 0,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices",
+      "query": "siteId=SG&subsites=----&_dc=1786530181331&deviceClass=W",
+      "status": 200,
+      "bytes": 293629,
+      "rowCount": 199,
+      "sampleKeys": [
+        "activityDate",
+        "consolidateAtPackStationFlag",
+        "consolidateAtPackStationZone_uri",
+        "currentStorageLocation",
+        "currentWorkArea",
+        "currentWorkZone",
+        "currentWorkZoneId",
+        "dateLastModified",
+        "deviceClass",
+        "deviceCode",
+        "deviceName",
+        "deviceScanTypes"
+      ]
+    },
+    {
+      "seq": 1,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/currencies",
+      "query": "siteId=SG&subsites=----&_dc=1786530181341",
+      "status": 200,
+      "bytes": 774,
+      "rowCount": 7,
+      "sampleKeys": [
+        "exchangeRates",
+        "currencyCode",
+        "enabled",
+        "longDescription"
+      ]
+    },
+    {
+      "seq": 2,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/mu",
+      "query": "siteId=SG&subsites=----&_dc=1786530181341",
+      "status": 200,
+      "bytes": 30808,
+      "rowCount": 34,
+      "sampleKeys": [
+        "description",
+        "unit",
+        "category",
+        "muSystem",
+        "numerator",
+        "denominator",
+        "enabled"
+      ]
+    },
+    {
+      "seq": 3,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+      "query": "siteId=SG&subsites=----&_dc=1786530181611&query=%5B%7B%22OR%22%3A%5B%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22LABOR-MANAGEMENT-SYSTEM%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22TRANSPORTATION-MANAGEMENT%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22PARCEL-MANIFEST%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22FASCOR%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22LENS-SYSTEM%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SLOTTING-SYSTEM%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22EMS%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22THIRD-PARTY-LOGISTICS%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22EXTERNAL-BILLING-SYSTEM%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%5D%7D%5D",
+      "status": 200,
+      "bytes": 4000,
+      "rowCount": 8,
+      "sampleKeys": [
+        "groupName",
+        "overrideFlag",
+        "policyCode",
+        "policyValue",
+        "policyVariable",
+        "resourceId",
+        "returnFloat1",
+        "returnFloat2",
+        "returnNumber1",
+        "returnNumber2",
+        "returnString1",
+        "returnString2"
+      ]
+    },
+    {
+      "seq": 4,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/movementZones/nonpaged",
+      "query": "showLocationCount=1&siteId=SG&subsites=----&_dc=1786530182171",
+      "status": 200,
+      "bytes": 159405,
+      "rowCount": 92,
+      "sampleKeys": [
+        "RDTFlag",
+        "allocMaxUomRplFlag",
+        "allowDynamicPickFaceReplenishment",
+        "allowOverpickingOfReplenishmentQuantity",
+        "autoCancelPick",
+        "autoCloseShipmentFlag",
+        "buildingId",
+        "clearDestinationLocationOnDeposit",
+        "consolidations_uri",
+        "defaultReplConfigInvSts",
+        "defaultReplConfigMaxUnit",
+        "defaultReplConfigMinUnit"
+      ]
+    },
+    {
+      "seq": 5,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales",
+      "query": "enable=1&siteId=SG&subsites=----&_dc=1786530182223",
+      "status": 200,
+      "bytes": 5446,
+      "rowCount": 11,
+      "sampleKeys": [
+        "MSWindowsClientLCId",
+        "MSWindowsServerLCId",
+        "NLSLANGUAGESetting",
+        "NLSSORTSetting",
+        "NLSTERRITORYSetting",
+        "RFServerLocale",
+        "absoluteGroup",
+        "countryName",
+        "enable",
+        "localeDescription",
+        "localeId",
+        "measurementUnitSystem"
+      ]
+    },
+    {
+      "seq": 6,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses",
+      "query": "expand=%7Baddress%7D&_dc=1786530182238",
+      "status": 200,
+      "bytes": 20080,
+      "rowCount": 8,
+      "sampleKeys": [
+        "active",
+        "address",
+        "addressId",
+        "address_uri",
+        "adjustmentThresholdCost",
+        "adjustmentThresholdUnit",
+        "aisleMax",
+        "autoPlayCostThreshold",
+        "bayMax",
+        "concatenationOrder",
+        "consignmentCode",
+        "consignmentPeriod"
+      ]
+    },
+    {
+      "seq": 7,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inboundOrderTypes",
+      "query": "receivingTypesOnly=true&siteId=SG&subsites=----&_dc=1786530182280",
+      "status": 200,
+      "bytes": 5272,
+      "rowCount": 18,
+      "sampleKeys": [
+        "deliveryFlag",
+        "gs1InboundOrderType",
+        "inboundOrderType",
+        "longDescription",
+        "resourceId",
+        "returnFlag",
+        "self_uri",
+        "standardPutawayFlag",
+        "wmDefaultFlag"
+      ]
+    },
+    {
+      "seq": 8,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/movementZones/nonpaged",
+      "query": "showLocationCount=0&warehouseId=SG&siteId=SG&subsites=----&_dc=1786530182281",
+      "status": 200,
+      "bytes": 159405,
+      "rowCount": 92,
+      "sampleKeys": [
+        "RDTFlag",
+        "allocMaxUomRplFlag",
+        "allowDynamicPickFaceReplenishment",
+        "allowOverpickingOfReplenishmentQuantity",
+        "autoCancelPick",
+        "autoCloseShipmentFlag",
+        "buildingId",
+        "clearDestinationLocationOnDeposit",
+        "consolidations_uri",
+        "defaultReplConfigInvSts",
+        "defaultReplConfigMaxUnit",
+        "defaultReplConfigMinUnit"
+      ]
+    }
+  ],
+  "screenState": {
+    "title": "Blue Yonder - Dashboard",
+    "grids": [],
+    "forms": [],
+    "buttons": []
+  },
+  "writesObservedOnLoad": []
+}

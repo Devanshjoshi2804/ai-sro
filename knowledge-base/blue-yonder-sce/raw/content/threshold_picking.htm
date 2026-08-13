@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Picking " data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Threshold picking</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Thresholdpicking">Threshold picking</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Thresholdpickingsetup">Threshold picking setup</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ExampleSinglepickthresholdpick">Example: Single pick threshold pick</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ExampleStarterpalletforaworkassignment">Example: Starter pallet for a work assignment</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Thresholdpicking" data-magellan-target="Thresholdpicking"><a name="aanchor320"></a>
+                                                            <MadCap:concept term="WM" />Threshold picking</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Thresholdpicking">Threshold picking</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Thresholdpickingsetup">Threshold picking setup</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ExampleSinglepickthresholdpick">Example: Single pick threshold pick</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ExampleStarterpalletforaworkassignment">Example: Starter pallet for a work assignment</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Threshold picking is a pick process that is used to satisfy an order for a less than full pallet (LPN) quantity. For a threshold pick, the operator is typically directed to pick more than the order line quantity when that quantity is a defined percentage less than the next higher UOM. For example, if a full pallet consists of 10 cases, and an order line requires 9 cases, the operator can be directed to a pallet storage location to pick a full pallet and then remove the unneeded case, rather than being directed to pick 9 cases separately from a case pickface. The unneeded inventory is removed to a new LPN and put away to a suitable storage location or pickface, or left in a pickup and deposit (P&amp;D) location for another operator to put away.</p>
+                                                        <p>When allocating for an order line quantity that qualifies for a threshold pick, the application generates the threshold pick (for example, a pallet) and then allocates the required inventory (for example, 9 cases) against the threshold pick. The unneeded case that was not allocated for the pick is available to be used for another order.</p>
+                                                        <p>Threshold picking can be used for the following reasons:</p>
+                                                        <ul>
+                                                            <li>Reduces overall picking time for a work assignment pick</li>
+                                                            <li>Eliminates the need for the operator to obtain a platform (handling unit) to pick to</li>
+                                                            <li>Reduces the number of cases that need to be handled for the case pick</li>
+                                                            <li>Eliminates having to define a pick-to identifier at the start of a work assignment</li>
+                                                            <li>Reduces the need for replenishments to the pickface because threshold picks are sourced from storage locations</li>
+                                                            <li>Consumes partial pallets in the warehouse</li>
+                                                            <li>Provides a stable base on which subsequent picks can be placed</li>
+                                                        </ul>
+                                                        <h2 id="Thresholdpickingsetup" data-magellan-target="Thresholdpickingsetup"><a name="Threshold_picking_setup"></a>Threshold picking setup</h2>
+                                                        <p>The following steps are the tasks that you must perform to configure the application to allocate threshold picks: </p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Configure items for threshold picking:</p>
+                                                                <ul>
+                                                                    <li>
+                                                                        <p>Configure item footprint with a threshold percentage. For each item that you want to enable for threshold picking, you must configure the item footprint by defining the threshold percentage for the unit of measure (UOM) that should be picked instead of the lower UOM. Typically, a threshold percentage is defined for the pallet UOM.</p>
+                                                                        <p>For example, if you set the threshold percentage for the Pallet UOM to 75%, and the quantity allocated falls between 75% and 100% of a pallet, the operator may be directed to perform a pallet pick for the item. Quantities not needed for the pick are left at the location moved to an appropriate partial pallet location according to the storage search path configurations.</p>
+                                                                    </li>
+                                                                    <li>
+                                                                        <p>Configure the item threshold pick variance. Threshold pick variance is the amount of variance that a pick can be over or under the required pick quantity. If an operator picks a quantity greater than or less than that which is required for the pick, and the quantity exceeds the threshold pick variance, then a message is displayed asking the operator to acknowledge that the pick is over or under the allowed variance. A value of zero means a message is always displayed when a pick does not match the required pick quantity; a value of 100 means that a message is never displayed.</p>
+                                                                        <p>If threshold picking is enabled for the item footprint, then it is recommended to set the threshold pick variance percentage to a value that accommodates a full pallet quantity. For example, if the threshold percentage (indicated on the item footprint) is set to 75%, and a standard full pallet for the item is 100, the application attempts to generate a threshold pick when the order line quantity for the item is between 75 and 99. If the order line quantity is 75 and the pick variance percentage is 34%, then a message is displayed if the operator attempts to pick less than 50 or greater than 101 units (34% of 75 = 25.5; 75 - 25.5 = 49.5; 75 + 25.5 = 100.5). So, in this example, the message would not be displayed to the operator when picking a full pallet quantity of 100 to satisfy an order quantity of 75. </p>
+                                                                    </li>
+                                                                </ul>
+                                                                <p>See <a href="items_page.htm">Items</a>.</p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p>Configure the allocation search path for the pick zone. Configure a search path rule for each pick zone in which you allow threshold picking by setting the <span class="specialbold">Threshold Pick </span>field to Yes.</p>
+                                                                <p>You must also configure the search path to allow a pick quantity to be allocated in the UOM required for a threshold pick (such as Pallet UOM). See <a href="allocation_search_paths.htm#Configure_allocation_search_paths_for_order_picks">Configure allocation search paths for order picks</a>.</p>
+                                                            </li>
+                                                            <li value="3">Configure the UOMs to be pickable. For all of the pick zones in which you want to generate threshold picks, you must select the LPN level that can be picked. For example, for a pallet pick zone, you could select the LPN and sub-LPN levels. See <a href="pick_zones.htm">Pick Zones</a>.</li>
+                                                            <li value="4">Configure the RF to prompt for pick quantity confirmation. For a threshold pick, it is recommended that you configure the application to force the operator to enter the quantity for the LPN that is being picked for a threshold pick. Ordinarily, the operator may not be required to enter a quantity when picking an LPN, but this should be required for a threshold pick in order to confirm that a quantity different from the required quantity was picked. See <a href="pick_settings.htm">Pick Settings</a>.</li>
+                                                            <li value="5">Configure a pick method. A pick method is used to define the type of pick that is created when inventory is allocated and released for picking. For each of the pick methods that you want to use for threshold picking (such those that support case picks), you must configure the threshold pick release rules to create work using the Threshold Pick work operation. See <a href="pick_methods.htm">Pick Methods</a>.</li>
+                                                            <li value="6">Configure work operations. For the Threshold Picking operations, select the users and equipment that are authorized to perform the operation. See <a href="work_operations.htm">Work Operations</a>.</li>
+                                                        </ol>
+                                                        <h2 id="ExampleSinglepickthresholdpick" data-magellan-target="ExampleSinglepickthresholdpick"><a name="Example:_single_pick_threshold_pick"></a>Example: Single pick threshold pick</h2>
+                                                        <p>The following process illustrates a single pick threshold pick. In this example, when the order is allocated, the operator is directed to a pallet storage location to pick a pallet, to remove 1 case from it, and to use the 9-case pallet to fulfill the pick. Storage location search (putaway process) finds an appropriate storage location for the 1 case. The operator is then directed to deposit the 1 case in the new application-defined location, and to deposit the pallet of 90 units (9 cases) to the staging area for shipment.</p>
+                                                        <p>For this example, the following values are defined for threshold picking:</p>
+                                                        <ul>
+                                                            <li>Pallet = 100 units</li>
+                                                            <li>Case = 10 units</li>
+                                                            <li>Threshold percentage = 75%</li>
+                                                            <li>Order quantity = 90 units (9 cases)</li>
+                                                        </ul>
+                                                        <p>The following process takes place for generating and performing the threshold pick:</p>
+                                                        <ol>
+                                                            <li value="1">To generate the threshold pick, the user performs the following tasks: <ol><li value="1">Allocate an order.</li><li value="2">View the details of the allocation to confirm that a threshold pick was allocated.</li></ol></li>
+                                                            <li value="2">To perform the threshold pick, the RF operator performs the following tasks:<ol><li value="1">Select the menu and option for picking.</li><li value="2">When prompted, enter the work reference number for the threshold pick.</li><li value="3">Go to the location of the pick and then on the threshold pick screen, scan the LPN. </li><li value="4">If the inventory falls outside of the threshold pick variance, type <span class="specialbold">Y</span> to pick it up anyway.</li><li value="5">Enter the total quantity on the LPN that is being picked. For this example, the operator enters 10 cases.</li><li value="6">On the threshold split screen, enter a new LPN for the 1 case that will be split off of the pallet.</li><li value="7">From the deposit screen, view the deposit location for the partial pallet quantity and deliver that 1 case to the location. Alternatively the operator can scan a P&amp;D location and deposit the case there for someone else to move.</li><li value="8">On the next product deposit screen, view the deposit location for the LPN that was required to fulfill the order and deliver the LPN to that location.</li></ol></li>
+                                                        </ol>
+                                                        <h2 id="ExampleStarterpalletforaworkassignment" data-magellan-target="ExampleStarterpalletforaworkassignment"><a name="Example:_starter_pallet_for_a_work_assignment"></a>Example: Starter pallet for a work assignment</h2>
+                                                        <p>The following process illustrates a threshold pick that serves as a starter pallet for a list pick. For more information, see <a href="work_assignments.htm#Starter_pallets">Starter pallets</a>.</p>
+                                                        <p>When picking for a work assignment, a starter pallet can provide a solid base on which subsequent picks for the assignment can be placed. The starter pallet can be a threshold pick, or the two features (starter pallet and threshold pick) can be implemented separately.</p>
+                                                        <p>For this example, the starter pallet is a threshold pick. When the operator signs on to directed work, the operator is directed to a pallet storage location to pick a pallet, to remove unneeded cases from the pallet, and then to use the rest of the pick as a base platform on which to deposit other picks.</p>
+                                                        <p>To perform the threshold pick, the RF operator performs the following actions:</p>
+                                                        <ol>
+                                                            <li value="1">Sign on to directed work. </li>
+                                                            <li value="2">When presented with a product pickup screen, enter the work assignment ID.</li>
+                                                            <li value="3">Go to the location of the first pick (a starter pallet pick), and then on the threshold pick screen, enter the LPN number.</li>
+                                                            <li value="4">If the inventory falls outside of the threshold pick variance, type <span class="specialbold">Y</span> to pick it up anyway.</li>
+                                                            <li value="5">Enter the total quantity on the pallet that is being picked.</li>
+                                                            <li value="6">On the threshold split screen, enter a new LPN number for the case that is being removed from the pallet.</li>
+                                                            <li value="7">On the product deposit screen, view the deposit location for the partial pallet quantity, and deliver that 1 case to the location. Alternatively the operator can scan a P&amp;D location and deposit the case there for someone else to move.</li>
+                                                            <li value="8">When the product pickup screen is displayed, continue with the next pick in the assignment. The pick-to LPN the LPN of the starter pallet that was the first pick. </li>
+                                                            <li value="9">When the warehouse equipment is full or the work assignment is complete, the operator deposits the LPN to destination location for the order.</li>
+                                                        </ol>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

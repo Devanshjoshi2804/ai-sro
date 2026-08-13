@@ -1,0 +1,494 @@
+{
+  "readOnly": true,
+  "results": [
+    {
+      "area": "yard",
+      "label": "Workstation",
+      "route": "#/wm.workstation",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "yard",
+      "label": "SG",
+      "route": "#/refs-Site",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "yard",
+      "label": "Door Activity",
+      "route": "#wm.yard/wm.dooractivity////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/doorsWithAppointments",
+          "status": 200,
+          "rowCount": 255
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/trailers/occupiedYardLocations",
+          "status": 200,
+          "rowCount": 503
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "yard",
+      "label": "Appointments",
+      "route": "#wm.yard/wm.appointments////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/description",
+          "status": 200,
+          "rowCount": 4
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/dockLocationSchedules",
+          "status": 200,
+          "rowCount": 520
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "yard",
+      "label": "Check In",
+      "route": "#wm.yard/wm.checkin////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMCheckin",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMCheckin",
+          "status": 200,
+          "rowCount": 13
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "yard",
+      "label": "Transport Equipment",
+      "route": "#wm.yard/wm.transportequipment////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/trailers/statusCounts",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/powerUnits/statusCount",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/powerUnits",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/trailers",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 5,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "yard",
+      "label": "Check Out",
+      "route": "#wm.yard/wm.yard.checkout////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMYardCheckOut",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMYardCheckOut",
+          "status": 200,
+          "rowCount": 7
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "yard",
+      "label": "Workflows",
+      "route": "#wm.yard/wm.workflowhistory////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/services/backgroundServices",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMInboundWorkflows",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMOutboundWorkflows",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMEquipmentWorkflows",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMUserWorkflows",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 5,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 6,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inboundWorkflowPlans/consolidatedPlans",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 7,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workflowOperations/paged",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 8,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workflowOperations/paged",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 10,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMInboundWorkflows",
+          "status": 200,
+          "rowCount": 18
+        },
+        {
+          "seq": 11,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMOutboundWorkflows",
+          "status": 200,
+          "rowCount": 21
+        },
+        {
+          "seq": 12,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMEquipmentWorkflows",
+          "status": 200,
+          "rowCount": 17
+        },
+        {
+          "seq": 13,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMUserWorkflows",
+          "status": 200,
+          "rowCount": 21
+        },
+        {
+          "seq": 14,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/refs/data/api/v1/rp/admin/sessionKeepAlive",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 15,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST api/v1/rp/admin/sessionKeepAlive",
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "yard",
+      "label": "Work Queue",
+      "route": "#wm.yard/wm.workqueue////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/directedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/undirectedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 5,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/consolidatedWork",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 6,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/directedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 7,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/undirectedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 8,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 9,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "yard",
+      "label": "History",
+      "route": "#wm.yard/wm.dailytransaction////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/loadAttributeConfigurations",
+          "status": 200,
+          "rowCount": 5
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 5,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "yard",
+      "label": "Transport Activity",
+      "route": "#wm.yard/wm.yard.traileractivity////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "yard",
+      "label": "Send RF Message",
+      "route": "#wm.yard/wm.rfmessage////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "yard",
+      "label": "RF Display",
+      "route": "#wm.yard/RFT-Display////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    }
+  ]
+}

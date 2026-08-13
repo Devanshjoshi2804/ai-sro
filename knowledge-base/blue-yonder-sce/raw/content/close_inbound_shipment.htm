@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Inbound|Receiving" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Close Inbound Shipment</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#CloseInboundShipment">Close Inbound Shipment</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Automaticcreationofdirectedputaway">Automatic creation of directed putaway</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Hostnotifications">Host notifications</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Receivingdiscrepancies">Receiving discrepancies</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Hostnotificationoverridesbyclient">Host notification overrides by client</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inboundqualityissues">Inbound quality issues</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurecloseinboundshipments">Configure close inbound shipments</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#CloseInboundShipmentfields">Close Inbound Shipment fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="CloseInboundShipment" data-magellan-target="CloseInboundShipment"><a name="aanchor291"></a>
+                                                            <MadCap:concept term="WM" />Close Inbound Shipment</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#CloseInboundShipment">Close Inbound Shipment</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Automaticcreationofdirectedputaway">Automatic creation of directed putaway</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Hostnotifications">Host notifications</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Receivingdiscrepancies">Receiving discrepancies</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Hostnotificationoverridesbyclient">Host notification overrides by client</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inboundqualityissues">Inbound quality issues</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurecloseinboundshipments">Configure close inbound shipments</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#CloseInboundShipmentfields">Close Inbound Shipment fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p> An inbound shipment is a group of planned inbound orders that are transported to the warehouse together or received together. When transport equipment is used, an inbound shipment typically represents the entire contents of the transport equipment; however, transport equipment can contain one or more inbound shipments. </p>
+                                                        <p>You can configure the actions that take place when an inbound shipment is closed, when an RF operator closes transport equipment, and when receiving discrepancies occur.</p>
+                                                        <p>You can also specify whether and when notifications confirming the receipt of inventory are sent to the host. </p>
+                                                        <h2 id="Automaticcreationofdirectedputaway" data-magellan-target="Automaticcreationofdirectedputaway"><a name="Automatic_creation_of_directed_putaway"></a>Automatic creation of directed putaway</h2>
+                                                        <p>A typical receiving process involves identifying inventory to a receiving staging location. At that point, inventory that is not required for a distribution or for cross docking can be directed to a storage location.</p>
+                                                        <p>You can configure the application to create directed work automatically to store staged inbound inventory when an RF operator closes the transport equipment on which the inventory arrived. The directed work is added to the work queue.</p>
+                                                        <p>Use the following steps to set up automatic creation of directed putaway:</p>
+                                                        <ol>
+                                                            <li value="1">Configure processing for closing an inbound shipment.<ul><li>Enable the application to create putaway work automatically by setting the <span class="specialbold">RF Close Auto Create Putaway Work </span>field to Yes. </li><li>To obtain a Putaway Failures on Transport Equipment Close report listing the LPNs for which the application could not find a suitable storage location, set the<span class="specialbold"> Print Report When Auto Create Putaway Fails </span>field to Yes. The report prints automatically.</li><li><p>To obtain an Over, Short, and Damaged (OSD) report when received quantities do not match expected quantities, set the <span class="specialbold">Print Report When Transport Equipment is Closed with Discrepancies</span> field to Yes. The report prints automatically.</p></li></ul><p>See <a href="#Configure_close_inbound_shipments">Configure close inbound shipments</a>.</p></li>
+                                                            <li value="2">To send an Event Management alert listing the LPNs for which the application could not find a suitable storage location, set the <span class="specialbold">Auto Create Putaway Fails on Transport Equipment Close</span> field to Yes. See <a href="event_management.htm">Event Management integration</a>.</li>
+                                                        </ol>
+                                                        <h2 id="Hostnotifications" data-magellan-target="Hostnotifications"><a name="Host_notifications"></a>Host notifications</h2>
+                                                        <p>Host notification is a receipt confirmation transaction from the application to the host. A receipt confirmation identifies the inventory and quantities that have been put away to locations from which the inventory can be allocated. A receipt confirmation is used to inform the host that the inventory is available for allocation to fulfill orders. </p>
+                                                        <p>A receipt confirmation does not record inventory that was identified and directed to a processing location or other location from which the inventory cannot be allocated. For example, if damaged inventory was identified and moved to a damage location, that inventory is not recorded on the receipt confirmation to the host. A receipt confirmation is also not sent until all holds have been removed from the inventory.</p>
+                                                        <p>When you configure closing inbound shipments for a non-3PL environment, you can select whether and when a receipt confirmation is sent to the host.</p>
+                                                        <p>For a 3PL environment, you can specify for each client whether and when the receipt confirmation is sent to the host. For example, some clients may want to be notified when all of the inventory for a planned inbound order has been put away; other clients may want to be notified that inventory is available as soon as an LPN is put away. See <a href="#Host_notification_overrides_by_client">Host notification overrides by client</a>.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: For a 3PL environment, if you want to select one of the host notification levels as the warehouse default, then you must configure that level for each client that does not have another notification level selected.</p>
+                                                        <p>After a receipt confirmation is sent, you can view the receipt confirmation date when you view the details of an inbound shipment. </p>
+                                                        <h2 id="Receivingdiscrepancies" data-magellan-target="Receivingdiscrepancies"><a name="Receiving_discrepancies"></a>Receiving discrepancies</h2>
+                                                        <p>A receiving discrepancy occurs when there are differences between the expected inventory and the received inventory. Received inventory is inventory that is received to a location, such as receiving staging location, in the warehouse.</p>
+                                                        <p>The following situations result in receiving discrepancies:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Quantity Overages</span>: You received more inventory than you expected. For example, the planned inbound order listed 4 cases, but you received 10 cases. The application continuously updates the overage quantity from receiving through the closing of the inbound shipment.</li>
+                                                            <li><span class="specialbold">Quantity Shortages</span>: You received less inventory than you expected. For example, the planned inbound order listed 4 cases, but you only received 2 cases. The application records the shortage only after the inbound shipment is closed. Any inventory that remains in the receiving location (not put away) after the inbound shipment is closed will also be recorded as a shortage.</li>
+                                                            <li><span class="specialbold">Damaged Inventory</span>: You received inventory with a damaged inventory status. You specify the inventory statues that the application considers for the damaged category. The application continuously updates the damaged quantity from receiving through the closing of the inbound shipment.</li>
+                                                            <li><span class="specialbold">Inventory attribute differences</span>: You received inventory with different characteristics than expected. These discrepancies are indicated as quantity discrepancies, not as attribute discrepancies. For example, if the planned inbound order listed 20 eaches of lot A, but you received 20 eaches of lot B, then the application records a quantity overage for lot B. The application records the discrepancy as each LPN is received.</li>
+                                                        </ul>
+                                                        <p>Receiving discrepancies are displayed on the Receiving Issues page in the Receiving module, and on the Overage, Short and Damage (OSD) report.</p>
+                                                        <p>If Event Management is integrated with Warehouse Management, and you want receiving supervisors to be notified automatically when an unauthorized user attempts to close an inbound shipment with discrepancies, then enable the <span class="specialbold">User Unable To Close Transport Equipment with Discrepancies</span> Event Management event.</p>
+                                                        <h2 id="Hostnotificationoverridesbyclient" data-magellan-target="Hostnotificationoverridesbyclient"><a name="Host_notification_overrides_by_client"></a>Host notification overrides by client</h2>
+                                                        <p>For a 3PL environment, you can select one of the following levels to determine when the notification is sent to the host:</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: If you want to select one of the following host notification levels as the warehouse default, then you must configure that level for each client that does not have another notification level selected.</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Receipt Confirmation at Inbound Shipment Level</span>:  A receipt confirmation is sent to the host when all of the inventory for an inbound shipment has been identified, is free of holds, and has been deposited to a location from which it can be allocated for orders. </li>
+                                                            <li><span class="specialbold">Receipt Confirmation at Inbound Order Level</span>: A receipt confirmation is sent to the host when all of the inventory for a planned inbound order has been identified, is free of holds, and has been deposited to a location from which it can be allocated for orders.</li>
+                                                            <li><span class="specialbold">Receipt Confirmation at LPN Level</span>: A receipt confirmation is sent to the host when an LPN has been identified, is free of holds, and has been deposited to a location from which it can be allocated for orders.</li>
+                                                            <li><span class="specialbold">No Receipt Confirmation Sent</span>: A receipt confirmation is not sent to the host upon receipt of the client's inventory.</li>
+                                                        </ul>
+                                                        <p>If you select receipt confirmation at the inbound order level or LPN level, then if over receiving is allowed, the receipt confirmation is sent when all of the expected inventory for the planned inbound order or LPN is available for allocation. Then, if additional inventory is received and becomes available for allocation, an additional receipt confirmation is sent to confirm the receipt of that inventory.</p>
+                                                        <h2 id="Inboundqualityissues" data-magellan-target="Inboundqualityissues"><a name="Inbound_quality_issues"></a>Inbound quality issues</h2>
+                                                        <p>To help you monitor the level of quality that you receive from suppliers and carriers delivering product to your facility, the application enables you to document any quality issues that you encounter as you receive inventory into the warehouse. </p>
+                                                        <p>For example, you can document the amount of damaged product that a supplier delivers, or whenever a particular carrier arrives late.</p>
+                                                        <p>A default set of supplier and carrier issue types is provided, but you can add other issues that you want available for selection when a quality issue is reported.</p>
+                                                        <h2 id="Configurecloseinboundshipments" data-magellan-target="Configurecloseinboundshipments"><a name="Configure_close_inbound_shipments"></a>Configure close inbound shipments</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inbound &gt; Receiving &gt; Close Inbound Shipment</span>.</li>
+                                                            <li value="2">Enter information in the <a href="#Close_Inbound_Shipment_fields">Close Inbound Shipment fields</a>.</li>
+                                                            <li value="3">To select user roles that are authorized to close an inbound shipment when quantity discrepancies exist:<ol><li value="1">Click <span class="specialbold">Roles</span>.</li><li value="2">In the <b>Available </b>column, select the check box next to the roles to authorize.</li><li value="3">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="4">For a 3PL environment, to define by client when a notification confirming the receipt of inventory is sent to the host application: <ol><li value="1">Under <b>HOST&#160;NOTIFICATIONS</b>, click <span class="specialbold">Client </span><span class="specialbold">Host Notifications</span>.</li><li value="2">Perform one of the following tasks:<ul><li>To add a client override, click <b>Add</b>.</li><li>To modify a client override, in the grid, click the client.</li><li>To copy a client override, in the grid, select the check box next to the client, and then click <b>Copy</b>.</li></ul></li><li value="3"><p>Enter the information in the following fields: </p><p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: If you want to select one of the host notification levels as the warehouse default, then you must configure that level for each client that does not have another notification level selected.</p><table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0"><col class="TableStyle-Field_Descriptions-Column-Column1" /><col class="TableStyle-Field_Descriptions-Column-Column2" /><thead><tr class="TableStyle-Field_Descriptions-Head-Header1"><th style="font-weight: bold;" class="TableStyle-Field_Descriptions-HeadE-Column1-Header1">Field</th><th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th></tr></thead><tbody><tr class="TableStyle-Field_Descriptions-Body-Body1"><td style="font-weight: bold;" class="TableStyle-Field_Descriptions-BodyE-Column1-Body1">Client</td><td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1"><p>Unique identifier for a client who houses inventory within a multi-client (third-party logistics) warehouse. The client identifier distinguishes one client from another so that the application can effectively manage inventory and activities for multiple clients in the same warehouse.</p></td></tr><tr class="TableStyle-Field_Descriptions-Body-Body2"><td style="font-weight: bold;" class="TableStyle-Field_Descriptions-BodyB-Column1-Body2">Host Notification Level</td><td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2"><p>Level at which received inventory and quantity information is sent to the host:</p><ul><li><span class="specialbold">Receipt Confirmation at Inbound Shipment Level</span>: A receipt confirmation is sent to the host when all of the inventory for an inbound shipment has been identified, is free of holds, and has been deposited to a location from which it can be allocated for orders.</li><li><span class="specialbold">Receipt Confirmation at Inbound Order Level</span>: A receipt confirmation is sent to the host when all of the inventory for a planned inbound order has been identified, is free of holds, and has been deposited to a location from which it can be allocated for orders.</li><li><span class="specialbold">Receipt Confirmation at LPN Level</span>: A receipt confirmation is sent to the host when an LPN has been identified, is free of holds, and has been deposited to a location from which it can be allocated for orders.</li><li><span class="specialbold">No Receipt Confirmation Sent</span>: A receipt confirmation is not sent to the host upon receipt of the client's inventory.</li></ul></td></tr></tbody></table></li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="5">To define the inventory statuses that the application will track as damaged and include in the Over, Short and Damaged Receiving report:<ol><li value="1">Under <b>OVER, SHORT, DAMAGED&#160;REPORT</b>, click <span class="specialbold">Over, Short, Damaged Report</span>.</li><li value="2">To add an inventory status:<ol><li value="1">Click <span class="specialbold">Add New</span>.</li><li value="2">In the <span class="specialbold">Status Code</span>, <span class="specialbold">Description</span>, and <span class="specialbold">Short Description </span>fields, enter the values.</li><li value="3">Click <b>Save</b>.</li></ol></li><li value="3">In the <b>Available </b>column, select the check box next to the statuses to include in the report.</li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="6">To define inbound quality issues that are available for selection when a supplier or carrier issue is reported:<ol><li value="1">Under <span class="specialbold">INBOUND QUALITY ISSUES</span>, perform one of the following tasks:<ul><li>To define supplier issues, click <span class="specialbold">Supplier Issues</span>.</li><li>To define carrier issues, click <span class="specialbold">Carrier Issues</span>.</li></ul></li><li value="2">To add a quality issue:<ol><li value="1">Click <b>Add</b>.</li><li value="2">In the <span class="specialbold">Supplier Issue</span> or <span class="specialbold">Carrier Issue</span>, <span class="specialbold">Description</span>, and <span class="specialbold">Short Description</span> fields, enter the values. </li><li value="3">Click <b>Apply</b>.</li></ol></li><li value="3">To modify the descriptions for a quality issue:<ol><li value="1">In the grid, click a description and change it.</li><li value="2">Click <b>Apply</b>.</li></ol></li><li value="4">To translate a quality issue:<ol><li value="1">Perform one of the following tasks:<ul><li>To translate specific rows, in the grid, select the check box of the rows, and then above the grid, click <span class="specialbold">Translation</span>.</li><li>To translate all rows, above the grid, click <span class="specialbold">Translation</span>.</li></ul></li><li value="2">From the <span class="specialbold">Destination Locale</span> drop-down list, select the locale.</li><li value="3">In the grid, select a translated description or short description, and then enter the new value.</li><li value="4">Click <b>Save</b>.</li></ol></li></ol></li>
+                                                            <li value="7">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="CloseInboundShipmentfields" data-magellan-target="CloseInboundShipmentfields"><a name="Close_Inbound_Shipment_fields"></a>Close Inbound Shipment fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Automatic Close</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application automatically closes an inbound shipment when the received quantity matches its expected quantity. If the transport equipment contains more than one shipment, then the application only closes the completed shipment. If the inbound shipment is the only shipment on the transport equipment, or if all other inbound shipments on the transport equipment are closed, then the transport equipment is also closed. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If this field is set to Yes and there are discrepancies found during receiving, then an authorized operator must manually close the transport equipment. Authorized user roles are defined in the Close Inbound Shipment configurations.</p>
+                                                                        <p>If No, the operator must manually close the inbound shipments and the transport equipment in the application after receiving is complete.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">RF&#160;Close&#160;Confirmation</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then when the application attempts to automatically close an inbound shipment and its transport equipment after all of the expected inventory is received (<b>Automatic Close</b> is set to Yes), the operator is prompted to confirm whether there is additional inventory to receive. If the operator selects No, then the transport equipment and inbound shipment are closed. If the operator selects Yes, the operator can then receive additional inventory if over receiving is allowed and the operator is allowed to over receive.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If transport equipment contains multiple shipments and the operator answers Yes to the prompt for the first shipment and No to the prompt for the second shipment, then the application will still close all of the shipments and the transport equipment, even though there is additional inventory to receive.</p>
+                                                                        <p>If No, the application automatically closes the inbound shipment when the received quantity matches the expected inventory quantity, without prompting the operator to confirm whether there is additional inventory to receive.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">RF&#160;Close Auto Create Putaway Work</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, when an RF operator closes transport equipment, the application creates directed work to move staged inventory to an appropriate storage location. If set to Yes, this process applies to all of the LPNs that were identified from the transport equipment and that are currently in a receiving staging location. This process does not apply to inventory required for a distribution or for cross docking. </p>
+                                                                        <p>If the application fails to create work for an LPN, for example, because a suitable storage location cannot be found, the LPN is listed on the Putaway Failures on Transportation Equipment Close report.</p>
+                                                                        <p>If No, the application does not attempt to create work automatically for the staged inventory when an RF operator closes the transport equipment. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Create Putaway Work During Auto Receiving</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, when a shipment is auto-received and the transport equipment is closed, the application creates directed work to move the staged inventory to an appropriate storage location. If set to Yes, this process applies to all of the LPNs that were identified from the transport equipment and that are currently in a receiving staging location. This process does not apply to inventory required for a distribution or for cross docking.</p>
+                                                                        <p>If the application fails to create work for an LPN, for example, because a suitable storage location cannot be found, the LPN is listed on the Putaway Failures on Transportation Equipment Close report.</p>
+                                                                        <p>If No, the application does not attempt to create work automatically for the staged inventory when an RF operator closes the transport equipment after auto receiving. If set to No, manual (undirected)&#160;putaway is required to move the inventory from staging to storage. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Load Close Error</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then an error message is displayed when the operator attempts to close transport equipment that contains a shipment that is not complete. For example, assume an operator attempts to close transport equipment, and identified inventory from a shipment on the equipment exists that has not yet been deposited to a physical location in the warehouse. If the expected quantity is 100, and the operator identifies 80 and deposits 80, and then identifies 20, but does not deposit them, the error message would be displayed if the operator attempted to close the transport equipment.</p>
+                                                                        <p>If No, the operator does not receive an error message when closing transport equipment that contains identified inventory that has not yet been deposited to a physical location in the warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Print Report When Auto Create Putaway Fails</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then if the application fails to create directed work to store staged inventory when configured to do so, a report is printed automatically. The report, called Putaway Failures on Transportation Equipment Close, lists the LPNs for which directed work was not created. The application may fail to create directed work, for example, if a suitable storage location could not be found for the inventory. Select Yes if you want the report to be printed automatically when this occurs. This field is only available if the <span class="specialbold">RF Close Auto Create Putaway Work</span> field is set to Yes. </p>
+                                                                        <p>If No, the report is not printed automatically when the application fails to create directed putaway work when configured to do so. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Host Notification of Received Inventory</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, receipt confirmation of planned inbound order quantities is sent to the host all at once when the associated inbound shipment is closed. If you select Yes, then if an inbound shipment is closed and then re-opened, the transactions could be duplicated when it is subsequently closed again.</p>
+                                                                        <p>If No, the application sends receipt confirmation of planned inbound order quantities to the host based on the selection defined in the <span class="specialbold">Host Notification Level</span> field or, for a 3PL environment, the <span class="specialbold">Client Host Notifications</span> field. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Defer Inbound Shipment Complete</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then when the Inbound Shipment Complete transaction is logged, the application defers sending the transaction to the host. The transaction is instead saved to a deferred executions database table until it is purged. The Inbound Shipment Complete transaction is logged based on the LOG-MST-RCPT-CMP background workflow. For example, if the workflow is enabled and configured with the Receiving Operations exit point, then the transaction is logged when the operator closes the inbound shipment's transport equipment after receiving the inventory. </p>
+                                                                        <p>If No, then the application immediately sends the logged Inbound Shipment Complete transaction to the host. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Host Notification Level</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Value that determines when a notification confirming the receipt of inventory is sent to the host application:</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Receipt Confirmation Based on Host Transaction Rules</span>: Sends receipt confirmation at the LPN level when inventory is moved to an area. This occurs if area movement transactions are configured to notify the host of inventory movements. See <a href="movement_transactions.htm" class="MCXref xref">Movement Transaction</a>.</li>
+                                                                            <li><span class="specialbold">Receipt Confirmation at Inbound Shipment Level</span>: A receipt confirmation is sent to the host when all of the inventory for an inbound shipment has been identified, is free of holds, and has been deposited to a location from which it can be allocated for orders.</li>
+                                                                            <li><span class="specialbold">Receipt Confirmation at Inbound Order Level</span>: A receipt confirmation is sent to the host when all of the inventory for a planned inbound order has been identified, is free of holds, and has been deposited to a location from which it can be allocated for orders.</li>
+                                                                            <li><span class="specialbold">Receipt Confirmation at LPN Level</span>: A receipt confirmation is sent to the host when an LPN has been identified, is free of holds, and has been deposited to a location from which it can be allocated for orders.</li>
+                                                                            <li><span class="specialbold">No Receipt Confirmation Sent</span>: A receipt confirmation is not sent to the host upon receipt of the inventory. </li>
+                                                                        </ul>
+                                                                        <p>If you select receipt confirmation at the inbound order level or LPN level, then if over receiving is allowed, the receipt confirmation is sent when all of the expected inventory for the planned inbound order or LPN is available for allocation. Then, if additional inventory is received and becomes available for allocation, an additional receipt confirmation is sent to confirm the receipt of that inventory.</p>
+                                                                        <p>This field is only available in a non-3PL environment when the <span class="specialbold">Host Notification of Received Inventory</span> field is set to No.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Print Report When Transport Equipment is Closed with Discrepancies</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>If Yes, the application prints an Over, Short, and Damaged (OSD) report automatically when an operator closes transport equipment with discrepancies. A discrepancy occurs when the expected quantity does not match the received quantity. If the application is configured to notify the operator of discrepancies, it will also notify the operator that the report has printed.</p>
+                                                                        <p>If No, an OSD report is not printed automatically when an RF operator closes transport equipment with discrepancies.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

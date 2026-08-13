@@ -1,0 +1,27 @@
+{
+  "spec": "voiceDevices",
+  "resource": "devices",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices",
+      "body": "{\"activityDate\":\"\",\"consolidateAtPackStationFlag\":false,\"manifestCartonFlag\":false,\"consolidateAtPackStationZone_uri\":\"\",\"consolidateAtPackStationZoneUri\":\"\",\"currentStorageLocation\":\"\",\"currentWorkArea\":\"\",\"currentWorkZone\":\"\",\"currentWorkZoneId\":null,\"dateLastModified\":\"\",\"deviceClass\":\"V\",\"deviceCode\":\"ZVV1\",\"deviceName\":\"ZV CAPTURE\",\"displayHeight\":0,\"displayWidth\":0,\"homeWorkArea\":\"\",\"labelPrinterAddress\":\"\",\"lastModifiedBy\":\"\",\"lastUser\":\"\",\"localeId\":\"DUTCH_HOLLAND\",\"movementZoneId\":0,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":0,\"printerAddress\":\"\",\"productionStation\":\"\",\"productionStationFlag\":false,\"reader\":\"\",\"rftMode\":\"\",\"rfVendorName\":\"\",\"scaleCommAddr\":\"\",\"scaleCommCmd\":\"\",\"scaleCommPort\":\"\",\"scaleSerialConfiguration\":\"\",\"scaleWeightUri\":\"\",\"scannerSerialConfiguration\":\"\",\"shipmentsPendingUri\":\"\",\"specialHandlingLocation\":\"\",\"storageLocation\":\"\",\"suppressCartonTypeChangeFlag\":false,\"terminalID\":\"\",\"terminalType\":\"\",\"terminalTypeDescription\":\"\",\"touchscreenDeviceFlag\":false,\"version\":0,\"voiceTerminalId\":\"ZVV1\",\"warehouseId\":\"SG\",\"nextFocus\":\"\"}"
+    }
+  ],
+  "reset": false,
+  "add": {
+    "id": "button-5921",
+    "count": 1
+  },
+  "applied": {
+    "deviceCode": "ZVV1",
+    "deviceName": "ZV CAPTURE",
+    "localeId": "DUTCH_HOLLAND"
+  },
+  "invalid": [],
+  "save": {
+    "id": "button-5974",
+    "count": 1
+  },
+  "ok": true
+}

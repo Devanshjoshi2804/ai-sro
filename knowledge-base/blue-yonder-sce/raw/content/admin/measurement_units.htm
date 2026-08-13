@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Configuration|[%=System.LinkedTitle%]" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Measurement Units</title>
+        <link href="../../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="../resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="../resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="../resources/tablestyles/table_plain_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="../resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../../Skins/Favicons/favicon-16x16.png" />
+        <script src="../../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="../home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#MeasurementUnits">Measurement Units</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Measurementunitcategories">Measurement unit categories</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Measurementunitconversion">Measurement unit conversion</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Measurementunittypedefaults">Measurement unit type defaults</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Measurementunitsystem">Measurement unit system</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyameasurementunit">Add or modify a measurement unit</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteameasurementunit">Delete a measurement unit</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#MeasurementUnitsfields">Measurement Units fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="MeasurementUnits" data-magellan-target="MeasurementUnits"><a name="aanchor210"></a>
+                                                            <MadCap:concept term="Administration" />Measurement Units</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#MeasurementUnits">Measurement Units</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Measurementunitcategories">Measurement unit categories</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Measurementunitconversion">Measurement unit conversion</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Measurementunittypedefaults">Measurement unit type defaults</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Measurementunitsystem">Measurement unit system</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyameasurementunit">Add or modify a measurement unit</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteameasurementunit">Delete a measurement unit</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#MeasurementUnitsfields">Measurement Units fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A measurement unit is a standard used for determining quantity, capacity, or dimension. For example, an inch is a standard measurement unit representing a linear distance, and multiple inches can be used to express linear distance greater than an inch. Measurement units are used to quantify the following measurements:</p>
+                                                        <ul>
+                                                            <li>Area</li>
+                                                            <li>Distance</li>
+                                                            <li>Linear </li>
+                                                            <li>Mass (weight)</li>
+                                                            <li>Temperature</li>
+                                                            <li>Velocity</li>
+                                                            <li>Volume</li>
+                                                        </ul>
+                                                        <p>The application provides measurement units in the International System of Measurements (Metric) and the United States System of Measurement systems. The Metric system includes units such as centimeter, meter, gram, and kilogram, among others; the U.S. system includes units such as inch, foot, pound, and ton, among others.</p>
+                                                        <h2 id="Measurementunitcategories" data-magellan-target="Measurementunitcategories"><a name="Measurement_unit_categories"></a>Measurement unit categories</h2>
+                                                        <p>A measurement unit category is used to classify a measurement unit type by size (small, medium, and large) and kind (area, distance, linear, mass, temperature, and volumetric). A measurement unit category is used in the configuration of unit of measure type fields that are displayed. The measurement unit category limits the list of values available for the user to select. For example, you can configure a field that captures the length of a carton with the Small Linear Measurement category, so that the user can select from units such as inches, centimeters, decimeters, and millimeters. You can also configure a field that captures distance from one city to another with the Distance Measurement category, so that the user can select from units such as miles and kilometers.</p>
+                                                        <p>Each category is associated with a system measurement unit. The system measurement unit is the measurement unit to which values in this category are converted for storage in the database and for communication with the host. A system measurement unit is defined for each type of measure (area, distance, linear, mass, temperature, and volume) in the System Units (SYS-MU) policies. The following table describes the different measurement unit categories and the associated base unit used for conversion.</p>
+                                                        <table style="mc-table-style: url('../resources/tablestyles/table_plain_avoidrowbreak.css');" class="TableStyle-Table_Plain_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" style="width: 158px;" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Measurement unit category</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">System measurement unit</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Use</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Examples</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Small Linear Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Inch</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of straight line distances</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Centimeter, millimeter, and decimeter</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Medium Linear Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Inch</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of straight line distances</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Foot, meter, and yard</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Distance Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Mile</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of straight line distances</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Mile and kilometer</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Small Area Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Square Inch</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of a surface or piece of land</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Square centimeter, square millimeter, and square decimeter</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Medium Area Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Square Inch</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of a surface or piece of land</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Square foot, square meter, and square yard</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Large Area Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Square Mile
+                        </p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of a surface or piece of land</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Square mile and square kilometer</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Small Volumetric Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Cubic Inch</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of space occupied by a three-dimensional object or region</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Cubic centimeter, cubic millimeter, and cubic decimeter</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Medium Volumetric Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Cubic Inch</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of space occupied by a three-dimensional object or region</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Cubic foot, cubic meter, and cubic yard</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Large Volumetric Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Cubic Mile
+                        </p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of space occupied by a three-dimensional object or region</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Cubic mile and cubic kilometer</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Small Mass (Weight) Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Ounce</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of the heaviness of an object</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Gram and ounce</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Medium Mass (Weight) Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Ounce</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of the heaviness of an object</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Kilogram and pound</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Large Mass (Weight) Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Ounce</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Measurement of the heaviness of an object</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Long and short ton, hundredweight, and tonne</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p>Temperature Measurement</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p>Celsius
+                        </p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p>The intensity of heat present in an object or space as expressed in a comparative scale and shown by a thermometer</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyA-Column1-AvoidRowBreak">
+                                                                        <p>Celsius, fahrenheit, and kelvin</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Measurementunitconversion" data-magellan-target="Measurementunitconversion"><a name="Measurement_unit_conversion"></a>Measurement unit conversion</h2>
+                                                        <p>In the application, fields that are configured with a field type of Unit of Measure are displayed in the default measurement unit type defined for the measurement unit category of the field. This relationship is defined in Measurement Units. You select a measurement unit system for a locale that provides the default measurement unit types that can be displayed for each measurement unit category. </p>
+                                                        <p>Measurement unit values are converted when the following situations occur:</p>
+                                                        <ul>
+                                                            <li><b>A user selects a unit from a unit of measure field drop-down list</b>. For example, if the measurement unit category of the field is Small Linear Measurement and the default unit type is Inch, the value for the field is displayed in inches. The user can view the value for that field in one of the other units defined for the Small Linear Measurement category displayed in the drop-down list. The Small Linear Measurement category includes units from both the International System of Measurements (Metric) and the United States System of Measurements. If a user is viewing a value of 1 in. and selects cm, the application converts and displays the value in 2.54 cm. This selection is not saved. When the user views that same field in a new session, the value is displayed in the default value of inch.</li>
+                                                            <li><b>The default unit types defined for the locale belong to a different measurement unit system than the unit types defined for storing values in the database</b>. For example, if the locale is configured with the International System of Measurements (Metric), and the system measurement units (saved in the SYS-MU policies) belong to the United States System of Measurements, a conversion is required to display the values. Using the example of the Small Linear Measurement,  the default unit type defined on the locale is centimeter and the system measurement unit is inch. When a user enters a value in a field, such as 2.54 cm, the value is converted to and saved in the database as 1 in. When the user views that same field in a new session, the stored value of 1 in. is retrieved and converted to 2.54 cm for the displayed value. 
+</li>
+                                                        </ul>
+                                                        <p>The measurement unit conversion calculation is based on details defined in Measurement Units including the measurement unit category, system measurement unit, and conversion factors. </p>
+                                                        <p>The following table shows the conversions of four small linear measurement units that use inch as the system measurement unit.</p>
+                                                        <table style="border-collapse: separate;mc-table-style: url('../resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1" width="186">
+                                                                        <p class="tableheading">Measurement unit type</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1" width="246">
+                                                                        <p class="tableheading">Conversion</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" width="186">
+                                                                        <p>Inch</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow" width="246">
+                                                                        <p>1 inch = 1 inch</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" width="186">
+                                                                        <p>Decimeter</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow" width="246">
+                                                                        <p>1 decimeter = 3.9370078 inches</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" width="186">
+                                                                        <p>Centimeter</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow" width="246">
+                                                                        <p>1 centimeter = 0.3937008 inch</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow" width="186">
+                                                                        <p>Millimeter</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow" width="246">
+                                                                        <p>1 millimeter = 0.03937008 inch</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: This conversion calculation is for display purposes only. Values are stored in the database in the system measurement unit. </p>
+                                                        <h2 id="Measurementunittypedefaults" data-magellan-target="Measurementunittypedefaults"><a name="Measurement_unit_type_defaults"></a>Measurement unit type defaults</h2>
+                                                        <p>Once measurement units are defined, you can define a measurement unit default for each measurement unit category for each locale. This is the measurement unit in which values are displayed (by default).</p>
+                                                        <p>For example, for the US_ENGLISH locale, you can select the United States System of Measurement and define inch as the measurement unit default for the Small Linear Measurement category. For the FRENCH locale, you can select the International System of Measurements (Metric), and define decimeter as the measurement unit type default for the Small Linear Measurement category.</p>
+                                                        <p>You use the <b class="SpecialBold">Units</b> tab in Locale Maintenance to define measurement unit defaults. </p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: Locale Maintenance is an SCE&#160;client window. For changes made in Locale Maintenance to take effect, you must exit the client and then log in again.</p>
+                                                        <h2 id="Measurementunitsystem" data-magellan-target="Measurementunitsystem"><a name="Measurement_unit_system"></a>Measurement unit system</h2>
+                                                        <p>The application provides the International System of Measurements (Metric), and United States System of Measurements measurement unit systems.  In the application, one measurement unit system is assigned to each locale. The measurement unit system and the default units assigned on the <b>Units</b> tab in Locale Maintenance determine the measurement unit type that is displayed throughout your Blue Yonder &#160;application.</p>
+                                                        <p> For example, the United States System of Measurement is assigned to the US_ENGLISH locale. Fields displaying linear measurement values are displayed in the default units defined for the U.S. system, such as inches and feet. If you change the measurement unit system of the locale to the International System of Measurements (Metric), the values displayed on the user interface are the default units defined for the metric system, such as centimeters and meters.</p>
+                                                        <p>You use the <b class="SpecialBold" style="font-weight: normal;">Locales page</b> to assign a measurement unit system to a locale.</p>
+                                                        <h2 id="Addormodifyameasurementunit" data-magellan-target="Addormodifyameasurementunit"><a name="Add_or_modify_a_measurement_unit"></a>Add or modify a measurement unit</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">System Administrator &gt; Configuration &gt; </span><b>Internationalization &gt; Measurement Units</b>.</li>
+                                                            <li value="2">Perform one of the following tasks:</li>
+                                                            <ul>
+                                                                <li>To add a measurement unit, from the <b>Actions</b> drop-down list, select <b>Add</b>.</li>
+                                                                <li>To copy a measurement unit, in the grid select the check box on the row of the measurement unit, and then from the <b>Actions</b> drop-down list, select <b>Copy</b>.</li>
+                                                                <li>To modify a measurement unit, in the grid select the check box on the row of the measurement unit, and then from the <b>Actions</b> drop-down list, select <b>Edit</b>.</li>
+                                                            </ul>
+                                                            <li value="3">Enter information in the <a href="#Measurement_Units_fields">Measurement Units fields</a>.</li>
+                                                            <li value="4">Click <b class="SpecialBold">Save</b>. A confirmation message is displayed.</li>
+                                                            <li value="5">
+                                                                <p>Click <b class="SpecialBold">OK</b>.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Deleteameasurementunit" data-magellan-target="Deleteameasurementunit"><a name="aanchor211"></a>
+                                                            <MadCap:concept term="Administration" /><a name="Delete_a_measurement_unit"></a>Delete a measurement unit</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">System Administrator &gt; Configuration &gt; </span><b>Internationalization &gt; Measurement Units</b>.</li>
+                                                            <li value="2">In the grid, select the check box on the row of the measurement unit. </li>
+                                                            <li value="3">From the <b>Actions</b> drop-down list, select <b>Delete</b>. A confirmation message is displayed.</li>
+                                                            <li value="4">Click <b class="SpecialBold">OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="MeasurementUnitsfields" data-magellan-target="MeasurementUnitsfields"><a name="Measurement_Units_fields"></a>Measurement Units fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('../resources/tablestyles/field_descriptions_avoidrowbreak.css');margin-left: 0;margin-right: auto;" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Measurement Unit Types</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p class="bodytext">Name of the type of measurement unit.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;"><b>Measurement Unit Short Description</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Standard abbreviation for the measurement unit.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;"><b>Measurement Unit Description</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p class="bodytext">Meaningful description of the measurement unit type.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;"><b>Measurement Unit System</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p class="bodytext">Value that represents the system to which the measurement unit belongs.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">International System of Measurements (Metric) (M)</span>: The measurement unit belongs to the metric system, which includes units such as meters and centimeters.</li>
+                                                                            <li><span class="specialbold">United States System of Measurements (U)</span>: The measurement unit belongs to the U.S. system, which includes units such as yards and inches.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Measurement Unit Categories</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p class="bodytext">Value that groups the measurement unit type based on size and kind of measurement, such as small, medium, and large area, volumetric, or mass measurements. A category is used, in the configuration of a field in an application, to limit the selection of measurement units to a list relevant to what is being measured, such as inches and decimeters for a carton length field, and miles and kilometers for a distance field.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p>Unit Category's System Measurement Unit</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p class="bodytext">Measurement unit to which the values for this kind of measurement are converted, if necessary, and stored in the database. This value is defined by the System Units (SYS-MU) policies, which let you configure each kind of measurement (area, distance, linear, temperature, volume, and weight) with a measurement unit type.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p>Conversion Factor Numerator</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p class="bodytext">Value that, when divided by the conversion factor denominator, is equivalent to one unit of the unit category's system measurement unit. For example, if you are maintaining a unit type of foot and the unit category's system measurement unit is inch, the conversion numerator should be 12, because there are 12 inches in 1 foot.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p>Conversion Factor Denominator</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p class="bodytext">Value that, when divided into the conversion factor numerator, equals the numerical value that is equivalent to one unit of the defined unit category's system measurement unit. For example, if you are maintaining a unit type of foot and the unit category's system measurement unit is inch, this value is 1 because there are 12 inches in 1 foot. This value should be saved as 1 to avoid unexpected results. When the application processes the equation, the numerator is divided by 1, therefore, maintaining its original value.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p>Enabled</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p class="bodytext">Specifies whether the measurement unit type is available for use in your application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p>Display Precision</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p class="bodytext">Value that specifies the number of decimal places to which the measurement value is rounded. All measurements displayed as this unit type are displayed only as the rounded value. A value of -1 in this field specifies that the measurement value is not rounded. Rounding values to the specified display precision only affects the display of the value; the actual full decimal point value is stored in the database.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p>Host Measurement Unit Code</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p class="bodytext">Code for the measurement unit type that the application uses in transactions to and from the host. This value is not available for selection in your application; it only used to represent this measurement unit to a host system.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p>UN/CEFACT&#160;Code</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Common code  value used by the United Nations Centre for Trade Facilitation (UN/CEFACT) for the measurement unit type. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1" style="font-weight: bold;">
+                                                                        <p>Absolute Group</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                        <p>An identifier used by Blue Yonder product teams to indicate the product group that was responsible for loading data (in a particular row of a table). Standard group names include dcs_data, mcs_data, and sal_data. This field is display only.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="../legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

@@ -36,6 +36,7 @@ backend/     Python, FastAPI. Ports and adapters, enforced by import-linter.
 frontend/    Next.js App Router, TypeScript, Tailwind, shadcn/ui.
 infra/       docker-compose for the local stack.
 docs/        Architecture, standards, walkthroughs, ADRs.
+knowledge-base/  Recorded description of a live Blue Yonder SCE instance (evidence, not spec).
 AGENTS.md    Agent-facing instructions (the open standard; CLAUDE.md points here).
 ```
 

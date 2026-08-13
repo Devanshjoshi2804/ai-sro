@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Picking Issues</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#PickingIssues">Picking Issues</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#PickingissueNotpickable">Picking issue: Not pickable</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PickingissueCancelledpicks">Picking issue: Cancelled picks</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PickingissueUnallocatedorders">Picking issue: Unallocated orders</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PickingissuePickedUOMdiscrepancy">Picking issue: Picked UOM discrepancy</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="PickingIssues" data-magellan-target="PickingIssues"><a name="aanchor338"></a>
+                                                            <MadCap:concept term="WM" />Picking Issues</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#PickingIssues">Picking Issues</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#PickingissueNotpickable">Picking issue: Not pickable</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PickingissueCancelledpicks">Picking issue: Cancelled picks</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PickingissueUnallocatedorders">Picking issue: Unallocated orders</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PickingissuePickedUOMdiscrepancy">Picking issue: Picked UOM discrepancy</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Picking issues are problems that can affect the picking process and whether orders can be fulfilled and shipped on time.</p>
+                                                        <p>Some picking issues represent problems in the picking process that prevent inventory for an order from being successfully picked. For example, the inventory might not be pickable because the application cannot locate it in the search path, or picks were cancelled, or inventory cannot be allocated for an order.</p>
+                                                        <p>When you select <b>Picking &gt; Picking Issues</b>, the navigation bar displays the list of issues and the number of locations, LPNs, items, or orders affected by the issue. You can click an issue to view additional information and to further investigate the issue, and to take actions to resolve the issue, where applicable.</p>
+                                                        <h2 id="PickingissueNotpickable" data-magellan-target="PickingissueNotpickable"><a name="Picking_issue:_Not_pickable"></a>Picking issue: Not pickable</h2>
+                                                        <p>Inventory is considered not pickable when the application cannot locate the inventory or if the pick cannot be completed for another reason. The Not Pickable page displays the locations where inventory is stored but cannot be picked to fulfill an order.</p>
+                                                        <p>The following table describes the reasons why inventory is not pickable, and how to research and resolve the issue. </p>
+                                                        <table style="mc-table-style: url('resources/tablestyles/table_plain.css');margin-left: 0;margin-right: auto;width: 100%;" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 33.3%" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 33.3%" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 33.3%" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Reasons</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Research Task</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Options for Resolution</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="198" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">Location Out of Service</span>
+                                                                        </p>
+                                                                        <ul>
+                                                                            <li>The location configuration is disabled.</li>
+                                                                            <li>The location has been set to out of service due to damage or some other problem with the location.</li>
+                                                                            <li>The location has been set to inventory error due to an inventory count or adjustment taking place.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                    <td width="204" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>View the location configuration.</p>
+                                                                    </td>
+                                                                    <td width="192" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Modify the location to enable its configuration.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="198" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">Location Not Pickable</span>
+                                                                        </p>
+                                                                        <p>The <b>Pickable</b> field on the location configuration is set to No. </p>
+                                                                    </td>
+                                                                    <td width="204" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>View the location configuration.</p>
+                                                                    </td>
+                                                                    <td width="192" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Modify the location to set the <span class="specialbold">Pickable </span>field to Yes.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="198" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">No Pick Zone Assigned</span>
+                                                                        </p>
+                                                                        <p>The storage location in which the inventory resides is not assigned to a pick zone. </p>
+                                                                    </td>
+                                                                    <td width="204" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>View the location configuration.</p>
+                                                                    </td>
+                                                                    <td width="192" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Assign a pick zone to a location or group of locations.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="198" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">Zone not in Search Path</span>
+                                                                        </p>
+                                                                        <p>The storage location is assigned to a pick zone, but the pick zone is not assigned to an allocation search path.</p>
+                                                                    </td>
+                                                                    <td width="204" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>View the allocation search path configuration.</p>
+                                                                    </td>
+                                                                    <td width="192" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Add or modify an allocation search path and assign the pick zone to one of its search path rules.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="198" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">UOM Not Pickable</span>
+                                                                        </p>
+                                                                        <p>The storage location is assigned to a pick zone that is assigned to an allocation search path, but there is no search path for allocating the required UOM.</p>
+                                                                    </td>
+                                                                    <td width="204" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>View the allocation search path configuration.</p>
+                                                                    </td>
+                                                                    <td width="192" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>Add or modify an allocation search path and configure one of its search path rules to allocate the required UOM.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>See <a href="procedures_for_inventory_issues.htm#Manage_inventory_that_is_not_pickable">Manage inventory that is not pickable</a> and <a href="procedures_for_picking_issues.htm#View_and_manage_inventory_that_is_not_pickable">View and manage inventory that is not pickable</a>.</p>
+                                                        <h2 id="PickingissueCancelledpicks" data-magellan-target="PickingissueCancelledpicks"><a name="Picking_issue:_Cancelled_picks"></a>Picking issue: Cancelled picks</h2>
+                                                        <p>Picks are typically cancelled when the pick cannot be completed. Users on a workstation are able to cancel any pick that has been released and not started. RF operators may need to cancel picks for various reasons such as the inventory is not in the proper condition to fulfill a customer order.</p>
+                                                        <p>You can view cancelled picks for the current day, or you can view cancelled picks by selecting a date range or a previous date. See <a href="procedures_for_picking_issues.htm#View_cancelled_picks">View cancelled picks</a>.</p>
+                                                        <p>The following are some scenarios in which a pick can be cancelled:</p>
+                                                        <ul>
+                                                            <li>A pick location is in error or there is an inventory discrepancy in the location.</li>
+                                                            <li>A short order needs to be shipped today and can be shipped short (so the unfulfilled picks are cancelled).</li>
+                                                            <li>Inventory in a pickface is not pickable for some reason (for example, it is damaged).</li>
+                                                            <li>A work assignment pick cannot be completed, such as when a picking location is empty or the item to be picked will not fit on a pallet.</li>
+                                                        </ul>
+                                                        <p>When a pick is cancelled, the user or operator must select a reason the pick was cancelled, which also determines how the application processes the cancellation. The pick cancellation reasons are configurable. See <a href="pick_cancellation.htm">Pick Cancellation</a>.</p>
+                                                        <h2 id="PickingissueUnallocatedorders" data-magellan-target="PickingissueUnallocatedorders"><a name="Picking_issue:_Unallocated_orders"></a>Picking issue: Unallocated orders</h2>
+                                                        <p>Unallocated orders become an issue when the inventory remains unallocated on the date on which the order is supposed to ship as determined by the appointment departure time or late ship date defined on the order line. </p>
+                                                        <p>The Orders Not Allocated page displays the orders and loads with unallocated inventory scheduled to ship on the current day, or you can filter by selecting a date range or specific date. See <a href="procedures_for_picking_issues.htm#View_unallocated_orders">View unallocated orders</a>.</p>
+                                                        <h2 id="PickingissuePickedUOMdiscrepancy" data-magellan-target="PickingissuePickedUOMdiscrepancy"><a name="Picking_issue:_Picked_UOM_discrepancy"></a>Picking issue: Picked UOM discrepancy</h2>
+                                                        <p>A picked UOM discrepancy occurs when a picking operator performs a pick in a unit of measure (UOM) that is different from what was specified by the work reference. For example, instead of picking 3 cases (40 eaches per case), the operator picks 1 case and 80 eaches; or, instead of picking 1 pallet (10 cases per pallet), the operator picks 10 cases.</p>
+                                                        <p>Picked UOM discrepancies are logged if the application is integrated with Warehouse Labor Management, and the integration is configured to send pick information in the UOM that was actually picked. Multiple picked UOM discrepancies by the same operator can be an indicator that the operator is picking at a different UOM to earn more work credit (and in turn, higher pay incentives). </p>
+                                                        <p>See <a href="procedures_for_picking_issues.htm#View_picked_UOM_discrepancies">View picked UOM discrepancies</a>.</p>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly"> In this section</p>
+                                                        <div class="MCMiniTocBox_0 miniToc nocontent" data-mc-depth="1" data-mc-toc="True">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

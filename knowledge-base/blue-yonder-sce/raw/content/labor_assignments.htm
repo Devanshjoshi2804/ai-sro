@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Labor Assignments</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#LaborAssignments">Labor Assignments</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Addanassignment">Add an assignment</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteanassignment">Delete an assignment</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Assignausertoanassignment">Assign a user to an assignment</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Unassignauserfromanassignment">Unassign a user from an assignment</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Changethetimesforanassignment">Change the times for an assignment</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Splitanassignment">Split an assignment</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewormodifygeneralassignmentdetails">View or modify general assignment details</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewormodifysummaryassignmentdetails">View or modify summary assignment details</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewdiscreteassignmentdetails">View discrete assignment details</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Assignmentfields">Assignment fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Generaltabfields">General tab fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#DiscreteDetailstabfields">Discrete Details tab fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="LaborAssignments" data-magellan-target="LaborAssignments"><a name="aanchor139"></a>
+                                                            <MadCap:concept term="WLM" />Labor Assignments</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#LaborAssignments">Labor Assignments</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Addanassignment">Add an assignment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteanassignment">Delete an assignment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Assignausertoanassignment">Assign a user to an assignment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Unassignauserfromanassignment">Unassign a user from an assignment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Changethetimesforanassignment">Change the times for an assignment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Splitanassignment">Split an assignment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewormodifygeneralassignmentdetails">View or modify general assignment details</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewormodifysummaryassignmentdetails">View or modify summary assignment details</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewdiscreteassignmentdetails">View discrete assignment details</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Assignmentfields">Assignment fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Generaltabfields">General tab fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#DiscreteDetailstabfields">Discrete Details tab fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>The Assignments page provides visibility to the direct and indirect assignments that are active, complete, or not yet started. An assignment represents the basic unit of work that a user performs in your facility. Assignment information is typically downloaded from the host, however, you can add, modify, or delete assignments on the Assignments page. This page is also intended for supervisors to fix assignments or insert unmeasured time for users.</p>
+                                                        <p>The Assignments page is divided into the following panes:</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;You can show and hide the panes by clicking <img src="resources/images/image1076720.png" alt="Expand/Collapse" /> and <img src="resources/images/image1076719.png" alt="Expand/Collapse" />.</p>
+                                                        <ul>
+                                                            <li><b>Search (left)</b>: Search fields into which you can enter criteria to view specific assignments. You can search for assignments based on job code, report date, user, and work category, among other attributes. </li>
+                                                            <li><b>Assignments grid (center)</b>: The assignments that match the search criteria. When you select an assignment in the grid, the details are displayed on the assignment details pane (right). You can add new assignments or delete existing assignments on the Assignments pane. Assignments may be displayed with tags in the Assignment column for status (Future, Complete, or Active) and the Job Code column for work type (Direct or Indirect). </li>
+                                                            <li><b>Assignment details (right)</b>: Information associated with the assignment selected in the Assignments grid (center). You can split an assignment, change the start and end time for an assignment, or assign (and unassign)&#160;a user to an assignment. The following tabs are available on this pane to view or modify assignment information:&#160;<ul><li><b>General</b>: General assignment information that you can modify.</li><li><b>Adjustments</b>:&#160;Assignment adjustments that you can add, modify, delete, approve, and reject.</li><li><b>Summary</b>:&#160;Summarized assignment information that you can modify, such as product  totals and key volume indicator (KVI) details. </li><li><b>Discrete Details</b>:&#160;Discrete details for the assignment. There are no actions available on this tab.</li><li><b>Quality Error</b>: Reported assignment quality errors. You can log new quality errors against the assignment, change existing errors, or unresolve an error to update its details.</li></ul></li>
+                                                        </ul>
+                                                        <h2 id="Addanassignment" data-magellan-target="Addanassignment"><a name="Add_an_assignment"></a>Add an assignment</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Labor &gt;&#160;Labor Assignments</b>.</li>
+                                                            <li value="2">From the <b>Actions</b> drop-down list, select <b>Add Assignment</b>. </li>
+                                                            <li value="3">Enter information in the <a href="#Assignment_fields">Assignment fields</a>. </li>
+                                                            <li value="4">Click&#160;<b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Deleteanassignment" data-magellan-target="Deleteanassignment"><a name="Delete_an_assignment"></a>Delete an assignment</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Labor &gt;&#160;Labor Assignments</b>. </li>
+                                                            <li value="2">On the Search pane, enter criteria for the assignment, and then click <b>Search</b>.</li>
+                                                            <li value="3">In the Assignments grid, select the assignment to delete.</li>
+                                                            <li value="4">From the <b>Actions</b> drop-down list, select <b>Delete</b>. A confirmation message is displayed. </li>
+                                                            <li value="5">Click <b>Yes</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Assignausertoanassignment" data-magellan-target="Assignausertoanassignment"><a name="Assign_a_user_to_an_assignment"></a>Assign a user to an assignment</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Labor &gt;&#160;Labor Assignments</b>. </li>
+                                                            <li value="2">On the Search pane, enter criteria for the assignment, and then click <b>Search</b>.</li>
+                                                            <li value="3">In the Assignments grid, select the assignment.</li>
+                                                            <li value="4">On the Assignment details pane, click <b>Assign User</b>. </li>
+                                                            <li value="5">In the <b>User ID</b> field, enter the user you want to assign to  the assignment.</li>
+                                                            <li value="6">In the <b>Start Time</b> field, enter the date and time at which the assignment should be started. </li>
+                                                            <li value="7">Click <b>Assign User</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Unassignauserfromanassignment" data-magellan-target="Unassignauserfromanassignment"><a name="Unassign_a_user_from_an_assignment"></a>Unassign a user from an assignment</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Labor &gt;&#160;Labor Assignments</b>. </li>
+                                                            <li value="2">On the Search pane, enter criteria for the assignment, and then click <b>Search</b>.</li>
+                                                            <li value="3">In the Assignments grid, select the assignment.</li>
+                                                            <li value="4">On the Assignment details pane, click <b>Unassign User</b>. A confirmation message is displayed.</li>
+                                                            <li value="5">Click <b>Unassign User</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Changethetimesforanassignment" data-magellan-target="Changethetimesforanassignment"><a href="quality_errors.htm"><a name="Change_the_times_for_an_assignment"></a></a>Change the times for an assignment</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Labor &gt;&#160;Labor Assignments</b>. </li>
+                                                            <li value="2">On the Search pane, enter criteria for the assignment, and then click <b>Search</b>.</li>
+                                                            <li value="3">In the Assignments grid, select the assignment.</li>
+                                                            <li value="4">On the Assignments details pane, click <b>Change Times</b>. </li>
+                                                            <li value="5">In the <b>Start Time</b> field, enter the date and time at which the assignment should be started. </li>
+                                                            <li value="6">
+                                                                <p>In the <b>Stop Time</b> field, enter the date and time at which the assignment was completed. </p>
+                                                            </li>
+                                                            <li value="7">Click <b>Change Times</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Splitanassignment" data-magellan-target="Splitanassignment"><a name="Split_an_assignment"></a>Split an assignment</h2>
+                                                        <p>Assignments can be split when they contain more tasks or quantities than one user can perform. When you split an assignment and define the number of splits, new goal times for user performance are calculated and will be greater than or equal to the goal time of the original assignment. In addition, when you split an assignment that is in Active or Complete status, the newly created split assignments are displayed as future assignments.</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Select <b>Labor &gt;&#160;Labor Assignments</b>. </p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p>On the Search pane, enter criteria for the assignment, and then click <b>Search</b>.</p>
+                                                            </li>
+                                                            <li value="3">
+                                                                <p>In the Assignments grid, select the assignment.</p>
+                                                            </li>
+                                                            <li value="4">
+                                                                <p>On the Assignment details pane, click <b>Split</b>.</p>
+                                                            </li>
+                                                            <li value="5">
+                                                                <p>In the <b>No. of Splits</b> field, enter the number of times to split the assignment.</p>
+                                                            </li>
+                                                            <li value="6">
+                                                                <p>To preview the split assignment KVI&#160;details, click <b>Calculate</b>. </p>
+                                                            </li>
+                                                            <li value="7">
+                                                                <p>Click <b>Split</b>. </p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Viewormodifygeneralassignmentdetails" data-magellan-target="Viewormodifygeneralassignmentdetails"><a name="View_or_modify_general_assignment_details"></a>View or modify general assignment details</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Labor &gt;&#160;Labor Assignments</b>. </li>
+                                                            <li value="2">On the Search pane, enter criteria for the assignment, and then click <b>Search</b>.</li>
+                                                            <li value="3">In the Assignments grid, select the assignment.</li>
+                                                            <li value="4">On the Assignment details pane, select the <b>General</b> tab.</li>
+                                                            <li value="5">View or enter information in the <a href="#General_tab_fields">General tab fields</a>.</li>
+                                                            <li value="6">If you modified the general details for the assignment, click <b>Save</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Viewormodifysummaryassignmentdetails" data-magellan-target="Viewormodifysummaryassignmentdetails"><a name="View_or_modify_summary_assignment_details"></a>View or modify summary assignment details</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Labor &gt;&#160;Labor Assignments</b>. </li>
+                                                            <li value="2">On the Search pane, enter criteria for the assignment, and then click <b>Search</b>.</li>
+                                                            <li value="3">In the Assignments grid, select the assignment.</li>
+                                                            <li value="4">On the Assignment details pane, select the <b>Summary</b> tab.</li>
+                                                            <li value="5">
+                                                                <p>View or enter information in the following fields: </p>
+                                                                <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column1">
+                                                                    </col>
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column2">
+                                                                    </col>
+                                                                    <thead>
+                                                                        <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                            <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                            <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Total Cube</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                                <p>Total cubic volume of all of the pieces on this assignment.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Total Weight</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                                <p>Total weight of all of the pieces on this assignment.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Shipping Units</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                                <p>Number of shipping units for this assignment.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">KVI&#160;Details</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                                <p>Key volume indicator (KVI) values (for example, pallets, cases, and eaches) with their associated quantities for the assignment. The KVI information is specific to the job code associated with the assignment; however, you can override the quantity information as needed for the assignment.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </li>
+                                                            <li value="6">If you modified summary details, click <b>Save</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Viewdiscreteassignmentdetails" data-magellan-target="Viewdiscreteassignmentdetails"><a name="View_discrete_assignment_details"></a>View discrete assignment details</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Labor &gt;&#160;Labor Assignments</b>. </li>
+                                                            <li value="2">On the Search pane, enter criteria for the assignment, and then click <b>Search</b>.</li>
+                                                            <li value="3">In the Assignments grid, select the assignment for which to view discrete details.</li>
+                                                            <li value="4">On the Assignment details pane, select the <b>Discrete Details</b> tab.</li>
+                                                            <li value="5">View the information in the <a href="#Discrete_Detail_tab_fields">Discrete Details tab fields</a>. </li>
+                                                        </ol>
+                                                        <h2 id="Assignmentfields" data-magellan-target="Assignmentfields"><a name="Assignment_fields"></a>Assignment fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Assignment</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an assignment. An assignment represents a basic unit of work that an employee performs in a facility. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Plan Date</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Date on which an assignment is scheduled to be performed. If multiple assignments are associated with the same assignment number, then you can specify an indicator or a plan date to identify the specific assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Job Code</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a job code. A job code represents a standard for a task being performed in your facility, and it is the basic component for an assignment. You cannot select an activity card job code for a new assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Reference ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier used to reference this assignment information for the day.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Client ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a client who houses inventory within a multi-client (third-party logistics) warehouse. The client identifier distinguishes one client from another so that the application can effectively manage inventory and activities for multiple clients in the same warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Customer</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Name used to identify a business to whom you ship inventory. Each customer has a profile that is used to define how their inventory is handled, how their orders are processed, and how their inventory is shipped. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Route #</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Number that indicates a specific sequential routing order for the assignment through your facility.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Machine ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique alphanumeric identifier for a machine. A machine is a gas- or electric battery-powered material handling unit used for picking, depositing, or transporting product within a warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Total Cube</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Total cubic volume of all of the pieces on this assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Total Weight</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Total weight of all of the pieces on this assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Shipping Units</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Number of shipping units for this assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">User Defined 1-4</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>User defined information for an assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Aisle Area ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an aisle area.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">KVI&#160;Details</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Key volume indicator (KVI) values (for example, pallets, cases, and eaches) with their associated quantities for the assignment. The KVI information is specific to the job code associated with the assignment; however, you can override the quantity information as needed for the assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Generaltabfields" data-magellan-target="Generaltabfields"><a name="General_tab_fields"></a>General tab fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Work Category</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for the work category. A work category is a method of categorizing job information for reporting and statistical purposes. A job code can be assigned to only one work category. You can use this field as search criteria to find assignments in a specific category.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Team Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Parameter used to identify team reporting assignments. You can use this field as search criteria to find assignments of a specific type, such as Team or Individual.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Learning Curve</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Name of the learning curve applied to the assignment. A learning curve gradually increases the expected performance for a user against the standard. This is commonly used for new employees or employees that are cross training in new departments.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Job Code</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for a job code. A job code represents a standard for a task being performed in your facility, and it is the basic component for an assignment. You cannot select an activity card job code for a new assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Reference ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier used to reference this assignment information for the day.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Client ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for a client who houses inventory within a multi-client (third-party logistics) warehouse. The client identifier distinguishes one client from another so that the application can effectively manage inventory and activities for multiple clients in the same warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Customer</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Name used to identify a business to whom you ship inventory. Each customer has a profile that is used to define how their inventory is handled, how their orders are processed, and how their inventory is shipped. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Route #</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number that indicates a specific sequential routing order for the assignment through your facility.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Machine ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique alphanumeric identifier for a machine. A machine is a gas- or electric battery-powered material handling unit used for picking, depositing, or transporting product within a warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">User Defined 1-4</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>User defined information for an assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Aisle Area ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an aisle area.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Shift ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Name of the shift associated with this assignment. A shift is a defined work period within 24 hours that may include paid and unpaid breaks. You can use this field as search criteria for finding assignments.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">User</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for the user assigned to the assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Supervisor</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>User ID and name of the supervisor to whom the user assigned to the assignment reports. A supervisor manages and oversees a user's work.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Work Team</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Name that identifies a work team. A work team is an optional category into which users can be grouped for easy selection throughout the application, such as in reports, assignments, performance statistics, report cards, and payroll information.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">User Group</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Name that identifies a user group to which the user belongs. A user group is used to categorize users for easy selection in reports, assignments, performance statistics, report cards, and payroll information.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Plan Date</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Date on which an assignment is scheduled to be performed. If multiple assignments are associated with the same assignment number, then you can specify an indicator or a plan date to identify the specific assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Start Time</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Actual start date and time of active or completed assignments.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Stop Time</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Actual end date and time of active or completed assignments.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">Indicator</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Application-generated letter used to designate a split or merged assignment. When multiple assignments are associated with the same assignment number, then you can specify an indicator to identify the specific assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="DiscreteDetailstabfields" data-magellan-target="DiscreteDetailstabfields"><a name="Discrete_Detail_tab_fields"></a>Discrete Details tab fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Seq #</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Application-generated number that defines the order of the discrete details for the assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Location</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique name for a location within the facility that is used to receive, store, process, or ship inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Grab Factor</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Number of cases that are regularly obtained or placed in a single motion for the assignment. The application uses the grab factor to determine the number of time measurement units (TMUs) that are allotted when a user handles a specific case type.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Shipping Units</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number of shipping units for this assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Units of Measure</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Quantity of the UOM associated with the discrete detail activity. The quantity is displayed in one of the following UOM&#160;columns:&#160;<b>Pallet</b>, <b>Layer</b>, <b>Case</b>, <b>Inner</b>, and <b>Each</b>. For example, if the value in the <b># Case</b> field is 5 and the type of activity is Obtain, then 5 cases were picked for the discrete detail.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Item #</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier of the item for this discrete detail. Typically, this is the stock keeping unit (SKU) or label that is displayed on a pick sheet. Only displayed when the detail activity type is Obtain or Place. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Item Desc</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Description of the item associated with this discrete detail. This information also is displayed on the pick sheet or label. Only displayed when the assignment detail activity type is Obtain or Place. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Con License</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier of the container (for example, pallet or tote) where the product for the task is to be placed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Cube</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unit volume of the UOM (for example, pallet or case). This is the cube of the picked UOM, not the shipping unit or total picked amount. Only displayed when the detail activity type is Obtain or Place. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Weight</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unit weight of the UOM (for example, pallet or case). This is the weight of the picked&#160;UOM, not the shipping unit or total picked amount. Only displayed when the detail activity type is Obtain or Place. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Machine ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique alphanumeric identifier for a machine. A machine is a gas- or electric battery-powered material handling unit used for picking, depositing, or transporting product within a warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Activity type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Type of activity performed for the discrete detail, such as Obtain or Place.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Aisle Area ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an aisle area.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Work Type ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Identifier for the work type for the discrete detail. A work type is a category within the application that is used to represent a basic type of work (for example, selection or putaway) performed in a facility. A work type can be mapped (associated) to a job code to identify different job-related activities within the facility.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Travel Distance</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Distance, in inches, between the starting and ending locations. Inches are the default measurement unit; your configuration may be different.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Travel TMUs</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Distance, in time measurement units (TMUs), between the starting and ending locations. TMUs are the default measurement unit; your configuration may be different.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Trans #</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Transaction number. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">Special 1-5</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Special handling information for an assignment. A special handling rule defines a task that is only required for a specific time frame or condition. When calculating the goal time for an assignment, the application will take into account the additional assignment time required to complete the special handling. For example, you might need a special handling rule to account for the extra time required to pack specific items in ice during the summer months when heat conditions would otherwise cause these items to spoil or melt before reaching their destination.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly"> In this section</p>
+                                                        <div class="MCMiniTocBox_0 miniToc nocontent" data-mc-depth="1" data-mc-toc="True">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

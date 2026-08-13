@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Configuration|[%=System.LinkedTitle%]|[%=System.LinkedTitle%]" data-mc-conditions="Writer Tags.Susan" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Procedures for archiving and purging</title>
+        <link href="../../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="../resources/tablestyles/table_plain_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="../resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../../Skins/Favicons/favicon-16x16.png" />
+        <script src="../../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="../home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Proceduresforarchivingandpurging">Procedures for archiving and purging</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Prerequisitetasksforremotearchiving">Prerequisite tasks for remote archiving</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurearchivingattributes">Configure archiving attributes</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurethejobsforarchivingandpurging">Configure the jobs for archiving and purging</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Testarchivesandpurges">Test archives and purges</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#StandardWarehouseManagementdatabasearchives">Standard Warehouse Management database archives</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Proceduresforarchivingandpurging" data-magellan-target="Proceduresforarchivingandpurging"><a name="aanchor38"></a>
+                                                            <MadCap:concept term="Administration" />Procedures for archiving and purging</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Proceduresforarchivingandpurging">Procedures for archiving and purging</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Prerequisitetasksforremotearchiving">Prerequisite tasks for remote archiving</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurearchivingattributes">Configure archiving attributes</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurethejobsforarchivingandpurging">Configure the jobs for archiving and purging</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Testarchivesandpurges">Test archives and purges</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#StandardWarehouseManagementdatabasearchives">Standard Warehouse Management database archives</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>You can use the following archiving methods:</p>
+                                                        <ul>
+                                                            <li><b class="SpecialBold">Remote instance archive</b>: Archive remotely into an instance that is identical to the production instance. When you archive remotely, all SCE client-based custom data driven applications (DDAs) and reports, as well as all SCE client-based standard product DDAs and reports work without modification or duplication. Blue Yonder  recommends archiving to a remote instance for an on-premises deployment. </li>
+                                                            <li>
+                                                                <p><b class="SpecialBold">Local production instance archive</b>: When you archive locally, all production instance data that meets the customer-defined archiving criteria is moved to a set of duplicate tables in the same production instance. The duplicate tables must be manually created and have a prefix (such as ARC_) to designate them as the archive tables.</p>
+                                                                <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: If you archive locally, any DDAs or reports that are used to retrieve data must be modified or duplicated to retrieve data from the ARC_ tables. If you want to archive locally, be sure to discuss the implications with your Blue Yonder project team.</p>
+                                                            </li>
+                                                            <li>
+                                                                <p><b>DAAS archive</b>: There is no separately archived data as warehouse data is continuously synched with cloud storage (powered by Snowflake), eliminating the need for a separate archive. Data will continue to be purged from production using the archiving and purging jobs. This option is valid only for cloud customers configured to use Data Access Service and enhanced cloud storage. </p>
+                                                            </li>
+                                                        </ul>
+                                                        <h2 id="Prerequisitetasksforremotearchiving" data-magellan-target="Prerequisitetasksforremotearchiving"><a name="Prerequisite_tasks_for_remote_archiving"></a>Prerequisite tasks for remote archiving</h2>
+                                                        <p>Before you configure remote archiving, complete the following prerequisite tasks in the order listed:</p>
+                                                        <ol>
+                                                            <li value="1"><b>Install a new instance of your application to serve as the archive instance</b>.</li>
+                                                            <p>This archive instance must be an exact copy of the production instance, including all reports, database changes, data driven applications (DDAs), and server commands. The archive instance must be maintained like the production instance so that existing product reports and DDAs can be used to gather data from the archive instance, and the archive instance is kept current with customizations and product updates.</p>
+                                                            <li value="2"><b>Export the production database, and import it into the archive instance</b>.</li>
+                                                            <p>This is done to ensure that all database changes in the production instance exist in the archive instance. This is a standard database administrator activity. If you need help with this procedure, contact your Blue Yonder project team.</p>
+                                                            <li value="3"><b>Purge transaction data from the archive instance</b>.</li>
+                                                            <p>This step is done to ensure that your archive instance is clear of all transaction data. If you need help with this procedure, contact your Blue Yonder project team.</p>
+                                                        </ol>
+                                                        <h2 id="Configurearchivingattributes" data-magellan-target="Configurearchivingattributes"><a name="Configure_archiving_attributes"></a>Configure archiving attributes</h2>
+                                                        <p>You use Policy Maintenance to configure archiving attributes. </p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>:&#160;To use any archiving method, you must enable  archiving using the Archive system installed (ARCHIVE-SYSTEM/INSTALLED/INSTALLED) policy. See <a href="../policies/archive_system_policies.htm" class="MCXref xref">Archive system policies</a>.</p>
+                                                        <h2 id="Configurethejobsforarchivingandpurging" data-magellan-target="Configurethejobsforarchivingandpurging"><a name="Configure_the_jobs_for_archiving_and_purging"></a>Configure the jobs for archiving and purging</h2>
+                                                        <p>You use the Console to create or configure the jobs that are used to archive or purge data automatically on a regular basis. The schedule for each job determines when and how the job is executed. For information on maintaining and scheduling jobs, see the <span class="italics">Supply Chain Execution Applications Console User Guide</span>.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: Some archiving, purging, and synchronization jobs are provided with the standard product. However, to avoid running unnecessary jobs, you should determine your requirements and then enable and configure only the required jobs.  </p>
+                                                        <p>You use the following process to configure jobs for archiving and purging:</p>
+                                                        <ol>
+                                                            <li value="1">Log into the Console, and then access the Jobs page.</li>
+                                                            <li value="2">
+                                                                <p>Define and configure jobs. You can add jobs for each of the existing database archives, depending on your application requirements. You use the following command for jobs used to archive production data:</p>
+                                                                <p class="courier">archive production data where arc_nam = '&lt;<i>Name of Archive</i>&gt;'</p>
+                                                                <p>For example: archive production data where arc_nam = 'BILL-OF-MATERIALS'</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Database archives are defined on the Database Archive page. See <a href="database_archive.htm">Database Archive</a>. </p>
+                                                            </li>
+                                                            <li value="3">Define a schedule for each job using the following guidelines:</li>
+                                                            <ul>
+                                                                <li>Configure different jobs to be run each day so that an excessively large amount of data does not need to be archived and purged on any one day.</li>
+                                                                <li>Configure the jobs to be run during off hours since archiving and purging can be a resource intensive process.</li>
+                                                                <li>Stagger the start times of the jobs so that you can extend processing over a period of time. Archive and purge jobs can be configured to run in any order.</li>
+                                                            </ul>
+                                                        </ol>
+                                                        <h2 id="Testarchivesandpurges" data-magellan-target="Testarchivesandpurges"><a name="Test_archives_and_purges"></a>Test archives and purges</h2>
+                                                        <p>You can perform tests on archive instances.</p>
+                                                        <p><b><a targets="Simple" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Simple"><img class="MCToggler_Image_Icon" src="../../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Perform a simple archive and purge</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Simple">
+                                                            <p>You can test the archive instance using a simple archive and purge. </p>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: The procedure tests archiving and purging of the OBSOLETE-APPOINTMENT archive (APPT table) using a sysdate value of 30.</p>
+                                                            <ol>
+                                                                <li value="1">In the archive instance, truncate the APPT table in the OBSOLETE-APPOINTMENT archive:<ol><li value="1">Start the SCE client and log in to the archive instance. </li><li value="2">Start Server Command Operations.</li><li value="3">In the command field, enter the command to truncate the table; for example: <span class="courier">[truncate table APPT]</span></li><li value="4">Click <span class="specialbold">Execute</span>.</li></ol></li>
+                                                                <li value="2">In the production instance, determine how many table rows to archive and purge:<ol><li value="1">Start the SCE client and log in to the production instance.</li><li value="2">Start Server Command Operations.</li><li value="3"><p>In the command field, enter the command to display the number of table rows for a specific number of days; for example: </p><p><span class="courier">[select count( * ) from appt where end_dte &lt; sysdate - 30]</span></p></li><li value="4">Click <span class="specialbold">Execute</span>. The number of rows is displayed.</li><li value="5">To reduce the number of returned rows, rerun the command changing the sysdate (number of days) value until you reach a manageable number.</li><li value="6">Record the number of rows returned and the sysdate value used.</li></ol></li>
+                                                                <li value="3">In the production instance, update and run the OBSOLETE-APPOINTMENT archive:<ol><li value="1">Start a web browser for the application's web-based functionality and log in to the instance.</li><li value="2">Select <b>System Administrator &gt; Configuration &gt; System &gt; Database Archive</b>.</li><li value="3">Select the check box next to the OBSOLETE-APPOINTMENT archive, and then from the <b>Actions</b> drop-down list, select <b class="SpecialBold">Edit</b>. </li><p class="Note"><b class="NoteHeadingBold">Note</b>: The OBSOLETE-APPOINTMENT&#160;archive is configured to purge the data. </p><li value="4">In the <b>List Command</b> field, locate and update the sysdate value.</li><li value="5">Click Apply.</li><li value="6">From the <b>Actions</b> drop-down list, select <b class="SpecialBold">Run Archive</b>. A message states that archiving could take considerable time.</li><li value="7">Click <b class="SpecialBold">Yes</b>. Data is copied to the database archive.</li></ol></li>
+                                                                <li value="4">When the archive and purge is complete, in the archive instance, verify that the rows were archived:<ol><li value="1"> In  Server Command Operations, in the command field, enter the command to display the number of table rows; for example: <span class="courier">[select count( * ) from appt]</span></li><li value="2">Click <span class="specialbold">Execute</span>. The number of rows should match the number previously recorded.</li></ol></li>
+                                                                <li value="5">In the production instance, verify that the rows were purged:<ol><li value="1"><p>In Server Command Operations, in the command field, enter the command to find the rows using the same sysdate value passed to the list command from the production instance; for example: </p><p><span class="courier">[select count( * ) from appt where trndte &lt; sysdate - 30]</span></p></li><li value="2"><p>Click <span class="specialbold">Execute</span>. No rows should be returned. </p><p class="Note"><b class="NoteHeadingBold">Note</b>: If rows are returned, verify that the date and time of the rows are outside the retention days defined.</p></li></ol></li>
+                                                            </ol>
+                                                        </div>
+                                                        <p><b><a targets="Standard" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Standard"><img class="MCToggler_Image_Icon" src="../../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Perform a standard archive and purge</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Standard">
+                                                            <p>You can test a standard product archive. </p>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: The procedure tests the STDPRD-PARTS archive (PRTMST table).</p>
+                                                            <ol>
+                                                                <li value="1">In the archive instance, determine the number of records in the PRTMST table:</li>
+                                                                <ol>
+                                                                    <li value="1">Start the SCE client and log in to the archive instance.</li>
+                                                                    <li value="2">Start Server Command Operations.</li>
+                                                                    <li value="3">
+                                                                        <p>In the command field, enter the command to find table records; for example: </p>
+                                                                        <p><span class="courier">[select count( * ) from prtmst]</span>
+                                                                        </p>
+                                                                    </li>
+                                                                    <li value="4">Click <b class="SpecialBold">Execute</b>. </li>
+                                                                    <li value="5">Record the number of returned records.</li>
+                                                                </ol>
+                                                                <li value="2">In the production instance, add data and start the archive:</li>
+                                                                <ol>
+                                                                    <li value="1">In the web client, add a new item named TESTITEM. See <a href="../items_page.htm#Add_or_modify_an_item">Add or modify an item</a>.</li>
+                                                                    <li value="2">Select <b>System Administrator &gt; Configuration &gt; System &gt; Database Archive.</b></li>
+                                                                    <li value="3">In the grid, select the check box next to the STDPRD-PARTS archive, and the from the <b>Actions</b> drop-down list, click<b class="SpecialBold"> Run Archive</b>. The archiving process begins and runs for a period of time based on the number of records being archived.</li>
+                                                                </ol>
+                                                                <li value="3">When the archive is complete, in the archive instance, verify that the records were archived:</li>
+                                                                <ol>
+                                                                    <li value="1">In Server Command Operations, in the command field, enter the command to find table records; for example: <span class="courier">[select count( * ) from prtmst]</span></li>
+                                                                    <li value="2">Click <b class="SpecialBold">Execute</b>. The number of records returned should be one higher than the number recorded.</li>
+                                                                    <li value="3">Start a web browser for the application's web-based functionality and log in to the instance.</li>
+                                                                    <li value="4">Verify that TESTITEM exists in the archive instance.</li>
+                                                                </ol>
+                                                            </ol>
+                                                        </div>
+                                                        <p><b><a targets="Complex" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Complex"><img class="MCToggler_Image_Icon" src="../../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Perform a complex archive and purge</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Complex">
+                                                            <p>You can test the archive instance using a complex archive and purge of multiple tables.  </p>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: The procedure tests archiving and purging of the DISPATCHED-TRAILERS archive (CAR_MOVE table) using the 30 days old value. </p>
+                                                            <ol>
+                                                                <li value="1">In the archive instance, identify the tables included in the archive:<ol><li value="1">In the web client, select <b>System Administrator &gt; Configuration &gt; System &gt; Database Archive</b>.</li><li value="2">In the grid, select the DISPATCHED-TRAILERS archive.</li><li value="3">View the list of tables under <b>DATABASE ARCHIVE DETAILS</b>.</li></ol></li>
+                                                                <li value="2">In the archive instance, truncate all the tables in the DISPATCHED-TRAILERS archive:</li>
+                                                                <ol>
+                                                                    <li value="1">Start the  SCE client, and log into the archive instance.
+                </li>
+                                                                    <li value="2">Start Server Command Operations.</li>
+                                                                    <li value="3">In the command field, enter the commands to truncate the tables in the list; for example: <span class="courier">[truncate table TRLR]</span></li>
+                                                                    <li value="4">Click <b class="SpecialBold">Execute</b>.</li>
+                                                                </ol>
+                                                                <li value="3">In the production instance, determine how many table rows to archive:</li>
+                                                                <ol>
+                                                                    <li value="1">Start the  SCE client, and log into the production instance.
+                </li>
+                                                                    <li value="2">Start Server Command Operations.</li>
+                                                                    <li value="3">
+                                                                        <p>In the command field, enter a command to display the number of table rows; for example: </p>
+                                                                        <p><span class="courier">[select count(car_move.car_move_id) from car_move, trlr where car_move.trlr_id = trlr.trlr_id and trlr.trlr_cod = 'SHIP' and trlr.dispatch_dte &lt; sysdate - 30 and not exists (select 'x' from shipment, stop where shipment.stop_id = stop.stop_id and stop.car_move_id = car_move.car_move_id and shipment.shpsts not in ('C','B'))]</span>
+                                                                        </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The command only returns loads that are completed and the date of completion is older than the sysdate value (number of days) specified in the command. </p>
+                                                                    </li>
+                                                                    <li value="4">Click <b class="SpecialBold">Execute</b>. The number of rows is displayed.</li>
+                                                                    <li value="5">To reduce the number of returned rows, rerun the command changing the sysdate value until you reach a manageable number.</li>
+                                                                    <li value="6">Record the number of returned rows and the sysdate value used.</li>
+                                                                </ol>
+                                                                <li value="4">In the production instance, run the DISPATCHED_TRAILERS archive:</li>
+                                                                <ol>
+                                                                    <li value="1">In Database Archive, in the grid select the check box next to the DISPATCHED-TRAILERS archive.</li>
+                                                                    <li value="2">From the <b>Actions</b> menu, select <b>Edit</b>. </li>
+                                                                    <li value="3">In the <b>List Command</b> field, and modify the list command for the DISPATCHED-TRAILERS archive to use the updated sysdate value.</li>
+                                                                    <li value="4">Select the <b>Purge</b> check box. </li>
+                                                                    <li value="5">Click <b class="SpecialBold">Apply</b>.</li>
+                                                                    <li value="6">From the <b>Actions</b> drop-down list, click <b class="SpecialBold">Run Archive</b>. The archiving process begins and runs for a period of time based on the number of rows being archived and purged.</li>
+                                                                </ol>
+                                                                <li value="5">When the archive and purge is complete, in the archive instance, check that the rows were archived from the tables:</li>
+                                                                <ol>
+                                                                    <li value="1"> In Server Command Operations,                    in the command field, enter the command to display the number of table rows; for example:<span class="courier">[select count( * ) from car_move]</span></li>
+                                                                    <li value="2">Click <b class="SpecialBold">Execute</b>. The number of rows returned should match the number previously recorded.</li>
+                                                                </ol>
+                                                                <li value="6">In the production instance, verify that the rows were purged:</li>
+                                                                <ol>
+                                                                    <li value="1">
+                                                                        <p>In Server Command Operations, in the command field, enter the command to find the rows using the same days old value passed to the list command from the production instance; for example: <span class="courier">﻿</span></p>
+                                                                        <p><span class="courier">[select count(car_move.car_move_id) from car_move, trlr where car_move.trlr_id = trlr.trlr_id and trlr.trlr_cod = 'SHIP' and not exists (select 'x' from shipment, stop where shipment.stop_id = stop.stop_id and stop.car_move_id = car_move.car_move_id and shipment.shpsts not in ('C','B'))]</span>
+                                                                        </p>
+                                                                    </li>
+                                                                    <li value="2">
+                                                                        <p>Click <b class="SpecialBold">Execute</b>. No rows should be returned. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If rows are returned, verify that the date and time of the rows are outside the retention days defined.</p>
+                                                                    </li>
+                                                                </ol>
+                                                                <li value="7">Check additional tables to verify that rows exist in the archive instance and the rows were purged from the production instance.</li>
+                                                            </ol>
+                                                        </div>
+                                                        <h2 id="StandardWarehouseManagementdatabasearchives" data-magellan-target="StandardWarehouseManagementdatabasearchives"><a name="Standard_Warehouse_Management_database_archives"></a>Standard Warehouse Management database archives</h2>
+                                                        <p>The following table describes the standard database archives distributed with Warehouse Management.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You can view the tables associated with each archive and maintain database archive configurations using the Database Archive page. See <a href="database_archive.htm">Database Archive</a>.</p>
+                                                        <table style="border-collapse: separate;margin-left: 0;margin-right: auto;mc-table-style: url('../resources/tablestyles/table_plain_avoidrowbreak.css');" class="TableStyle-Table_Plain_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Archive name</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Data included in archive</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">ADJUSTMENT-HISTORY</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">History of transaction information related to inventory adjustments, such as a status change and the reason for the change.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>ARCHIVE-SYS-AUDITS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Security-related activities and changes made by users within a Blue Yonder  product.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">ASYNC-RESOURCE</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Logical groups of asynchronous command executions.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>BILL-OF-MATERIALS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Items that define a template for creating work orders.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>BILL-TRAN</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Billing transaction data for chargeable activities that is captured in Warehouse Management when integrated with an external billing system.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>CANCELLED-ORDERS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Outbound orders that have been cancelled.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>CANCELLED-SHIPMENTS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Shipments that have been cancelled.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">CANCELLED-SHORTS</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Orders and items that were allocated short and for which short allocation was cancelled.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>CNFRM_INV_SERV</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Inbound and outbound workflows that have been confirmed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>CNFRM-BCK-SERV</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Background workflows that have been confirmed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>CNFRM-NONINV-SERV</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Transport equipment, warehouse equipment, and assembly non-inventory workflows that have been confirmed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>DAILY-ACTIVITY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Activities tracked by just item.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>DAILY-TRAN</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Daily transactions that are recorded.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>DEFERRED-EXEC</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Command executions run outside of user processing.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>DISPATCHED-RCV-TRUCK</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Receiving transport equipment that has been dispatched.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">DISPATCHED-STANDALONE-TRACTOR</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Dispatched tractors that are not associated with transport equipment. </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>DISPATCHED-TRAILERS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Loads that have been dispatched.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>DOM-CUSTOMERS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Customers that were added as a result of orders downloaded from a distributed order model (DOM) application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak" style="height: 75px;">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>INVENTORY-ACTIVITY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Activities recorded for inventory; for example inventory that was adjusted, shipped, received, consumed for a work order, or received from a work order.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>INVENTORY-SNAPSHOT</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Historical inventory snapshots that exist in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>LMS-ACTIVITY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Labor activities recorded for a user in a warehouse that is integrated with Warehouse Labor Management.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>OBSOLETE-APPOINTMENT</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Obsolete (unused or old) appointments that can be defined in the web client.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>ORDER-ACTIVITY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Activity against an outbound order; for example, the addition and deletion of shipment and order lines, shipment allocation and loading, assignment of shipments to stops, and pick activity.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>OUTBOUND-AUDIT-HISTORY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>History of user entries recorded while performing RF outbound audits of picked inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>OUTBOUND-SERVICE-<br />ORDER</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Workflow entries for outbound orders.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>OUTBOUND-SERVICE-<br />ORDER-LINE</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Workflow entries for outbound order lines.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>PACKOUT-ACTIVITY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Pack station and outbound audit activity.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">PICK-SUMMARY-BY-HOUR</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Hourly pick summary information for pending (allocated) and completed pallet (LPN level), case (sub-LPN level), and quantity (other-UOMs) picks.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">RCVTRK-WRKORDER-CLSD</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Completed inbound shipment information related to closed work orders.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>RECEIVING-HISTORY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>History of inventory that was received, reverse received, including the state in which it was received before consolidation, inventory movement, adjustments, and so on. Includes inventory identifiers, attributes, order information, and other tracking information.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>RETURNSPROCOPR-<br />ARCHIVE</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Returns that have been processed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>SHIPPED-LPN-ACTIVITY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Shipped LPN activity logged or received by the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-ADDRESSES</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Addresses defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-AREAS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Areas defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-BILL-OF-<br />MATERIALS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Bills of materials (BOMs) defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-BUILDINGS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Buildings defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-CANCELED-RPL-PICKS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Cancelled picks for replenishments.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-CANCELLED-<br />COUNTS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Cancelled counts.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-CARRIERS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Carriers defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-CARTONS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Cartons defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">STDPRD-CNTZON</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Count zones  defined in the application.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-COMMODITY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Commodities defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-COUNT-HISTORY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Details of counts that have been performed and completed within your facility. The history information tells you when a count was performed, the quantity counted, the storage location and the user who performed the count.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-CUSTOMERS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Customers defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-DESCRIPTIONS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Descriptions for entries throughout the application; for example codes and order types.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-DISTRO_EXCP</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Distribution exceptions that occur when excess inventory is left over after the completion of a distribution deposit process.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-DSPTCHED-ORPHAN- TRLRS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Dispatched transport equipment that is not associated with an inbound shipment or outbound load.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-EXCP_HRS_SET</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Time frame on specific dates during which dock doors are available for scheduling.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-FOOTPRINTS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Item footprints defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-GEODATA</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Geographical location data.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-HOLD-HISTORY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>History of all inventory placed on or released from a specific hold.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-HRS_OPR_SET</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Time frame for a day of the week during which dock doors are available for scheduling.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">STDPRD-INVENTORY-SERVICE</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Inventory workflow results and affected inventory.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">STDPRD-ITEM-VELOCITY</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Item velocity information including item quantities that result from velocity type and item velocity policy settings.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">STDPRD-LOC_TYPE</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Location type defined in the application.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-LOCATIONS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Locations defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-LOTS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Lots defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-MANCNTCNTHST</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Manual count history.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-<br />MANCNTRFINVADJHST</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Inventory adjustment history.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">STDPRD-MOV_ZONE</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Movement zones defined in the application.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-PARTS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Items defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">STDPRD-PCK_ZONE</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Pick zones defined in the application.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-RECUR-SCHED</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Recurring schedule entries with start and end date.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-RIMSTS_CLSD</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Inbound shipments that have been closed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-SERVICE-INS-MST</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Workflow instruction data.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-SERVICE-MST</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Warehouse workflow data.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-SERVICE-RATE</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Workflow sampling rate data.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">STDPRD-STO_ZONE</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Storage zone locations and attributes.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-SUPPLIERS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Supplier information.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-TRNSP_MODE</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Transport modes define in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>STDPRD-USER_RECOUNT</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Cycle count recount entries.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">STDPRD-WAREHOUSE</td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Warehouses defined in the application.</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>TEMP-ADDRESS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Temporary addresses defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>TEMP-CUSTOMER</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Temporary customers defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">TRACTOR-ACTIVITY
+                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">Historical information related to tractor activity; for example tractors that have been created, checked in, changed, assigned and unassigned to transport equipment, and dispatched.
+                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>TRLR-ACTIVITY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Historical information related to transport equipment activity in your yard; for example transport equipment that has been created, checked in, changed, moved, audited, and renamed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>WCS-DISCREPANCY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Inventory discrepancies between the Warehouse Control System and Warehouse Management.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>WORK-HISTORY</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>History of the work that has been handled by the work queue. This log gives you information about the type of work, the status of the work queue entry (such as pending, completed, or deleted), who acknowledged the work and who was the last user to modify the work queue entry.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p>WORK-ORDERS</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyA-Column1-AvoidRowBreak">
+                                                                        <p>Work orders defined in the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="../legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,112 @@
+{
+  "screen": "clientGroups",
+  "phases": {
+    "create": [
+      "GET clients -> 200",
+      "POST clientGroups -> 201"
+    ],
+    "edit": [
+      "GET clients -> 200",
+      "PUT clientGroups/ZV6528 -> 200"
+    ],
+    "copy": [],
+    "delete": [
+      "DELETE clientGroups/ZV6528 -> 200",
+      "GET clients -> 200"
+    ]
+  },
+  "code": "ZV6528",
+  "rowKey": "ZV6528",
+  "createApplied": {
+    "clientGroup": "ZV6528",
+    "clientGroupDescription": "ZV flow"
+  },
+  "linkFound": true,
+  "editFormFound": true,
+  "copySelect": {
+    "idx": 8,
+    "selected": 1
+  },
+  "copyInvoke": {
+    "error": "button missing or disabled"
+  },
+  "deleteSelect": {
+    "idx": 8,
+    "selected": 1
+  },
+  "deleteInvoke": {
+    "invoked": "doDelete"
+  },
+  "allCalls": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "clients",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "clientGroups",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "clientWarehouse",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "catchQuantityConfigs",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "clients",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "clientGroups",
+      "status": 201,
+      "body": "{\"clientGroup\":\"ZV6528\",\"clientGroupDescription\":\"ZV flow\",\"adjustmentThresholdCost\":0,\"adjustmentThresholdUnit\":0,\"self_uri\":\"\",\"clients_uri\":\"\"}"
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "clients",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "PUT",
+      "url": "clientGroups/ZV6528",
+      "status": 200,
+      "body": "{\"clientGroup\":\"ZV6528\",\"clientGroupDescription\":\"ZV edited\",\"adjustmentThresholdCost\":0,\"adjustmentThresholdUnit\":0,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/ZV6528\",\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/ZV6528/clients\",\"resourceId\":\"ZV6528\"}"
+    },
+    {
+      "phase": "delete",
+      "method": "DELETE",
+      "url": "clientGroups/ZV6528",
+      "status": 200,
+      "body": "{\"clientGroup\":\"ZV6528\",\"clientGroupDescription\":\"ZV edited\",\"adjustmentThresholdCost\":0,\"adjustmentThresholdUnit\":0,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/ZV6528\",\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/ZV6528/clients\",\"resourceId\":\"ZV6528\"}"
+    },
+    {
+      "phase": "delete",
+      "method": "GET",
+      "url": "clients",
+      "status": 200,
+      "body": null
+    }
+  ]
+}

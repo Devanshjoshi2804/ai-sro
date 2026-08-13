@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Inbound|Receiving" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Inbound Pallet Build</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#InboundPalletBuild">Inbound Pallet Build</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Inboundpalletbuildingprocessflow">Inbound pallet building process flow</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inboundpalletbuildingsetup">Inbound pallet building setup</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyaninboundpalletbuildconfiguration">Add or modify an inbound pallet build configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteaninboundpalletbuildconfiguration">Delete an inbound pallet build configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#InboundPalletBuildfields">Inbound Pallet Build fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="InboundPalletBuild" data-magellan-target="InboundPalletBuild"><a name="aanchor359"></a>
+                                                            <MadCap:concept term="WM" /><a name="Inbound_Pallet_Build"></a>Inbound Pallet Build</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#InboundPalletBuild">Inbound Pallet Build</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Inboundpalletbuildingprocessflow">Inbound pallet building process flow</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inboundpalletbuildingsetup">Inbound pallet building setup</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyaninboundpalletbuildconfiguration">Add or modify an inbound pallet build configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteaninboundpalletbuildconfiguration">Delete an inbound pallet build configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#InboundPalletBuildfields">Inbound Pallet Build fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Inbound pallet building is a process in which inventory that is tracked by LPN or sub-LPN (such as pallets and cases) is consolidated onto pallets during the receiving identification process. The application directs the operator to perform inbound pallet building when the identified inventory matches the criteria defined in a pallet build configuration. The pallet build configuration specifies the movement zone that contains the locations to which inventory is directed for pallet building. </p>
+                                                        <p>A pallet position configuration defines the positions available in each pallet build location. See <a href="outbound_staging.htm">Outbound Staging</a>.</p>
+                                                        <p>You can group pallet build configurations by the following putaway types: cross docking, distributions, replacement picks, and storage. </p>
+                                                        <p>During inventory identification, the application uses the first pallet build configuration that the inventory matches to direct pallet building. For example, if pallet build criteria specifies an inventory status of Inspection, then when the operator identifies inventory in an Inspection status, the application directs the operator to a pallet build location and position. When a new pallet is started in a position, the application prints a label for it (if configured to do so).</p>
+                                                        <p>After inventory is deposited to a pallet position, the resource code, specified in the pallet build configuration, reserves the position for matching inventory. This prevents mixing inventory on a pallet. For example, if a different item was received in the Inspection status, the application would direct the operator to a different position (pallet) in the location. </p>
+                                                        <p>A single pallet is built in each position until the pallet is full. When the pallet is full, then if configured to do so, the application creates directed work to move the pallet to its next location as defined by the movement path.</p>
+                                                        <h2 id="Inboundpalletbuildingprocessflow" data-magellan-target="Inboundpalletbuildingprocessflow"><a name="Inbound_pallet_building_process_flow"></a>Inbound pallet building process flow</h2>
+                                                        <p>The following steps describe the inbound pallet building process: </p>
+                                                        <ol>
+                                                            <li value="1">An RF operator selects the Receiving option from the RF Receiving menu.</li>
+                                                            <li value="2">The operator scans a receiving door, inbound shipment, or inbound order.</li>
+                                                            <li value="3">To receive inventory from an ASN, the operator scans an inventory identifier, and the application validates the inventory.</li>
+                                                            <li value="4">To receive inventory without an ASN, the operator scans an item.</li>
+                                                            <li value="5">The application determines the LPN level at which the item is tracked and displays the appropriate receiving screen.</li>
+                                                            <li value="6">The operator identifies the sub-LPNs or LPNs of the item (unless the attributes are provided by the ASN), and then presses Done.</li>
+                                                            <li value="7">On the Putaway screen, the operator selects Directed putaway.</li>
+                                                            <li value="8">If the inventory matches criteria in an existing pallet build configuration, the following process takes place:<ol><li value="1">The Inbound Pallet Build screen is displayed, directing the operator to a pallet build location, and then a pallet position. The location is in the pallet build movement zone defined in the pallet build configuration. At this point, the operator can continue with the pallet build, or bypass it and perform putaway without building a pallet.</li><li value="2"><p>The operator takes the inventory to the pallet build location and position, and deposits the inventory to the pallet in that position. </p><p>If no pallet was started in that position, the operator enters the destination LPN and deposits the inventory. At this point, a pallet label is printed if configured to do so by an inbound workflow.</p><p>During the pallet building process, the operator can start a new pallet, split inventory to a different existing pallet, or override a suggested pallet position. </p></li><li value="3">When inventory is deposited to a pallet position, the application sets the resource code for the position. The resource code reserves the position for inventory that matches the resource code. For example, if the resource code specified in the pallet build configuration is Item, then only inventory with the same item number as the inventory in the location is allowed to be added to the pallet position.</li><li value="4">If the pallet build configuration specifies a pallet volume or uses the full pallet UOM quantity, then the application notifies the operator when a pallet is full. Otherwise, the operator can indicate that the pallet is full.</li><li value="5">If a work operation has been assigned to the movement path for the inbound pallet build movement zone, then the application creates directed work for an operator to pick up the full pallet and move it to its destination location. Otherwise, an operator uses undirected work to move the full pallet to its next destination.</li></ol></li>
+                                                            <li value="9">If no inventory matches the criteria, then the operator is directed to perform putaway.</li>
+                                                        </ol>
+                                                        <h2 id="Inboundpalletbuildingsetup" data-magellan-target="Inboundpalletbuildingsetup"><a name="Inbound_pallet_building_setup"></a>Inbound pallet building setup</h2>
+                                                        <p>To configure the application for pallet building during receiving, perform the following tasks:</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p><span class="specialbold">Configure location types. </span>Define a processing location type for receiving pallet building. When you define the location type, select the Processing category, and set the following attributes to Yes: <span class="specialbold">Tracks Capacity </span>and <span class="specialbold">Four Wall Inventory</span>. </p>
+                                                                <p>However, you must set the <span class="specialbold">Start Processing </span>field (available when creating a location type) and the <span class="specialbold">Processing </span>field (available when modifying a location type) to No. Setting these fields to No allows unpicked inventory to be deposited to the processing location. See <a href="location_types.htm">Location Types</a>.</p>
+                                                            </li>
+                                                            <li value="2"><span class="specialbold">Configure locations</span>. Create processing locations using the pallet build location type. See <a href="processing_locations.htm">Processing Locations</a>.</li>
+                                                            <li value="3"><span class="specialbold">Configure pallet positions</span>. Define one or more pallet positions for each pallet building location. A single pallet can be built in each pallet position. See <a href="outbound_staging.htm">Outbound Staging</a>.</li>
+                                                            <li value="4"><span class="specialbold">Configure movement zones</span>. <ul><li>Create a movement zone that includes the pallet building locations. For the movement zone, set the <span class="specialbold">Allow Pallet Build</span> field to Yes. </li><li><p>You also need to know which movement zone includes the source locations from which receiving takes place. If you receive inventory from transport equipment, use the movement zone that contains the dock doors. If your process is to unload inventory before receiving it (so that the transport equipment can depart), then use the movement zone that contains the staging lanes from which you receive the inventory.</p></li></ul><p>See <a href="movement_zones.htm">Movement Zones</a>.</p></li>
+                                                            <li value="5"><span class="specialbold">Configure the work operation for pallet build</span>. If you want the application to create directed work automatically to move full pallets to their next destination, perform the following tasks:<ol><li value="1">Create a work operation or configure an existing work operation (for example, the PALBLD work operation) for creating directed work. See <a href="work_operations.htm">Work Operations</a>.</li><li value="2">Assign the operation to the pallet build movement zone.</li></ol></li>
+                                                            <li value="6"><span class="specialbold">Configure movement paths</span>. Configure a movement path for each of the pallet build movement zones. The movement path specifies the path that inventory takes out of the pallet build movement zone to its next destination. See <a href="movement_paths.htm">Movement Paths</a>. </li>
+                                                            <li value="7"><span class="specialbold">Define inbound pallet build configurations</span>. An inbound pallet building configuration specifies the following attributes:<ul><li>The putaway type for the inventory, which specifies the purpose of the inventory, such as whether it is used to satisfy a cross dock, distribution, or pick replacement, or instead directed to storage</li><li>Source movement zone from which the inventory is received, such as the movement zone that contains dock doors or receiving staging lanes</li><li>The pallet build movement zone, which contains the locations in which the pallets are built; pallet positions must be defined for locations in the zone</li><li>The resource code that is used to reserve the position for matching inventory after the first deposit is made </li><li>Selections (optional) for <span class="specialbold">Pallet Volume</span> and <span class="specialbold">Use Pallet UOM Quantity</span>, which are used to determine when the pallet is full; if both fields are left blank, the operator is allowed to deposit any quantity of inventory before specifying that the pallet is full </li><li><p>The criteria that is used to determine what inventory should be directed to a pallet build location in the zone  </p></li></ul><p>See <a href="#Inbound_Pallet_Build">Inbound Pallet Build</a>.</p></li>
+                                                            <li value="8"><span class="specialbold">Configure an inbound work flow.</span> You can configure an inbound workflow to print a pallet label when the operator starts to build a pallet. For this workflow, use the Start Pallet Build exit point. See <a href="inbound_workflows.htm">Inbound Workflows</a>.</li>
+                                                        </ol>
+                                                        <h2 id="Addormodifyaninboundpalletbuildconfiguration" data-magellan-target="Addormodifyaninboundpalletbuildconfiguration"><a name="Add_or_modify_an_inbound_pallet_build_configuration"></a>Add or modify an inbound pallet build configuration</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inbound &gt; Receiving &gt; Inbound Pallet Build</span>.</li>
+                                                            <li value="2">Perform one of the following tasks:<ul><li>To add a pallet build configuration, click <b>Add</b>.</li><li>To modify a pallet build configuration, in the grid, click the putaway type.</li></ul></li>
+                                                            <li value="3">Enter information in the <a href="#Inbound_Pallet_Build_fields">Inbound Pallet Build fields</a>.</li>
+                                                            <li value="4">
+                                                                <p>To select the values used to reserve a pallet position for matching inventory:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The resource code takes effect after inventory is deposited to a pallet position. For example, if the resource code is Item, then the item number of the deposited inventory becomes the resource code value. Only inventory matching the resource code value can be added to the position after the initial deposit. The resource code value is cleared when the position is emptied.</p>
+                                                                <ol>
+                                                                    <li value="1">Click <span class="specialbold">Receiving Resource Code</span>.</li>
+                                                                    <li value="2">From the <span class="specialbold">Criteria Table </span>drop-down list, select the entity that contains the fields you want to use to reserve a pallet position. For example, to reserve the position by an item attribute, select Item.</li>
+                                                                    <li value="3">In the <b>Available </b>column, select the check box next to the fields that apply.</li>
+                                                                    <li value="4">Click <b>Apply</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="5">To select the criteria used to determine which inventory is directed to an inbound pallet building location:<ol><li value="1">Under <b>CRITERIA</b>, click <span class="specialbold">Pallet Build Criteria</span>.</li><li value="2">Under <span class="specialbold">Criteria Definition</span>, click <span class="specialbold">Expression</span>.</li><li value="3">Select a table name that has the attribute to use, such as <span class="specialbold">Inventory Detail</span>.</li><li value="4">Select the field name to use, such as <span class="specialbold">Inventory Status</span>.</li><li value="5">Select the qualifier to use, such as "<span class="specialbold">=</span>".</li><li value="6">Select the value to use, such as <span class="specialbold">Inspect </span>(the name of the inventory status).</li><li value="7">To add additional expressions:<ol><li value="1"> Select the mathematical argument used to evaluate multiple rows of criteria (expressions):<ul><li><span class="specialbold">Or</span>: Must match either group of the defined criteria. </li><li><span class="specialbold">And</span>: Must match both groups of the defined criteria. </li><li><span class="specialbold">(</span>: Opening argument used to group criteria together. </li><li><p><span class="specialbold">)</span>: Closing argument used to group criteria together. </p><p class="Note"><b class="NoteHeadingBold">Note</b>: Other operators that represent a combination of these arguments, such as ")And(" are also available. The operator determines how the application evaluates the criteria. For example, if you have two criteria lines connected with the operator "And", that means the inventory must match both attributes to meet the criteria. If the two lines are connected with the operator "Or", the inventory only has to match one of the field values to meet the criteria.</p></li></ul></li><li value="2">Click <span class="specialbold">Expression</span>, and define its criteria.</li></ol></li><li value="8">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="6">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Deleteaninboundpalletbuildconfiguration" data-magellan-target="Deleteaninboundpalletbuildconfiguration"><a name="Delete_an_inbound_pallet_build_configuration"></a>Delete an inbound pallet build configuration</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inbound &gt; Receiving &gt; Inbound Pallet Build</span>.</li>
+                                                            <li value="2">In the grid, select the check box next to the putaway type to delete.</li>
+                                                            <li value="3">Click <b>Delete</b>. A confirmation message is displayed.</li>
+                                                            <li value="4">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="InboundPalletBuildfields" data-magellan-target="InboundPalletBuildfields"><a name="Inbound_Pallet_Build_fields"></a>Inbound Pallet Build fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Putaway Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Groups pallet build configurations by how the inventory is used.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Distribution</span>: A process that is used to split pallets of inventory, if necessary, and move inventory from receiving to a customer’s shipment staging location, put-to-store location, distribution location, or hop location, if configured to do so.</li>
+                                                                            <li><span class="specialbold">Cross Dock</span>: A process that splits pallets of inventory, if necessary, and moves inventory from receiving to a specified staging location to satisfy an outbound order.</li>
+                                                                            <li><b>Pick Replacement</b>: A process that replaces the source location of an outstanding pick or replenishment with the receiving location to which inbound inventory has been identified. </li>
+                                                                            <li><span class="specialbold">Storage</span>: The standard putaway process that uses the storage search path configuration to direct inventory to an appropriate storage location. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Source Movement Zone</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Movement zone that contains the locations from which the inbound inventory is being received, such as receiving dock doors or receiving staging locations.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Pallet Build Movement Zone</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Movement zone in which the locations used for pallet building are located.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Pallet Volume</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Maximum volume for the pallet being built. If you enter a value, then the application uses this value to determine when the pallet is full. If the <span class="specialbold">Use Full Pallet UOM Quantity</span> field is set to Yes, the application uses the least of the two values (the pallet UOM quantity as defined on the item footprint or the pallet volume) to determine when the pallet is full. </p>
+                                                                        <p>If the <span class="specialbold">Pallet Volume</span> field is left blank and the <span class="specialbold">Use Full Pallet UOM Quantity</span> field is set to No, then the application allows unlimited quantity to be built on the pallet, and the operator is responsible for indicating that the pallet is full.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1" style="font-weight: bold;">Use Full Pallet UOM Quantity</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                        <p>If Yes, the application uses the pallet UOM quantity to determine when a pallet is full. The pallet UOM quantity is defined on the item footprint. If there are multiple items on the pallet, the application uses the value for largest pallet UOM quantity.</p>
+                                                                        <p>However, if a value is defined for <span class="specialbold">Pallet Volume</span>, and the <span class="specialbold">Use Full Pallet UOM Quantity</span> field is set to Yes, then the application uses the least of the two values to determine when the pallet is full.</p>
+                                                                        <p>If No, the application does not use the pallet UOM quantity to determine when a pallet is full. If this field is set to No and the <span class="specialbold">Pallet Volume</span> field is left blank, then the application allows an unlimited quantity to be built on the pallet, and the operator is responsible for indicating that the pallet is full. </p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                        <p> </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

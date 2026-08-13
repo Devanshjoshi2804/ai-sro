@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Shared functions|Waves and Picks" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Procedures for picks and work assignments</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Proceduresforpicksandworkassignments">Procedures for picks and work assignments</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Performactionsonpicks">Perform actions on picks</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Resetunassignedpicks">Reset unassigned picks</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Reprintapicklabel">Reprint a pick label</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Createworkassignment">Create work assignment</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Removeapickfromaworkassignment">Remove a pick from a work assignment</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewpicks">View picks</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewworkassignmentdetails">View work assignment details</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewcartonpickdetails">View carton pick details</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Picksdetailfields">Picks detail fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#WorkAssignmentdetailfields">Work Assignment detail fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#CartonPickdetailfields">Carton Pick detail fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Proceduresforpicksandworkassignments" data-magellan-target="Proceduresforpicksandworkassignments"><a name="aanchor550"></a>
+                                                            <MadCap:concept term="WM" />Procedures for picks and work assignments</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Proceduresforpicksandworkassignments">Procedures for picks and work assignments</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Performactionsonpicks">Perform actions on picks</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Resetunassignedpicks">Reset unassigned picks</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Reprintapicklabel">Reprint a pick label</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Createworkassignment">Create work assignment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Removeapickfromaworkassignment">Remove a pick from a work assignment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewpicks">View picks</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewworkassignmentdetails">View work assignment details</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewcartonpickdetails">View carton pick details</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Picksdetailfields">Picks detail fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#WorkAssignmentdetailfields">Work Assignment detail fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#CartonPickdetailfields">Carton Pick detail fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>You can perform these procedures using the Waves and Picks page, which is accessible from the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>.</p>
+                                                        <h2 id="Performactionsonpicks" data-magellan-target="Performactionsonpicks"><a name="Perform_actions_on_picks"></a>Perform actions on picks</h2>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p><a href="#View_picks">View picks</a>. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: To perform some these actions on a work assignment, you may first need to click the identifier for the assignment in the <span class="specialbold">Operation </span>column to view the assignment details. </p>
+                                                            </li>
+                                                            <li value="2">In the grid, select the check box next to the pick work to manage.</li>
+                                                            <li value="3">To cancel picks:<ol><li value="1">From the <b>Actions</b> drop-down list, select <span class="specialbold">Cancel Picks</span>. The Cancel Picks window is displayed.</li><li value="2">From the <span class="specialbold">Select Cancel Code</span> drop-down list, select a reason for cancelling the pick.</li><li value="3">To place the pick location in error, select the <span class="specialbold">Put locations in Error Status</span> check box. No picking or putaway can be performed in a location that is in error until the location is reset.</li><li value="4">Click <b>OK</b>.</li></ol></li>
+                                                            <li value="4">
+                                                                <p>To release picks:</p>
+                                                                <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: All piece picks of a carton pick must be released together to ensure that the application creates a carton pick successfully.</p>
+                                                                <ol>
+                                                                    <li value="1">From the <b>Actions</b> drop-down list, select <span class="specialbold">Release Picks</span>. A confirmation message is displayed.</li>
+                                                                    <li value="2">Click <b>OK</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="5">To release held picks:<ol><li value="1">From the <b>Actions</b> drop-down list, select <span class="specialbold">Release Held Picks</span>. A confirmation message is displayed.</li><li value="2">Click <b>OK</b>.</li></ol></li>
+                                                            <li value="6">
+                                                                <p>To reset picks:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Resetting picks updates the picks from Error status to Pending status.</p>
+                                                                <ol>
+                                                                    <li value="1">From the <span class="specialbold">Actions </span>drop-down list, select <span class="specialbold">Reset Picks</span>. A confirmation message is displayed.</li>
+                                                                    <li value="2">Click <b>OK</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="7"><a href="#Reprint_a_pick_label">Reprint a pick label</a>.</li>
+                                                            <li value="8"><a href="#Create_work_assignment">Create work assignment</a>.</li>
+                                                            <li value="9">
+                                                                <p>To assign picks to a specific user:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the pick is already assigned to a user role, this operation overrides it and assigns it to the selected user.</p>
+                                                                <ol>
+                                                                    <li value="1">From the <b>Actions</b> drop-down list, select <span class="specialbold">Assign User</span>.</li>
+                                                                    <li value="2">In the <span class="specialbold">Assign User</span> grid, select a user. If a user is currently logged into a workstation or device, a check mark is displayed under <span class="specialbold">Logged In</span> for the user.</li>
+                                                                    <li value="3">Click <span class="specialbold">Select</span>. A confirmation message is displayed.</li>
+                                                                    <li value="4">Click <b>OK</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="10">
+                                                                <p>To assign picks a specific role:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the pick is already assigned to a user, this operation overrides it and assigns it to the selected user role.</p>
+                                                                <ol>
+                                                                    <li value="1">From the <b>Actions</b> drop-down list, select <span class="specialbold">Assign Role</span>.</li>
+                                                                    <li value="2">In the Assign Role grid, select a role.</li>
+                                                                    <li value="3">Click <span class="specialbold">Select</span>. A confirmation message is displayed.</li>
+                                                                    <li value="4">Click <b>OK</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="11">To unassign picks from the assigned user or role:<ol><li value="1">From the <b>Actions</b> drop-down list, select <span class="specialbold">Unassign</span>. A confirmation message is displayed.</li><li value="2">Click <b>Yes</b>. A confirmation message is displayed.</li><li value="3">Click <b>OK</b>.</li></ol></li>
+                                                            <li value="12">To change the priority of picks:<ol><li value="1">From the <b>Actions</b> drop-down list, select <span class="specialbold">Change Priority</span>.</li><li value="2">Under <span class="specialbold">Enter Priority Level</span>, enter a value in the text box.</li><li value="3">Click <b>Save</b>.</li></ol></li>
+                                                            <li value="13">To suspend picks:<ol><li value="1"><p>From the <b>Actions</b> drop-down list, select <span class="specialbold">Suspend Picks</span>. A confirmation message is displayed.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: For work assignments, select <span class="specialbold">Suspend Work Assignment</span>; for carton picks, select <span class="specialbold">Suspend Work</span>. </p></li><li value="2">Click <b>OK</b>.</li></ol></li>
+                                                            <li value="14">To resume picks:<ol><li value="1"><p>From the <b>Actions</b> drop-down list, select <span class="specialbold">Resume Picks</span>. A confirmation message is displayed.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: For work assignments, select <span class="specialbold">Suspend Work Assignment</span>; for carton picks, select <span class="specialbold">Suspend Work</span>. </p></li><li value="2">Click <b>OK</b>.</li></ol></li>
+                                                        </ol>
+                                                        <h2 id="Resetunassignedpicks" data-magellan-target="Resetunassignedpicks"><a name="Reset_unassigned_picks"></a>Reset unassigned picks</h2>
+                                                        <p>When a pick is cancelled using a cancel code with the <b>Work Assignments</b> field set to <b>A user will manually assign</b>, the pick is set to an Unassigned status. You can reset the unassigned pick to change its status to Pending which allows the application to release and include it in work assignment processing at the next opportunity.  </p>
+                                                        <ol>
+                                                            <li value="1"><a href="#View_picks">View picks</a>.<![CDATA[				]]></li>
+                                                            <li value="2">From the <b>Quick Filters</b> drop-down list, select <b>Unassigned</b>. </li>
+                                                            <li value="3">In the grid, select the check box next to the unassigned pick. </li>
+                                                            <li value="4">From the <b>Actions</b> drop-down list, select <b>Reset Unassigned Picks</b>. A confirmation message is displayed. </li>
+                                                            <li value="5">Click <b>OK</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Reprintapicklabel" data-magellan-target="Reprintapicklabel"><a name="Reprint_a_pick_label"></a>Reprint a pick label</h2>
+                                                        <ol>
+                                                            <li value="1">Perform one of the following tasks:<ul><li><a href="#View_picks">View picks</a>. </li><li><a href="#View_work_assignment_details">View work assignment details</a>.</li><li><a href="#View_carton_pick_details">View carton pick details</a>.</li></ul></li>
+                                                            <li value="2">In the grid, select the check box next to the pick. </li>
+                                                            <li value="3">From the <span class="specialbold">Actions </span>drop-down list, select <span class="specialbold">Reprint</span>.</li>
+                                                            <li value="4">
+                                                                <p>Enter information in the following fields:</p>
+                                                                <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                                    <thead>
+                                                                        <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                            <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                            <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Label Format</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                                <p>Unique identifier for the label format. A label format is a specific instance of a label document type.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Document Type</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                                <p>Unique identifier for the document type. A document type is the configuration for a type of report (such as a bill of lading) or type of label (such as for a pallet or storage location).</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Printer</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                                <p>Printer that will print the label.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">Locale</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                                <p>Identifier that determines the culture-specific attributes displayed or printed on the report or label. Culture-specific attributes include language, time and date formats, currency formats, and measurement unit system.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </li>
+                                                            <li value="5">Under <span class="specialbold">Criteria</span>, enter information in the fields that are displayed based on the selected label format and document type.</li>
+                                                            <li value="6">Click <span class="specialbold">Print</span>. A confirmation message is displayed.</li>
+                                                            <li value="7">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Createworkassignment" data-magellan-target="Createworkassignment"><a name="Create_work_assignment"></a>Create work assignment</h2>
+                                                        <p>Work assignments are created using a work assignment rule or rule group. See <a href="work_assignments.htm#Work_assignment_rules">Work assignment rules</a> and <a href="work_assignments.htm#Work_assignment_rule_groups">Work assignment rule groups</a>.</p>
+                                                        <ol>
+                                                            <li value="1"><a href="#View_picks">View picks</a>.<![CDATA[				]]></li>
+                                                            <li value="2">From the <b>Actions</b> drop-down list, select <span class="specialbold">Create Work Assignment</span>. The Create Work Assignment window is displayed.</li>
+                                                            <li value="3">Perform one of the following tasks:<ul><li>Select <span class="specialbold">Rules</span>, and then select a work assignment rule to create the assignment.</li><li>Select <span class="specialbold">Groups</span>, and then select a work assignment rule group to create the assignment. </li></ul></li>
+                                                            <li value="4">Click <span class="specialbold">Create</span>. A confirmation message is displayed.</li>
+                                                        </ol>
+                                                        <h2 id="Removeapickfromaworkassignment" data-magellan-target="Removeapickfromaworkassignment"><a name="Remove_a_pick_from_a_work_assignment"></a>Remove a pick from a work assignment</h2>
+                                                        <ol>
+                                                            <li value="1"><a href="#View_picks">View picks</a>.</li>
+                                                            <li value="2">In the grid, in the <span class="specialbold">Operation </span>column, click the work assignment identifier. The work assignment details are displayed. </li>
+                                                            <li value="3">In the grid, select the check box for the pick to remove from the work assignment.</li>
+                                                            <li value="4">
+                                                                <p>From the <b>Actions</b> drop-down list, select <span class="specialbold">Remove from Work Assignment</span>. A confirmation message is displayed.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the pick cannot be removed from the work assignment, the displayed message includes the reason why the removal was not successful.</p>
+                                                            </li>
+                                                            <li value="5">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Viewpicks" data-magellan-target="Viewpicks"><a name="View_picks"></a>View picks</h2>
+                                                        <ol>
+                                                            <li value="1">To view picks from the Waves and Picks page:<ol><li value="1"><a targets="ViewWP" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+				<div style="display: none;" data-mc-target-name="ViewWP"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li><li value="2">Select <b>Picks</b>.</li></ol></li>
+                                                            <li value="2">&#160;To view picks for a wave:<ol><li value="1"><a targets="ViewWPW" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWPW"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View Waves and Picks page</a> and select <b>Waves</b>, or view a grid with a link for a wave.				<div style="display: none;" data-mc-target-name="ViewWPW"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li><li value="2">In the grid, click a wave, and then select <span class="specialbold">Picks</span>.</li></ol></li>
+                                                            <li value="3">To view picks for a load:<ol><li value="1"><a href="procedures_for_loads_outbound.htm#View_loads">View loads</a>, or view a grid with a link for a load.</li><li value="2">In the grid, click a load, and then select <span class="specialbold">Picks</span>.</li></ol></li>
+                                                            <li value="4">To view picks for a shipment:<ol><li value="1"><a href="procedures_for_shipments.htm#View_shipments">View shipments</a>, or view a grid with a link for a shipment.</li><li value="2">In the grid, click a shipment, and then select <span class="specialbold">Picks</span>.</li></ol></li>
+                                                            <li value="5">To view picks for an order:<ol><li value="1"><a href="procedures_for_orders.htm#View_outbound_orders">View outbound orders</a>, or view a grid with a link for an order.</li><li value="2">In the grid, click an order, and then select <span class="specialbold">Picks</span>.</li></ol></li>
+                                                        </ol>
+                                                        <h2 id="Viewworkassignmentdetails" data-magellan-target="Viewworkassignmentdetails"><a name="View_work_assignment_details"></a>View work assignment details</h2>
+                                                        <ol>
+                                                            <li value="1"><a href="#View_picks">View picks</a>.</li>
+                                                            <li value="2">In the grid, in the <span class="specialbold">Operation </span>column, click the work assignment identifier. The work assignment details are displayed.</li>
+                                                            <li value="3">View information in the <a href="#Work_assignment_detail_fields">Work Assignment detail fields</a>.</li>
+                                                        </ol>
+                                                        <h2 id="Viewcartonpickdetails" data-magellan-target="Viewcartonpickdetails"><a name="View_carton_pick_details"></a>View carton pick details</h2>
+                                                        <ol>
+                                                            <li value="1">Perform one of the following tasks:<ul><li><a href="#View_picks">View picks</a>.</li><li><a href="#View_work_assignment_details">View work assignment details</a>.</li></ul></li>
+                                                            <li value="2">In the grid, in the <span class="specialbold">Operation </span>column, click the carton pick identifier. The carton pick details are displayed.</li>
+                                                            <li value="3">View information in the <a href="#Carton_pick_detail_fields">Carton Pick detail fields</a>.</li>
+                                                        </ol>
+                                                        <h2 id="Picksdetailfields" data-magellan-target="Picksdetailfields"><a name="Picks_detail_fields"></a>Picks detail fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Pick Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Current status of the pick. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Pending</span>: Pick work inventory is reserved for allocation until automatically released by the application.</li>
+                                                                            <li><span class="specialbold">Hold</span>: Pick work inventory is reserved for allocation until manually released by a user.</li>
+                                                                            <li><span class="specialbold">Released</span>: Pick work is released to the work queue.</li>
+                                                                            <li><span class="specialbold">Complete</span>: Pick work is complete. </li>
+                                                                            <li><span class="specialbold">Un-Assigned</span>: Pick work is unassigned from a work assignment.</li>
+                                                                            <li><span class="specialbold">Ready For List</span>: Pick work has been released and the pick is qualified for a work assignment. A background process builds these picks into either a handling unit-based or regular work assignment.</li>
+                                                                            <li><span class="specialbold">Error</span>: Pre-manifesting the package for the pick work failed. The application allows packages to be pre-manifested; that is, manifested to hold. These packages are typically manifested during allocation (before the inventory is picked) and usually so that a label can be printed in advance for the package. You can view the specific error code and description on the Waves and Picks page. See <a href="waves_and_picks.htm">Waves and Picks</a>. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Operation</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Work operation that identifies the type of directed work that was created.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Source</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Location where the work originated, such as the location from which inventory is picked, at which a count is performed, or from which transport equipment is moved.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Destination</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Location where the work is completed, such as the location to which inventory is delivered or to which transport equipment is moved. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Load</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a load. A load is one or more shipments grouped together into one or more stops that are shipped on a single piece of transport equipment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Shipment</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for an outbound shipment. A shipment is a group of orders or order lines that are allocated together and shipped to the same location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Order</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique number that identifies an order. An order is a request for a supply of material or product. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Item</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for an item. An item is any specific piece of inventory that is stored or processed within the application. Items can be raw materials, packaging materials, in-process materials, supplies, and finished goods. In some warehouses, items are called stock keeping units (SKUs).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Description</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Description of the item involved in the pick that further describes the inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">User</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>User that is assigned to perform the work or, if the work has been acknowledged, the user that signed on to perform the work.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Role</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Role that is assigned to the work. A role is a category that is used to group menu options for the purpose of maintaining user authorizations. Roles are assigned to the appropriate users to control the tasks that users are authorized to perform.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick Priority</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Current priority of directed work in the work queue. This value represents the base priority defined for the operation plus any escalation increments that have been applied over time to the work request. For example, if the base priority of work is 20 and it is defined to escalate by 5 every hour, then after 2 hours it has an effective (current) priority of 10. The value for Priority is green if the value has been escalated from the base priority defined for the work operation.</p>
+                                                                        <p>The lowest number has the highest priority. For example, 1 is the highest priority; 10 is a higher priority than 20.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Quantity (in terms of material handling or stock keeping units) of the item that should be picked based on the order, work order, or replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Picked Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Quantity (in terms of material handling or stock keeping units) of inventory that is picked based on the order, work order, or replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick UOM</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unit of measure in which the <span class="specialbold">Pick Quantity</span> is displayed. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work ID</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique application-assigned identifier for a piece of work in the work queue.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work Status</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Current status of the work.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Undirected</span>: The work is undirected; this means that a user can perform it from a workstation, or an RF operator can perform it using an undirected work menu option. Undirected work is not available to be performed through the RF Directed Work menu option.</li>
+                                                                            <li><span class="specialbold">Pending</span>: The directed work has been allocated and released to the queue. Work in this status will be offered to an operator through the RF Directed Work function, based on permissions, priority, and proximity.</li>
+                                                                            <li><span class="specialbold">Waiting</span>: The directed work is assigned to an operator, but the operator has not acknowledged it yet.</li>
+                                                                            <li><span class="specialbold">Acknowledged</span>: The directed work has been acknowledged (accepted) by an operator.</li>
+                                                                            <li><span class="specialbold">Suspended</span>: The directed work is temporarily suspended, indicating that the application will not offer it an operator through the RF Directed Work function. </li>
+                                                                            <li><span class="specialbold">Locked</span>: The directed work is locked and is not released until the application finds an available pickface location. This status is used with the demand replenishment operation (PIARPL) to prevent work from being released until there is room in the location for the replenishment inventory.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work Order</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a work order. A work order is an internal order used to find, allocate, and deliver product to a work-in-process area for assembly or disassembly, conversion, kitting, or repackaging.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work Order Revision</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Identifier for one instance of a work order that allows you to use a standard work order multiple times.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work Order Line</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for a work order line. The number corresponds to the order line's position in the work order.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Picked Catch Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Quantity (in terms of material handling or stock keeping units) of inventory that is picked based on the catch unit measurements for the order, work order, or replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Order Line</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique number that identifies the order line. The number corresponds to the line's position on the order. The first order line is automatically assigned a line number of 0001. Additional order lines are then automatically numbered sequentially, beginning with 0002.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Handling Unit Type</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Category that classifies a group of handling units (for example, pallets, totes, transport equipment, or vehicles) that share the same characteristics such as size and weight, as well as whether they are serialized, temporary, or considered a container. The application tracks the on-hand quantity of handling units by type and, for serialized handling units, by handling unit identifier.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Date Completed</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Date and time when the picking operator completed picking inventory to fulfill the order.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Lot Tracked</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Indicates whether the item is lot tracked (<span class="specialbold">Lot Tracking</span> field set to Yes in the item configuration). A lot is a batch (quantity) of an item uniquely identified by a lot number during the manufacturing process for the purpose of tracking that batch of inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Origin Tracked</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Indicates whether the item is tracked by its origin (<span class="specialbold">Origin Code</span> field set to Yes in the item configuration). The origin code is typically an identifier for the country or area of the world in which the item was manufactured. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Revision Tracked</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Indicates whether the item is revision tracked (<b>Revision</b> field set to Yes in the item configuration). A revision may be used to identify a specific manufactured version of the item, so that when the item is modified or improved, the manufacturer may assign a new version number to reflect the change.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Carton Number</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                        <p>Unique identifier assigned to the carton into which inventory is picked. </p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="WorkAssignmentdetailfields" data-magellan-target="WorkAssignmentdetailfields"><a name="Work_assignment_detail_fields"></a>Work Assignment detail fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Wave</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Value that is assigned to the group of pick-type work requests (picks, replenishments, and cross docks) that are created when the wave is planned. The wave name distinguishes one group of pick-type work requests from another, which enables you to track the requests through the application. For example, if you allocate inventory for a single shipment, then all of the picks, replenishments, and cross docks generated for the shipment have the same wave name.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Added</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Date and time at which the work assignment was created. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Work Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Current status of the work.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Undirected</span>: The work is undirected; this means that a user can perform it from a workstation, or an RF operator can perform it using an undirected work menu option. Undirected work is not available to be performed through the RF Directed Work menu option.</li>
+                                                                            <li><span class="specialbold">Pending</span>: The directed work has been allocated and released to the queue. Work in this status will be offered to an operator through the RF Directed Work function, based on permissions, priority, and proximity.</li>
+                                                                            <li><span class="specialbold">Waiting</span>: The directed work is assigned to an operator, but the operator has not acknowledged it yet.</li>
+                                                                            <li><span class="specialbold">Acknowledged</span>: The directed work has been acknowledged (accepted) by an operator.</li>
+                                                                            <li><span class="specialbold">Suspended</span>: The directed work is temporarily suspended, indicating that the application will not offer it an operator through the RF Directed Work function. </li>
+                                                                            <li><span class="specialbold">Locked</span>: The directed work is locked and is not released until the application finds an available pickface location. This status is used with the demand replenishment operation (PIARPL) to prevent work from being released until there is room in the location for the replenishment inventory.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Pick Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Current status of the pick. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Pending</span>: Pick work inventory is reserved for allocation until automatically released by the application.</li>
+                                                                            <li><span class="specialbold">Hold</span>: Pick work inventory is reserved for allocation until manually released by a user.</li>
+                                                                            <li><span class="specialbold">Released</span>: Pick work is released to the work queue.</li>
+                                                                            <li><span class="specialbold">Complete</span>: Pick work is complete. </li>
+                                                                            <li><span class="specialbold">Un-Assigned</span>: Pick work is unassigned from a work assignment.</li>
+                                                                            <li><span class="specialbold">Ready For List</span>: Pick work has been released and the pick is qualified for a work assignment. A background process builds these picks into either a handling unit-based or regular work assignment.</li>
+                                                                            <li><span class="specialbold">Error</span>: Pre-manifesting the package for the pick work failed. The application allows packages to be pre-manifested; that is, manifested to hold. These packages are typically manifested during allocation (before the inventory is picked) and usually so that a label can be printed in advance for the package. You can view the specific error code and description on the Waves and Picks page. See <a href="waves_and_picks.htm">Waves and Picks</a>. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Effective Priority</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Current priority of a work request in the work queue. This value represents the base priority defined for the operation plus any escalation increments that have been applied over time to the work request. For example, if the base priority of pick work is 20 and it is defined to escalate by 5 every hour, then after 2 hours it will have an effective (current) priority of 10.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Assigned User</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>User that is assigned to perform the work or, if the work has been acknowledged, the user that signed on to perform the work.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Role</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Role that is assigned to the work. A role is a category that is used to group menu options for the purpose of maintaining user authorizations. Roles are assigned to the appropriate users to control the tasks that users are authorized to perform.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Progress</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Percentage of inventory that has been picked. Additionally, an X of Y value displays the number of eaches that are picked out of the total number of expected eaches; for example, (50 of 100).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Operation</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Work operation that identifies the type of directed work that was created.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Source</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Location where the work originated, such as the location from which inventory is picked, at which a count is performed, or from which transport equipment is moved.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Destination</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Location where the work is completed, such as the location to which inventory is delivered or to which transport equipment is moved. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Load</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for a load. A load is one or more shipments grouped together into one or more stops that are shipped on a single piece of transport equipment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Shipment</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an outbound shipment. A shipment is a group of orders or order lines that are allocated together and shipped to the same location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Order</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique number that identifies an order. An order is a request for a supply of material or product. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Item</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an item. An item is any specific piece of inventory that is stored or processed within the application. Items can be raw materials, packaging materials, in-process materials, supplies, and finished goods. In some warehouses, items are called stock keeping units (SKUs).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Quantity (in terms of material handling or stock keeping units) of the item that should be picked based on the order, work order, or replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Picked Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Quantity (in terms of material handling or stock keeping units) of inventory that is picked based on the order, work order, or replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick UOM</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unit of measure in which the <span class="specialbold">Pick Quantity</span> is displayed. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work ID</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                        <p>Unique application-assigned identifier for a piece of work in the work queue.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="CartonPickdetailfields" data-magellan-target="CartonPickdetailfields"><a name="Carton_pick_detail_fields"></a>Carton Pick detail fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Wave</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Value that is assigned to the group of pick-type work requests (picks, replenishments, and cross docks) that are created when the wave is planned. The wave name distinguishes one group of pick-type work requests from another, which enables you to track the requests through the application. For example, if you allocate inventory for a single shipment, then all of the picks, replenishments, and cross docks generated for the shipment have the same wave name.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Pick Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Current status of the pick. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Pending</span>: Pick work inventory is reserved for allocation until automatically released by the application.</li>
+                                                                            <li><span class="specialbold">Hold</span>: Pick work inventory is reserved for allocation until manually released by a user.</li>
+                                                                            <li><span class="specialbold">Released</span>: Pick work is released to the work queue.</li>
+                                                                            <li><span class="specialbold">Complete</span>: Pick work is complete. </li>
+                                                                            <li><span class="specialbold">Un-Assigned</span>: Pick work is unassigned from a work assignment.</li>
+                                                                            <li><span class="specialbold">Ready For List</span>: Pick work has been released and the pick is qualified for a work assignment. A background process builds these picks into either a handling unit-based or regular work assignment.</li>
+                                                                            <li><span class="specialbold">Error</span>: Pre-manifesting the package for the pick work failed. The application allows packages to be pre-manifested; that is, manifested to hold. These packages are typically manifested during allocation (before the inventory is picked) and usually so that a label can be printed in advance for the package. You can view the specific error code and description on the Waves and Picks page. See <a href="waves_and_picks.htm">Waves and Picks</a>. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Carton Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Current status of the carton.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Complete</span>: All inventory intended for the carton has been picked to the carton.</li>
+                                                                            <li><span class="specialbold">In Process</span>: Inventory has been allocated to the carton and picking has been started.</li>
+                                                                            <li><span class="specialbold">Pending</span>: Inventory has been allocated to the carton, but picking has not been started.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Work Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Current status of the work.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Undirected</span>: The work is undirected; this means that a user can perform it from a workstation, or an RF operator can perform it using an undirected work menu option. Undirected work is not available to be performed through the RF Directed Work menu option.</li>
+                                                                            <li><span class="specialbold">Pending</span>: The directed work has been allocated and released to the queue. Work in this status will be offered to an operator through the RF Directed Work function, based on permissions, priority, and proximity.</li>
+                                                                            <li><span class="specialbold">Waiting</span>: The directed work is assigned to an operator, but the operator has not acknowledged it yet.</li>
+                                                                            <li><span class="specialbold">Acknowledged</span>: The directed work has been acknowledged (accepted) by an operator.</li>
+                                                                            <li><span class="specialbold">Suspended</span>: The directed work is temporarily suspended, indicating that the application will not offer it an operator through the RF Directed Work function. </li>
+                                                                            <li><span class="specialbold">Locked</span>: The directed work is locked and is not released until the application finds an available pickface location. This status is used with the demand replenishment operation (PIARPL) to prevent work from being released until there is room in the location for the replenishment inventory.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Added</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Date and time at which the carton pick was created. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Effective Priority</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Current priority of a work request in the work queue. This value represents the base priority defined for the operation plus any escalation increments that have been applied over time to the work request. For example, if the base priority of pick work is 20 and it is defined to escalate by 5 every hour, then after 2 hours it will have an effective (current) priority of 10.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Assigned User</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>User that is assigned to perform the work or, if the work has been acknowledged, the user that signed on to perform the work.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Role</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Role that is assigned to the work. A role is a category that is used to group menu options for the purpose of maintaining user authorizations. Roles are assigned to the appropriate users to control the tasks that users are authorized to perform.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Progress</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Percentage of inventory that has been picked. Additionally, an X of Y value displays the number of eaches that are picked out of the total number of expected eaches; for example, (50 of 100).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Source</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Location where the work originated, such as the location from which inventory is picked, at which a count is performed, or from which transport equipment is moved.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Destination</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Location where the work is completed, such as the location to which inventory is delivered or to which transport equipment is moved. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Work ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique application-assigned identifier for a piece of work in the work queue.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Carton Number</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier assigned to the carton into which inventory is picked. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Item</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for an item. An item is any specific piece of inventory that is stored or processed within the application. Items can be raw materials, packaging materials, in-process materials, supplies, and finished goods. In some warehouses, items are called stock keeping units (SKUs).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Description</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Description of the item involved in the pick that further describes the inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Pick Quantity</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Quantity (in terms of material handling or stock keeping units) of the item that should be picked based on the order, work order, or replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Picked Quantity</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Quantity (in terms of material handling or stock keeping units) of inventory that is picked based on the order, work order, or replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Pick UOM</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unit of measure in which the <span class="specialbold">Pick Quantity</span> is displayed. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Load</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a load. A load is one or more shipments grouped together into one or more stops that are shipped on a single piece of transport equipment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Shipment</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for an outbound shipment. A shipment is a group of orders or order lines that are allocated together and shipped to the same location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Order</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique number that identifies an order. An order is a request for a supply of material or product. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">Carton Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Code that identifies the type of carton. A carton type defines the dimensions and attributes that identify what the carton can hold and how the carton is used.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

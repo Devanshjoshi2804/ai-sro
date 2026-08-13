@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Packing" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Packing concepts</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Packingconcepts">Packing concepts</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Packstations">Pack stations</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Packingoperations">Packing operations</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Optionsavailableduringprocessing">Options available during processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Packinguserinterface">Packing user interface</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Packlocationsreservedbyshipment">Pack locations reserved by shipment</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Cartontypeoptionsduringpacking">Carton type options during packing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Weightcaptureduringpacking">Weight capture during packing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Serialnumbercaptureduringpacking">Serial number capture during packing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Orderlinesandsublinesduringpacking">Order lines and sub-lines during packing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Mixingrestrictionsduringpacking">Mixing restrictions during packing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Bondedinventoryduringpacking">Bonded inventory during packing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Palletconsolidationafterpacking">Pallet consolidation after packing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Packingerrors">Packing errors</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Manifestatpackstation">Manifest at pack station</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Packingconcepts" data-magellan-target="Packingconcepts"><a name="aanchor52"></a>
+                                                            <MadCap:concept term="WM" />Packing concepts</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Packingconcepts">Packing concepts</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Packstations">Pack stations</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Packingoperations">Packing operations</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Optionsavailableduringprocessing">Options available during processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Packinguserinterface">Packing user interface</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Packlocationsreservedbyshipment">Pack locations reserved by shipment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Cartontypeoptionsduringpacking">Carton type options during packing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Weightcaptureduringpacking">Weight capture during packing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Serialnumbercaptureduringpacking">Serial number capture during packing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Orderlinesandsublinesduringpacking">Order lines and sub-lines during packing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Mixingrestrictionsduringpacking">Mixing restrictions during packing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Bondedinventoryduringpacking">Bonded inventory during packing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Palletconsolidationafterpacking">Pallet consolidation after packing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Packingerrors">Packing errors</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Manifestatpackstation">Manifest at pack station</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>You use the Packing module  to manage the people, equipment, inventory, and processing involved in packing inventory into containers. You can make adjustments to inventory, work, pack stations, and other factors that can improve the productivity and efficiency of warehouse packing activities.</p>
+                                                        <p>The following information will help you understand how to use the Packing module:</p>
+                                                        <ul>
+                                                            <li>Pack station processing procedures differ depending on how packing is configured for the warehouse. See <a href="#Packing_operations">Packing operations</a>. </li>
+                                                            <li>The options available during pack station processing differ depending on the procedure that you use. See <a href="#Options_available_during_processing">Options available during processing</a>.</li>
+                                                            <li>The user interface directs the operator through the process of inducting picked inventory and then packing inventory into shipping containers. Processing starts by selecting your workstation and then scanning the picking container (container, slot, or location) that contains the picked inventory. See <a href="#Packing_user_interface">Packing user interface</a>.</li>
+                                                            <li>The application notifies the operator of data entry and other errors and prevents processing invalid inventory. See <a href="#Packing_errors">Packing errors</a>.</li>
+                                                            <li>Step-by-step procedures guide you through the packing process. See <a href="procedures_for_packing.htm">Procedures for packing</a>.</li>
+                                                        </ul>
+                                                        <h2 id="Packstations" data-magellan-target="Packstations"><a name="Pack_stations"></a>Pack stations</h2>
+                                                        <p>A pack station is a processing location where an operator moves picked inventory out of a picking container (which can be a container, slot, or location) and packs it into one or more shipping containers, as directed by the application. When a container is completed, the application moves it to the pack staging location. If damaged inventory, unexpected inventory, overages, shortages or other errors occur during the packing process, the picking container (along with any inventory that has not been completed) is directed to a special handling location, where a packing exception operator processes the picking container.</p>
+                                                        <h2 id="Packingoperations" data-magellan-target="Packingoperations"><a name="Packing_operations"></a>Packing operations</h2>
+                                                        <p>Pack station processing supports the following operations:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Pack one shipping container at a time</span>:<span class="specialbold"> </span>The operator inducts inventory into the pack station by scanning an identifier (LPN, sub-LPN, or location, depending on what is configured for the warehouse). The operator scans the picked inventory and packs it into a shipping container until the container is either filled or contains all the required inventory. The operator selects the next shipping container and continues packing.</li>
+                                                            <li><span class="specialbold">Pack multiple containers simultaneously</span>: The operator inducts inventory into the pack station by scanning an identifier. The operator can pack into any of the shipping containers without having to close one container before starting the next container. The operator scans each item and packs it into the appropriate shipping container, as directed by the application. </li>
+                                                            <li><span class="specialbold">Pack with shipping cartonization enabled</span>: When shipping cartonization is enabled, the application displays the optimal carton type for packing the inventory. This process allows the inventory for one shipment to be picked to multiple picking containers. On the initiation page, the application displays partially packed shipping containers for which additional inventory is required. During packing, when all inventory from a picking container has been packed, the application prompts the operator to scan the next picking container so that the packing of partially packed (in-process) shipping containers can continue. In-process shipping containers that require inventory from another picking container are displayed on the initiation and processing pages with a label that states "Inventory Remaining".</li>
+                                                        </ul>
+                                                        <h2 id="Optionsavailableduringprocessing" data-magellan-target="Optionsavailableduringprocessing"><a name="Options_available_during_processing"></a>Options available during processing</h2>
+                                                        <p>When performing packing operations, the following options are available:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Update quantity</span>: During packing, the operator can select an item and change its quantity. If the quantity is increased, a new line item is added to the grid with a status of OVERAGE. The operator can reverse the status of an OVERAGE by the updating the quantity of that line item to 0 (zero). </li>
+                                                            <li><span class="specialbold">Mark damaged</span>: During packing, the operator can select an item and mark all or a partial quantity as DAMAGED. If a partial quantity is damaged, a new line item is added to the grid. The status is changed to DAMAGED. This action can be reversed by changing the damaged quantity to 0 (zero).</li>
+                                                            <li>
+                                                                <p><span class="specialbold">Split a container quantity to another container</span>: The operator can close (complete) a partially packed shipping container, so that the rest of its intended contents are placed in a new shipping container. This is typically done when no more inventory will fit into the original container. The application directs the remaining inventory for the original container to a new shipping container (created automatically in the same position). If shipping cartonization is enabled, the split can be done from the identifier page where partially packed shipping containers are displayed. Otherwise, the split is done during processing. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the packing general settings option that forces all items into a single container is set to Yes, then the operator is not allowed to split a quantity to another container.</p>
+                                                            </li>
+                                                            <li>
+                                                                <p><span class="specialbold">Skip a container that is partially packed</span>: The operator can stop packing a shipping container, start packing another container, and then return to the partially packed shipping container. The application maintains the status of all the items that have been packed into each shipping container. The operator selects a container by clicking it. If packing one shipment at a time, a confirmation message is displayed asking the operator to confirm that they want to pack a different container. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the pack station configuration option to pack multiple shipments simultaneously is set to Yes, skipping a shipping container is part of the process and so the confirmation message is not displayed.</p>
+                                                            </li>
+                                                            <li><span class="specialbold">Pack an item to any container that requires it</span>: Each piece of inventory is picked for a specific shipment; however, when packing multiple containers at the same time, if the operator scans an item for a different container but the item is identical to the one required, the item can be packed to the current container if the following conditions exist:<ul><li>The inventory attributes specified on the order line match the inventory that is being used. For example, if the order line specifies a particular lot, then only inventory with a matching lot can be used.</li><li>The LPN level of the inventory being replaced matches the inventory being used.</li><li>For a sub-LPN (case), the quantity associated with the sub-LPN matches the inventory being used.</li></ul></li>
+                                                            <li><span class="specialbold">Cancel picking container</span>: After inducting a picking container, the operator can cancel processing from the processing page by clicking <span class="specialbold">Cancel Picking Container</span>. As a result, the current picking container is cancelled and the initiation page is displayed. Inventory that has been completed (packed into containers that were completed) cannot be cancelled. Shipping containers that were in progress (partially packed) are cleared as if they had not been packed. Therefore, the operator must remove inventory from partial shipping containers and return it to the picking container.</li>
+                                                            <p>If the operator scans the same picking container, only the shipping containers that were not completed are displayed. </p>
+                                                        </ul>
+                                                        <p>When packing for a shipping container is complete, the following actions take place:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Operator completes the shipping container</span>: If auto-close carton is enabled, then when packing for a shipping container is complete, the application moves the container to the pack staging location, and the scan identifier page is displayed to the operator. The operator does not have to click <span class="specialbold">Complete</span> to close the container. If auto-close carton not enabled, then when packing is complete for a container, the operator clicks <span class="specialbold">Complete</span>.</li>
+                                                            <li><span class="specialbold">Special handling</span>: Error processing, which is initiated by clicking <b>Error Picking Container</b>, is used to direct a picking container to a special handling location when one or more of the following errors occur:<ul><li>Any portion of picked inventory is damaged</li><li>The quantity packed does not match the required quantity</li><li>The user scans inventory that is not expected for the current shipping container</li></ul></li>
+                                                            <p>At the special handling location, the special handling operator typically unpicks the inventory from the container. If the special handling operator uses a cancel code that reallocates the picks, the reallocated picks are directed to a new picking container. The operator can merge the new container to the original picking container and move the container back to the pack station. The packing operator can scan the picking container and resume packing the shipping container.</p>
+                                                        </ul>
+                                                        <h2 id="Packinguserinterface" data-magellan-target="Packinguserinterface"><a name="Packing_user_interface"></a>Packing user interface</h2>
+                                                        <p>The following user interface elements are part of packing operations: </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: After selecting the packing function, you may be prompted to select the workstation that you are using to perform packing operations. After that, the initiation page is displayed.</p>
+                                                        <ul>
+                                                            <li>
+                                                                <p><span class="specialbold">Initiation page</span>: Displays a field with a label that states <span class="specialbold">Scan identifier to get started</span>. The required identifier is an LPN, sub-LPN, or location that contains the picked inventory that needs to be packed. The configuration of packing general settings defines the identifiers that operators can scan to initiate packing. </p>
+                                                                <p>You can also initiate pack station processing by scanning a handling unit (such as a trolley) and handling unit slot. Multiple shipping containers can be packed with the inventory from the slot (picking container). After the contents of the slot have been packed, the operator can scan the next slot and continue packing the shipping containers. This feature is available when handling unit tracking is enabled for inventory or picking containers, and the packing general settings default scan level is defined as LPN.</p>
+                                                            </li>
+                                                            <li><span class="specialbold">In-process containers</span>: If shipping cartonization is enabled and there are any in-process (partially packed) shipping containers, they are displayed with a message that states "Inventory Remaining." This means that the shipping container is partially packed, but requires inventory from another picking container before it can be completed.</li>
+                                                            <li><span class="specialbold">Processing page</span>: Displays the following shipping container and item information:<ul><li><span class="specialbold">Carton fields</span>: When a shipping container is selected, the shipping container identifier, carton type, and weight fields are displayed. Estimated weight represents the weight of the carton and its contents (based on item footprint configuration). Actual weight represents the weight obtained from an integrated scale measuring the actual weight of the carton and its contents. If a scale is not integrated with the workstation, the operator can enter actual weight based on the estimated weight or the weight obtained from a standalone scale.</li><li><span class="specialbold">Inventory identifier fields</span>: Inventory identifier fields allow the operator to scan each piece of picked inventory and pack it to the shipping container as directed by the application. The application uses these fields to uniquely identify the inventory. Scanning the inventory without having to select it from a grid is the fastest packing process. </li><li><span class="specialbold">Grid view of picked inventory</span>: When an item is scanned or a shipping container is selected, a grid displays the items that the application expects in the picking container. The operator can select an item to change its quantity, mark it as damaged, or process (pack) it.</li><li><p><span class="specialbold">Shipping containers</span>: To the right of the inventory fields, one or more shipping containers are displayed. Each one is identified by a container identifier (sub-LPN), carton type, and a progress bar that shows the packing status of the container (the quantity required, quantity packed, and percent complete). By scanning any piece of inventory, the user is directed to the correct shipping container. </p><p>Each container is also identified with a number (such as 1, 2, or 3) that represents the position of the container on the floor. If a container becomes full before all of the inventory it requires is packed, then when it is completed, the application creates a new container in the same position and directs the rest of the inventory required for the original container to the new container.</p></li><li><span class="specialbold">Process button</span>: Indicates that the selected items have been packed into the shipping container, and changes the status of selected items to PACKED.</li><li><span class="specialbold">Unpack button</span>: Used to removed packed inventory from a shipping container.</li><li><span class="specialbold">Mark All Damaged button</span>: Changes the status of all the inventory in the grid to DAMAGED.</li><li><span class="specialbold">Print Paperwork button</span>: Prints the paperwork (reports or labels) for the picking container.</li><li><span class="specialbold">Capture Weight button</span>: Used to capture the weight of a packed container or pallet based on the value provided by an integrated scale. If a scale is integrated with the pack station, the button is aways available; otherwise, it is hidden. When the button is clicked, the weight is captured and displayed in the <span class="specialbold">Actual Weight</span> field, overwriting any previous value. If weight cannot be captured, the reading returns to zero and a notification is displayed to the operator.</li><li><span class="specialbold">Error Picking Container button</span>: Initiates error processing, which is used to direct a picking container to a special handling location when one or more of the following errors occur:<ul><li>Any portion of picked inventory is damaged</li><li>The quantity packed does not match the required quantity</li><li>The user scans inventory that is not expected for the current shipping container</li></ul></li><p>At the special handling location, the special handling operator typically unpicks the inventory from the container. If the special handling operator uses a cancel code that reallocates the picks, the reallocated picks are directed to a new picking container.</p><li><b>Cancel Picking Container button</b>: Cancels the current picking container and displays the initiation page. If shipping cartonization is not enabled, shipping containers that were in progress (partially packed) are cleared as if they had not been packed. If shipping cartonization is enabled and the operator scans the same picking container, any in-process shipping containers are displayed. </li><li><span class="specialbold">Complete button</span>: Completes the current shipping container. Used to indicate that all the inventory required for the container has been packed, or that no additional inventory can fit into the container.<ul><li>If no additional inventory can fit into a container that requires additional items, then when the operator clicks <span class="specialbold">Complete</span>, a  confirmation message is displayed asking if there is inventory left in the container. If Yes, the application completes the container and creates a new shipping container to contain the rest of the inventory that was required for the original container. If No, a new container is not created.</li><li><p>If exception inventory was packed, clicking <span class="specialbold">Complete </span>displays the Log Error window for the operator to select a reason for the error and a special handling location. If inventory was inducted from a location (not a picking container), the application prompts the operator to enter a new picking container to use to transfer the inventory to the special handling location. When the operator clicks <span class="specialbold">Log Error</span>, the picking container is moved to the selected location, and the initiation page is displayed for the operator to scan the next identifier.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: Exception inventory is inventory that is unexpected, damaged, or over or short the required quantity.</p></li></ul></li><li><p><b>Add Media and View Media buttons</b>: Used to view or capture media.    Images (such as JPEG, PNG, GIF, and BMP) can be added or viewed. Files (such as TXT, DOC, and PDF) can be added or downloaded for viewing in their respective application, such as a text editor, Microsoft Word, or Adobe Reader. Images and files can also be deleted. </p></li></ul></li>
+                                                        </ul>
+                                                        <h2 id="Packlocationsreservedbyshipment" data-magellan-target="Packlocationsreservedbyshipment"><a name="Pack_locations_reserved_by_shipment"></a>Pack locations reserved by shipment</h2>
+                                                        <p>On the packing initiation page, a grid displays the following statuses for locations in the workstation's processing zone that are reserved by shipment:</p>
+                                                        <div class="Note">
+                                                            <p><b class="NoteHeadingBold">Notes</b>: </p>
+                                                            <ul>
+                                                                <li>
+                                                                    <p>When a pack location is reserved by shipment, then inventory for a different shipment is not directed to the location until the current inventory has been packed.</p>
+                                                                </li>
+                                                                <li>
+                                                                    <p style="font-weight: normal;">The <b>Prevent Packing Until Inventory Arrival</b> field  in the pack station configuration determines whether packing is prevented until all of the inventory to be packed for a shipment has arrived. </p>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <ul>
+                                                            <li><span class="specialbold">Not Ready - Inventory Pending</span>: Indicates that configuration prevents packing until all of the inventory to be packed for a shipment has arrived, and that some inventory has not arrived.</li>
+                                                            <li><span class="specialbold">Ready to Pack - Inventory Arrived</span>: Indicates that configuration prevents packing until all of the inventory to be packed for a shipment has arrived, and that all of the inventory has arrived.</li>
+                                                            <li><b>Pack as inventory arrives</b>: Indicates that configuration does not prevent packing  until all of the inventory to be packed for a shipment has arrived, and that some or all of the inventory has not arrived.</li>
+                                                            <li><span class="specialbold">Ready to Pack</span>: Indicates that configuration does not prevent packing until all of the inventory to be packed for a shipment has arrived, and that all of the inventory has arrived.</li>
+                                                            <li><b>Packed - Inventory Processed</b>:&#160;Indicates that packing is complete for the shipment, and the location remains reserved by the packed shipment until the next shipment reserves the location. This status is only displayed if the <b>Automatically Clear Processing</b> field is set to No for the location type.</li>
+                                                        </ul>
+                                                        <p>The grid also allows the operator to view the picking containers that have been deposited to each pack location reserved by shipment.</p>
+                                                        <p>The operator can start packing from any location that is in either Ready to Pack status, or from locations that are not reserved by shipment.</p>
+                                                        <h2 id="Cartontypeoptionsduringpacking" data-magellan-target="Cartontypeoptionsduringpacking"><a name="Carton_type_options_during_packing"></a>Carton type options during packing</h2>
+                                                        <p>When picked inventory arrives at the pack station in a carton or box, the operator can use one of the following options to avoid packing the carton or box to another carton:</p>
+                                                        <ul>
+                                                            <li>
+                                                                <p><span class="specialbold">Pack to a generic carton</span>: During pack station processing, the operator can change the carton type to a generic carton type. This allows the operator to process the inventory for the carton or box without packing it to a shipping container. When the operator scans the next item from the picking container, the generic carton type is displayed. For example, if a quantity of 6 was picked as a case instead of individual eaches, the packing operator can process this pick as a generic carton instead of over-packing it to another carton. </p>
+                                                                <p>During processing, if dimensions were not pre-defined for the generic carton type, a window is displayed for the operator to enter its dimensions. If they were pre-defined, the operator can choose to edit the dimensions.</p>
+                                                            </li>
+                                                            <li><span class="specialbold">Pack to a pallet type carton</span>: During pack station processing, the operator can change the carton type to a pallet type carton. This allows the operator to process picked inventory directly to a pallet without packing it to another carton. After packing to the pallet, the operator can edit the dimensions and enter the actual number of cartons that were placed on the pallet. The application does not allow the operator to complete the shipping container without entering a value for height. If the operator selects a pallet type carton, the operator cannot select a different carton type as the shipping container without cancel the picking container and starting over. </li>
+                                                        </ul>
+                                                        <h2 id="Weightcaptureduringpacking" data-magellan-target="Weightcaptureduringpacking"><a name="Weight_capture_during_packing"></a>Weight capture during packing</h2>
+                                                        <p>There are two options for obtaining the weight of a packed shipping container or pallet: estimated weight and actual weight. </p>
+                                                        <ul>
+                                                            <li>Estimated weight is a displayed value provided by the application. It represents the weight of the packed inventory (based on item footprint configurations) and the weight of the empty carton type. The value of this field is display only, and is incremented as inventory is packed.</li>
+                                                            <li>Actual weight is calculated by a scale that is integrated (through a network connection) to the pack station workstation. Weight capture can be configured to take place automatically when a shipping container is closed, or when an operator initiates the capture by clicking <span class="specialbold">Capture Weight</span>. If a scale is not integrated, the operator can enter a value for actual weight manually. </li>
+                                                        </ul>
+                                                        <p>If automatic weight capture is enabled, then the following processes take place:</p>
+                                                        <ul>
+                                                            <li>If no scale is integrated with the workstation, then a message is displayed when the operator starts the pack station functionality indicating that the scale is not connected.</li>
+                                                            <li>If the weight cannot be captured from the scale or the scale returns a reading of zero, then an error is displayed and the operator is not allowed to complete the shipping container.</li>
+                                                        </ul>
+                                                        <p>If automatic weight capture is not enabled, then one of the following processes takes place:</p>
+                                                        <ul>
+                                                            <li>If the operator is not required to capture weight, the estimated weight is used and a value for actual weight is not required.</li>
+                                                            <li>If the actual weight is zero and the operator is required to capture weight, then the operator must enter a value in the <span class="specialbold">Actual Weight</span> field. If weight capture is required and the <span class="specialbold">Actual Weight </span>field is left blank, then an error is displayed and the operator is not allowed to complete the shipping container until a value is provided.</li>
+                                                        </ul>
+                                                        <p>If the actual weight is different from the estimated weight, and the discrepancy exceeds the tolerance limits (minimum and maximum percentage allowed), then an error is displayed. If the application is configured to prevent closing a shipping container when tolerance limits are exceeded, then the operator is not allowed to complete the shipping container.</p>
+                                                        <p>A shipping container that cannot be closed due to a weight error must be sent to an exception operator for processing. The Weight Discrepancy reason code is provided for this type of exception. </p>
+                                                        <h2 id="Serialnumbercaptureduringpacking" data-magellan-target="Serialnumbercaptureduringpacking"><a name="Serial_number_capture_during_packing"></a>Serial number capture during packing</h2>
+                                                        <p>As inventory is moved in and around a warehouse, specific items may be marked with serial numbers that need to be tracked in the warehouse. </p>
+                                                        <p>If an item is configured with a serialization type, the serialization type determines when serial number capture and validation takes place. </p>
+                                                        <ul>
+                                                            <li>For the Cradle to Grave serialization type, serial numbers are captured during receiving and anytime the inventory quantity is changed. Serial numbers are validated for every partial move or transfer, and during packing. </li>
+                                                            <li>For the Outbound Capture Only serialization type, serial numbers are captured during outbound processes, after picking, while confirming a paper pick, and after packing. For items with this configuration, serial numbers are validated during packing.</li>
+                                                            <li>For the Outbound Capture Only serialization type, an additional configuration dictates that serial number capture is delayed until packing. For items with this configuration, serial numbers are captured during packing. </li>
+                                                        </ul>
+                                                        <p>Serial number capture or validation (depending on the serialization type) can take place at the pack station for items that are configured for serialization at the Detail LPN level. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: For serial numbers to be validated during packing, Serial Number must be configured as a processing field. See <a href="items_page.htm#Processing_fields">Processing fields</a>.</p>
+                                                        <p>When serial-tracked inventory is processed at the pack station, the application displays the serial numbers (by serial number type) that have been captured for the inventory. If capture needs to take place during packing for an item, then the application displays the serial number types for that item for which serial numbers must be recorded.</p>
+                                                        <p>The following processes take place during packing to support serial number capture after the operator scans the initial identifier (picking container or location):</p>
+                                                        <ul>
+                                                            <li>Items that require a serial number are tagged as "Serialized".</li>
+                                                            <li>If the operator scans an item that requires one or more serial numbers, or selects a serialized item in the grid, the serial number type fields are displayed for entering the serial numbers.</li>
+                                                            <li>
+                                                                <p>If the quantity of the item is greater than 1, the <span class="specialbold">Enter a range</span> link is displayed. The operator can enter serial numbers one by one, or click on the link and enter the start and end serial range values in the <span class="specialbold">Start </span>and <span class="specialbold">End </span>fields.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Depending on configuration, you may not be allowed to capture multiple (or a range) of serial numbers for an item quantity greater than 1. Instead, each item must be scanned and captured, as it is done for a quantity of 1.</p>
+                                                            </li>
+                                                            <li>If the operator selects multiple serialized items in the grid, the <span class="specialbold">Process </span>button is not available because the operator must enter serial numbers for each different item individually.</li>
+                                                            <li>If the operator unpacks a serialized item from the shipping container, the operator is prompted to enter the serial number of the item. If the operator unpacks the entire quantity of a serialized item, the operator is not prompted for serial numbers because they have all been unpacked.</li>
+                                                        </ul>
+                                                        <p>The application does not allow operators to enter a duplicate serial number for the same serial number type.</p>
+                                                        <h2 id="Orderlinesandsublinesduringpacking" data-magellan-target="Orderlinesandsublinesduringpacking"><a name="Order_lines_and_sub-lines_during_packing"></a>Order lines and sub-lines during packing</h2>
+                                                        <p>An order line is a quantity of an item specified on an order. A sub-line is a quantity of a different item (also specified on the order) that is required to be shipped with an order line. For example, an order line quantity may be for 1 camera, and a sub-line quantity may be for 1 user manual. One user manual must be shipped with each camera. An order line may have one or more sub-lines, or no sub-lines.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: This is feature is only supported when the sub-line number for the main item on the order line is 0 (zero), which is the default value. However, if it is configured to be any other value, the application will consider it a sub-line and not the main item.</p>
+                                                        <p>If the application is configured to automatically pack sub-lines with order lines, then the following processes take place:</p>
+                                                        <ul>
+                                                            <li>When the packing operator scans or selects a line item to pack, then its sub-lines are automatically processed along with the line item. </li>
+                                                            <li>When the operator scans or selects a sub-line item to pack, then its related line item and sub-lines are automatically processed along with the sub-line item. </li>
+                                                            <li>When the operator scans or selects a partial quantity of a line item or sub-line item to pack, then a proportionate quantity of its line and sub-line items are also automatically selected and processed along with it. If a proportionate quantity cannot be packed, an error is displayed and the partial quantity is not allowed to be packed. For example, if a line item for 2 cameras has a sub-line for 2 user manuals and 6 battery packs, the operator is not allowed to pack 2 battery packs because 3 battery packs are required for each camera.</li>
+                                                            <li>If any sub-line item is serialized, the sub-line is not automatically packed even if auto-packing is enabled.</li>
+                                                            <li>If an order line item is bonded inventory and its sub-lines are duty free, the sub-lines are packed together with the bonded line item.</li>
+                                                            <li>If the operator unpacks a main item, all of its sub-line items are unpacked as well.</li>
+                                                            <li>Sub-lines are displayed in a different color than the main item for enhanced visibility to the operator.</li>
+                                                        </ul>
+                                                        <p>If the application is not configured to automatically pack sub-lines with order lines, then the operator is required to select or scan each line item and sub-line item to pack it.</p>
+                                                        <h2 id="Mixingrestrictionsduringpacking" data-magellan-target="Mixingrestrictionsduringpacking"><a name="Mixing_restrictions_during_packing"></a>Mixing restrictions during packing</h2>
+                                                        <p>Mixing restrictions prevent processing mixed inventory (based on selected attributes) to the same shipping container. Mixing restrictions for packing can be defined for a warehouse or, for a 3PL environment, by client. </p>
+                                                        <p>During pack station processing, the application supports the separation of inventory that should not be mixed. It validates the inventory prior to packing and creates additional shipping containers as needed so that inventory that should not be mixed can be packed to separate containers. It also prevents closing a shipping container that has been packed with mixed inventory that violates restrictions.</p>
+                                                        <p>For example, if the item family attribute is defined as a mixing restriction, then during pack station processing, the application validates the inventory's item family. If multiple item families are included in the same shipment, the application creates additional shipping containers for packing each item family in a separate container. </p>
+                                                        <h2 id="Bondedinventoryduringpacking" data-magellan-target="Bondedinventoryduringpacking"><a name="Bonded_inventory_during_packing"></a>Bonded inventory during packing</h2>
+                                                        <p>Bonded inventory is inventory for which customs and excise duties are required. In a bonded warehouse (one that is integrated with a duty management application), the application tracks and processes bonded inventory so that it can be properly assessed for payment of required duties, taxes, and other charges.</p>
+                                                        <p>For outbound processing, the application uses customs order types to determine whether fees and taxes must be paid when bonded inventory is shipped. The customs order type can be configured to allow or disallow mixing of bonded and duty free inventory in the same shipping container.</p>
+                                                        <p>During pack station processing, when mixing bonded and duty-free inventory is not allowed (based on the configuration of the custom order type), the application creates additional shipping containers as needed to ensure that bonded inventory is not packed in the same container as duty-free inventory. When packing bonded inventory, a tag is displayed under the shipping container indicating it is Under Bond. The tag is used to notify the operator that the shipping container is reserved for bonded inventory. The application directs packing bonded and duty-free inventory to separate shipping containers unless the customs order type is configured to allow mixing.  </p>
+                                                        <h2 id="Palletconsolidationafterpacking" data-magellan-target="Palletconsolidationafterpacking"><a name="Pallet_consolidation_after_packing"></a>Pallet consolidation after packing</h2>
+                                                        <p>The packing operator may be directed to consolidate complete, non-pallet shipping containers to a pallet in a location near the pack station. </p>
+                                                        <p>The application supports the following pallet building operations for packed shipping containers:</p>
+                                                        <ul>
+                                                            <li>
+                                                                <p>When a workstation is enabled for consolidation and the next move for a completed shipping container is the pack station's consolidation zone, the application directs the operator to move the completed shipping container to a designated pallet LPN. </p>
+                                                                <p>Location reservation criteria (such as by load or by stop) determines the location (in the consolidation zone) to which the shipping container is directed. </p>
+                                                                <p>Pallet building consolidation rules determine the pallet to which inventory can be consolidated.</p>
+                                                                <ul>
+                                                                    <li>If a pallet with matching inventory exists, the operator can still override the deposit to another pallet with matching inventory. </li>
+                                                                    <li>If the consolidation location does not contain a pallet or the pallet in the location is full, the operator can create a new pallet, and if required, define its handling unit type. </li>
+                                                                </ul>
+                                                            </li>
+                                                            <li>When a workstation is not enabled for consolidation, the operator deposits completed shipping containers to the processing destination zone. If the shipping container's next destination is a consolidation movement staging zone, another operator moves the container to the consolidation staging zone, and another operator consolidates the shipping container to an appropriate pallet LPN, as directed.</li>
+                                                        </ul>
+                                                        <h2 id="Packingerrors" data-magellan-target="Packingerrors"><a name="Packing_errors"></a>Packing errors</h2>
+                                                        <p>The application displays errors during pack station processing to alert the operator when conflicts occur with the inventory or identifiers that the operator is attempting to process.</p>
+                                                        <p>The following table describes the data entry errors that can take place, the process during which each error occurs, and the resulting effect on processing. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Error messages, other than statuses, are only displayed if the packing general settings are configured to allow it.</p>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" width="20%" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" width="30%" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Error</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Process</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Result </p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Invalid container ID</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Operator scans an identifier for an invalid picking container.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>The following actions occur:</p>
+                                                                        <ul>
+                                                                            <li>A message is displayed stating that the container ID is invalid. </li>
+                                                                            <li>The Identifier field is cleared so that the operator can scan the correct identifier.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Inventory is not required.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Operator scans an item that is not required for any of the shipping container associated with the picked inventory container. </p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>The following actions occur:</p>
+                                                                        <ul>
+                                                                            <li>A new row is added to grid view for the item with a status of INVALID.</li>
+                                                                            <li>Updating the quantity to 0 allows the operator to remove the line item from the grid.</li>
+                                                                            <li>If the operator attempts to complete the container, an error is logged. The operator must move the inventory (from shipping containers that were not completed) back to the picking container and direct the picking container to a special handling location.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Inventory is not required for the currently selected shipping container.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Operator scans an item that is not required for the current in-process shipping container, but is required for one of the other displayed shipping containers associated with the picked inventory container.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>The following actions occur:</p>
+                                                                        <ul>
+                                                                            <li>A message is displayed stating that the identified inventory is not for the current shipment.</li>
+                                                                            <li>The item attribute fields are cleared, preventing the operator from packing the item.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Quantity processed is greater than what is required.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Operator scans a quantity greater than the required quantity. </p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>The following actions occur:</p>
+                                                                        <ul>
+                                                                            <li>The status of the displayed line item is changed to OVERAGE. </li>
+                                                                            <li>Updating the quantity to 0 allows the operator to remove the line item from the grid.</li>
+                                                                        </ul>
+                                                                        <p>If the operator attempts to complete the container, an error is logged. The operator must move the inventory (from shipping containers that were not completed) back to the picking container and direct the picking container to a special handling location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="194" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Quantity processed is less than what is required.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Operator scans a quantity less than the required quantity.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>When the operator completes the shipping container, a confirmation message is displayed asking if there is any more inventory left in the picking container. </p>
+                                                                        <p>If the operator answers No, then an error is logged. The operator must move the inventory (from shipping containers that were not completed) back to the picking container and direct the picking container to a special handling location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Inventory replacement not allowed.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Operator attempts to process a similar item that is not identical to one required by the shipping container.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Inventory replacement (swapping) is not allowed if the inventory attributes, LPN level, or quantity of the sub-LPN does not match.</p>
+                                                                    </td>
+                                                                    <td width="192" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>The following actions occur:</p>
+                                                                        <ul>
+                                                                            <li>A message is displayed stating that the identified inventory is not for the current shipment.</li>
+                                                                            <li>The item attribute fields are cleared, preventing the operator from packing the item.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Duplicate number for the serial type.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Operator enters a serial number that has already been entered for the same serial number type.</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>The following actions occur:</p>
+                                                                        <ul>
+                                                                            <li>A message is displayed stating that the serial number is a duplicate for the serial number type.</li>
+                                                                            <li>The operator is prompted to enter a different serial number for the item.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Manifestatpackstation" data-magellan-target="Manifestatpackstation"><a name="Manifest_at_pack_station_overview"></a>Manifest at pack station</h2>
+                                                        <p>Manifesting parcels at a pack station occurs immediately after the packing operator completes a packed shipping container. When a shipping container is completed, depending on application configurations, the Manifesting page is displayed for the operator to manifest the parcel manually, or the application automatically manifests the parcel.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Manifesting functionality is only available when Warehouse Management is integrated with a parcel application through Parcel Handler.</p>
+                                                        <p>During manual manifesting at a pack station, after the packing operator completes packing the shipping containers, the Manifesting page is displayed with the shipping container ID&#160;populated in the <b>Identifier</b> field. The operator can perform manifesting operations such as rate shopping and, if allowed, carrier change. After a parcel is manifested, the Packing page is displayed for the operator to resume packing operations.</p>
+                                                        <div class="Note">
+                                                            <p><b class="NoteHeadingBold">Notes</b>:</p>
+                                                            <ul>
+                                                                <li>To enable manual manifesting at a pack station, set the <b>Manifest at Pack Station</b> field to Yes. See <a href="workstations.htm#Add_or_modify_a_workstation">Add or modify a workstation</a>.</li>
+                                                                <li>If the packing operator is not authorized to view the Manifesting page or if the selected container is a pallet carton type, then the Manifesting page is not displayed.</li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>During automatic manifesting at pack station, after the packing operator completes packing the shipping container, the Manifesting page is not displayed; instead, the application automatically manifests the parcel and generates a tracking number. </p>
+                                                        <div class="Note">
+                                                            <p><b class="NoteHeadingBold">Notes</b>:</p>
+                                                            <ul>
+                                                                <li>To enable automatic manifesting at a pack station, you must enable the Manifest Shipping Container outbound workflow and ensure it is configured to execute at the Pack Close Out exit point. The Manifest Shipping Container outbound workflow is associated with the Manifest Shipping Container master workflow (MNFST-SHP-CTN), which is configured with an instruction action to automatically manifest the completed package. See <a href="background_workflows.htm#Add_or_modify_a_background_workflow">Add or modify a background workflow</a>.</li>
+                                                                <li>
+                                                                    <p>If you enable the Manifest Shipping Container outbound workflow, then the <b>Manifest at Pack Station</b> field should be set to No for all workstations.</p>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

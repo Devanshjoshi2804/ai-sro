@@ -1,0 +1,129 @@
+{
+  "target": "customerTypes",
+  "phases": {
+    "create": [
+      "POST customerTypes -> 201",
+      "GET customerTypes -> 200"
+    ],
+    "edit": [
+      "PUT customerTypes/ZVN4 -> 200",
+      "GET customerTypes -> 200"
+    ],
+    "copy": [],
+    "delete": [
+      "DELETE customerTypes/ZVN4 -> 200"
+    ]
+  },
+  "linkSpan": {
+    "id": "ext-gen65808",
+    "cls": "rpux-link-grid-column-link",
+    "idx": 76
+  },
+  "editApplied": {
+    "longDescription": "ZV edited"
+  },
+  "editFormFound": true,
+  "copySelect": {
+    "gridId": "rpFilterableGrid-8706",
+    "idx": 76,
+    "selected": 1
+  },
+  "copyInvoke": {
+    "invoked": "doCopy",
+    "selected": 1
+  },
+  "copyOpensForm": false,
+  "deleteSelect": {
+    "gridId": "rpFilterableGrid-8706",
+    "idx": 76,
+    "selected": 1
+  },
+  "deleteInvoke": {
+    "invoked": "doDelete",
+    "selected": 1
+  },
+  "code": "ZVN4137",
+  "rowKey": "ZVN4",
+  "allCalls": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "clients",
+      "status": 200,
+      "body": null,
+      "response": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"addressId\":\"A000000156\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":true,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----/groups\",\"clientId\":\"----\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"----\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----\",\"warehouseId\":\"SG\"}]}"
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locations",
+      "status": 200,
+      "body": null,
+      "response": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"abcCode\":\"B\",\"aisle\":null,\"aislesCount\":null,\"allocateToEmptyDate\":\"2025-02-19T18:13:52.000+0000\",\"allocateToEmptySequence\":9999,\"areaCode\":\"SW-DCK-AMZ\",\"asset_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations/AMZN%2A%21SG/assets\",\"assignedItem\":null,\"assignment\":false,\"attribute1\":null,\"attribute2\":null,\"attribute3\":null,\"attribute4\":null,\"attribute5\":null,\"automove\":false,\"backfillAisle\":null,\"backfillLocation\":null,\"backfillLocationFlag\":\"0\",\"backfillVerificationCode\":null,\"backfillVoiceCheckDigit\":null,\"backfillVoiceCheckDigit2\":null,\"backfillVoiceCheckDigit3\":null,\"basePointId\":null,\"bay\":\"0\",\"beginLocation\":null,\"billingFlag\":false,\"borderPadding\":0.0,\"bottomLeftX\":0.0,\"bottomLeftY\":0.0,\"bottomRightX\":0.0,\"bottomRightY\":0.0,\"buildingId\":\"B1\",\"configuration_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations/AMZN%2A%21SG/configuration\",\"consignment\":null,\"countBack\":false,\"countDate\":null,\"countHistory_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations/AMZN%2A%21SG/countHistory\",\"countInProgessLocationDetail_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations/AMZN%2A%21SG/countInProgressDetails\",\"countInProgress\":false,\"countInProgressLocationDetail\":null,\"countPending\":null,\"countSequence\":null,\"countZoneCode\":null,\"countZoneDescription\":null,\"countZoneId\":null,\"countZones_uri\":null,\"crossDockFlag\":false,\"defaultMaximumCapacity\":999.0,\"destinationLocation\":null,\"deviceCode\":null,\"dockAccessCode\":null,\"doorsCount\":null,\"emergencyReplenishmentPercent\":null,\"endLocation\":null,\"errorMessage\":null,\"escalationThreshold\":null,\"escalationType\":null,\"fixErrors_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations/AMZN%2A%21SG/fixErrors\",\"fourWallInventoryFlag\":true,\"generatedLocationStatus\":null,\"hierarchyLevel1\":null,\"hierarchyLevel2\":null,\"hierarchyLevel3\":null,\"hierarchyLevel4\":null,\"hierarchyLevel5\":null,\"hierarchyLevel6\":null,\"hierarchyLevel7\":null,\"history_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations/AMZN%2A%21SG/history\",\"itemClientId\":null,\"item_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations/AMZN%2A%21SG/locationItems\",\"labelPrinterAddress\":null,\"lastActivityCode\":null,\"lastActivityDateTime\":\"2026-07-01T06:22:42.000+0000\",\"lastUser\":null,\"level\":null,\"levelTypeId\":null,\"locationAccess\":\"ALEQ\",\"locationAccessDescription\":\"All Equipment\",\"locationCode\":\"P\",\"locationCodeDescription\":\"Pallet\",\"locationHeight\":0.0,\"locationInventorySummary_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations/AMZN%2A%21SG/inventorySummary\",\"locationLength\":0.0,\"locationLockCode\":null,\"locationStatus\":\"E\",\"locationStatusDescription\":\"Empty\",\"locationTypeCategory\":\"STAGING\",\"locationTypeCategoryDescription\":\"Staging\",\"locationTypeDescription\":\"Shipping Staging Lane\",\"locationTypeId\":10020,\"locationTypeName\":\"SSTG\",\"locationType_uri\":\"https://bf56-kms-w"
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "customerDistributionStagingLocations",
+      "status": 200,
+      "body": null,
+      "response": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[]}"
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "customerDistributionStorageRules",
+      "status": 200,
+      "body": null,
+      "response": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[]}"
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locations",
+      "status": 200,
+      "body": null,
+      "response": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[],\"first\":null,\"last\":null,\"limit\":null,\"next\":null,\"offset\":0,\"previous\":null,\"totalCount\":0}"
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "customerTypes",
+      "status": 201,
+      "body": "{\"customerType\":\"ZVN4\",\"freshnessDateCode\":\"\",\"minimumShelfLife\":0,\"inventoryStatusProgression\":\"\",\"shipLabel\":\"\",\"createShipmentBy\":\"\",\"carrierGroup\":\"\",\"manufacturerId\":\"\",\"departmentNumber\":\"\",\"inventoryRotationMethod\":\"\",\"requiredForTMSPlanning\":\"\",\"palletBuildingConsolidateBy\":\"\",\"fullSingleItemPalletEncoding\":\"\",\"mixedPartialPalletEncoding\":\"\",\"fullSingleItemCartonEncoding\":\"\",\"mixedPartialCartonEncoding\":\"\",\"URNFormat\":\"\",\"absoluteGroup\":\"\",\"earlyDeliveryThreshold\":0,\"lateDeliveryThreshold\":0,\"quantityOvershipLimit\":0,\"maxQuantityOvershipPercentage\":0,\"quantityUndershipLimit\":0,\"maxQuantityUndershipPercentage\":0,\"shipDateValidationTransitService\":\"\",\"allowSourceFacilityOverridesFlag\":false,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"undershippingRule\":\"\",\"overshippingRule\":\"\",\"shipmentModificationRuleCode\":\"\",\"allocationSearchPath\":\"\",\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"wrapped\":\"\",\"doubleWrapped\":\"\",\"label4Sides\":\"\",\"slipSheet\":\"\",\"loadAttribute5\":\"\",\"bulkPickingFlag\":false,\"longDescription\":\"ZV nonadd probe\",\"shotDescription\":\"\",\"reservationPriority\":\"\",\"crossDockFlag\":-1,\"dateControlledInvFlag\":false,\"displayedPalletBuildingConsolidateBy\":\"Inherit from transport mode\"}",
+      "response": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"URNFormat\":null,\"absoluteGroup\":null,\"allocationSearchPath\":null,\"allowSourceFacilityOverridesFlag\":null,\"bulkPickingFlag\":false,\"carrierGroup\":null,\"createShipmentBy\":null,\"crossDockFlag\":-1,\"customerType\":\"ZVN4\",\"departmentNumber\":null,\"doubleWrapped\":null,\"earlyDeliveryThreshold\":0,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"freshnessDateCode\":null,\"fullSingleItemCartonEncoding\":null,\"fullSingleItemPalletEncoding\":null,\"inventoryRotationMethod\":null,\"inventoryStatusProgression\":null,\"label4Sides\":null,\"lateDeliveryThreshold\":0,\"loadAttribute5\":null,\"longDescription\":\"ZV nonadd probe\",\"manufacturerId\":null,\"maxQuantityOvershipPercentage\":0,\"maxQuantityUndershipPercentage\":0,\"minimumShelfLife\":0,\"mixedPartialCartonEncoding\":null,\"mixedPartialPalletEncoding\":null,\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"overshippingRule\":null,\"palletBuildingConsolidateBy\":null,\"quantityOvershipLimit\":0.0,\"quantityUndershipLimit\":0.0,\"requiredForTMSPlanning\":null,\"reservationPriority\":null,\"resourceId\":\"ZVN4\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/customerTypes/ZVN4\",\"shipDateValidationTransitService\":null,\"shipLabel\":null,\"shipmentModificationRuleCode\":null,\"shortDescription\":null,\"slipSheet\":null,\"undershippingRule\":null,\"version\":1,\"wrapped\":null}}"
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "customerTypes",
+      "status": 200,
+      "body": null,
+      "response": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"URNFormat\":null,\"absoluteGroup\":null,\"allocationSearchPath\":null,\"allowSourceFacilityOverridesFlag\":null,\"bulkPickingFlag\":false,\"carrierGroup\":null,\"createShipmentBy\":\"ordnum\",\"crossDockFlag\":-1,\"customerType\":\"ABSC\",\"departmentNumber\":null,\"doubleWrapped\":null,\"earlyDeliveryThreshold\":0,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"freshnessDateCode\":null,\"fullSingleItemCartonEncoding\":null,\"fullSingleItemPalletEncoding\":null,\"inventoryRotationMethod\":null,\"inventoryStatusProgression\":null,\"label4Sides\":null,\"lateDeliveryThreshold\":0,\"loadAttribute5\":null,\"longDescription\":\"ABSCO - PEETS\",\"manufacturerId\":null,\"maxQuantityOvershipPercentage\":0,\"maxQuantityUndershipPercentage\":0,\"minimumShelfLife\":0,\"mixedPartialCartonEncoding\":null,\"mixedPartialPalletEncoding\":null,\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"overshippingRule\":null,\"palletBuildingConsolidateBy\":null,\"quantityOvershipLimit\":0.0,\"quantityUndershipLimit\":0.0,\"requiredForTMSPlanning\":null,\"reservationPriority\":null,\"resourceId\":\"ABSC\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/customerTypes/ABSC\",\"shipDateValidationTransitService\":null,\"shipLabel\":null,\"shipmentModificationRuleCode\":null,\"shortDescription\":null,\"slipSheet\":null,\"undershippingRule\":null,\"version\":1,\"wrapped\":null},{\"URNFormat\":null,\"absoluteGroup\":null,\"allocationSearchPath\":null,\"allowSourceFacilityOverridesFlag\":null,\"bulkPickingFlag\":false,\"carrierGroup\":null,\"createShipmentBy\":null,\"crossDockFlag\":-1,\"customerType\":\"AFP9\",\"departmentNumber\":null,\"doubleWrapped\":null,\"earlyDeliveryThreshold\":0,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"freshnessDateCode\":null,\"fullSingleItemCartonEncoding\":null,\"fullSingleItemPalletEncoding\":null,\"inventoryRotationMethod\":null,\"inventoryStatusProgression\":null,\"label4Sides\":null,\"lateDeliveryThreshold\":0,\"loadAttribute5\":null,\"longDescription\":\"Amazon Fresh - PEVY9\",\"manufacturerId\":null,\"maxQuantityOvershipPercentage\":0,\"maxQuantityUndershipPercentage\":0,\"minimumShelfLife\":0,\"mixedPartialCartonEncoding\":null,\"mixedPartialPalletEncoding\":null,\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"overshippingRule\":null,\"palletBuildingConsolidateBy\":null,\"quantityOvershipLimit\":0.0,\"quantityUndershipLimit\":0.0,\"requiredForTMSPlanning\":null,\"reservationPriority\":null,\"resourceId\":\"AFP9\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/customerTypes/AFP9\",\"shipDateValidationTransitService\":null,\"shipLabel\":null,\"shipmentModificationRuleCode\":null,\"shortDescription\":null,\"slipSheet\":null,\"undershippingRule\":null,\"version\":1,\"wrapped\":null},{\"URNFormat\":null,\"absoluteGroup\":null,\"allocationSearchPath\":null,\"allowSourceFacilityOverridesFlag\":null,\"bulkPickingFlag\":false,\"carrierGroup\":null,\"createShipmentBy\":null,\"crossDockFlag\":-1,\"customerType\":\"AFPS\",\"departmentNumber\":null,\"doubleWrapped\":null,\"earlyDeliveryThreshold\":0,\"enforceEa"
+    },
+    {
+      "phase": "edit",
+      "method": "PUT",
+      "url": "customerTypes/ZVN4",
+      "status": 200,
+      "body": "{\"customerType\":\"ZVN4\",\"freshnessDateCode\":\"\",\"minimumShelfLife\":0,\"inventoryStatusProgression\":\"\",\"shipLabel\":\"\",\"createShipmentBy\":\"\",\"carrierGroup\":\"\",\"manufacturerId\":\"\",\"departmentNumber\":\"\",\"inventoryRotationMethod\":\"\",\"requiredForTMSPlanning\":\"\",\"palletBuildingConsolidateBy\":\"\",\"fullSingleItemPalletEncoding\":\"\",\"mixedPartialPalletEncoding\":\"\",\"fullSingleItemCartonEncoding\":\"\",\"mixedPartialCartonEncoding\":\"\",\"URNFormat\":\"\",\"absoluteGroup\":\"\",\"earlyDeliveryThreshold\":0,\"lateDeliveryThreshold\":0,\"quantityOvershipLimit\":0,\"maxQuantityOvershipPercentage\":0,\"quantityUndershipLimit\":0,\"maxQuantityUndershipPercentage\":0,\"shipDateValidationTransitService\":\"\",\"allowSourceFacilityOverridesFlag\":false,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"undershippingRule\":\"\",\"overshippingRule\":\"\",\"shipmentModificationRuleCode\":\"\",\"allocationSearchPath\":\"\",\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"wrapped\":\"\",\"doubleWrapped\":\"\",\"label4Sides\":\"\",\"slipSheet\":\"\",\"loadAttribute5\":\"\",\"bulkPickingFlag\":false,\"longDescription\":\"ZV edited\",\"shotDescription\":\"\",\"reservationPriority\":\"\",\"crossDockFlag\":-1,\"resourceId\":\"ZVN4\",\"dateControlledInvFlag\":false,\"displayedPalletBuildingConsolidateBy\":\"Inherit from transport mode\"}",
+      "response": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"URNFormat\":null,\"absoluteGroup\":null,\"allocationSearchPath\":null,\"allowSourceFacilityOverridesFlag\":null,\"bulkPickingFlag\":false,\"carrierGroup\":null,\"createShipmentBy\":null,\"crossDockFlag\":-1,\"customerType\":\"ZVN4\",\"departmentNumber\":null,\"doubleWrapped\":null,\"earlyDeliveryThreshold\":0,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"freshnessDateCode\":null,\"fullSingleItemCartonEncoding\":null,\"fullSingleItemPalletEncoding\":null,\"inventoryRotationMethod\":null,\"inventoryStatusProgression\":null,\"label4Sides\":null,\"lateDeliveryThreshold\":0,\"loadAttribute5\":null,\"longDescription\":\"ZV edited\",\"manufacturerId\":null,\"maxQuantityOvershipPercentage\":0,\"maxQuantityUndershipPercentage\":0,\"minimumShelfLife\":0,\"mixedPartialCartonEncoding\":null,\"mixedPartialPalletEncoding\":null,\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"overshippingRule\":null,\"palletBuildingConsolidateBy\":null,\"quantityOvershipLimit\":0.0,\"quantityUndershipLimit\":0.0,\"requiredForTMSPlanning\":null,\"reservationPriority\":null,\"resourceId\":\"ZVN4\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/customerTypes/ZVN4\",\"shipDateValidationTransitService\":null,\"shipLabel\":null,\"shipmentModificationRuleCode\":null,\"shortDescription\":null,\"slipSheet\":null,\"undershippingRule\":null,\"version\":1,\"wrapped\":null}}"
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "customerTypes",
+      "status": 200,
+      "body": null,
+      "response": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"URNFormat\":null,\"absoluteGroup\":null,\"allocationSearchPath\":null,\"allowSourceFacilityOverridesFlag\":null,\"bulkPickingFlag\":false,\"carrierGroup\":null,\"createShipmentBy\":\"ordnum\",\"crossDockFlag\":-1,\"customerType\":\"ABSC\",\"departmentNumber\":null,\"doubleWrapped\":null,\"earlyDeliveryThreshold\":0,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"freshnessDateCode\":null,\"fullSingleItemCartonEncoding\":null,\"fullSingleItemPalletEncoding\":null,\"inventoryRotationMethod\":null,\"inventoryStatusProgression\":null,\"label4Sides\":null,\"lateDeliveryThreshold\":0,\"loadAttribute5\":null,\"longDescription\":\"ABSCO - PEETS\",\"manufacturerId\":null,\"maxQuantityOvershipPercentage\":0,\"maxQuantityUndershipPercentage\":0,\"minimumShelfLife\":0,\"mixedPartialCartonEncoding\":null,\"mixedPartialPalletEncoding\":null,\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"overshippingRule\":null,\"palletBuildingConsolidateBy\":null,\"quantityOvershipLimit\":0.0,\"quantityUndershipLimit\":0.0,\"requiredForTMSPlanning\":null,\"reservationPriority\":null,\"resourceId\":\"ABSC\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/customerTypes/ABSC\",\"shipDateValidationTransitService\":null,\"shipLabel\":null,\"shipmentModificationRuleCode\":null,\"shortDescription\":null,\"slipSheet\":null,\"undershippingRule\":null,\"version\":1,\"wrapped\":null},{\"URNFormat\":null,\"absoluteGroup\":null,\"allocationSearchPath\":null,\"allowSourceFacilityOverridesFlag\":null,\"bulkPickingFlag\":false,\"carrierGroup\":null,\"createShipmentBy\":null,\"crossDockFlag\":-1,\"customerType\":\"AFP9\",\"departmentNumber\":null,\"doubleWrapped\":null,\"earlyDeliveryThreshold\":0,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"freshnessDateCode\":null,\"fullSingleItemCartonEncoding\":null,\"fullSingleItemPalletEncoding\":null,\"inventoryRotationMethod\":null,\"inventoryStatusProgression\":null,\"label4Sides\":null,\"lateDeliveryThreshold\":0,\"loadAttribute5\":null,\"longDescription\":\"Amazon Fresh - PEVY9\",\"manufacturerId\":null,\"maxQuantityOvershipPercentage\":0,\"maxQuantityUndershipPercentage\":0,\"minimumShelfLife\":0,\"mixedPartialCartonEncoding\":null,\"mixedPartialPalletEncoding\":null,\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"overshippingRule\":null,\"palletBuildingConsolidateBy\":null,\"quantityOvershipLimit\":0.0,\"quantityUndershipLimit\":0.0,\"requiredForTMSPlanning\":null,\"reservationPriority\":null,\"resourceId\":\"AFP9\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/customerTypes/AFP9\",\"shipDateValidationTransitService\":null,\"shipLabel\":null,\"shipmentModificationRuleCode\":null,\"shortDescription\":null,\"slipSheet\":null,\"undershippingRule\":null,\"version\":1,\"wrapped\":null},{\"URNFormat\":null,\"absoluteGroup\":null,\"allocationSearchPath\":null,\"allowSourceFacilityOverridesFlag\":null,\"bulkPickingFlag\":false,\"carrierGroup\":null,\"createShipmentBy\":null,\"crossDockFlag\":-1,\"customerType\":\"AFPS\",\"departmentNumber\":null,\"doubleWrapped\":null,\"earlyDeliveryThreshold\":0,\"enforceEa"
+    },
+    {
+      "phase": "delete",
+      "method": "DELETE",
+      "url": "customerTypes/ZVN4",
+      "status": 200,
+      "body": "{\"customerType\":\"ZVN4\",\"freshnessDateCode\":\"\",\"minimumShelfLife\":0,\"inventoryStatusProgression\":\"\",\"shipLabel\":\"\",\"createShipmentBy\":\"\",\"carrierGroup\":\"\",\"manufacturerId\":\"\",\"departmentNumber\":\"\",\"inventoryRotationMethod\":\"\",\"requiredForTMSPlanning\":\"\",\"palletBuildingConsolidateBy\":\"\",\"fullSingleItemPalletEncoding\":\"\",\"mixedPartialPalletEncoding\":\"\",\"fullSingleItemCartonEncoding\":\"\",\"mixedPartialCartonEncoding\":\"\",\"URNFormat\":\"\",\"absoluteGroup\":\"\",\"earlyDeliveryThreshold\":0,\"lateDeliveryThreshold\":0,\"quantityOvershipLimit\":0,\"maxQuantityOvershipPercentage\":0,\"quantityUndershipLimit\":0,\"maxQuantityUndershipPercentage\":0,\"shipDateValidationTransitService\":\"\",\"allowSourceFacilityOverridesFlag\":false,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"undershippingRule\":\"\",\"overshippingRule\":\"\",\"shipmentModificationRuleCode\":\"\",\"allocationSearchPath\":\"\",\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"wrapped\":\"\",\"doubleWrapped\":\"\",\"label4Sides\":\"\",\"slipSheet\":\"\",\"loadAttribute5\":\"\",\"bulkPickingFlag\":false,\"longDescription\":\"ZV edited\",\"shotDescription\":\"\",\"reservationPriority\":\"\",\"crossDockFlag\":-1,\"resourceId\":\"ZVN4\",\"dateControlledInvFlag\":false,\"displayedPalletBuildingConsolidateBy\":\"Inherit from transport mode\"}",
+      "response": "\"\""
+    }
+  ]
+}

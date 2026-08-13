@@ -1,0 +1,33 @@
+{
+  "spec": "customers",
+  "resource": "customers",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses",
+      "body": "{\"addressId\":\"\",\"hostExternalId\":\"\",\"addressName\":\"ZV Capture Addr\",\"addressLine1\":\"\",\"addressLine2\":\"\",\"addressLine3\":\"\",\"city\":\"\",\"state\":\"\",\"postalCode\":\"\",\"addressType\":\"CST\",\"clientId\":\"----\",\"countryName\":\"\",\"phoneNumber\":\"\",\"timeZone\":\"\",\"firstName\":\"\",\"lastName\":\"\",\"localeId\":\"\",\"customsSiteType\":\"\",\"globalLocationNumber\":\"\",\"customsTaxSite\":\"\",\"temporary\":false,\"residentialAddress\":false,\"receivingWebAddress\":\"\",\"contactName\":\"\",\"contactPhone\":\"\",\"attentionPhone\":\"\",\"faxNumber\":\"\",\"email\":\"\",\"contactTitle\":\"\",\"attentionName\":\"\",\"shippingPhone\":\"\",\"shippingWebAddress\":\"\",\"shippingContactName\":\"\",\"shippingContactPhone\":\"\",\"shippingAttentionPhone\":\"\",\"shippingFax\":\"\",\"shippingEmail\":\"\",\"shippingContactTitle\":\"\",\"shippingAttentionName\":\"\",\"honorific\":\"\",\"addressDistrict\":\"\",\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":\"\",\"region\":\"\",\"latitude\":\"\",\"longitude\":\"\"}"
+    },
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/customers",
+      "body": "{\"customerNumber\":\"ZVCU1\",\"clientId\":\"----\",\"addressId\":\"A000365886\",\"backOrderFlag\":false,\"partialFlag\":false,\"changeCarrierFlag\":false,\"splitFlag\":false,\"standardCaseFlag\":false,\"shipLabel\":\"\",\"createShipmentBy\":\"\",\"carrierGroup\":\"\",\"manufacturerId\":\"\",\"departmentNumber\":\"\",\"inventoryRotationMethod\":\"\",\"requiredForTMSPlanning\":\"\",\"trackShipmentsFlag\":false,\"palletBuildingConsolidateBy\":\"\",\"accountCheckDigit\":0,\"accountNumberLength\":0,\"fullSingleItemPalletEncoding\":\"\",\"mixedPartialPalletEncoding\":\"\",\"fullSingleItemCartonEncoding\":\"\",\"mixedPartialCartonEncoding\":\"\",\"URNFormat\":\"\",\"ASNSystem\":\"\",\"absoluteGroup\":\"\",\"enforceEarlyDeliveryRuleFlag\":false,\"earlyDeliveryThreshold\":false,\"enforceLateDeliveryRuleFlag\":false,\"lateDeliveryThreshold\":false,\"quantityOvershipLimit\":0,\"maxQuantityOvershipPercentage\":0,\"quantityUndershipLimit\":0,\"maxQuantityUndershipPercentage\":0,\"shipDateValidationTransitService\":\"\",\"allowSourceFacilityOverridesFlag\":false,\"undershippingRule\":\"\",\"overshippingRule\":\"\",\"shipmentModificationRuleCode\":\"\",\"customerType\":\"ABSC\",\"inventoryStatusProgression\":\"\",\"minimumShelfLife\":0,\"reservationPriority\":\"\",\"storeType\":\"\",\"storeGroup\":\"\",\"conceptCode\":\"\",\"systemDefaultRuleOverriddenFlag\":false,\"plannedWeightRequiredFlag\":false,\"plannedCubeQtyRequiredFlag\":false,\"plannedPalletQtyRequiredFlag\":false,\"plannedCaseQtyRequiredFlag\":false,\"plannedMiscQtyRequiredFlag\":false,\"plannedMisc2QtyRequiredFlag\":false,\"templateAddress\":\"\",\"allocationSearchPath\":\"\",\"singleItemPalletFlag\":false,\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"\",\"wrapped\":\"\",\"loadAttribute2\":\"\",\"loadAttribute3\":\"\",\"loadAttribute4\":\"\",\"loadAttribute5\":\"\",\"bulkPickingFlag\":false,\"addressName\":\"ZV Capture Addr\",\"firstName\":\"\",\"lastName\":\"\",\"addressLine1\":\"\",\"addressLine2\":\"\",\"countryName\":\"\",\"addressCity\":\"\",\"addressState\":\"\",\"postalCode\":\"\",\"crossDockFlag\":-1,\"workReleaseType\":\"\",\"freshnessDateCode\":\"\",\"dateControlledInvFlag\":false,\"shipLabelOnoffFlag\":false,\"lpnAttributesFlag\":true}"
+    }
+  ],
+  "reset": false,
+  "add": {
+    "id": "button-6179",
+    "count": 1
+  },
+  "applied": {
+    "customerNumber": "ZVCU1",
+    "addressName": "ZV Capture Addr",
+    "clientId": "----",
+    "customerType": "ABSC"
+  },
+  "invalid": [],
+  "save": {
+    "id": "button-6324",
+    "count": 1
+  },
+  "ok": true
+}

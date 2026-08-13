@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Packing" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Settings and Pack Station</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#SettingsandPackStation">Settings and Pack Station</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Processingfields">Processing fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventorymixingrestrictionsforpacking">Inventory mixing restrictions for packing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Cartonizationatthepackstation">Cartonization at the pack station</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Palletbuildingatthepackstationsetup">Pallet building at the pack station setup</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Packlocationreservation">Pack location reservation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurepackingsettings">Configure packing settings</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurepackstationprocessing">Configure pack station processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PackingSettingsfields">Packing Settings fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PackStationfields">Pack Station fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ProcessingFieldfields">Processing Field fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#WeightConfigurationOverridesfields">Weight Configuration Overrides fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="SettingsandPackStation" data-magellan-target="SettingsandPackStation"><a name="aanchor270"></a>
+                                                            <MadCap:concept term="WM" />Settings and Pack Station</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#SettingsandPackStation">Settings and Pack Station</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Processingfields">Processing fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventorymixingrestrictionsforpacking">Inventory mixing restrictions for packing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Cartonizationatthepackstation">Cartonization at the pack station</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Palletbuildingatthepackstationsetup">Pallet building at the pack station setup</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Packlocationreservation">Pack location reservation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurepackingsettings">Configure packing settings</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurepackstationprocessing">Configure pack station processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PackingSettingsfields">Packing Settings fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PackStationfields">Pack Station fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ProcessingFieldfields">Processing Field fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#WeightConfigurationOverridesfields">Weight Configuration Overrides fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Warehouses use pack stations to move picked inventory into shipping containers that can be directed to staging lanes for shipping.</p>
+                                                        <p>When you configure packing, you define the following attributes:</p>
+                                                        <ul>
+                                                            <li>General settings <ul><li>General settings for pack station processing</li><li>Sequence in which inventory is displayed to the operator. If an operator picks inventory for multiple shipping containers into a single picking container, and the user scans the picking container into the pack station, the user can view a list of inventory that belongs to each shipping carton. You can define the order in which inventory is displayed. For example, a break on value of carrier and the sequencing set to shipment ID would direct the user to pack based on carrier and the inventory would be displayed in shipment order to ensure shipments are packed together.</li><li>Movement zones that contain the locations in which pack station processing takes place.</li></ul></li>
+                                                            <li>Pack station processing<ul><li>Automatic cartonization. Automatic cartonization, which considers the inventory in a picking container and determines what shipping carton type the operator should use and how many will be needed.  The application then defaults to that shipping carton type automatically.</li><li>Sub-line packing that determines whether the application automatically packs sub-lines when an order line is processed. </li><li>Quantity configuration that determines what quantity will be processed when the operator scans a piece of inventory. If they set it to User Specified, the user can set a value that will be processed every time a user scans inventory. </li><li>Shipping container processing attributes</li><li>Processing attributes, including the zone to which completed shipping containers are deposited, the processing fields for which values must be captured during packing, whether multiple shipments can be packed at the same time, and whether packing is prevented until all inventory for shipment is deposited to the pack location </li><li>Packing mixing restrictions</li><li>Weight capture processing</li><li>Post packing movement path exceptions</li></ul></li>
+                                                        </ul>
+                                                        <h2 id="Processingfields" data-magellan-target="Processingfields"><a name="Processing_fields"></a>Processing fields</h2>
+                                                        <p>A processing field is an inventory attribute for which a value is required during pack station processing. When you configure pack station processing, you can select and configure each of the processing fields (such as Item) that you require to capture information about the picked inventory. </p>
+                                                        <p>For a 3PL environment, you can define an override by client to specify the set of attributes that the client requires. During packing, the application determines which client is associated with a shipping container, and prompts the operator to validate the attributes the client requires. If no client override is defined, the default attributes are used.</p>
+                                                        <p>You use the setting for <span class="specialbold">Auto Fill</span> to determine whether the application automatically populates the processing field with the expected value based on the contents of the picking container. The application does not populate the field until the operator enters the item attributes that identify which item is being packed; so, the field may not populate after the first scan.</p>
+                                                        <p>You use the setting for <span class="specialbold">Visible </span>to determine whether the processing field is displayed or hidden (not visible to the operator). </p>
+                                                        <p>The following scenarios explain how these settings can be used:</p>
+                                                        <ul>
+                                                            <li>To allow the operator to quickly pack inventory, set <span class="specialbold">Auto Fill</span> to Yes and set <span class="specialbold">Visible </span>to Yes. The expected value is populated in the displayed processing field.</li>
+                                                            <li>To require operators to enter each required attribute, for example, to verify that they are packing the correct item into the shipping container, set <span class="specialbold">Auto Fill</span> to No and set <span class="specialbold">Visible </span>to Yes. The operator must scan a value for each required processing field.</li>
+                                                            <li>If the value of the field needs to be captured, for example for a custom validation command, but the operator does not need to see the information, set <span class="specialbold">Auto Fill </span>to Yes and set <span class="specialbold">Visible </span>to No. The value of the processing field is automatically set to the value of the current in-process item but the field is not displayed on the screen.</li>
+                                                            <li>If the expected field value is not directly associated with the in-process inventory and the value must be set by a custom command, set <span class="specialbold">Auto Fill </span>to No and set <span class="specialbold">Visible </span>to No. The field is not displayed on the screen. Contact your Blue Yonder project team for more information on custom validation commands. This setting combination is also useful if the field value does not need to be validation but you do not want to remove the field from the screen.</li>
+                                                        </ul>
+                                                        <h2 id="Inventorymixingrestrictionsforpacking" data-magellan-target="Inventorymixingrestrictionsforpacking"><a name="Inventory_mixing_restrictions_for_packing"></a>Inventory mixing restrictions for packing</h2>
+                                                        <p>You can configure packing mixing restrictions to prevent processing mixed inventory (based on selected attributes) to the same shipping container. Mixing restrictions for packing can be defined for a warehouse or, for a 3PL environment, by client. </p>
+                                                        <p>During pack station processing, the application supports the separation of inventory that should not be mixed. It validates the inventory prior to packing and creates additional shipping containers as needed so that inventory that should not be mixed can be packed to separate containers. It also prevents closing a shipping container that has been packed with mixed inventory that violates restrictions.</p>
+                                                        <p>For example, if the item family attribute is defined as a mixing restriction, then during pack station processing, the application validates the inventory's item family. If multiple item families are included in the same shipment, the application creates additional shipping containers for packing each item family in a separate container. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If Customs is enabled for the warehouse, you can specify for a customs order type whether you allow mixing of bonded and duty-free inventory in the same shipping container. See <a href="outbound_customs.htm#Configure_outbound_customs">Configure outbound customs</a>.</p>
+                                                        <h2 id="Cartonizationatthepackstation" data-magellan-target="Cartonizationatthepackstation"><a name="Cartonization_at_the_pack_station"></a>Cartonization at the pack station</h2>
+                                                        <p>Cartonization at the pack station is an automatic cartonization process that determines which type of carton to use as the shipping container for picked inventory that has been deposited to a pack station. See <a href="pick_cartonization.htm#Automatic_cartonization">Automatic cartonization</a>.</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Shipping Cartonization</span>:  Shipping cartonization happens at pick release.  It looks at all of the inventory destined for a shipment (or whatever the break on value is) and groups the inventory together so when it arrives at the pack station the application knows what carton type to pack into and how many cartons it will need.  It also assigns a container ID to the inventory at pick release. This also allows the application to plan the shipment to be spread over multiple picking containers.</li>
+                                                            <li><span class="specialbold">Automatic cartonization</span>: Cartonization that takes place at the pack station. The application uses the inventory in a picking container to determine what size and how many shipping containers are needed. </li>
+                                                        </ul>
+                                                        <h2 id="Palletbuildingatthepackstationsetup" data-magellan-target="Palletbuildingatthepackstationsetup"><a name="Pallet_building_at_the_pack_station_setup"></a>Pallet building at the pack station setup</h2>
+                                                        <p>You must perform the following tasks to set up pallet building at the pack station:</p>
+                                                        <ol>
+                                                            <li value="1">Configure outbound pallet building. This process involves defining the locations, movement zones, movement paths, pallet positions, and pallet consolidation rules. See <a href="outbound_staging.htm#Outbound_pallet_building_setup">Outbound pallet building setup</a>.</li>
+                                                            <li value="2">Configure the packing workstations for consolidation. For each pack station at which you want to perform consolidation, enable consolidation and then select the movement zones to which shipping containers processed at the workstation can be consolidated. See <a href="workstations.htm#Add_or_modify_a_workstation">Add or modify a workstation</a>.</li>
+                                                            <li value="3">Configure shipping cartonization. To use pallet building at the pack station with cartonization enabled, the <span class="specialbold">Shipping Container LPN Level</span> field must be set to Sub-LPN. This ensures that when a non-pallet shipping container is consolidated to an LPN, the shipping container retains its identifier. If this field is set to LPN, then the container identifier is removed when the inventory is consolidated to the LPN. See <a href="cartonization.htm#Configure_shipping_cartonization">Configure shipping cartonization</a>.</li>
+                                                        </ol>
+                                                        <h2 id="Packlocationreservation" data-magellan-target="Packlocationreservation"><a name="Pack_location_reservation"></a>Pack location reservation</h2>
+                                                        <p>The location reservation process can be used to reserve a location for a shipment as soon as inventory for the shipment is deposited to the location. For example, when a pack location is reserved by shipment, then inventory for a different shipment is not directed to the location until the current inventory has been packed. </p>
+                                                        <p>The process for reserving pack locations by shipment requires adding pack locations to a movement zone, and then using the location reservation process to assign a resource type of Derived and an attribute of Shipment ID. See <a href="processing_location_reservation.htm">Processing Location Reservation</a>.</p>
+                                                        <p>For pack locations that are reserved by shipment, the following functionality is available:</p>
+                                                        <ul>
+                                                            <li>The application can be configured (by warehouse or client) to prevent packing until all inventory (to be packed) for a shipment has been deposited to the pack location. See <a href="#Configure_pack_station_processing">Configure pack station processing</a>.</li>
+                                                            <li>On the pack initiation page, the operator can view the shipment completion status for each location in the workstation's processing zone. The status indicates whether packing can begin. The operator can also view the picking containers in each location that is reserved by shipment.</li>
+                                                        </ul>
+                                                        <h2 id="Configurepackingsettings" data-magellan-target="Configurepackingsettings"><a name="Configure_packing_settings"></a>Configure packing settings</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Outbound &gt; Packing &gt; Packing Settings</span>.</li>
+                                                            <li value="2">Enter information in the <a href="#Packing_settings_fields">Packing Settings fields</a>.</li>
+                                                            <li value="3">To select how picks for multiple shipments are grouped and displayed to the operator:<ol><li value="1">Click <span class="specialbold">Sequence Multiple Shipments</span>.</li><li value="2">To select criteria from displayed entities:<ol><li value="1">If the advanced query<b> </b>is displayed, click <span class="specialbold">Simple</span>.</li><li value="2">If the available entities are not displayed, click <span class="specialbold">Show Available</span>.</li><li value="3">In the <span class="specialbold">Available </span>grid, select the entities that you want to use as criteria. </li><li value="4">Click <span class="specialbold">Add selected</span>. The entities are added to the <span class="specialbold">Selected </span>grid.</li><li value="5">To remove criteria, in the <span class="specialbold">Selected </span>grid, select the criteria to remove, and click <span class="specialbold">Remove selected</span>.</li><li value="6">To reorder the criteria, in the<span class="specialbold"> Selected </span>grid, click a row, and then click the up or down arrow to move the selected criteria. The application applies the criteria in sequential order according to how it is displayed in the grid.</li></ol></li><li value="3"><p>To enter criteria using database entities, click <span class="specialbold">Advanced</span>, and then enter the column and field name, using a period to separate the column and field. Multiple column and field entries must be separated by a comma and space.</p><p>You can use operators like IS NULL or IS NOT NULL to build an advanced query. For example, <span class="var">&lt;column name&gt;</span>.<span class="var">&lt;field name&gt;</span> IS NOT NULL, <span class="var">&lt;column name&gt;</span>.<span class="var">&lt; field name&gt;</span>.</p></li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="4">To select the movement zones in which packing is allowed:<ol><li value="1">Click <span class="specialbold">Packing Zones</span>.</li><li value="2">In the <b>Available </b>column, select the check box next to the zones used for packing.</li><li value="3">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="5">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Configurepackstationprocessing" data-magellan-target="Configurepackstationprocessing"><a name="Configure_pack_station_processing"></a>Configure pack station processing</h2>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Some actions on the Packing page may be configured with keyboard shortcuts. To view the configured shortcuts, in the page title bar, click <img src="resources/images/keyboardhelp_29x20.png" class="icon" alt="Keyboard Shortcuts" style="width: 29;height: 20;" />. </p>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Outbound &gt; Packing &gt; Pack Station</span>.</li>
+                                                            <li value="2">Enter information in the <a href="#Pack_Station_fields">Pack Station fields</a>.</li>
+                                                            <li value="3">To define the criteria used for automatic cartonization at a pack station:<ol><li value="1">Under <span class="specialbold">CARTONIZATION</span>, perform the following tasks:<ol><li value="1">To select the values and sequence in which to process a group of items for cartonization, click <span class="specialbold">Order-By</span>.</li><li value="2">To select the values and sequence that determine when a new shipping container is started, click <span class="specialbold">Break-On Values</span>.</li></ol></li><li value="2">To select criteria from displayed entities:<ol><li value="1">If the advanced query<b> </b>is displayed, click <span class="specialbold">Simple</span>.</li><li value="2">If the available entities are not displayed, click <span class="specialbold">Show Available</span>.</li><li value="3">In the <span class="specialbold">Available </span>grid, select the entities that you want to use as criteria. </li><li value="4">Click <span class="specialbold">Add selected</span>. The entities are added to the <span class="specialbold">Selected </span>grid.</li><li value="5">To remove criteria, in the <span class="specialbold">Selected </span>grid, select the criteria to remove, and click <span class="specialbold">Remove selected</span>.</li><li value="6">To reorder the criteria, in the<span class="specialbold"> Selected </span>grid, click a row, and then click the up or down arrow to move the selected criteria. The application applies the criteria in sequential order according to how it is displayed in the grid.</li></ol></li><li value="3"><p>To enter criteria using database entities, click <span class="specialbold">Advanced</span>, and then enter the column and field name, using a period to separate the column and field. Multiple column and field entries must be separated by a comma and space.</p><p>You can use operators like IS NULL or IS NOT NULL to build an advanced query. For example, <span class="var">&lt;column name&gt;</span>.<span class="var">&lt;field name&gt;</span> IS NOT NULL, <span class="var">&lt;column name&gt;</span>.<span class="var">&lt; field name&gt;</span>.</p></li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="4">
+                                                                <p>To select the clients that allow automatic packing of sub-lines:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: A sub-line is an item that must be shipped with the order line item (such as a user guide for a camera). The client configuration is only available in a 3PL environment and only if <span class="specialbold">Automatic Subline Packing</span> is set to Yes. Also, this feature is only supported when the sub-line number for the main item on the order line is 0 (zero), which is the default value. </p>
+                                                                <ol>
+                                                                    <li value="1">Under <span class="specialbold">SUBLINE PACKING,</span> click <span class="specialbold">Clients</span>.</li>
+                                                                    <li value="2">In the <span class="specialbold">Available Clients </span>column, select the check box next to the clients that allow automatic packing of sub-lines.</li>
+                                                                    <li value="3">Click <b>Save</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="5">To specify mixing restrictions for shipping containers:<ol><li value="1">Under <span class="specialbold">PROCESSING</span>, click <span class="specialbold">Packing Mixing Restrictions</span>. </li><li value="2">For a 3PL environment, perform one of the following tasks:<ul><li><p>To add a client configuration, click <b>Add</b>, and then from the <span class="specialbold">Client </span>drop-down list, select the client.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: To define warehouse default restrictions, from the <span class="specialbold">Client </span>drop-down list, select <span class="specialbold">Default</span>. Client-specific restrictions override the warehouse default restrictions.</p></li><li>To modify a client configuration, in the grid, click the client.</li><li>To copy a client configuration, in the grid, select the check box next to the client, click <span class="specialbold">Copy, </span>and then from the <span class="specialbold">Client </span>drop-down list, select the client.</li></ul></li><li value="3">In the <span class="specialbold">Attribute </span>column, select the check box next to the attributes for which different values are not allowed in the same shipping container.</li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="6">
+                                                                <p>To specify a print message for a client:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: For each client you can specify whether a message is displayed to the packing operator indicating that paperwork is printed. The message is displayed when the last shipping carton for a shipment is completed. You can also specify the content of the message.</p>
+                                                                <ol>
+                                                                    <li value="1">Under <span class="specialbold">PROCESSING</span>, click <span class="specialbold">Print Message Overrides</span>.</li>
+                                                                    <li value="2">In the grid, click the client to configure.</li>
+                                                                    <li value="3">To display a print message during packing operations:<ol><li value="1">Set the <span class="specialbold">Print Message</span> field to Yes. </li><li value="2">In the <span class="specialbold">Message</span> field, enter the text that is displayed to the packing operator when paperwork is printed for a completed shipment. </li><li value="3">Click <b>Apply</b>.</li></ol></li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="7">To define the fields that are used to process an item at the pack station:<ol><li value="1">Under <span class="specialbold">PROCESSING</span>, click <span class="specialbold">Capture Fields During Packing</span>.</li><li value="2">Perform one of the following tasks:<ul><li>To add a field, click <b>Add</b>. </li><li>To modify a field, in the grid, click the field.</li><li>To copy a field, in the grid, select the check box next to the field, and then click <b>Copy</b>.</li></ul></li><li value="3"><p>Enter information in the <a href="#Processing_Field_fields">Processing Field fields</a>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: If you select the Custom field, you must also enter the command in the <span class="specialbold">Custom Field Parse Command</span> field.</p></li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="8">
+                                                                <p>For a 3PL environment, to select the clients that want to prevent packing until all inventory for a shipment has arrived at the pack location:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: This configuration only takes effect in pack locations that are reserved by shipment, and does not apply to inventory (for the shipment) that is not processed at a pack station.</p>
+                                                                <ol>
+                                                                    <li value="1">Under <span class="specialbold">PROCESSING</span>, click<span class="specialbold"> Prevent Packing Until Inventory Arrival</span> <b>Configuration Overrides</b>.</li>
+                                                                    <li value="2">In the <b>Available </b>column, select the check box next to the clients that apply.</li>
+                                                                    <li value="3">Click <b>Apply</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="9">For a 3PL environment, to select the clients that require packing operators to enter (or scan) both the item and serial number for each serialized item during packing: <ol><li value="1">Under <span class="specialbold">PROCESSING</span>, click<span class="specialbold"> Capture Serialized Inventory</span>.</li><li value="2">In the <b>Available </b>column, select the check box next to the clients that apply.</li><li value="3">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="10">For a 3PL environment, to configure weight capture and weight tolerance by client:<ol><li value="1">Under <span class="specialbold">WEIGHT</span>, click <span class="specialbold">Weight Configuration Overrides</span>.</li><li value="2">Perform one of the following tasks:<ul><li>To add a client configuration, click <b>Add</b>.</li><li>To modify a client configuration, in the grid, click the client.</li><li>To copy a client configuration, in the grid, select the check box next to the client, and then click <b>Copy</b>.</li></ul></li><li value="3">Enter information in the <a href="#Weight_Configuration_Overrides_fields">Weight Configuration Overrides fields</a>.</li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="11">
+                                                                <p>To define the movement path hop zones that should be skipped after packing based on the carton type that is processed:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: This configuration is only available if <span class="specialbold">Skip Movement Hops</span> is set to Yes.</p>
+                                                                <ol>
+                                                                    <li value="1">Under <span class="specialbold">POST PACKING </span><span class="specialbold">MOVEMENT PATH EXCEPTIONS</span>, click <span class="specialbold">Movement Hops to Skip</span>.</li>
+                                                                    <li value="2">Perform one of the following tasks:<ul><li>To define the hops to skip when pallet type cartons are processed, above the grid, select <span class="specialbold">Pallets</span>.</li><li>To define the hops to skip when regular cartons are processed, above the grid, select <span class="specialbold">Cartons</span>.</li></ul></li>
+                                                                    <li value="3">Under <span class="specialbold">Available Zones</span>, select the check box next to the hop zones that should be skipped in the movement path after packing is complete.</li>
+                                                                    <li value="4">Click <b>Apply</b>. </li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="12">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="PackingSettingsfields" data-magellan-target="PackingSettingsfields"><a name="Packing_settings_fields"></a>Packing Settings fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Close Carton</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, when the final item from the picking container is confirmed as being packed into a shipping container, the application automatically closes the container and returns the operator to the pack initiation screen. The application determines when a shipping container is completely packed. Select Yes to eliminate the step that requires the operator to close the container.</p>
+                                                                        <p>If No, the packing operator must close the shipping container by clicking the Complete button. In this scenario, the packing operator determines when the shipping container is completely packed. This is useful when you want the packing operator record any potential overages.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Single Carton</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the packing operator is directed to pack all inventory for a single shipment into one shipping container. This is useful if you want to ensure all of the inventory for a single customer is packed into one container. </p>
+                                                                        <p>If No, the packing operator can pack the inventory for a single shipment into one or more shipping containers.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Default Scan Levels</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Determines the identifier that the operator can enter (scan) to initiate pack station processing during packing. The initiation scan types defined for a specific workstation override the <span class="specialbold">Default Scan Levels</span>. See <a href="workstations.htm">Workstations</a>.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If the operator scans an identifier that is not enabled, the application displays a message stating that the device is not configured to scan this type of inventory identifier.</p>
+                                                                        <ul>
+                                                                            <li>
+                                                                                <p><span class="specialbold">Location</span>: The operator can enter the location that contains the picked inventory that needs to be packed into a shipping container.</p>
+                                                                                <p>You might want to scan locations if you have small shelf locations set up at the pack station, if pickers deposit inventory into one side of a shelf location, and if the packing operator scans the shelf location ID while moving the inventory from the other side of the shelf location to the shipping container. This value is required if operators are using the Park Area Operations to pack the container.</p>
+                                                                            </li>
+                                                                            <li><span class="specialbold">LPN</span>: The operator can enter the LPN (such as a pallet LPN) that contains the picked inventory that needs to be packed into a shipping container. </li>
+                                                                            <li><span class="specialbold">Sub-LPN</span>: The operator can enter the sub-LPN (such as for a case on a pallet or a tote on a cart) that contains the picked inventory that needs to be packed into a shipping container.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Special Handling Location</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Location to which picked inventory containers are directed when errors (such as missing inventory, unexpected inventory or the wrong quantity of inventory) are encountered during pack station processing. The location appears as the default special handling location during pack station operations but can be changed by the packing operator to select a different special handling location. If a special handling location is defined for a specific workstation, then when packing is performed on that workstation and an error occurs, the picked inventory is directed to the special handling location defined for the workstation, not the location defined in this field. See <a href="workstations.htm">Workstations</a>.</p>
+                                                                        <p>However, if you use the same special handling location to correct errors, you can set one location as the default. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Display Error Messages</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, when the expected value does not match the entered value, the application displays a message. If the operator does not re-enter the correct value, then the error handling process is used. </p>
+                                                                        <p>If No, the application does not display an error message. However, the error is still visible to the operator in the Status column. This is useful if error correction is handled as a separate step at a special handling location. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">Refresh Timer</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                        <p>Time duration, in seconds, that indicates how often the application updates the status of the locations on the Pack Area Operations window. The Pack Area Operations window displays the status of each of the packing station locations in which pack area operations can be performed. When the timer expires, the application refreshes the status of the displayed locations, for example, by updating a location from a status of Packing in Progress to Complete.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="PackStationfields" data-magellan-target="PackStationfields"><a name="Pack_Station_fields"></a>Pack Station fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Automatic Cartonization</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application uses the inventory in a picking container to determine what size and how many shipping containers are needed.</p>
+                                                                        <p>If No, the operator performs cartonization without any planning or guidance from the application.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Break-On</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, a packing operator cannot pack an item into a shipping container if doing so violates the separation of items based on the defined break-on values. For example, if the break-on value is Shipment, the application does not permit the operator to pack an item into a container that contains items for a different shipment. </p>
+                                                                        <p>If No, a packing operators can pack items into a single shipping container regardless of the break-on values.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Automatic Subline Packing</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then during pack station processing, if an order line has sub-lines, then a line and its sub-lines are automatically packed together. For example, if an order line for 2 cameras has two sub-lines, one for 2 user manuals, and one for 6 battery packs, then if the packing operator scans any of the items for packing, the rest of the items are selected. During sub-line packing, the application maintains the ratio of quantities required for the main item. Using the example, if the operator selects 3 battery packs, then the application automatically selects 1 camera and 1 user manual. </p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>:</p>
+                                                                            <ul>
+                                                                                <li>If the item on an order line is bonded, then its sub-lines are considered bonded as well and are packed together with it.
+                </li>
+                                                                                <li>This is feature is only supported when the sub-line number for the main item on the order line is 0 (zero), which is the default value.
+                </li>
+                                                                            </ul>
+                                                                        </div>
+                                                                        <p>If No, then during pack station processing, order lines and sub-lines are not automatically packed together when one of the items is selected.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If you select No (or in a 3PL environment, if you select Yes but do not include all clients), then at least one of the defined processing fields in the pack station configuration must have the <span class="specialbold">Use for Identification</span> field set to Yes. This enables the operator to manually select and scan the items to pack when auto packing is disabled. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Quantity Default</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Determines the value (quantity) that is processed by default when the operator scans a piece of inventory. The operator is not allowed to override these values unless the <span class="specialbold">Override Quantity</span> field is set to Yes.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">User Specified</span>: The <span class="specialbold">Value </span>field becomes available so that you can specify the default value that will be processed every time a user scan inventory. This can reduce the number of keystrokes required if the value is always (or almost always) the same, such as 1.</li>
+                                                                            <li><span class="specialbold">Unit Quantity</span>: The quantity in individual units of each unique group of items. Items with the same item number can be separated into unique groups based on several attributes, such as lot, origin, and serial number. This option is useful when you want the packing operator to verify the inventory attributes while packing the shipping container. For example, there is a total of 5 units of ITEM01 in the picking container; 2 units are lot A and 3 units are lot B. If the packing operator scans an ITEM01 with lot B, the Quantity field defaults to 3 units. If the pack station operator scans ITEM01 with lot A, the UOM Quantity field defaults to 2 units. This lets the packing operator verify the quantity of each lot.</li>
+                                                                            <li><span class="specialbold">Pick Quantity</span>: The value processed is whatever the pick quantity was when an item was scanned.  So for example, if the operator has 5 of item PEN in the picking container, when the operator scans one of the item PEN the application will automatically process all 5.  Then it is up to the operator to find the other 4 and put them all in the shipping container at once. This is useful if you want to require less operator interaction to speed up the packing process. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Value</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Number displayed by default in the <b>Quantity</b> field when a packing operator is packing items into shipping containers. Only available when <span class="specialbold">User Specified</span> is selected in the <span class="specialbold">Quantity Default </span>field.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Override Quantity</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, a packing operator can click the Update Quantity button during packing operations to enter a quantity and unit of measure different from the displayed default value of the item that is being packed into a shipping container.</p>
+                                                                        <p>If No, the operator is not allowed to override the default value for the item being packed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Auto Process on Change</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, picked inventory is automatically moved to the ready-to-process state when a shipping container is selected. This is useful if you want to reduce the number of clicks the operator is required to perform during pack station operations.</p>
+                                                                        <p>If No, the packing operator must click Process to move the inventory to the shipping container.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Parse Carton Type</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application populates the Carton Type field when the packing operator enters a shipping container ID. The value for the carton type is parsed from the shipping container ID using the command specified in the <span class="specialbold">Parse Command</span> field.</p>
+                                                                        <p>If No, the operator must select a carton type for the shipping container.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p>Parse Command</p>
+                                                                        <p style="font-weight: bold;">&#160;</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Command used to parse a carton type from the shipping container ID that is entered during packing. The resulting carton type is displayed in the Type field. This sample command is provided: <span class="specialbold">Parse Carton Code for Carton Number</span>. It includes instructions and an example of how to write a command that would parse a carton type from a bar code. You or your project team can use the instructions as a starting point in determining how to code the input (information the command needs to run) and output (error messages and other data that results from running the command). For more information, contact your Blue Yonder project team.</p>
+                                                                        <p>Only available when the <span class="specialbold">Parse Carton Type</span> field is set to Yes.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Processing Destination Zone</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Movement zone to which a completed packed shipping container is to be deposited. A completed packed shipping container is automatically moved to the zone. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Custom Field Parse Command</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Name of the command that processes the value entered into the Custom field, if it has been configured to be used during packing operations. </p>
+                                                                        <p>If the Custom field has been selected to be captured during packing, you must enter the command used to parse information from the value that is entered into the Custom field. The command can be used, for example, to parse information from a bar code scan (such as item number, expiration date, and lot number) to populate other processing fields. </p>
+                                                                        <p>The following sample command is provided: <span class="specialbold">Parse Packout Custom Field</span>. It includes instructions and an example of how to write a command that would parse multiple fields from a bar code. You or your project team can use the instructions as a starting point in determining how to process the input (information the command needs to run) and output (error messages and other data that results from running the command). For more information, contact your Blue Yonder project team. Only used if a Custom processing field value is selected to be captured during packing.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pack Multiple Shipments Simultaneously</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, packing operators can pack containers for multiple shipments at the same time. This functionality is typically used for high-volume pack stations, such as those fulfilling multiple shipments for online orders. During this process, the operator can scan any piece of inventory at the pack station and the application directs the operator to pack the inventory in the appropriate shipping container; this functionality retains the original inventory-to-shipment assignment that is determined during picking.</p>
+                                                                        <p>Select Yes, for example, if your warehouse processes a high volume of e-commerce orders where multiple eaches of different items are picked to different slots on a master handling unit. In this scenario, an operator can scan the master handling unit and also a specific slot number to uniquely identify the inventory. The operator is not required to locate a specific piece of inventory and can scan any inventory from the slot. The application then directs the operator to the correct shipping container based on the inventory that was scanned.  </p>
+                                                                        <p>If No, packing operators can only pack inventory for a single shipment, but the application uses dynamic pairing functionality to pair scanned inventory with the shipping container that is being packed, regardless of whether the inventory was originally assigned to that shipment. </p>
+                                                                        <p>For example, assume two eaches of the same item are picked for two different shipments. If the packing operator scans the inventory assigned to the shipment that is not currently being packed, the application verifies that the inventory does not violate any order line restrictions for the current shipment. If it does not, the application swaps the inventory and allows the operator to pack the inventory for the current shipment. If the scanned inventory violates any order line attributes, an error is displayed and the operator must locate the correct inventory.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Generally, the most common break-on value for packing containers is Shipment; however, this configuration applies to any defined break-on value. For example, if the break-on value was Customer, then with this configuration set to Yes, packing operators could pack shipping containers for multiple customers at the same time. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Prevent Packing Until Inventory Arrival</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, an operator is not allowed to start packing until all of the inventory for a shipment has been deposited to the pack location. This setting only takes effect for pack locations that are reserved by shipment. That is, the pack location belongs to a movement zone that has a resource type of Derived and an attribute of Shipment ID. See <a href="processing_location_reservation.htm">Processing Location Reservation</a>.</p>
+                                                                        <p>Select Yes if you want the application to prevent the operator from starting to pack a shipment before all of the inventory for the shipment has arrived at the pack location, not including inventory that is not destined for a pack location. If set to Yes, the pack initiation page displays a status for each location in the workstation's processing zone that is reserved by shipment. The status indicates whether packing can begin, and the grid provides visibility to the picking containers in the location.</p>
+                                                                        <p>If No, the application allows the operator to start packing even if all of the inventory for a shipment has not arrived.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Print Message</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application displays a message when paperwork is printed during pack station processing when a shipment is completed. Select Yes if you want a message to be displayed to the packing operator indicating that the paperwork has been printed. If you select Yes, then in the <span class="specialbold">Message</span> field, enter the message that you want to be displayed to the packing operator.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: A background workflow can be configured to print a packing slip report when the last container for a shipment is closed. See <a href="background_workflows.htm">Background Workflows</a>.</p>
+                                                                        <p>If No, then a message is not displayed to the packing operator when paperwork is printed after a shipment is complete.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Message</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Text that is displayed to the packing operator during pack station processing when paperwork is printed for a completed shipment. This field is only available if <span class="specialbold">Print Message</span> is set to Yes. For example, the following message could be displayed: Packing slip is printing. Retrieve from the printer. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Capture Serialized Inventory</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then when packing serialized items, the packer is required to enter (or scan) each item and then the serial number for that item. The packer is not allowed to enter multiple serial numbers or a range of serial numbers for an item quantity greater than 1. </p>
+                                                                        <p>If No, the packer is allowed to scan an item and then, for an item quantity greater than 1, enter multiple serial numbers or a range of serial numbers. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Validate Maximum Carton Weight</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application validates the weight of the shipping container being packed and displays a message to the operator if the packed weight exceeds the maximum weight defined for the carton type. The weight validation is performed against the actual weight (provided by a scale) or an estimated weight. The estimated weight is calculated by the application as the operator packs each item. The application retrieves the gross weight of the item from its item footprint and accumulates the weight of the items added to the container. If the weight is more than the maximum allowed weight defined for the carton type, a warning message is displayed. The packing operator can then either cancel packing an item into the current shipping container (saving it for a different shipping container for the same shipment) or ignore the warning and pack the item in the container. Also, if the packing operator chooses to ignore the overweight warning, additional items can be packed into the shipping container, but no additional weight warnings are displayed.</p>
+                                                                        <p>If No, the application does not display a message to the operator if the packed weight exceeds the maximum weight defined for the carton type. This means that the packing operator must manually ensure that the items packed into a shipping container do not exceed the maximum allowed weight defined for the carton type. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Capture Required</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the packing operator is required to enter an actual weight for each shipping container. The weight can be captured, for example, from an integrated or standalone scale. The application does not allow the operator to close a shipping container without capturing the weight.</p>
+                                                                        <p>If No, the application allows the operator to close a shipping container without capturing the carton weight.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Automatically Capture Weight from Scale</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then during pack station processing, the application captures the actual weight of a packed shipping container when the operator attempts to close the container. If weight capture is required but the weight cannot be captured (for example, because of a problem with the scale), the operator must direct the carton to an exception location for processing.</p>
+                                                                        <p>If No, then during pack station processing, the application does not automatically capture the weight of a packed shipping container. If weight capture is required, the operator must enter an actual weight, for example, based on an integrated or standalone scale.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Percent Below</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Percentage of weight below the estimated weight that is allowed for a packed shipping container. The application calculates estimated weight based on the item footprint information for the items packed into the shipping container, and compares that weight to the actual weight. Actual weight is provided by the operator or an integrated scale. The minimum tolerance level is used to help verify that the correct quantities have been packed into the shipping container.</p>
+                                                                        <p>For example, if this value is set to 10 (10%), and the estimated container weight is 100 pounds, then if the actual container weight is 90 pounds, the container is acceptable. However, if the actual container weight is less than 90 pounds and the <span class="specialbold">Prevent Closure on Weight Discrepancy </span>field is set to Yes, the operator is not allowed to close the container. If the <span class="specialbold">Prevent Closure on Weight Discrepancy </span>field is set to No, then the operator is warned that the captured weight is outside of tolerance, but the operator can choose to close the container.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Percent Above</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Percentage of weight above the estimated weight that is allowed for a packed shipping container. The application calculates estimated weight based on the item footprint information for the items packed into the shipping container, and compares that weight to the actual weight. Actual weight is provided by the operator or an integrated scale. The maximum tolerance level is used to help verify that the correct quantities have been packed into the shipping container.</p>
+                                                                        <p>For example, if this value is set to 10 (10%) and the estimated container weight is 100 pounds, then if the actual container weight is 110 pounds, the container is acceptable. However, if the actual container weight is greater than 110 pounds and the <span class="specialbold">Prevent Closure on Weight Discrepancy </span>field is set to Yes, the operator is not allowed to close the container. If the <span class="specialbold">Prevent Closure on Weight Discrepancy </span>field is set to No, then the operator is warned that the captured weight is outside of tolerance, but the operator can choose to close the container.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Prevent Closure on Weight Discrepancy</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then when the difference between the actual weight of a packed shipping container and its estimated weight is greater than the tolerance values, the application prevents the operator from closing the shipping container. </p>
+                                                                        <p>If No, the application does not prevent closing a shipping container based on a discrepancy between actual and estimated weights.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Skip Movement Hops</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                        <p>If Yes, then when inventory is processed at the pack station, the movement path for the inventory is automatically updated to skip the hop zones you defined based on the carton type being processed. Typically this configuration is used to update the movement path for pallet type cartons to avoid unnecessary hops. A pallet type carton is a physical pallet that is used, for example, to pack full cases or boxed items directly to a pallet without overpacking to a shipping container.</p>
+                                                                        <p>For example, picked inventory is usually packed into shipping cartons, which are directed to a consolidation location for building into pallets, and then to a final staging location (the final destination on the movement path). However, for pallet type cartons, there is no need for consolidation. For this scenario you can skip the consolidation zone for pallet type cartons so that they can be directed to the final staging zone. Alternatively, for a shipping carton requires consolidation, you can include the consolidation zone but may want to skip a hop intended only for pallet type cartons, such as a wrapping zone.</p>
+                                                                        <p>If No, then the movement path out of the pack station is not updated to skip movement hops for any type of carton.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="ProcessingFieldfields" data-magellan-target="ProcessingFieldfields"><a name="Processing_Field_fields"></a>Processing Field fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Client</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a client who houses inventory within a multi-client (third-party logistics) warehouse. The client identifier distinguishes one client from another so that the application can effectively manage inventory and activities for multiple clients in the same warehouse. During packing, the application determines which client is associated with the shipping container, and prompts the operator to validate the attributes that the client requires. If you do not specify fields for a specific client, then during packing, the fields specified for the Default client are used.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Sequence</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Number that defines the order in which the <span class="specialbold">Field </span>value is displayed during pack station processing when the item information is displayed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Field</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Attribute used to process an item being packed into a shipping container. Depending on how you configure the application, this field value is used to capture information about the item or is also used to specifically identify the item as it is being packed into a shipping container.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Auto Fill</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, during pack station processing, the value of the processing field is populated automatically with the expected value based on the contents of the picking container.</p>
+                                                                        <p>If No, the operator must enter in the field value.</p>
+                                                                        <p>See <a href="#Processing_fields">Processing fields</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Use for Identification</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application uses the <b>Field </b>value to identify the item being packed. Select Yes if you want the processing field to be used during pack station operations to determine (identify) the specific item from the picking container that is being packed into the shipping container. </p>
+                                                                        <p>If No, the <b>Field </b>value is not used to identify or validate the item, but instead is used to capture information about the item that is needed for other processes.</p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>: </p>
+                                                                            <ul>
+                                                                                <li>Unless the packing operator uses drag-and-drop selections exclusively, at least one of the processing fields must have the <b>Use for Identification</b> field set to Yes. Also, the combination of fields used for identification must be specific enough that the application can display a unique item and item client based on the inventory in the picking container.
+                </li>
+                                                                                <li>If the <b>Automatic Subline Packing</b> field in the pack station configuration is set to No (or in a 3PL environment, if it is set to Yes but not all clients are included), then at least one of the processing fields must have the <b>Use for Identification</b> field set to Yes. This enables the operator to manually select and scan the items to pack when auto packing is disabled.
+                </li>
+                                                                            </ul>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Enable Barcode Scanning</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, operators can scan a GS1-128 barcode into the processing field while packing inventory. The application parses the relevant data from the barcode and populates the processing field with the value. For example, if you are configuring the Lot field for pack station processing and you set this field to Yes, then an operator can scan a barcode while the cursor is focused on the Lot field, and the application populates the field with the parsed lot number.</p>
+                                                                        <p>If No, the application does not parse values from a scanned barcode for this processing field. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Visible</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                        <p>If Yes, the processing field is displayed to the operator during pack station operations.</p>
+                                                                        <p>If No, the field is not displayed. This is useful in situations where you need a value for a particular field, such as for use in custom code, but packing operator does not use the field or its value on the screen. Contact your Blue Yonder project team for more information on using hidden fields on windows.</p>
+                                                                        <p>See <a href="#Processing_fields">Processing fields</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="WeightConfigurationOverridesfields" data-magellan-target="WeightConfigurationOverridesfields"><a name="Weight_Configuration_Overrides_fields"></a>Weight Configuration Overrides fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1">
+                                                                        <p><b>Client </b>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a client who houses inventory within a multi-client (third-party logistics) warehouse. The client identifier distinguishes one client from another so that the application can effectively manage inventory and activities for multiple clients in the same warehouse. During packing, the application determines which client is associated with the shipping container, and prompts the operator to validate the attributes that the client requires. If you do not specify fields for a specific client, then during packing, the fields specified for the Default client are used.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Capture Required</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the packing operator is required to enter an actual weight for each shipping container. The weight can be captured, for example, from an integrated or standalone scale. The application does not allow the operator to close a shipping container without capturing the weight.</p>
+                                                                        <p>If No, the application allows the operator to close a shipping container without capturing the carton weight.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Automatically Capture Weight from Scale</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then during pack station processing, the application captures the actual weight of a packed shipping container when the operator attempts to close the container. If weight capture is required but the weight cannot be captured (for example, because of a problem with the scale), the operator must direct the carton to an exception location for processing.</p>
+                                                                        <p>If No, then during pack station processing, the application does not automatically capture the weight of a packed shipping container. If weight capture is required, the operator must enter an actual weight, for example, based on an integrated or standalone scale.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Percent Below</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Percentage of weight below the estimated weight that is allowed for a packed shipping container. The application calculates estimated weight based on the item footprint information for the items packed into the shipping container, and compares that weight to the actual weight. Actual weight is provided by the operator or an integrated scale. The minimum tolerance level is used to help verify that the correct quantities have been packed into the shipping container.</p>
+                                                                        <p>For example, if this value is set to 10 (10%), and the estimated container weight is 100 pounds, then if the actual container weight is 90 pounds, the container is acceptable. However, if the actual container weight is less than 90 pounds and the <span class="specialbold">Prevent Closure on Weight Discrepancy </span>field is set to Yes, the operator is not allowed to close the container. If the <span class="specialbold">Prevent Closure on Weight Discrepancy </span>field is set to No, then the operator is warned that the captured weight is outside of tolerance, but the operator can choose to close the container.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Percent Above</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Percentage of weight above the estimated weight that is allowed for a packed shipping container. The application calculates estimated weight based on the item footprint information for the items packed into the shipping container, and compares that weight to the actual weight. Actual weight is provided by the operator or an integrated scale. The maximum tolerance level is used to help verify that the correct quantities have been packed into the shipping container.</p>
+                                                                        <p>For example, if this value is set to 10 (10%) and the estimated container weight is 100 pounds, then if the actual container weight is 110 pounds, the container is acceptable. However, if the actual container weight is greater than 110 pounds and the <span class="specialbold">Prevent Closure on Weight Discrepancy </span>field is set to Yes, the operator is not allowed to close the container. If the <span class="specialbold">Prevent Closure on Weight Discrepancy </span>field is set to No, then the operator is warned that the captured weight is outside of tolerance, but the operator can choose to close the container.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">Prevent Closure on Weight Discrepancy</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>If Yes, then when the difference between the actual weight of a packed shipping container and its estimated weight is greater than the tolerance values, the application prevents the operator from closing the shipping container. </p>
+                                                                        <p>If No, the application does not prevent closing a shipping container based on a discrepancy between actual and estimated weights.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

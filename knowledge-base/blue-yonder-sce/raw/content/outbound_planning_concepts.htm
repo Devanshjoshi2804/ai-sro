@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Outbound Planner" data-mc-conditions="Writer Tags.Amanda" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Outbound planning concepts</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Outboundplanningconcepts">Outbound planning concepts</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Loads">Loads</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Outboundorders">Outbound orders</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Orderreservation">Order reservation</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#ExampleUsingthemarriedcodetoshipsetsofinventory">Example: Using the married code to ship sets of inventory</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#ExampleUsingthemarriedcodetoshipacompletegroupofinventory">Example: Using the married code to ship a complete group of inventory</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#HandlingunittypesandLPNattributesonoutboundorderlines">Handling unit types and LPN attributes on outbound order lines</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#HandlingunittypesandLPNattributesonoutboundorderlinessetupandconfiguration">Handling unit types and LPN attributes on outbound order lines setup and configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Orderandorderlinecancellation">Order and order line cancellation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Crossdockingprocess">Cross docking process</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Crossdockingconsiderations">Cross docking considerations</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Outboundorderlinescrossdockprocessingpriority">Outbound order lines cross-dock processing priority </a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventoryallocationforshippableorders">Inventory allocation for shippable orders</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Pickworkreleasedintimetoloadtransportequipment">Pick work released in time to load transport equipment</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Setup">Setup</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Waves">Waves </a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Wavestatus">Wave status</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Manualwaveprocessing">Manual wave processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Automaticshipmentcreation">Automatic shipment creation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Shortallocations">Short allocations</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Searchpathlog">Search path log</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Replenishmentdestinationlog">Replenishment destination log</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deliverysequenceloading">Delivery sequence loading </a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deliverysequenceloadingordersetup">Delivery sequence loading order setup </a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Outboundplanningconcepts" data-magellan-target="Outboundplanningconcepts"><a name="aanchor255"></a>
+                                                            <MadCap:concept term="WM" />Outbound planning concepts</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Outboundplanningconcepts">Outbound planning concepts</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Loads">Loads</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Outboundorders">Outbound orders</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Orderreservation">Order reservation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#HandlingunittypesandLPNattributesonoutboundorderlines">Handling unit types and LPN attributes on outbound order lines</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#HandlingunittypesandLPNattributesonoutboundorderlinessetupandconfiguration">Handling unit types and LPN attributes on outbound order lines setup and configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Orderandorderlinecancellation">Order and order line cancellation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Crossdockingprocess">Cross docking process</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Crossdockingconsiderations">Cross docking considerations</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Outboundorderlinescrossdockprocessingpriority">Outbound order lines cross-dock processing priority </a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventoryallocationforshippableorders">Inventory allocation for shippable orders</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Pickworkreleasedintimetoloadtransportequipment">Pick work released in time to load transport equipment</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Waves">Waves </a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Wavestatus">Wave status</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Manualwaveprocessing">Manual wave processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Automaticshipmentcreation">Automatic shipment creation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Shortallocations">Short allocations</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Searchpathlog">Search path log</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Replenishmentdestinationlog">Replenishment destination log</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deliverysequenceloading">Delivery sequence loading </a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deliverysequenceloadingordersetup">Delivery sequence loading order setup </a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>You use the Outbound Planner module to manage the people, equipment, inventory, and processes that move outbound warehouse inventory. You can make adjustments to inventory, work, orders, shipments, loads, replenishments, equipment, and other factors that can improve the productivity and efficiency of warehouse activities.</p>
+                                                        <h2 id="Loads" data-magellan-target="Loads"><a name="Loads"></a>Loads</h2>
+                                                        <p>A load is a collection of stops that are shipped together on a single piece of transport equipment. Before you can load staged shipments onto transport equipment, they must be assigned to a stop that is part of an outbound load. Each stop is assigned a stop sequence that determines the order in which the stops must be loaded into the transport equipment. The application does not allow stops to be loaded out of sequence unless one of the following configurations is set:</p>
+                                                        <ul>
+                                                            <li>The load is configured to ignore the stop sequence order. </li>
+                                                            <li>An item on the shipment is part of an item family to which a break stop sequence code is applied. If a load is configured to ignore the stop sequence order, it overrides the break stop sequence code. </li>
+                                                        </ul>
+                                                        <p>Load information is typically downloaded from the host; however, you can add and modify loads manually, when needed.</p>
+                                                        <h2 id="Outboundorders" data-magellan-target="Outboundorders"><a name="Outbound_orders"></a>Outbound orders</h2>
+                                                        <p>An outbound order is a request to supply material or inventory. Within the application, an order initiates the process of fulfilling a request for inventory stored in your facility. The order provides the information required to determine the following shipping information:</p>
+                                                        <ul>
+                                                            <li>What to ship</li>
+                                                            <li>How much to ship</li>
+                                                            <li>When to ship</li>
+                                                            <li>Who and where to ship to</li>
+                                                            <li>How to ship</li>
+                                                        </ul>
+                                                        <p>Typically, outbound orders are sent from a host application; however, you can create orders manually. When you create orders, you define both the order header and the order line information. You use the Outbound Planner module to create and maintain orders.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: Creating an order manually does not automatically add the order to the host application.</p>
+                                                        <h2 id="Orderreservation" data-magellan-target="Orderreservation"><a name="Order_reservation"></a>Order reservation</h2>
+                                                        <p>The application can be configured to perform order reservation. Order reservation reserves inventory for outbound order lines prior to allocation, but does not commit inventory from a specific location.</p>
+                                                        <p>Order reservation is important in facilities where outbound orders are allocated without sufficient inventory available in the facility to satisfy all of the order lines. The process allows you to prioritize order lines so that you can ensure that available inventory is allocated for the most important orders first.</p>
+                                                        <p>In addition, order reservation allows you to logically tie together, or marry, order lines. Marrying order lines is typically used to meet specific customer requirements. Order lines containing the same married code can be allocated and shipped in sets of inventory or only as a complete group of inventory.</p>
+                                                        <h3 id="ExampleUsingthemarriedcodetoshipsetsofinventory" data-magellan-target="ExampleUsingthemarriedcodetoshipsetsofinventory">Example: Using the married code to ship sets of inventory</h3>
+                                                        <p>Assume that a customer order includes the following order lines:</p>
+                                                        <ul>
+                                                            <li>Order line 0001 for 20 toy trains</li>
+                                                            <li>Order line 0002 for 80 batteries</li>
+                                                        </ul>
+                                                        <p>Both order lines, 0001 and 0002, have married code values of "A" and allow partial shipment.</p>
+                                                        <p>If the application is only able to find 15 toy trains in the facility, it determines that the ratio between order lines 0001 and 0002 is 1:4, and reserves the following quantities:</p>
+                                                        <ul>
+                                                            <li>15 toy trains</li>
+                                                            <li>60 batteries</li>
+                                                        </ul>
+                                                        <h3 id="ExampleUsingthemarriedcodetoshipacompletegroupofinventory" data-magellan-target="ExampleUsingthemarriedcodetoshipacompletegroupofinventory">Example: Using the married code to ship a complete group of inventory</h3>
+                                                        <p>Assume that a customer order includes the following order lines:</p>
+                                                        <ul>
+                                                            <li>Order line 0001 for 3 cans of red paint</li>
+                                                            <li>Order line 0002 for 2 paint rollers</li>
+                                                            <li>Order line 0003 for 4 paint brushes</li>
+                                                        </ul>
+                                                        <p>Order lines 0001, 0002, and 0003 all have married code values of "A" and do not allow partial shipments.</p>
+                                                        <p>If the application is only able to find two cans of red paint in the facility, it will not reserve any of the inventory. That is, the application ships all or none of the three married order lines.</p>
+                                                        <h2 id="HandlingunittypesandLPNattributesonoutboundorderlines" data-magellan-target="HandlingunittypesandLPNattributesonoutboundorderlines"><a name="Handling_unit_types_and_LPN_attributes_on_outbound_order_lines"></a>Handling unit types and LPN attributes on outbound order lines</h2>
+                                                        <p>The application supports the selection of a handling unit type (such as a CHEP pallet) and LPN attributes (such as wrapping) on an outbound order line. These attributes can be applied whether the order line is created manually or downloaded from a host application.</p>
+                                                        <p>A handling unit type and packaging attributes can be associated with inventory during receiving, changed for existing inventory, assigned to order lines, and considered during inventory allocation. See <a href="#Handling_unit_types_and_LPN_attributes_on_outbound_order_lines_setup_and_configuration">Handling unit types and LPN attributes on outbound order lines setup and configuration</a>.</p>
+                                                        <p>When inventory is identified or received into the warehouse, its handling unit type and LPN attributes can be captured or assigned to the inventory.</p>
+                                                        <p>During receiving, values for handling unit type and LPN attributes are populated by default if a handling unit type and LPN attributes were specified for a supplier item footprint, supplier item, supplier, and item footprint. The receiver can override these values if necessary.</p>
+                                                        <p>If LPN attributes are downloaded on an ASN, the receiver is only required to verify them if the ASN is from a supplier that is not configured as Trusted.</p>
+                                                        <p>After inventory has been identified into the warehouse, users can modify its LPN attributes. In addition, RF operators can change the LPN attributes of inventory as they complete the required processes (such as wrapping) and can transfer inventory to a different handling unit type if necessary. See <a href="procedures_for_lpns.htm">Procedures for LPNs</a>.</p>
+                                                        <p>Handling unit type and LPN attributes can be specified for an outbound order line at the following levels:</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Values defined for customers and customer types are defaulted to the order line for any values that were not specified on the order line and if the Customer Requirements Processing policy is enabled.</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Customer type</span>: For a customer type, you can specify the following information:<ul><li>A handling unit type or range of acceptable handling unit types for a unit of measure (UOM)</li><li><p>LPN attributes</p><p>This is used to support the requirements of different types of customers. For example, European customers may require that only EURO1 pallets be used for their orders; whereas grocery customers may require that 48 X 40 CHEP pallets be used.</p></li></ul></li>
+                                                            <li><span class="specialbold">Customer</span>: For a customer, you can specify a handling unit type or range of acceptable handling unit types for a UOM, as well as LPN attributes. This is used to support the requirements of different customers. For example, a customer may require that all of their pallet shipments be wrapped. The values specified for a customer override the values specified for a customer type.</li>
+                                                            <li><span class="specialbold">Order line</span>: When adding or modifying an order line, you can specify a handling unit type and LPN attributes directly on the line. For example, one order line may require an aluminum pallet because it is destined for outdoor storage, while another order line may require a standard wood pallet. The values specified directly on the order line override the values specified for a customer and customer type.</li>
+                                                        </ul>
+                                                        <p>Allocation attempts to find inventory that matches the handling unit type and LPN attributes required by the order line.</p>
+                                                        <ul>
+                                                            <li>When a handling unit type is specified for an order line, the application attempts to allocate inventory that is on the specified handling unit type. If an exact match is not found, it attempts to allocate inventory on another handling unit type. When picks are released, the application directs the operator to pick inventory that is already on the specified handling unit type or use the specified handling unit type for the inventory when completing the pick.</li>
+                                                            <li>If there are certain LPN attributes that must be completed before inventory is shipped, the application attempts to allocate inventory that already has the LPN attributes required for shipment. If no such inventory exists, it attempts to allocate alternate inventory.</li>
+                                                        </ul>
+                                                        <p>During allocation, if an exact match with the specified handling unit type or LPN attributes is not found, then available inventory is allocated, and the application prompts the operator during picking or prior to transport equipment loading (depending on what is configured for the warehouse) to change the handling unit and apply the required LPN attributes. If the inventory is not on the required handling unit type and the attributes are not completed, the application does not allow the inventory to be loaded on the transport equipment and forces the operator to deposit the inventory in a ship staging location until the requirements are met and confirmed on the RF.</p>
+                                                        <p>For all shippable order lines, the handling unit type on which the inventory ships is recorded so that it can be printed on shipping documents and included in information sent to the host application.</p>
+                                                        <h2 id="HandlingunittypesandLPNattributesonoutboundorderlinessetupandconfiguration" data-magellan-target="HandlingunittypesandLPNattributesonoutboundorderlinessetupandconfiguration"><a name="Handling_unit_types_and_LPN_attributes_on_outbound_order_lines_setup_and_configuration"></a>Handling unit types and LPN attributes on outbound order lines setup and configuration</h2>
+                                                        <p>The application supports the selection of a handling unit type (such as a CHEP pallet) and LPN attributes (such as wrapping) on an outbound order line. These attributes can be applied whether the order line is created manually or downloaded from a host application.</p>
+                                                        <p>You must perform the following tasks to configure the application to support handling unit types and LPN attributes on outbound order lines.</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p><span class="specialbold">Set up handling unit tracking.</span>
+                                                                </p>
+                                                                <p>To specify handling unit types on an order line, you must enable the Inventory handling unit category for the warehouse and define the handling unit types that you want to track. See <a href="handling_unit_settings.htm#Configure_handling_unit_settings">Configure handling unit settings</a>. </p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p><span class="specialbold">Configure LPN attributes.</span>
+                                                                </p>
+                                                                <p>You can define the LPN attributes (such as "Wrap" and "Slip Sheet") that you want to use. See <a href="lpn_attributes.htm#Configure_LPN_attributes">Configure LPN attributes</a>.</p>
+                                                            </li>
+                                                            <li value="3">
+                                                                <p><span class="specialbold">Define the required handling type and LPN attributes on the order line. </span>
+                                                                </p>
+                                                                <p>You use the Outbound page in the Outbound Planner module to define the required attributes for an order line. Specifically, you specify the required handling unit type and LPN attributes for an order line. See <a href="procedures_for_orders.htm#Add_or_modify_an_order_line">Add or modify an order line</a>.</p>
+                                                            </li>
+                                                            <li value="4">
+                                                                <p><span class="specialbold">If necessary, define handling unit types and LPN attributes for a customer and customer type.</span>
+                                                                </p>
+                                                                <p>If your application is configured to apply customer and customer type requirements to an order line for values that are not specified on an order line, then you may want to specify handling unit types and LPN attributes for a specific customer or customer type. These values are defaulted to order lines for the appropriate customer if the order line does not already have the values specified. See <a href="existing_customers.htm#Add_or_modify_a_customer">Add or modify a customer</a> and <a href="customer_types.htm#Add_or_modify_a_customer_type">Add or modify a customer type</a>. </p>
+                                                                <p>The ability to specify handling unit type and picking UOM combinations gives you the flexibility to specify different combinations, such as for drums to be placed on CHEP pallets and cases to be placed on WOOD pallets. </p>
+                                                            </li>
+                                                            <li value="5">
+                                                                <p><span class="specialbold">Configure suppliers and item footprints.</span>
+                                                                </p>
+                                                                <p>Handling unit type and LPN attribute values, if required, are captured for inventory at the time it is received or identified into the warehouse. These values are populated automatically if values were defined for the supplier or for the item footprint. </p>
+                                                                <p>When the application attempts to find a default value, it looks first at the supplier item footprint, next at the supplier item, then at the supplier, and finally at the item footprint. If a default value is not found, the application prompts the operator to enter a value for the required attributes. </p>
+                                                                <p>You configure the default handling unit type and LPN attribute values for a supplier, specific items provided by that supplier, if item overrides are defined, specific item footprints provided for those items, as well as the default handling type and LPN attribute values for an item footprint.</p>
+                                                                <p>See <a href="suppliers.htm#Add_or_modify_a_supplier">Add or modify a supplier</a> and <a href="items_page.htm#Add_or_modify_an_item">Add or modify an item</a>.</p>
+                                                            </li>
+                                                            <li value="6">
+                                                                <p><span class="specialbold">Configure the point at which the handling unit type and LPN attribute requirements are displayed to the operator.</span>
+                                                                </p>
+                                                                <p>You can specify when an operator is prompted to apply any remaining handling unit type or LPN attributes to inventory before it is loaded on the transport equipment. See <a href="pick_settings.htm#Configure_pick_settings">Configure pick settings</a>.  </p>
+                                                            </li>
+                                                            <li value="7">
+                                                                <p><span class="specialbold">Configure whether the application prompts the user, during product identification, to confirm the handling unit type and LPN attributes if the user already confirmed those attributes for another receipt line (same item) on the planned inbound order.</span>
+                                                                </p>
+                                                                <p>You can save keystrokes by configuring the application to skip the handling unit type and LPN attribute confirmation prompt for items that have already been confirmed (set the <span class="specialbold">RF LPN Configuration</span> field to No). See <a href="inbound_identification.htm#Configure_inbound_identification">Configure inbound identification</a>. </p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Orderandorderlinecancellation" data-magellan-target="Orderandorderlinecancellation"><a name="Order_and_order_line_cancellation"></a>Order and order line cancellation</h2>
+                                                        <p>You can cancel an order that has a status of Unallocated, Allocated, Picks Released, or Shipment Cancelled. You cannot cancel an order for which picking has begun; however, individual order lines within an order can still be cancelled as long as picking for the line has not started. </p>
+                                                        <p>A cancelled order cannot be recovered, however, the application retains a record that it existed. Cancelled orders are purged from the application according to the console configuration.  </p>
+                                                        <p>When you cancel an order or order line, the following actions take place:</p>
+                                                        <ul>
+                                                            <li>The application stops processing any work related to the inventory such as allocation, picks, or replenishments.</li>
+                                                            <li>The outbound shipment line associated with a cancelled order is also cancelled.</li>
+                                                            <li>If all the order lines for an order are cancelled, then the order to which they belong is also cancelled.</li>
+                                                            <li>If a cancelled order is the only one assigned to an outbound shipment, then the shipment is also cancelled.</li>
+                                                        </ul>
+                                                        <p>See <a href="procedures_for_orders.htm#Cancel_an_order_or_order_line">Cancel an order or order line</a>.</p>
+                                                        <h2 id="Crossdockingprocess" data-magellan-target="Crossdockingprocess"><a name="Cross_docking_process"></a>Cross docking process</h2>
+                                                        <p>If your application is set up to allow cross docking, then on-demand, unprocessed replenishments, and marked outbound order lines are cross docked. Cross docking work is created when a shipment or work order is allocated and there is not enough inventory in storage to fulfill the required quantity, but additional inventory is found in receiving. The cross dock can be planned (order lines or work order details are marked for cross docking) or opportunistic, where the lines are not marked and are considered short. See <a href="cross_docking.htm">Cross Docking</a> and <a href="cross_docking.htm#Pick_replacement_processing">Pick replacement processing</a>.</p>
+                                                        <p>Order lines can be received from the host system with cross docking specified, or they can be manually marked for cross docking. Marking order lines for cross docking is an optional step when manually processing orders.</p>
+                                                        <p>If you are cross docking, then manual order processing consists of the following tasks:</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p><b>Mark the order lines that you want to cross dock</b>.</p>
+                                                                <p>There are several ways in which you can mark order lines for cross docking. The method you use depends on the status of the order. If the order does not exist, then you can create the order; when you add the order line, you can mark the line to indicate that cross docking is required. If the order exists, then you can modify the order line and mark the line to indicate that cross docking is required.</p>
+                                                                <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: You can specify whether you want any remaining lines on the order to proceed through the standard allocation process. If you choose not to release remaining order lines, then pick work for those lines will not be released until the cross docked inventory is received and allocated.</p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p><b>Optionally, group the order into an outbound shipment</b>.</p>
+                                                                <p>All orders must be grouped into a shipment before they can be allocated, but you do not have to complete this step manually. If you do not create a shipment for an order before planning the order into a wave, the application automatically creates a shipment. For detailed information about creating shipments, see <a href="shipping_concepts.htm#Shipping_process">Shipping process</a>.</p>
+                                                            </li>
+                                                            <li value="3">
+                                                                <p><b>Plan the order or shipment into a wave</b>.</p>
+                                                                <p>A wave is used to allocate inventory for outbound orders and shipments. If a wave has multiple orders, all of the orders are allocated at the same time. Waves help you control work and inventory flow in your facility. See <a href="#Waves_overview">Waves</a>.</p>
+                                                            </li>
+                                                            <li value="4">
+                                                                <p><b>Allocate the wave</b>.</p>
+                                                                <p>To trigger cross docking, the shipments must be allocated in a wave. During the allocation process, a cross docking work request is generated for marked order lines and allocation is bypassed. For detailed information about the allocation process, see <a href="#Inventory_allocation_for_shippable_orders">Inventory allocation for shippable orders</a>.</p>
+                                                            </li>
+                                                            <li value="5">
+                                                                <p><b>Perform the cross docking work</b>.</p>
+                                                                <p>Typically, cross docking opportunities are identified during the receiving process where the actual cross docking work begins. When product is identified and immediate putaway is selected, the application determines whether that product has been marked for cross docking or has a pending request for replenishment.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If manual putaway is selected during the receiving process, the application does not look for cross docking opportunities.</p>
+                                                                <p>When the application determines that cross docking is required, either for a marked order line (planned cross docking),&#160;unmarked short order line (opportunistic cross docking), or for an on-demand replenishment, one of the following actions occur:</p>
+                                                                <ul>
+                                                                    <li>If a staging lane was specified when the order was allocated, then direct cross docking is performed, and the application performs the following processing tasks:<ol style="list-style-type: lower-alpha;"><li value="1">Determines the appropriate quantity to allocate for the order</li><li value="2"><p>Splits the pallet if the cross docking configurations allow pallet splitting, and the received quantity is greater than the quantity required for the order</p><p class="Note"><b class="NoteHeadingBold">Note</b>: When pallets are split, the new pallet configurations are displayed on either the RF screen or workstation window, and users can produce new pallet labels. Remaining product will be allocated to another cross docked order or replenishment, or to a storage location.</p></li><li value="3"><p>Moves the product to the specified staging lane to satisfy the order</p><p class="Note"><b class="NoteHeadingBold">Note</b>: For RF receiving, the new pallets are automatically moved onto the RF device and individually deposited. For workstation receiving, the move can be performed immediately or sent to the work queue. The queued work will be a pick operation from the receiving dock as the product will have already been allocated.</p></li></ol></li>
+                                                                    <li>If a staging lane was not specified when the order was allocated, or if the cross dock will satisfy an on-demand replenishment, then indirect cross docking is performed, and the application performs the following processing tasks:<ol style="list-style-type: lower-alpha;"><li value="1"><p>Determines the cross docking location</p><p class="Note"><b class="NoteHeadingBold">Note</b>: Cross docking locations are defined in your application configurations.</p></li><li value="2">Determines the appropriate quantity to allocate for the order</li><li value="3"><p>Splits the pallet if the cross docking policies allow pallet splitting, and the received quantity is greater than the quantity required for the order</p><p class="Note"><b class="NoteHeadingBold">Note</b>: When pallets are split, the new pallet configurations are displayed on either the RF or workstation windows, and users can produce new pallet labels. Remaining product will be allocated to another cross docked order or replenishment, or to a storage location.</p></li><li value="4"><p>Moves the inventory to the cross docking location</p><p class="Note"><b class="NoteHeadingBold">Note</b>: For RF receiving, the new pallets are automatically moved onto the RF device and individually deposited. For workstation receiving, the move can be performed immediately or sent to the work queue. The queued work will be a store operation to the cross dock location, and the inventory will be allocated when the inventory is deposited into that location.</p></li></ol></li>
+                                                                </ul>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Crossdockingconsiderations" data-magellan-target="Crossdockingconsiderations"><a name="Cross_docking_considerations"></a>Cross docking considerations</h2>
+                                                        <p>The following considerations should be taken into account when using cross docking functionality:</p>
+                                                        <ul>
+                                                            <li>
+                                                                <p><span class="specialbold" style="font-weight: normal;"><b>Cross docking after allocation:</b></span><span class="specialbold" style="font-weight: normal;"> An order line cannot be marked for cross docking after it has been allocated.</span> Cross docking is triggered during allocation; therefore, an order line must be marked for cross docking before it is allocated. You can, however, mark an order line for cross docking after it is grouped into a shipment.</p>
+                                                            </li>
+                                                            <li>
+                                                                <p><span class="specialbold">Cross docking on-demand and unprocessed replenishments: </span>When an item is received, and immediate putaway is selected, the application determines if an on-demand replenishment request exists for that item. If it does, the amount required to fill the request is moved to the cross docking location, and the remainder is stored using storage search path rules.</p>
+                                                            </li>
+                                                            <li>
+                                                                <p><span class="specialbold">Over allocation:</span><span class="specialbold" style="font-weight: normal;"> Cross docking can process over-allocation quantities.</span>
+                                                                </p>
+                                                            </li>
+                                                            <li>
+                                                                <p><span class="specialbold">Pallet splitting: </span>Cross docking has the ability to split pallets. If your application is configured to allow pallet splitting, cross docking can split a pallet into several pallets of the required quantities for orders or replenishments. Remaining inventory is stored using storage search path rules.</p>
+                                                            </li>
+                                                            <li>
+                                                                <p><span class="specialbold">Pallet splitting when receiving using an RF device:</span> If pallet splitting is in effect, and you are receiving by RF, a list of new pallet configurations is displayed and you can produce new pallet labels. The new pallets are automatically moved onto the RF device and then individually deposited.</p>
+                                                            </li>
+                                                            <li>
+                                                                <p><span class="specialbold">Pallet splitting when receiving in the application's Receiving module:</span> If pallet splitting is in effect, and you are receiving in the Receiving module, a list of the new pallet configurations is displayed and you can produce new pallet labels. You can choose to move the inventory immediately or send it to the work queue. If direct cross docking is performed, queued work will be a pick operation from the receiving dock, because the product will have already been allocated. If indirect cross docking is performed, queued work will be a store operation to the cross dock location, and the inventory will be allocated when the inventory is deposited into that location.</p>
+                                                            </li>
+                                                            <li>
+                                                                <p><span class="specialbold">Cross docking handle serialized product:</span> Because serialized product cannot be arbitrarily split when an order needs only a partial pallet, cross docking will take the following actions when serialized product is received:</p>
+                                                                <ul>
+                                                                    <li>If the cross dock is indirect, the entire pallet is moved to the cross dock location, and the amount required for the order is allocated from that location when the product is deposited. </li>
+                                                                    <li>If the cross dock is direct to a staging lane, the pallet is moved to a storage location within the warehouse, and the amount required for the order is allocated from that location when the product is deposited.</li>
+                                                                </ul>
+                                                            </li>
+                                                            <li>
+                                                                <p><span class="specialbold">Cross docking locations for received inventory are full:</span> When there are no cross docking locations available for received inventory, the application defaults to the standard storage path search rules. </p>
+                                                            </li>
+                                                        </ul>
+                                                        <h2 id="Outboundorderlinescrossdockprocessingpriority" data-magellan-target="Outboundorderlinescrossdockprocessingpriority"><a name="Outbound_order_lines_cross-dock_processing_priority"></a>Outbound order lines cross-dock processing priority </h2>
+                                                        <p>Outbound order lines that are enabled for cross docking can be fulfilled with inventory that is moved directly from receiving to a cross dock location or a specified staging location. If multiple order lines require the same cross dock inventory, the application sorts and fulfills the outbound order lines based on their processing priority. If multiple order lines have the same processing priority, the application fulfills the order lines based on the following criteria:</p>
+                                                        <ol>
+                                                            <li value="1">The shipment that has the earliest Appointment Start Date</li>
+                                                            <li value="2">The trailer that has the earliest Arrival or Checked-in date and time (the application does not differentiate between the trailer at the door or at the yard)</li>
+                                                            <li value="3">The shipment that has the closest early ship date</li>
+                                                            <li value="4">The order line that has the closest early ship date</li>
+                                                            <li value="5">The shipment that has the closest late ship date</li>
+                                                            <li value="6">The order line that has the closest late ship date</li>
+                                                        </ol>
+                                                        <h2 id="Inventoryallocationforshippableorders" data-magellan-target="Inventoryallocationforshippableorders"><a name="Inventory_allocation_for_shippable_orders"></a>Inventory allocation for shippable orders</h2>
+                                                        <p>Allocation is the process of locating inventory for an order and creating the work to pick that inventory. An outbound order must be grouped into a shipment before it can be allocated; you can do this manually, or the application will automatically create a shipment when the wave in which the order is planned is allocated. The application uses the STD-ORDERSELECTION wave rule to create shipments for the orders in a wave.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: For information on allocating component inventory for a work order, see <a href="procedures_for_work_orders.htm#Allocate_inventory_for_a_work_order">Allocate inventory for a work order</a>. The application can be configured to automatically allocate waves, or you can manually allocate waves using the Outbound Planner or Picking module.</p>
+                                                        <p>When a wave is allocated, the application completes the following steps:</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Determines if an order line on an outbound order is marked for cross docking.</p>
+                                                                <p>If an order line is marked for cross docking, then the application creates a cross docking work request but holds the allocation for that line until the inventory for that order line is received. During the receiving process, the application allocates the appropriate amount from the cross docking location and releases the work.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: When you mark an order line for cross docking, you specify whether you want the application to hold pick work for all order lines on the order until the cross docked inventory is received. </p>
+                                                                <p>If no order lines are marked for cross docking, then the application continues with the allocation process.</p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p>Searches the facility to locate an acceptable storage location that contains the inventory identified on the order line.</p>
+                                                                <p>This requires the application to verify the following information:</p>
+                                                                <ul>
+                                                                    <li>Item </li>
+                                                                    <li>Attribute values defined in the allocation rule</li>
+                                                                    <li>Inventory status</li>
+                                                                    <li>Packaging configuration</li>
+                                                                    <li>Quantity</li>
+                                                                </ul>
+                                                            </li>
+                                                            <p>If more than one staging lane location has been assigned to the order, the application locates an acceptable storage location from which to pick the inventory that is in the same building as the appropriate assigned staging lane location.</p>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: Acceptable storage locations are also determined by your allocation search path configurations. See <a href="allocation_search_paths.htm">Allocation Search Paths</a>.</p>
+                                                            <li value="3">Commits inventory quantities at storage locations based on the processing attributes that you define on the order line.</li>
+                                                            <li value="4">Generates the pick work based on the processing priorities that you define on the order line.</li>
+                                                            <p>When you allocate the wave, you can define the following information:</p>
+                                                            <ul>
+                                                                <li>Priority at which picks for the wave are released</li>
+                                                                <li>
+                                                                    <p>A carrier (in some cases)</p>
+                                                                    <p class="Note"><b class="NoteHeadingBold">Note</b>: You can change a carrier only when the <span class="notebold">Change Carrier</span> option for an order is selected and no carrier is defined. If you change the carrier of an order, its associated order lines are also updated.</p>
+                                                                </li>
+                                                            </ul>
+                                                            <li value="5">
+                                                                <p>If allocation shortages occur, creates replenishment work.</p>
+                                                                <p>When the application is not able to allocate an entire order line, it generates a replenishment request. If allocation is still short, processing is based on the following order line attributes for partial shipments:</p>
+                                                                <ul>
+                                                                    <li>If the order line allows partial (short) shipments, then allocation succeeds with a shortage.</li>
+                                                                    <li>
+                                                                        <p>If the order line does not allow partial shipments, then any previous allocations and the order line are cancelled.</p>
+                                                                        <p>You can view shorts and pending replenishments. See <a href="procedures_for_shorts_and_replenishments.htm#View_short_order_lines">View short order lines</a> and <a href="procedures_for_shorts_and_replenishments.htm#View_pending_replenishments">View pending replenishments</a>.</p>
+                                                                    </li>
+                                                                </ul>
+                                                            </li>
+                                                            <li value="6">
+                                                                <p>If Warehouse Management is integrated with Warehouse Labor Management, Warehouse Management sends pick and replenishment information.</p>
+                                                                <p>Also, you can configure Warehouse Management to perform the following tasks:</p>
+                                                                <ul>
+                                                                    <li>Send summary pick information. When the pick or replenishment work is generated, Warehouse Management sends the information to Warehouse Labor Management immediately or at a later time using a background process. Warehouse Labor Management uses the Warehouse Management summary pick information in its Overview Statistics function, which displays the hours remaining to complete work or the percentage of work completed for any given job code.</li>
+                                                                    <li>Automatically release the pick work for the shipment in advance of the shipment's early or late ship or delivery date so that the inventory is picked and loaded onto the transport equipment in time for the transport equipment's scheduled dispatch. See <a href="#Pick_work_released_in_time_to_load_transport_equipment">Pick work released in time to load transport equipment</a>.</li>
+                                                                </ul>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Pickworkreleasedintimetoloadtransportequipment" data-magellan-target="Pickworkreleasedintimetoloadtransportequipment"><a name="Pick_work_released_in_time_to_load_transport_equipment"></a>Pick work released in time to load transport equipment</h2>
+                                                        <p>You can configure the application to automatically release pick work in advance of transport equipment arriving at the door door, so that inventory is staged and ready to be loaded when the transport equipment arrives.  </p>
+                                                        <p>If Warehouse Labor Management is integrated with Warehouse Management, you can configure Warehouse Management to automatically release picks in an appropriate time frame to ensure that the transport equipment is ready to be dispatched according to its scheduled dispatch time. The time frame is calculated based either on the start or end appointment date and time of the transport equipment or the early or late ship or delivery date and time of an outbound shipment.</p>
+                                                        <p>When you configure this functionality, the following process is used to release picks by dispatch time:</p>
+                                                        <ol>
+                                                            <li value="1">You allocate inventory for a wave so that the application creates picks in a held status (by not immediately releasing picks). </li>
+                                                            <li value="2">Warehouse Management gets the goal times for completing the picks from Warehouse Labor Management.</li>
+                                                            <li value="3">A scheduled process (REL-PICKS) checks on a regular basis to see if the time to pick the inventory for the wave plus any extra time that you allow (buffer) is within range of the release date.<ul><li>If the <span class="specialbold">Release Appointment Picks by Labor Estimate</span> field is set to Yes, then the REL-PICKS process checks for appointments that are in range of the appointment start or end date and time.</li><li>If the <span class="specialbold">Release Ship Picks Estimate</span> field is set to Yes, then the REL-PICKS process checks for shipments that are in range of the shipment early or late ship or delivery date and time.</li></ul></li>
+                                                            <li value="4">
+                                                                <p>For pick work that the REL-PICKS process determines is within range of its deadline, Warehouse Management changes the status of the picks from held to pending and then releases the picks using the general method to release picks.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: As needed, you can update multiple shipments at the same time using Shipment Mass Update in the client-based user experience. For example, if you are releasing picks based on the Late Ship Date, you can select a group of shipments and change all of them to the same Late Ship Date at one time. See <a href="shipment_mass_update.htm">Shipment Mass Update</a>.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h3 id="Setup" data-magellan-target="Setup">Setup</h3>
+                                                        <p>Before the application can start automatically releasing pick work in time to load transport equipment, you must complete the following tasks:</p>
+                                                        <ol>
+                                                            <li value="1">Make sure that Warehouse Labor Management is installed, configured, and integrated to work with your instance of Warehouse Management. </li>
+                                                            <li value="2">Enable Warehouse Labor Management. See <a href="warehouse_labor_management.htm#Configure_Warehouse_Labor_Management_integration">Configure Warehouse Labor Management integration</a>.</li>
+                                                            <li value="3">Set the following configurations that support the release work by dispatch time feature: <ul><li>Labor Goal Time</li><li>Release Appointment Picks By Labor Estimate</li><li>Release Ship Picks Estimate</li></ul></li>
+                                                            <li value="4">Enable the scheduled process in the Console, under Jobs. </li>
+                                                            <li value="5">When allocating inventory, make sure that the picks are created in a held status. </li>
+                                                        </ol>
+                                                        <h2 id="Waves" data-magellan-target="Waves"><a name="Waves_overview"></a>Waves </h2>
+                                                        <p>A wave is used to allocate inventory for outbound orders and shipments. Wave processing can combine multiple outbound orders or shipments into logical sets to achieve efficient picking. Alternatively, a wave can also consist of a single order or shipment. When you plan outbound orders into a wave without first creating a shipment, the application automatically runs through a sequential list of shipment creation rules to create valid shipments.</p>
+                                                        <p>For example, you can create a wave that consists of all the orders for a specific customer or carrier, or for orders that need to ship on a specific date. You can also create a wave and include a single order for allocation. </p>
+                                                        <p>If a wave has multiple orders, all of the orders are allocated at the same time by default for both manual and automatic allocation. However, when automatically allocating shipment lines in a wave, the grouping level affects how many lines are allocated at one time. Waves help you control work and inventory flow in your facility.</p>
+                                                        <p>You can plan and allocate a wave ahead of time and then view the pending replenishments. This enables you to be proactive in that you can fill the replenishments in advance, then release the picks for the wave as planned.</p>
+                                                        <p>The following information relates to wave processing:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Wave set</span>: A wave set is a name for a group of shipments included in the same wave. For example, if you group outbound shipments to three customers every Monday, you could name the wave set for these shipments "Monday". You assign a wave set to each shipment you want to allocate.</li>
+                                                            <li><span class="specialbold">Wave Number</span>: A wave number is a unique identifier for the wave that is generated by the application, or is user-defined, at the time that the wave is planned. The wave number distinguishes one wave from another, which enables you to track the wave through the application. </li>
+                                                            <li><span class="specialbold">Automatic wave processing</span>: The host marks outbound orders for wave processing and a background process (SALDAEPRC) automatically selects, plans, allocates, and releases the picks for the wave without any intervention of the user. See <a href="automatic_allocation.htm#Automatic_allocation_processing">Automatic allocation processing</a>. </li>
+                                                            <li><span class="specialbold">Manual wave processing</span>: An operator picks a wave rule and manually selects outbound orders or shipments based on the wave rule to plan, allocate, and release a wave. See <a href="#Manual_wave_processing">Manual wave processing</a>.</li>
+                                                        </ul>
+                                                        <p>You can make the following modifications to a wave:</p>
+                                                        <ul>
+                                                            <li>Add or remove an order or order line, a shipment, or a load. These actions can be performed on waves in a Planned, Allocated, or Released status. If you remove an order from a wave, it returns to an Unplanned status; if the order was assigned to a shipment, the order retains the associated shipment number. This can be done prior to allocation while the wave is in the Planned status, or after allocation when the shipment line has been picked and staged. </li>
+                                                            <li>Manage pick work for the wave, including suspending, releasing, or cancelling picks, among other tasks.</li>
+                                                            <li>Assign a shipment or load in the wave to a staging lane.</li>
+                                                            <li>Manage short allocations, replenishments, and cross docks for a wave.</li>
+                                                            <li>Unallocate a wave for which picking has not started; the wave returns to a Planned status.</li>
+                                                            <li>Delete a wave. You can delete a wave while it has a Planned, Allocated, or Scheduled for Release status. Once picks are released, you cannot delete a wave unless you first cancel the picks from the wave. When you delete a wave, all wave information is removed from the application, but the orders and shipments remain and are returned to an Unplanned status. </li>
+                                                        </ul>
+                                                        <h2 id="Wavestatus" data-magellan-target="Wavestatus"><a name="Wave_status"></a>Wave status</h2>
+                                                        <p>A wave transitions through the following statuses:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Planned</span>: Scheduled waves are planned, but not allocated.</li>
+                                                            <li><span class="specialbold">Allocation in Process</span>: The application is in the process of allocating the picks for the wave.</li>
+                                                            <li><span class="specialbold">Allocated</span>: The wave is allocated and picks for the wave have a Hold status. The Hold status allows you to control when picks are released, so that you can pre-plan a wave in advance and then release it at a later time. You can cancel the wave in the Allocated status without having to cancel individual picks.</li>
+                                                            <li><span class="specialbold">Scheduled for Release</span>: Picks are scheduled to be released. To delete a wave in the Scheduled for Release status, inventory for the wave cannot be picked. </li>
+                                                            <li><span class="specialbold">Released</span>: Picks in the wave have been released for picking.</li>
+                                                            <li><span class="specialbold">Complete</span>: Picking is complete for the wave.</li>
+                                                        </ul>
+                                                        <h2 id="Manualwaveprocessing" data-magellan-target="Manualwaveprocessing"><a name="Manual_wave_processing"></a>Manual wave processing</h2>
+                                                        <p>Manual wave allocation is the process of planning and allocating shipments without automatic processing; you must manually transition the wave from one status to the next.</p>
+                                                        <p>You can also configure the application for automatic wave processing. See <a href="automatic_allocation.htm#Automatic_allocation_processing">Automatic allocation processing</a>.</p>
+                                                        <p>To use custom wave rules during manual processing, add or modify the wave rules from which to generate a specific wave. See <a href="manual_allocation.htm#Wave_rules">Wave rules</a>. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: During manual wave processing, you can use the page refresh tool to manually refresh the wave status.</p>
+                                                        <p>The following steps represent the high-level process for manually generating waves:</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>If you are using one of the shipment-based wave rules, build your orders into outbound shipments. You can manually group orders into a shipment, or the application can automatically group orders into a shipment. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: During automatic shipment creation, the application groups order lines together and runs through a list of shipment creation rules to create valid shipments. See <a href="#Automatic_shipment_creation">Automatic shipment creation</a> and <a href="order_consolidation.htm">Order Consolidation</a>.</p>
+                                                            </li>
+                                                            <li value="2">If you are using the STD-PLANWAVE rule, make sure that all shipments that you want included in the wave have the same Wave Set. See <a href="procedures_for_shipments.htm#Add_or_modify_a_shipment">Add or modify a shipment</a>. </li>
+                                                            <li value="3">Plan the wave. The wave status changes to Planned. See <a href="procedures_for_waves.htm#Plan_a_wave">Plan a wave</a>.</li>
+                                                            <li value="4">Allocate inventory for the wave to create the picks to satisfy the shipments for the wave. The wave status changes to Allocated. See <a href="procedures_for_waves.htm#Allocate_a_wave">Allocate a wave</a>. Picks for the wave are created with a Held status.</li>
+                                                            <li value="5">Schedule the picks for release. The wave status changes to Scheduled for Release, and the status of the picks changes to Pending. See <a href="procedures_for_waves.htm#Release_a_wave">Release a wave</a>.</li>
+                                                            <li value="6">Picks are released based on your pick release configuration. The wave status changes to Released.</li>
+                                                            <li value="7">If needed, modify waves. See <a href="procedures_for_waves.htm#Remove_an_order_from_a_wave">Remove an order  from a wave</a> and <a href="procedures_for_waves.htm#Remove_a_shipment_or_load_from_a_wave">Remove a shipment or load from a wave</a>. </li>
+                                                            <li value="8">Monitor the progress of the wave by viewing information on the Waves dashboard and in the wave details. See <a href="procedures_for_waves.htm">Procedures for waves</a>.</li>
+                                                            <li value="9">If needed, change the work queue priority of the picks in the wave. See <a href="procedures_for_waves.htm#Change_the_priority_of_a_wave">Change the priority of a wave</a>.</li>
+                                                            <li value="10">If needed, cancel picks or cross docks for a wave, or unallocate the entire wave. The wave status changes to Planned. See <a href="procedures_for_picks_and_work_assignments.htm#Perform_actions_on_picks">Perform actions on picks</a>, <a href="procedures_for_shorts_and_replenishments.htm#Cancel_cross_docking">Cancel cross docking</a>, or <a href="procedures_for_waves.htm#Unallocate_a_wave">Unallocate a wave</a>. You can also delete a wave to remove it entirely from the application. See <a href="procedures_for_waves.htm#Delete_a_wave">Delete a wave</a>. </li>
+                                                            <li value="11">After all picking for the wave is complete, the wave status changes to Complete.</li>
+                                                        </ol>
+                                                        <h2 id="Automaticshipmentcreation" data-magellan-target="Automaticshipmentcreation"><a name="Automatic_shipment_creation"></a>Automatic shipment creation</h2>
+                                                        <p>When you plan outbound orders into a wave without first creating a shipment, the application automatically runs through a sequential list of shipment creation rules to create valid shipments.</p>
+                                                        <p>The first three rules are applied to the entire wave. The remaining rules break the wave by looking for order lines with matching characteristics and grouping them into shipments.</p>
+                                                        <p>The automatic process uses the following shipment creation rules:</p>
+                                                        <ol>
+                                                            <li value="1"><span class="specialbold">Add missing married lines</span>: Ensures all order lines with the same married code are selected when you select order lines for a shipment. For example, if there are three order lines with a married code of "A," but you only select two of them, the application selects the third to ensure that the married lines ship together.</li>
+                                                            <li value="2"><span class="specialbold">Add missing sub-lines</span>: Ensures all sub-lines for an order line are selected when you select order lines for a shipment. For example, if an order line has four sub-lines, but you only select three of them, the application selects the fourth to ensure that the sub-lines ship together.</li>
+                                                            <li value="3"><span class="specialbold">Consolidate by married code</span>: Ensures that all order lines with the same married code are shipped together. To do this, the application searches your selected orders for all lines with a married code. It then populates a ship-with field on these lines with a sequence number. For example, all lines with a married code of "A" may be given a ship-with value of 12345, and all lines with a married code of "B" may be given a ship-with value of 54321. The application then ensures that all lines with the same ship-with value are grouped into the same shipment. This rule also applies to sub-lines.</li>
+                                                        </ol>
+                                                        <h2 id="Shortallocations" data-magellan-target="Shortallocations"><a name="Short_allocations"></a>Short allocations</h2>
+                                                        <p>A short allocation occurs when a wave is allocated and there is not enough inventory available to fill an outbound order. Short allocations can occur for different reasons, including the following examples:</p>
+                                                        <ul>
+                                                            <li>Necessary inventory is outside of the allocation search path.</li>
+                                                            <li>Inventory is on a hold that does not allow allocation.</li>
+                                                            <li>Inventory is in a location that is in error.</li>
+                                                            <li>Attributes of the available inventory are different from the needs of the order.</li>
+                                                        </ul>
+                                                        <p>When short allocations occur, you can view the reasons that caused the short. See <a href="procedures_for_shorts_and_replenishments.htm#View_short_order_line_details">View short order line details</a> or <a href="procedures_for_shipping_issues.htm#Manage_short_loads_and_items">Manage short loads and items</a>.</p>
+                                                        <p>If the application is configured to generate emergency replenishments to find and pick the missing inventory for an order that was shorted, you can view and cancel them. See <a href="dashboard_obp.htm#Cancel_a_short_and_reallocate_">Cancel a short and reallocate</a>.</p>
+                                                        <h2 id="Searchpathlog" data-magellan-target="Searchpathlog"><a name="Search_path_log"></a>Search path log</h2>
+                                                        <p>The search path log provides access to the list of allocation processes that took place during inventory allocation for an order line. The list can include allocation log files for picks, demand replenishments, and emergency replenishments. </p>
+                                                        <p>You can view the search path log for a short order line by viewing the short order line details, and then selecting the <span class="specialbold">Search Path Log</span> tab. See <a href="procedures_for_shorts_and_replenishments.htm#View_short_order_line_details">View short order line details</a>.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Log files are available if  logging was enabled prior to allocation taking place. See <a href="manual_allocation.htm">Manual Allocation</a> and <a href="post_allocation.htm">Post Allocation</a>.</p>
+                                                        <p>You can select a log file to display processing details and a message that explains the reason that inventory could not be allocated. When you select a log file to view, the search path log displays the following information:</p>
+                                                        <ul>
+                                                            <li>Sequence in which the allocation process took place for the item quantity</li>
+                                                            <li>Allocation search path that was used to find inventory</li>
+                                                            <li>Location that was evaluated for inventory</li>
+                                                            <li>LPN in the location that was evaluated for inventory</li>
+                                                            <li>Filter that the inventory failed to pass, and therefore, did not qualify for allocation</li>
+                                                            <li>Message that explains why the process failed to allocate the required inventory</li>
+                                                        </ul>
+                                                        <h2 id="Replenishmentdestinationlog" data-magellan-target="Replenishmentdestinationlog"><a name="Replenishment_destination_log"></a>Replenishment destination log</h2>
+                                                        <p>The replenishment destination log displays the processing details and the reason why replenishment could not find a destination location for replenishment inventory. For example, a replenishment destination can be disqualified for any of the following reasons:</p>
+                                                        <ul>
+                                                            <li>Inventory could not fit in the location</li>
+                                                            <li>LPN height is taller than location</li>
+                                                            <li>Inventory could not be mixed with current inventory in location</li>
+                                                            <li>For date-controlled inventory, the deposit would exceed the allowable date window when added to inventory already in the location </li>
+                                                            <li>The intermediate hop location was full or in error status</li>
+                                                        </ul>
+                                                        <p>You can view the replenishment destination log for a short order line by viewing the short order line details, and then selecting the <span class="specialbold">Replen Destination Log</span> tab. See <a href="procedures_for_shorts_and_replenishments.htm#View_short_order_line_details">View short order line details</a>.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Log files are available if  logging was enabled prior to allocation taking place. See <a href="manual_allocation.htm">Manual Allocation </a>and <a href="post_allocation.htm">Post Allocation</a>.</p>
+                                                        <p>When you select a log file to view, the replenishment destination log displays the following information:</p>
+                                                        <ul>
+                                                            <li>Building and storage location that the process attempted to replenish</li>
+                                                            <li>Value that was compared to determine if the location was a match for the inventory</li>
+                                                            <li>Value for the location to which the replenishment deposit was attempted</li>
+                                                            <li>Value of the inventory that the application is attempting to put in the replenishment destination location</li>
+                                                            <li>Reason that the destination location was not a match for the replenishment </li>
+                                                        </ul>
+                                                        <h2 id="Deliverysequenceloading" data-magellan-target="Deliverysequenceloading"><a name="Delivery_sequence_loading_"></a>Delivery sequence loading </h2>
+                                                        <p>Delivery sequence loading is a process in which the orders on a stop are loaded in a specific sequence. You can use this process to sequence groups of orders on a stop, and to sequence the orders within each separate group, for loading and, if configured, building work assignments. For example, assume a stop has two orders for Store1 and two orders for Store2, and that the orders for Store2 need to be loaded in sequence first. Using delivery sequence loading, you can ensure that inventory is picked and loaded in the following sequence: Store2 Order1, Store2 Order2, Store1 Order1, and Store1 Order2. </p>
+                                                        <p>The application processes delivery sequence loading based on the following attributes:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Delivery Number</span>: Assigned to orders on a stop to group multiple orders together that need to be delivered to the same destination. Delivery numbers can be used when a customer stop on a load contains orders for multiple locations in the same geographic region. In this case, the deliveries on the stop are either made to each customer location (ship-to customer), or the stop is unloaded at an intermediate location (such as a route-to customer) prior to delivery. Orders destined to the same ship-to customer should have the same delivery number. For example, assume that a customer has two stores (A and B) near each other, and that their orders are included on the same stop. All orders for Store A would have the same delivery number (A01, for example), and all the orders for Store B would have a different delivery number (B01). </li>
+                                                            <li><span class="specialbold">Delivery Sequence</span>: Assigned to the orders within one or more delivery number groups on a stop so they are loaded in a specific sequence. If a stop includes 4 orders, you can assign a sequential number to each one, and the operator is directed to load the orders based on the sequence. If orders on a stop have different delivery numbers, then the application first sorts the orders by delivery number and then by delivery sequence. For example, assume that Store A and Store B (from the previous example) each have 2 orders on a stop. Also, assume that the orders for delivery number A01 have a delivery sequence of 1 and 2, and the orders for B01 have a delivery sequence of 1 and 2. If the application is configured to load in descending order, the orders are loaded in the following sequence: B01 2, B01 1, A01 2, and A01 1. </li>
+                                                            <li><span class="specialbold">Delivery Sequence Loading Order</span>: Determines whether inventory should be loaded in ascending or descending order of the delivery sequence defined for the orders in a stop. Alternatively, delivery sequence loading order can be disabled to load the orders in any sequence. For example, if the application is configured to load in ascending order, the orders from the previous example are loaded in the following sequence: A01 1, A01 2, B01 1, B01 2. Delivery sequence loading order can be defined for a warehouse, a client warehouse (in a 3PL environment), and a shipment. The value defined for a shipment overrides the client value, which overrides the warehouse value. </li>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: To ensure proper loading sequence, all shipments on a stop should have the same delivery sequence loading order.</p>
+                                                        </ul>
+                                                        <p>For example, assume that multiple orders on a stop are destined to the same route-to customer (CUST1); and from there, the orders are destined to two different ship-to customers. Also, assume that the orders have the following attributes:</p>
+                                                        <table style="width: 427.2667;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 115px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 77px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 103px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 111px;" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1" style="text-align: center;">
+                                                                        <p class="tableheading">Ship-to Customer</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1" style="text-align: center;">
+                                                                        <p class="tableheading">Order</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1" style="text-align: center;">
+                                                                        <p class="tableheading">Delivery Number</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1" style="text-align: center;">
+                                                                        <p class="tableheading">Delivery Sequence</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>Store A</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>ORD1A</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>A01</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>1</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>Store A</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>ORD2A</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>A02</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>3</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>Store A</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>ORD3A</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>A02</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>2</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>Store B</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>ORD1B</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>B02</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>1</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>Store B</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>ORD2B</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>B02</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow" style="text-align: center;">
+                                                                        <p>2</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>If the delivery sequence loading order for the associated shipments is ascending, then the application enforces loading the orders in the following sequence (based on delivery number first and then delivery sequence): ORD1A, ORD3A, ORD2A, ORD1B, and ORD2B. Alternatively, if the loading sequence for the shipments was descending, then the orders would be loaded in reverse sequence.  </p>
+                                                        <p>You can use the delivery number and delivery sequence attributes as criteria for work assignment creation and wave rules (allocation). This allows you to group, sort, and sequence picks for allocation and work assignments based on one or more values for the delivery number or delivery sequence order attributes. See <a href="#Delivery_sequence_loading_order_setup_">Delivery sequence loading setup</a>.</p>
+                                                        <p>For example, assume you want to build work assignments using the delivery number and delivery sequence from the previous example as criteria. A basic work assignment rule configuration might include the following attributes:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Selection Criteria</span>: Route-To Customer (Outbound Order entity)</li>
+                                                            <li><span class="specialbold">Criteria Sequence</span>: Delivery Number (Descending)</li>
+                                                            <li><span class="specialbold">Pick Order</span>: Delivery Sequence (Descending)</li>
+                                                        </ul>
+                                                        <p>When the application builds work assignments based on this rule, any order picks destined to CUST1 are considered to be eligible. The application then fills work assignments with picks for Store B first (delivery number B02), and then sets the pick order so that ORD2B picks are performed first followed by picks for ORD1B (delivery sequence 2 and 1, respectively). </p>
+                                                        <h2 id="Deliverysequenceloadingordersetup" data-magellan-target="Deliverysequenceloadingordersetup"><a name="Delivery_sequence_loading_order_setup_"></a>Delivery sequence loading order setup </h2>
+                                                        <p>Delivery sequence loading order indicates the order in which shipments should be loaded onto an outbound trailer based on the delivery number and delivery sequence on the outbound orders. </p>
+                                                        <p>You must perform the following tasks to configure the delivery sequence loading order.</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Define the delivery sequence loading order. The loading order determines whether inventory should be loaded in ascending or descending order of the delivery numbers and delivery sequence defined for the orders in a stop. In a 3PL environment, you can define a loading order for a client and a shipment, but not for the warehouse; in a non-3PL environment, you can define a loading order for the warehouse and a shipment. The loading order defined for a shipment overrides the warehouse value and client value.  </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: To ensure proper loading, all shipments within a stop should have the same delivery sequence loading order. </p>
+                                                            </li>
+                                                            <li value="2">Define delivery numbers and a delivery sequence for the orders on a stop. Delivery numbers are assigned to orders on a stop to group multiple orders together that need to be delivered to the same destination. Delivery sequence numbers are assigned to the orders within one or more delivery number groups on a stop so they are loaded in a specific sequence. Orders that are downloaded from the host may include these values. See <a href="procedures_for_orders.htm#Add_or_modify_an_order">Add or modify an order</a>.</li>
+                                                            <li value="3">To plan waves based on the delivery number or delivery sequence, configure wave rules. Specifically, you can select delivery number or delivery sequence as a field parameter, meaning that the application will only include orders that meet the parameter values in the wave for allocation. For example, you can create a wave rule so that only orders with specific delivery numbers are allocated using that rule. See <a href="manual_allocation.htm#Wave_rules">Wave rules</a>.</li>
+                                                            <li value="4">To build work assignment using the delivery number or delivery sequence, configure the following work assignment rule attributes:<ul><li><span class="specialbold">Pick order</span>: Determines the order in which picks will be performed for a work assignment. For example, you can add delivery sequence as criteria and then define whether the application should sort them ascending or descending to ensure picks are listed on the work assignment in a specific order.</li><li><span class="specialbold">Selection criteria</span>: Determines which picks are eligible to be included in work assignments based on the rule. For example, you can add one or more delivery numbers as the selection criteria for the entity Outbound Order, ensuring that only picks for orders with the defined delivery numbers are added to work assignments created using the rule.</li><li><span class="specialbold">Criteria sequence</span>: Determines the order in which eligible picks are sorted before being added to a work assignment. For example, you can select the delivery number as criteria to be sorted in ascending order; the application sorts eligible picks based on the alphanumeric delivery numbers on the associated orders, and adds picks at the top of the list to the work assignment first.</li></ul></li>
+                                                            <p>See <a href="work_assignments.htm#Work_assignment_rules">Work assignment rules</a>.</p>
+                                                            <li value="5">If you are building work assignments using the delivery number or sequence, consider the following work assignment configurations to keep orders together:<ul><li><span class="specialbold">Fill Work Assignment with Similar Picks First</span>: You can set this field to Orders to keep picks for an order together on the same assignment; work assignments are filled with picks for the same order first.</li><li><span class="specialbold">Prevent Pick Consolidation</span>: You can set this field to Yes to prevent the application from consolidating picks for the same item from the same location; consolidating such picks may result in the picks being performed out of delivery sequence loading order. </li><li><span class="specialbold">Pick Tasks on Existing Work Assignment</span>: You can set this field to No so that new picks for a different order are not added to a work assignment for an existing order that has capacity.</li><li><span class="specialbold">Assign Pick to Existing Assignment</span>: You can set this field to Never so that the content of a work assignment cannot be updated once the assignment has been generated.</li></ul></li>
+                                                            <p>See <a href="procedures_for_work_assignment_configuration.htm#Configure_work_assignments">Configure work assignments</a>.</p>
+                                                        </ol>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

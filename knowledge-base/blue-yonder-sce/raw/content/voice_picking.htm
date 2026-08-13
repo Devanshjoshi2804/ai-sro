@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Picking " data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Voice Picking</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#VoicePicking">Voice Picking</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Typesofvoicepicking">Types of voice picking</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurevoicepicking">Configure voice picking</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#VoicePickingfields">Voice Picking fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="VoicePicking" data-magellan-target="VoicePicking"><a name="aanchor308"></a>
+                                                            <MadCap:concept term="WM" />Voice Picking</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#VoicePicking">Voice Picking</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Typesofvoicepicking">Types of voice picking</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurevoicepicking">Configure voice picking</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#VoicePickingfields">Voice Picking fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>If your facility uses voice devices to pick inventory for internal or outbound orders, then you must configure the voice functionality for picking. </p>
+                                                        <p>You specify one or more work operations that a voice operator can perform. For voice picking you can specify, for example, the Case Pick (CPK) and Pallet Pick (PCK) operations. This association is required so that when the voice operator selects a function, such as picking, the application attempts to find directed work for any of the operations associated with that function. If no operation codes are assigned to a voice function, then directed work cannot be retrieved for that function.</p>
+                                                        <h2 id="Typesofvoicepicking" data-magellan-target="Typesofvoicepicking"><a name="Types_of_voice_picking"></a>Types of voice picking</h2>
+                                                        <p>Voice picking attributes and behavior can be configured to support the following types of picking:</p>
+                                                        <ul>
+                                                            <li><b>Directed</b>: For directed work, the application offers the operator work from the work queue, and then directs the operator to each location where items need to be picked or deposited. Directed work can include individual picks and picking work assignments.</li>
+                                                            <li><b>Undirected</b>: For undirected work, the operator enters or speaks a work reference ID at sign on. Undirected pick work is generally used for single case or each picking. An operator can speak any standard, full-value pick identifier normally entered on an RF undirected screen to begin work. If your application recognizes universal commercial codes (UCCs), then a spoken partial work identifier is translated by the application as a UCC. If your application does not recognize UCCs, then a spoken partial work identifier is translated as a work reference number.</li>
+                                                            <li>
+                                                                <p><b>Batch picking support</b>: Instead of sending and processing picks one at a time, the application sends a batch of picks to a voice device when more than one pick is assigned to the device or operator. The voice device then sends the batch of completed picks back as a background process, which lets the operator continue to work on the next batch of picks. While picks may change after being sent in a batch to the voice device, sending the picks in a batch lets the operator perform work continuously since the voice device is not waiting for picks one at a time.</p>
+                                                                <p>When the application creates a batch and adheres to the configured batch limit, it also considers the next pick in sequence (which would exceed the batch limit) to determine if it can be consolidated with the last pick in the previous batch based on item, location, and pick UOM. For example, assume the batch limit for voice picking is 2. If 3 separate picks exist for Item A from the same location and in the same picking UOM, then instead of sending separate batches to the voice device (one for the first 2 picks and another for the third pick, because it exceeds the limit), the application consolidates the quantity of the third pick into the batch with the first 2 picks. The voice operator is then prompted with a single pick quantity to fulfill all 3 picks.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The application continues to evaluate and consolidate the next pick in sequence until it no longer matches the last pick in the original batch, or until 25 additional picks have been added to the original batch.
+                </p>
+                                                            </li>
+                                                            <li><b>Bulk picking support</b>: Voice operators can perform bulk picks and threshold bulk picks. Bulk pick processing allocates matching inventory for multiple order or work order lines together into larger unit of measure (UOM) picks so as to reduce the number of smaller UOM picks required to satisfy the orders. For threshold bulk pick, the operator is typically directed to pick more than the required quantity when that quantity is a defined percentage less than the next higher UOM. For example, if the pick quantity is 90% of a pallet, and the threshold for the pallet UOM is 85%, then the operator is directed to pick a full pallet. The unneeded inventory is split from the LPN to a new LPN and put away to a suitable storage location, or left in a pickup and deposit location after breakdown for another operator to put away.</li>
+                                                            <li>
+                                                                <p><b>Cluster picking and bulk cluster picking</b>: Cluster picking and bulk cluster picking are supported on voice devices. Bulk cluster picking prompts the operator to pick a total quantity of inventory from the location and then prompts the operator with the quantity to deposit in each carton. Cluster picking prompts the operator to pick the first quantity of inventory from the location and then deposit it into the first carton, then pick the second quantity of inventory from the location and deposit it into the second carton and so on until all inventory for all cartons to be picked from the location has been picked and deposited into the cartons.</p>
+                                                                <p>When completing cluster picks, a voice operator can manually choose to pass a carton to another picker to complete. In addition, when initiating a pass, if the carton is complete, the application informs the voice operator so the carton can be pushed to the next appropriate location, such as a conveyor.</p>
+                                                            </li>
+                                                            <li>
+                                                                <p><b>Picking work assignment and multiple picking work assignments</b>: Picking a work assignment to one or multiple containers, and picking multiple work assignments each to their own container is supported on voice devices. If cartons are assigned to their own positions on the voice device (controlled by a configuration), operators are prompted with information as each carton is assigned to them. Otherwise, cartons are not assigned to their own positions and information about the cartons in the work assignment is given as a summary.</p>
+                                                                <p>Voice operators that have the time and capacity can use directed or undirected work to obtain multiple pick work assignments.</p>
+                                                                <p>If the application is configured to allow multiple directed work assignments, then after being prompted with a work assignment, an operator can speak "ready" to add another assignment. Alternatively, the operator can speak "no more" to stop adding assignments. The number of directed work assignments an operator can accept is defined by the LPN equipment limit specified for the operator's equipment. For example, if the LPN equipment limit is 3, then the operator can accept up to 3 work assignments.</p>
+                                                                <p>When an operator selects multiple work assignments, the application combines the selected work assignments into a single master assignment and directs the operator in the most efficient manner through the pick zones to complete the master. The application also directs the operator to place the appropriate pick quantity into the picking container designated for each work assignment. When the master work assignment is complete or the equipment is full, the application directs the deposit of the picking containers to the appropriate destination locations.</p>
+                                                            </li>
+                                                        </ul>
+                                                        <h2 id="Configurevoicepicking" data-magellan-target="Configurevoicepicking"><a name="Configure_voice_picking"></a>Configure voice picking</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Outbound &gt; Picking &gt; Voice Picking</span>.</li>
+                                                            <li value="2">Enter information in the <a href="#Voice_Picking_fields">Voice Picking fields</a>.</li>
+                                                            <li value="3">If check digit rotation is enabled, then to define the check digit scheme description that is spoken to operators to identify which location check digit to use:<ol><li value="1"><p>Click <span class="specialbold">Voice Check Digit Schemes</span>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: The application selects randomly between the three defined check digits for a location, therefore, the sort sequence of the schemes has no effect on application processing.</p></li><li value="2"><p>In the <span class="specialbold">Description </span>column, enter a description for each scheme that may be spoken to the operator to identify which location check digit to use.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: The value in the <span class="specialbold">Voice Check Digit Scheme </span>column represents the associated check digit field in location configuration. The scheme with a value of 1 is associated with the <span class="specialbold">First (Primary)</span> location check digit field, scheme 2 is associated with the <span class="specialbold">Middle </span>field, and scheme 3 is associated with the <span class="specialbold">Last </span>field. For example, assume the <span class="specialbold">Middle </span>check digit field value for a location is 5, and the description for check digit scheme 2 is Square. If the application randomly selects scheme 2, the voice device speaks "Square" to the operator, and the operator speaks "5" to confirm the location.</p></li><li value="3">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="4">Assign directed work operations for performing voice picking:  <ol><li value="1">Click <span class="specialbold">Operation</span>. </li><li value="2">In the <b>Available </b>column, select the check box next to the operations to use.</li><li value="3">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="5">
+                                                                <p>Assign voice codes for pick cancellation codes:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: A voice code is the number the operator must speak to cancel a pick with the related cancel code. </p>
+                                                                <ol>
+                                                                    <li value="1">Click <span class="specialbold">Cancel Codes for Voice Users</span>.</li>
+                                                                    <li value="2">In the grid, to change the voice code for a cancel code, select the row to change and then drag the row to the preferred position in the grid. The application automatically renumbers the voice codes in sequential order.</li>
+                                                                    <li value="3">Click <b>Apply</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="6">
+                                                                <p>To select the attributes that are spoken in the assignment summary:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: This field is only available if <span class="specialbold">Assignment Summary</span> is set to Yes.</p>
+                                                                <ol>
+                                                                    <li value="1">Click <span class="specialbold">Assignment Summary Attributes</span>.</li>
+                                                                    <li value="2">In the <b>Available </b>column, select the check box next to the attributes to include in the assignment summary message. </li>
+                                                                    <li value="3">Click <b>Apply</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="7">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="VoicePickingfields" data-magellan-target="VoicePickingfields"><a name="Voice_Picking_fields"></a>Voice Picking fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1" data-mc-conditions="">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1">
+                                                                        <p class="FieldNotesTermHeading">Enable Secure Voice</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then Secure Voice functionality is enabled for voice picking. Secure Voice provides an encrypted communication method in which the device and the application server communicate through encrypted JSON messages over API&#160;web calls using an https (secure) socket. With Secure Voice enabled, the application&#160;server can communicate with the voice device over a public network and does not require the use of a VPN&#160;tunnel or Integrator processing. Additionally, Secure Voice ensures user authentication happens first in the voice device's start-up sequence, meaning that subsequent messages are only sent to authorized users. Re-authentication occurs when required, such as when an authorization token expires or is manually revoked. </p>
+                                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: Secure Voice requires additional server and device configuration. If Secure Voice is enabled, then the voice device must be operating on a recently released firmware version with an up-to-date root certificate to properly validate the certificate used in the HTTPS connection. Before you enable Secure Voice, contact the Blue Yonder Edge team for assistance.</p>
+                                                                        <p>If No, then Secure Voice is disabled, and the&#160;application communicates with the voice device through plain text CSV socked-based LUT/ODR messages (Integrator transactions). </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Password</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then when the device repeats the operator's password, the operator must confirm the password to continue. If the password is correct, the operator speaks "yes" to continue; if the password needs to be reentered, the operator speaks "no".</p>
+                                                                        <p>If No, then the password is used without confirmation from the operator. If the password is correct, the operator is logged in. If the password is incorrect the operator is instructed that the password is incorrect and is required to speak the password again.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Item Description</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, a description for the item being picked is always spoken to the operator. </p>
+                                                                        <p>If No, the device does not speak the item description unless there is more than one item in the pick location or the operator requests it by speaking "description".</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Pick Confirmation</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Determines how the picking operator should be prompted for location and quantity during voice picking.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice only supports the <b>Multiple - Location, item and quantity</b> selection for this configuration. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Single - Location, item, and quantity</span>: The device prompts the operator with the pick location, item information, and quantity at the same time with no need for confirmation.</li>
+                                                                            <li><span class="specialbold">Single - Location, item, and quantity (Suppress Quantity: 1)</span>: The device prompts the operator with the pick location, item information, and quantity at the same time. However, if the pick quantity is 1, the device only gives the pick location and item information; that is, if the device does not specify a pick quantity to the operator, the pick quantity is 1. This is useful for facilities that regularly voice pick quantities of 1 because picking can be completed faster without the quantity prompt. </li>
+                                                                            <li>
+                                                                                <p><span class="specialbold">Multiple - Location, item and quantity</span>: The device prompts the operator with the pick location and, in order to continue, the operator must respond with the voice check digit to confirm the location. After a location is confirmed, the operator is then prompted with the item information and pick quantity. This is the slowest prompt method, but it is useful when an operator needs to travel a long distance between picks and still recall the pick location. </p>
+                                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the <span class="specialbold">Check Digit Rotation</span> field is set to Yes, before an operator starts an assignment, the application specifies which of the three check digit values is required for pick and deposit locations.</p>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Starting Location</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the device prompts the operator to provide the first (primary) check digit for a starting location, which is used to determine the best work to give to the operator.</p>
+                                                                        <p>If No, the operator is not prompted for a starting location, which can streamline the login process, and the application uses the location specified in the <span class="specialbold">Default Start Location</span> field. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Verify Pick Quantity</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then the operator is required to the speak the pick quantity for verification. For example, if the pick is for 5 cases, the following interaction would take place:</p>
+                                                                        <ul>
+                                                                            <li><b>Device</b>: "Pick 5 Case"</li>
+                                                                            <li><b>Operator</b>: "Five"</li>
+                                                                        </ul>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The operator can speak less than the required quantity to create a short.</p>
+                                                                        <p>If No, then the operator is not required to speak the pick quantity and instead must speak "ready" to confirm the full quantity. For example, if the pick is for 5 cases, the following interaction would take place:</p>
+                                                                        <ul>
+                                                                            <li><b>Device</b>: "Pick 5 Case"</li>
+                                                                            <li><b>Operator</b>: "Ready"</li>
+                                                                        </ul>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Default Start Location</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Location that is used as the default start location for a voice operator during the login process. This field is only available and is required if the <span class="specialbold">Starting Location</span> field is set to No. The application uses the start location as a determining factor when locating directed work for the operator.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Maximum Pick Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the operator only receives a pick quantity for what is available in a pick location. For example, if the pick is for a quantity of 10, but the location has only 5 available, then the operator is directed to pick 5. If the <span class="specialbold">Auto Skip Picks </span>field is set to Yes, then the remaining 5 are automatically skipped, and the operator is directed to perform the skipped picks after completing the other picks in the assignment.</p>
+                                                                        <p>If No, the operator is instructed to pick the entire pick quantity. When the operator confirms a quantity less than the full pick quantity, the operator is instructed to pick the remaining quantity. The operator can then skip or cancel the pick for the remaining quantity.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Deliver At Close</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when the operator requests a new container, the device directs the operator to deliver all closed containers before it allows the operator to open a new container. This option applies to cluster, bulk cluster, and non-carton work assignment picks when a container becomes full and the operator attempts to open a new container to complete the rest of the picks. </p>
+                                                                        <p>If No, then the device does not direct the operator to deliver the closed containers when a new container is requested.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Check Digit Rotation</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application selects randomly between three defined check digits (rather than one) when prompting an operator to confirm a pick or deposit location during voice picking operations. A check digit is a number assigned to a location that a voice operator speaks to confirm the location. </p>
+                                                                        <p>By default, the three check digit fields for a location are titled <span class="specialbold">First (Primary)</span>, <span class="specialbold">Middle</span>, and <span class="specialbold">Last</span>. If check digit rotation is enabled and voice pick configuration requires a location check digit, then when an operator starts an assignment, the application specifies which of the three check digit values is required for pick and deposit locations. For example, the voice device might speak "Middle," meaning the operator must use the middle check digit value to confirm each pick and deposit location for the assignment. When the assignment is complete, the application again randomly selects a check digit for the next assignment. </p>
+                                                                        <p>You can change the description that is spoken to voice operators for each check digit field using the Voice Check Digit Schemes configuration. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Check digit rotation is only used during picking operations. During other voice operations that require check digit confirmation, such as replenishments, putaway, or distribution, the application always prompts for the first (primary) check digit. </p>
+                                                                        <p>If No, then only the first (primary) check digit value is used to confirm locations when picking with a voice device in the current warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">System Generates Container Number</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when the operator requests a new container, the application automatically generates a new container number and prints a label for it, and the device speaks the new container number to the operator. </p>
+                                                                        <p>If No, then when the operator requests a new container, the device asks the operator to provide a container number. The value for the <span class="specialbold">Print </span>field determines whether and when a label is printed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Voice Spoken LPN Length</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number of characters, starting from the last character, that the voice device must speak to the operator to specify an LPN. This configuration is used to shorten the LPN value spoken to an operator that is depositing picked inventory, resuming a work assignment LPN, and loading transport equipment. For example, if LPNs in your facility typically consist of 8 characters, then to save time, you may require that the device speak only the last 4 characters of the LPN to the operator. If you set the value of this field to 4 and the LPN identifier is LPN01234, then when an operator deposits inventory, the device confirms the LPN by speaking the last four characters (1234). If you leave this field blank (no value), then the voice device speaks the full LPN.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Review Catch Weight</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then after the operator has confirmed the catch weight values for a pick that requires it, the application prompts the operator with “Entries complete.” At this point, the operator can speak “Review last” to have the application repeat the last catch weight that was entered. Upon hearing the last entry, the operator can speak “Undo entry” and be prompted whether to undo the last entry, all entries, or continue. With this process, the operator can confirm or speak a different value for any of the catch weights that were captured.</p>
+                                                                        <p>If No, then after the operator has confirmed the catch weight values for a pick that requires it, the application prompts the operator with the next location or the next piece of work. With this process, the operator does not have the option to review or change a catch weight value that has already been confirmed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Assign Incomplete Work at Sign Off</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then when an operator that is picking a directed work assignment speaks "sign off,"&#160;the application assigns the incomplete work assignment to the operator as if it were manually assigned. Set this field to Yes to prevent operators from signing off and signing on again to avoid the work they were originally directed to perform. If this field is set to Yes, then the incomplete work assignment remains assigned to the operator until one of the following events occurs:&#160;</p>
+                                                                        <ul>
+                                                                            <li>The operator remains logged out for the duration that is specified in the <b>Unassign Idle Work Time</b> field.</li>
+                                                                            <li>The operator signs on to the application using a different device or vehicle type. </li>
+                                                                            <li>Warehouse Labor Management is integrated and the operator signs off for the entire day, meaning that the end of day transaction is sent to Warehouse Labor Management upon sign off (based on the <b>End of Day</b> field value).</li>
+                                                                        </ul>
+                                                                        <p>If No, then when an operator speaks "sign off," the directed work becomes available in the work queue for another operator to perform. </p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>:&#160;</p>
+                                                                            <ul>
+                                                                                <li>The application directs the operator to deposit incomplete work assignments based on the <b>Deposit Incomplete Assignment on Sign Off</b> field. </li>
+                                                                                <li>The <b>Sign Off During Work Assignment</b> field must be set to Yes to allow operators to sign off while performing a work assignment. </li>
+                                                                            </ul>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Unassign Idle Work Time</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Number of minutes that work remains assigned to an operator after the operator has signed off. When the duration in minutes has passed, the work is unassigned and it becomes available for another operator to perform. Only available if the <b>Assign Incomplete Work at Sign Off</b> field is set to Yes.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">End of Day</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Determines whether the application sends an end of day transaction (ISTOP or IEND) to Warehouse Labor Management when the voice operator signs out. Only available when Warehouse Labor Management is integrated with Warehouse Management. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;The <b>WLM&#160;Activity</b> field in the Warehouse Labor Management integration fields determines which end of day transaction is sent. </p>
+                                                                        <ul>
+                                                                            <li><b>Do not send, no prompt</b>: The end of day prompt is not spoken to the operator, and the end of day transaction is not sent to Warehouse Labor Management when an operator signs off a voice device.</li>
+                                                                            <li><b>Always send, no prompt</b>: The end of day prompt is not spoken to the operator, but the end of day transaction is always sent to Warehouse Labor Management when an operator signs off a voice device.</li>
+                                                                            <li><b>Labor check end of day</b>: The system checks the <b>Prompt for End of Day</b> field in the Warehouse Labor Management integration configuration to determine if the application asks whether the operator is done for the day. If the operator is not prompted, the transaction is not sent. If the operator is prompted and the operator answers "Yes," then the transaction is sent.</li>
+                                                                            <li><b>Labor always prompt</b>: A prompt asking if the operator is done for the day is always spoken regardless of how the Warehouse Labor Management <b>Prompt for End of Day</b> field is configured. This selection can be used to differentiate the prompt behavior for voice. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Resume Skipped Pick</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the operator can speak "re-pick skips" to be directed to perform any picks in the current batch that were skipped. Picks skipped from a batch other than the one currently being picked cannot be re-picked using this command; instead, operators must wait until the application directs them to those picks again.</p>
+                                                                        <p>If No, the operator cannot request to be directed to pick skipped picks at any time. Instead, the application directs the operator to perform skipped picks after completing the rest of the picks in the assignment.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Manual Skip Pick</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the operator can speak "skip slot" to skip the current pick. The operator is directed to return to the location to complete the pick after completing the rest of the picks in the assignment. </p>
+                                                                        <p>If No, the operator is not allowed to skip the current pick.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Confirm Cart Pick by Position</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the operator can use simple put verification when depositing picks into cartons. Simple put verification lets the operator speak the position number of the carton to verify the deposit instead of speaking the entire carton identifier. A carton's position number is established when the operator begins the assignment.</p>
+                                                                        <p>If No, the operator must speak the carton number instead of the position number to verify the pick deposit.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Carton Position</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, when a picking work assignment contains multiple cartons, each carton is tracked in a separate position on the destination picking equipment (such as a cart). The operator must confirm the position when depositing the picked inventory.</p>
+                                                                        <p>If No, the operator is not required to confirm the carton or a position; the application records that the pick was placed into the proper carton.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">LPN&#160;Determination</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Determines the type of LPN to use for voice picking.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">System-generated LPN</span>: The application generates an LPN when the operator begins a picking assignment, and a label can be printed to apply it to the destination handling unit.</li>
+                                                                            <li><span class="specialbold">User-entered LPN</span>: The operator enters the LPN from an existing label before beginning the assignment.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Override Resume Message First Field</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>First field that the device speaks to direct the operator to pick up the correct inventory when resuming a work assignment. If you select a value for <b>Override Resume Message First Field</b>, the default message spoken by the device is overridden. Instead, the device speaks a resume message that includes the value of the defined first field followed by the value of the second field, if defined.  For example, you can direct operators to resume a work assignment at an aisle location for a specific customer by selecting Ship-to Customer as the first field and Aisle as the second field, and the device would speak, "Pick up ship-to customer General Store, aisle A01." If you select no value (blank) in the override resume message fields, then the device speaks the default message that includes the LPN and location.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Spell First Field Value</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then the device spells the value of the first override field spoken to an operator that resumes a work assignment. Select Yes if the values for the selected first field typically include abbreviations not intended to be spoken as a word or phrase. For example, if the value of the ship-to customer is GS (General Store), with this field set to Yes, the device speaks each letter individually rather than speaking "GS" collectively as a word.</p>
+                                                                        <p>If No, then the device does not spell the value of the first field in the override resume message. However, if the value includes numbers, then the device will speak each character in the field value individually.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Override Resume Message Second Field</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Second field that the device speaks to direct the operator to pick up the correct inventory when resuming a work assignment. If you select a value for <b>Override Resume Message Second Field</b>, the default message spoken by the device is overridden. Instead, the device speaks a resume message that includes the value of the first field (if defined) followed by the value of the defined second field. For example, you can direct operators to resume a work assignment at an aisle location for a specific customer by selecting Ship-to Customer as the first field and Aisle as the second field, and the device would speak, "Pick up ship-to customer General Store, aisle A01." If you select no value (blank) in the override resume message fields, then the device speaks the default message that includes the LPN and location.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Spell Second Field Value</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then the device spells the value of the second override field spoken to an operator that resumes a work assignment. Select Yes if the values for the selected second field typically include abbreviations not intended to be spoken as a word or phrase. For example, if the value of the ship-to customer is GS (General Store), with this field set to Yes, the device speaks each letter individually rather than speaking "GS" collectively as a word.</p>
+                                                                        <p>If No, then the device does not spell the value of the second field in the override resume message. However, if the value includes numbers, then the device will speak each character in the field value individually.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Directed Multiple Work Assignments</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then a voice picking operator can sign on to multiple directed pick work assignments. For example, after an operator is prompted with a directed work assignment, the operator can add another work assignment by speaking "ready." Alternatively, the operator can speak "no more" to stop adding assignments and start picking. </p>
+                                                                        <p>If enabled, the application combines the selected work assignments into a single master assignment, which allows the operator to efficiently complete the picks for multiple assignments at the same. Each work assignment is picked to its own separate container, and only one picking container can be open for each assignment at once.  </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The number of directed work assignments an operator can accept is defined by the LPN equipment limit specified for the operator's equipment. For example, if the LPN equipment limit is 3, then the operator can accept up to 3 work assignments. However, during multiple directed work assignment picking, the maximum number of LPNs is not enforced by the application; therefore, the operator is not prompted that the equipment is full or when to deposit LPNs. </p>
+                                                                        <p>If No, then a voice operator can sign on to only one directed work assignment. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Confirm Work Assignment Pick by Position</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then during work assignment picking to multiple containers, the application assigns a position to the container and requires the operator to confirm the position before depositing the pick to it. Set this field to Yes if you allow the operator to speak a position instead of an LPN when depositing picks.</p>
+                                                                        <p>If No, then during work assignment picking, the operator confirms the LPN to which the pick was deposited. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Allow Multiple Containers</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, a voice operator is allowed to pick to multiple containers while picking a single work assignment. When the voice operator signs on to a work assignment and picks the first pick, the operator can speak "New container" to start another pick-to LPN. When this field is set to Yes, the first container remains open. In this way, the operator can add multiple containers and deposit picks for the work assignment by speaking the container position or LPN, depending on the setting of the <span class="specialbold">Confirm Work Assignment Pick by Position </span>field. </p>
+                                                                        <p>In addition, when <span class="specialbold">Allow Multiple Containers </span>is set to Yes, the operator is allowed to partially pick an inventory quantity without shorting the remaining quantity to pick. For example, for a pick for 24 eaches, the operator can pick 12 and deposit the quantity to the first LPN, and then pick 12 more and deposit the quantity to the second LPN. </p>
+                                                                        <p>If No, a work assignment must be picked to a single container. During work assignment picking, when an operator speaks "New container", the first container is automatically closed and a new container is opened for picking.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Deposit Location Confirmation</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Determines how the picking operator is prompted for the deposit location.</p>
+                                                                        <ul>
+                                                                            <li>
+                                                                                <p><span class="specialbold">Confirm delivery location</span>: The device prompts the operator with the delivery location and then waits for the operator to confirm by speaking the location check digits. </p>
+                                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the <span class="specialbold">Check Digit Rotation</span> field is set to Yes, the application specifies which of a location's three check digits is needed and prompts the operator for the defined value. </p>
+                                                                            </li>
+                                                                            <li><span class="specialbold">Confirm delivery location, 'Ready' allowed</span>: The device prompts the operator with the delivery location and waits for the operator to confirm by speaking the location check digits. If the location does not have check digits, the operator can confirm the location by saying "ready".</li>
+                                                                            <li><span class="specialbold">Do not confirm delivery location</span>: The device prompts the operator with the delivery location with no need for confirmation from the operator.</li>
+                                                                            <li><span class="specialbold">No delivery prompt</span>: The device does not prompt the operator with the delivery location. However, if this option is selected, but printing container labels is enabled, then the device prompts with the delivery location.</li>
+                                                                        </ul>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Deposit Prior to Completion</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the operator may take the picked inventory to the delivery location and speak "deliver now" to deposit picked items before all the picks for the assignment are complete.</p>
+                                                                        <p>If No, the operator must complete all the picks before depositing them in the delivery location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Deposit Incomplete Assignment on Sign Off</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Determines where the application directs the operator to deposit inventory for incomplete work assignments when the operator signs off a voice device. </p>
+                                                                        <ul>
+                                                                            <li><b>Prompt operator</b>: The application asks the operator if the inventory should be staged. If the operator answers "Yes," then the application directs the incomplete work assignment to staging, and the remaining incomplete picks are added to a new work assignment. If the operator answers "No," then the application directs the work assignment to a pickup and deposit location, which keeps the assignment intact.</li>
+                                                                            <li><b>Staging</b>: The application always directs the completed portion of the work assignment to a staging lane and the incomplete picks are added to a new work assignment (to split the work assignment). The remaining picks are returned to the work queue with the operation Work Assignment (LPCK). </li>
+                                                                            <li><b>Pickup and deposit</b>: The application always directs the work assignment to a pickup and deposit location to keep the work assignment intact. The application updates the operation for the work assignment from Work Assignment (LPCK) to Resume Work Assignment (RLPCK).</li>
+                                                                        </ul>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;This field is only valid if <b>Deposit Prior to Completion</b> is set to Yes. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick Cancellation</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the operator can speak "cancel pick" to cancel the current pick.</p>
+                                                                        <p>If No, operators are not allowed to cancel picks.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Sign Off During Work Assignment</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the operator can speak "sign off" to sign off the device without completing the current assignment. However, if there is inventory on the device, the operator is prompted to deposit the inventory prior to being signed off. If labels are required for the picked inventory, they are printed prior to deposit. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The application does not require an operator to deposit inventory prior to sign off for cluster picking and bulk cluster picking; instead, the device prompts the operator to deposit the inventory when the operator signs on again. </p>
+                                                                        <p>If No, the operator is not allowed to sign off the device prior to completing an assignment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Unassign Work During Pass Assignment</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, when an operator that is picking a directed work assignment speaks "pass assignment" to deposit the inventory to a pickup and deposit location, the application unassigns the work from the operator. The application directs the operator to the pickup and deposit location in the same aisle in which the voice device is located. If there are multiple pickup and deposit locations for the aisle, or if one is not defined, then the application prompts the operator for the location. If set to Yes, the same or another voice operator can resume the work assignment through directed or undirected work.</p>
+                                                                        <p>If No, then the work assignment remains assigned to the operator. Select No to ensure that operators are required to resume the assignments to which they were originally assigned. </p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>:</p>
+                                                                            <ul>
+                                                                                <li>
+                    If the 
+                    <b>Directed Multiple Work Assignments</b>
+                    field is set to Yes, then when an operator speaks "pass assignment," completed work assignments are directed to staging, and the incomplete assignment is directed to a pickup and deposit location. 
+                </li>
+                                                                                <li>
+                    When an incomplete work assignment is set down, the application updates the operation for the work assignment from Work Assignment (LPCK) to Resume Work Assignment (RLPCK).
+                </li>
+                                                                            </ul>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Assignment Summary</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application speaks a summary of the pick assignment before directing the operator to the first pick. The summary provides values for each of the attributes that are selected to be included in the assignment summary, as defined by the <span class="specialbold">Assignment Summary Attributes</span> field.</p>
+                                                                        <p>If No, the application does not provide a spoken summary of the assignment before directing the operator to the first pick.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work Zone Auto Deposit</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application speaks a message, "Picks complete for zone," when all picks for the work zone have been completed and automatically deposits the carton in a pick and pass location (defined in the <span class="specialbold">Deposit Location </span>field). Select Yes if you want the application to determine when a carton is ready to be passed to the next operator in a pick-and-pass carton picking process.<br /><br />If No, the application does not inform the operator when picks are complete for the current work zone and does not automatically deposit the carton to the pick-and-pass location. Instead, the operator decides when to pass the carton to the next operator in a pick-and-pass carton picking situation. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Labels</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Determines when labels are printed during a voice picking assignment.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">End of Assignment, No Verification</span>: Labels are printed at the end of the assignment, and the operator is not asked to verify the label quantity or values.</li>
+                                                                            <li><span class="specialbold"><b>End of Assignment, Verify Only Values</b>:&#160;</span>Labels are printed at the end of the assignment, but the operator does not need to specify the number of labels to print. Upon receiving the labels, the operator is required to speak each label number to the application for verification.</li>
+                                                                            <li><span class="specialbold">End of Assignment, Verify Quantity and Values</span>: Labels are printed at the end of the assignment, and the operator must specify the number of labels to print. Upon receiving the labels, the operator is required to speak each label number to the application for verification.</li>
+                                                                            <li><span class="specialbold">Never Print</span>: Labels are not printed during the assignment.</li>
+                                                                            <li><span class="specialbold">Start of Assignment</span>: Labels are printed at the start of the picking assignment. MCL&#160;Voice does not support this configuration. </li>
+                                                                        </ul>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>: </p>
+                                                                            <ul>
+                                                                                <li>
+                    For pick work assignments, voice operators can speak "print labels" at any time after starting the work assignment to print labels for the LPNs on their device. If an operator speaks "print labels" at multiple points during a work assignment, labels are printed for all of the inventory on the device, even if the labels were previously printed.
+                </li>
+                                                                                <li>
+                   If labels are automatically printed at the start of the assignment but the operator prints labels during the assignment, the labels will be reprinted. If labels are set to print at the end of an assignment but the operator prints them prior to ending the assignment, the application does not reprint the labels. If this field is set to Never Print, then printing labels is not allowed. 
+                </li>
+                                                                            </ul>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Deposit Location</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Location to which a partially picked carton is automatically deposited when picks in the current work zone are complete. This allows the carton to be picked up by a different operator to complete picks in the next work zone. This field is only available if the <span class="specialbold">Work Zone Auto Deposit </span>field is set to Yes.</p>
+                                                                        <p>Select a location if you want the application to automatically deposit the partially picked carton. If left blank (no value), the operator selects a location after being notified that picks for the current work zone are complete. </p>
+                                                                        <p>The location that you select must not belong to a movement zone that is designated as a hop in a movement path because hop locations are typically associated with release commands that generate work to move inventory to the next location in the path. For example, if the WRAP movement zone is a hop in the movement path, a location defined in the WRAP movement zone should not be used as a pick-and-pass location.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Random Label Verification</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then for each picked LPN in a work assignment, the application generates a unique 4-digit value that the operator must speak to verify the LPN label. The random alphanumeric value generated by the application can include a combination of numbers 0 through 9 and letters A through F. The value can be printed on the LPN label, and the operator must verify each label using the application-generated value, instead of speaking the last 4 digits of the LPN.</p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>:</p>
+                                                                            <ul>
+                                                                                <li>Threshold picking does not support random label verification.</li>
+                                                                                <li>If you set this field to Yes, then for the application to print the value on the label, you must add the voc_chkdgt argument name (field) to the criteria for the pallet label document type. If you do not add the field, the number is still generated but not printed. See <a href="document_types.htm#Add_or_modify_a_document_type">Add or modify a document type</a>.</li>
+                                                                            </ul>
+                                                                        </div>
+                                                                        <p>If No, then the application does not generate a random label value, and voice operators must verify labels for picked LPNs by speaking the last 4 digits of an LPN.</p>
+                                                                        <p>Only available if the <b>Labels</b> field is set to <b>End of Assignment, Operator Verifies</b>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Retry Limit</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Maximum number of unsuccessful attempts that the voice device has to retrieve the next batch of picks from the application. When the number of attempts reaches this value, the application resolves the error and provides the next batch so the operator can continue the next assignment. Unsuccessful requests for a new batch can occur when the current assignment has unresolved picking errors.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Batch Limit</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Maximum number of picks sent to the voice device in a single batch. A lower value (minimum of 10) means the device needs to request new batches from the application more often; however, this configuration allows the operator to be informed of picking errors more frequently and address them immediately. A higher value means the device needs to stop picking less often to request a new batch from the application; however, if the application is using one-way messaging, the operator is not informed of picking errors until the current batch is complete.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You can define this field value in the general voice picking configurations and for a specific pick zone. The pick zone batch limit overrides the value defined in the voice picking configurations. </p>
+                                                                        <p>When the number of picks on a device falls to 50% of the configured value, the application sends another batch limit of picks to the device. Therefore, the number of picks currently on a voice device can fluctuate between 50% and 150% of the defined batch limit. For example, if the defined limit is 10, then when there are 5 picks remaining on a device, the application sends 10 more picks so the device has a total of 15 picks. </p>
+                                                                        <p>When the application creates a batch and adheres to the configured batch limit, it also considers the next pick in sequence (which would exceed the batch limit) to determine if it can be consolidated with the last pick in the previous batch based on item, location, and pick UOM. For example, assume the batch limit for voice picking is 10. If 11 separate picks exist for Item A from the same location and in the same picking UOM, then instead of sending separate batches to the voice device (one for the first 10 picks and another for the eleventh pick because it exceeds the limit), the application consolidates the quantity of the eleventh pick into the batch with the first 10 picks. The voice operator is then prompted with a single pick quantity to fulfill all 11 picks. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The application continues to evaluate and consolidate the next pick in sequence until it no longer matches the last pick in the original batch, or until 25 additional picks have been added to the original batch. 
+        </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick Validation Batch Size</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number of subsequent picks in a work assignment that the application pre-validates. Pick pre-validation is a process that determines whether inventory is available in a location prior to presenting the pick to an operator.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You can define this field value in the general voice picking configurations and for a specific pick zone. The pick zone validation batch size overrides the value defined in the voice picking configurations. </p>
+                                                                        <p>For example, assume the <b>Pick Validation Batch Size</b> is 5. When a voice operator acknowledges a work assignment and is directed to the first pick location, the application pre-validates the first 5 picks. After the operator completes 4 of the picks, there is one pre-validated pick remaining, and the operator is directed to the fifth pick. At the same time, the application pre-validates the next 5 picks in the work assignment.</p>
+                                                                        <p>Set this field to a higher number in fast-moving or high-density picking environments to ensure the operator has a higher number of validated picks to complete over a short period of time. Alternatively, set this field to a lower number in slower moving picking environments or to reduce the need to skip or cancel picks that would fail validation. For example, if this field is set to 1 (default value) and the fourth pick requires a replenishment, then there is time for the replenishment to be completed before the application attempts to validate that pick. However, if the field was set to 4, then the fourth pick would fail validation without the replenishment completed, and the pick is subject to the fail action defined on the pick pre-validation scheme associated with the pick method. As another example, pick zones in which a voice device's connection to the application may be inhibited (such as a freezer) could be configured with a higher validation batch to reduce the number of transaction messages that are exchanged.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: This field has no effect if the picked message format between the voice device and application is ODR (outbound data record). The application only pre-validates the <b>Pick Validation Batch Size</b> if the message format is LUT (look-up table). If the ODR format is used, the application pre-validates all of the picks issued to the device.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Message Format</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Determines the picked message format between the voice device and the application. A picked message is a communication that is sent from the device to the application when the operator completes a pick. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">ODR - One way message</span>: The device sends picked messages using outbound data record (ODR) format. ODR format enables the device to confirm that messages are received by the application while continuing with the next pick. The device does not wait for a pick to process before continuing and does not receive any message regarding the pick status. If the application cannot be reached by the device (for example, due to poor network connectivity), the ODR format causes the device to continuously attempt to process the information until it is received by the application; meanwhile, the operator can continue picking without stopping. If a picking error occurs using ODRs, the operator is notified when a new batch of picks is sent to the device.</li>
+                                                                            <li><span class="specialbold">LUT - Two way message, ODR on failure</span>: The device sends picked messages using the look-up table (LUT) format. When using LUT, the device sends a picked message and waits for the application to process the pick before continuing with the next pick. If the device cannot reach the application, the message is converted to ODR format and the operator can continue picking while the device attempts to process the message. Any picking errors that occur while using LUT format are immediately reported to the operator.</li>
+                                                                            <li><span class="specialbold">LUT - Two way message format always</span>: The device sends picked messages using the LUT format. This format is the same as the previous LUT format, but if the application cannot receive the message, continuous attempts are made in the LUT format. The operator must wait for the message to process before continuing with the next pick, and any picking errors are immediately reported to the operator.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Goal Time</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the voice device prompts the operator with a work estimate (in minutes) for the current picking work assignment. Labor future estimates must be configured for your application in order to receive spoken estimates. Goal time and assignment performance are only provided when Warehouse Management is integrated with Warehouse Labor Management.</p>
+                                                                        <p>If No, the voice device does not provide a work estimate for the current work assignment.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Performance</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the voice device speaks an estimate of the operator's previous assignment performance at the start of the next assignment. Only available when Warehouse Management is integrated with Warehouse Labor Management.</p>
+                                                                        <p>If No, the voice device does not provide performance values.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;MCL&#160;Voice does not support this configuration. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Full Pick Verification</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>If Yes, then during voice picking, the application uses all of the pick verification override configurations that are defined for RF picking. With this field set to Yes, the application considers the pick verification overrides for pick zones, order types, and user roles. If an attribute is set to Always in any of the configurations that apply, it takes priority and verification for that attribute is required. If Always is not selected, the option to never verify an attribute overrides the pick verification defaults. See <a href="pick_verification.htm">Pick Verification</a>.</p>
+                                                                        <p>If No, then the application processes voice pick verification based only on the pick zone override configurations. With this field set to No, the application ignores the user and order type configurations for pick verification.</p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>:</p>
+                                                                            <ul>
+                                                                                <li>If <b>Full Pick Verification</b> is set to No, the voice device may still require an operator to confirm inventory if an LPN contains multiple inventory detail records. For example, if inventory is added (adjusted) to an LPN or inventory is combined on a single LPN, there are multiple inventory detail records on the LPN. The device prompts the operator to confirm the inventory so the application processes the correct record.</li>
+                                                                                <li>The voice device determines the attributes that need to be verified for an entire batch of picks at once. The possible time delay between batch verification and when the picks are performed may cause incorrect verification attribute values (for example, if the location of a pick is updated after verification but before picking).</li>
+                                                                            </ul>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

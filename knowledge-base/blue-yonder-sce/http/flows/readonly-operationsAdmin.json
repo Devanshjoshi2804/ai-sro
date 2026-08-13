@@ -1,0 +1,13 @@
+{
+  "screen": "operationsAdmin",
+  "route": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/wm.config.warehouse.warehouse////",
+  "readOnly": true,
+  "calls": [],
+  "screenState": {
+    "title": "Blue Yonder - 404",
+    "grids": [],
+    "forms": [],
+    "buttons": []
+  },
+  "writesObservedOnLoad": []
+}

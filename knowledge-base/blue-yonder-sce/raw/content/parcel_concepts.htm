@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Shipping|Parcel" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Parcel concepts</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/table_plain_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Parcelconcepts">Parcel concepts</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Parcelmanifestingservice">Parcel manifesting service</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Parcelprocessingtaskflow">Parcel processing task flow</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Problemparcelshipments">Problem parcel shipments</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Manifesting">Manifesting</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#LTLmanifesting">LTL manifesting</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Manifestingprocess">Manifesting process</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Manifestlists">Manifest lists</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Openmanifests">Open manifests</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Carrierandservicelevelassignmentsduringmanifesting">Carrier and service level assignments during manifesting</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Rateshoppingforaparcel">Rate shopping for a parcel</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Parcelweight">Parcel weight</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Weightandmanifesttoholdprocessing">Weight and manifest to hold processing</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Weightcalculationnoweightscale">Weight calculation (no weight scale)</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Parcelmanifeststatuses">Parcel manifest statuses</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Warehouseversusnonwarehouseparcels">Warehouse versus non-warehouse parcels</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Parcelconcepts" data-magellan-target="Parcelconcepts"><a name="aanchor267"></a>
+                                                            <MadCap:concept term="WM" />Parcel concepts</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Parcelconcepts">Parcel concepts</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Parcelmanifestingservice">Parcel manifesting service</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Parcelprocessingtaskflow">Parcel processing task flow</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Problemparcelshipments">Problem parcel shipments</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Manifesting">Manifesting</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Manifestingprocess">Manifesting process</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Manifestlists">Manifest lists</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Carrierandservicelevelassignmentsduringmanifesting">Carrier and service level assignments during manifesting</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Rateshoppingforaparcel">Rate shopping for a parcel</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Parcelweight">Parcel weight</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Parcelmanifeststatuses">Parcel manifest statuses</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Warehouseversusnonwarehouseparcels">Warehouse versus non-warehouse parcels</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A parcel is a small package that contains inventory and is to be shipped, using a parcel carrier, to a customer. In Warehouse Management, a parcel can be a sub-LPN, case, kit, carton, or non-Warehouse Management package (such as a business office parcel or an employee's personal parcel). A parcel can also be a LPN, if it is a bundled parcel LPN. Each parcel or bundled parcel LPN is assigned a unique carrier-specific tracking number that can be used to track the parcel in the carrier's system or in Warehouse Management. See <a href="parcel_config.htm#Bundling_overview">Bundling</a>.</p>
+                                                        <p>A parcel shipment consists of one or more parcels. The parcel is the shippable entity, while the parcel shipment is a grouping of parcels that are shipped together to the same destination. Typically, but not always, a parcel shipment only consists of one parcel. Therefore, the terms parcel, small package, and parcel shipment are sometimes used interchangeably.</p>
+                                                        <h2 id="Parcelmanifestingservice" data-magellan-target="Parcelmanifestingservice"><a name="Parcel_manifesting_service"></a>Parcel manifesting service</h2>
+                                                        <p>A parcel manifesting service is  a parcel application integrated through Parcel Handler that provides parcel manifesting functionality (such as rating, manifesting, carrier compliance, and carrier communication) to Warehouse Management.  </p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: To perform parcel processing, Warehouse Management must be integrated with a parcel application through Parcel Handler. See the <i>Warehouse Management Parcel Handler Configuration Guide</i>.</p>
+                                                        <p>The following table lists the functional responsibilities and interactions of Warehouse Management and the parcel application integrated through Parcel Handler.</p>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Area</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Warehouse Management</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Parcel application</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="208" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Functional responsibilities</p>
+                                                                    </td>
+                                                                    <td width="208" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Warehouse Management provides the following functionality:</p>
+                                                                        <ul>
+                                                                            <li>Inventory, outbound order, and outbound shipment management</li>
+                                                                            <li>Inventory allocation and picking for orders</li>
+                                                                            <li>Cartonization</li>
+                                                                            <li>Packing</li>
+                                                                            <li>Bundling</li>
+                                                                            <li>Loading and shipping of parcels</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                    <td width="208" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>The parcel application provides the following functionality:</p>
+                                                                        <ul>
+                                                                            <li>
+                                                                                <p>Up-to-date rating</p>
+                                                                            </li>
+                                                                            <li>
+                                                                                <p>Manifesting</p>
+                                                                            </li>
+                                                                            <li>
+                                                                                <p>Enforcement of compliance with all carrier and service level requirements, such as the following details:</p>
+                                                                                <ul>
+                                                                                    <li>
+                                                                                        <p>Shipping labels</p>
+                                                                                    </li>
+                                                                                    <li>
+                                                                                        <p>Package dimensions</p>
+                                                                                    </li>
+                                                                                    <li>
+                                                                                        <p>Weights</p>
+                                                                                    </li>
+                                                                                    <li>
+                                                                                        <p>Shipping dates</p>
+                                                                                    </li>
+                                                                                    <li>
+                                                                                        <p>International shipping requirements and paperwork</p>
+                                                                                    </li>
+                                                                                    <li>
+                                                                                        <p>Hazardous goods shipping</p>
+                                                                                    </li>
+                                                                                </ul>
+                                                                            </li>
+                                                                            <li>
+                                                                                <p>Electronic communication with the carrier</p>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="208" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Interactions</p>
+                                                                    </td>
+                                                                    <td width="208" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Sends the following requests to the parcel application:</p>
+                                                                        <ul>
+                                                                            <li>Manifest a parcel</li>
+                                                                            <li>Rate shopping</li>
+                                                                            <li>Close a manifest</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                    <td width="208" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>Generates the following responses to requests from Warehouse Management:</p>
+                                                                        <ul>
+                                                                            <li>Adds a parcel to a manifest</li>
+                                                                            <li>Calculates shipping costs </li>
+                                                                            <li>Assigns a tracking number</li>
+                                                                            <li>Provides current status of the manifest</li>
+                                                                            <li>Assigns a manifest number</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Parcelprocessingtaskflow" data-magellan-target="Parcelprocessingtaskflow"><a name="Parcel_processing_task_flow"></a>Parcel processing task flow</h2>
+                                                        <p>The following tasks are typically performed when manifesting and shipping parcels.</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Manually create parcel orders in Warehouse Management or download parcel orders from your host system. You use the Outbound Planner module to create and maintain orders. </p>
+                                                            </li>
+                                                            <li value="2">Manually plan the parcel orders into one or more waves; if you do not manually create a shipment for a parcel order, the application automatically creates a shipment when a wave is allocated. You can also download parcel shipments from your host application. You use the Outbound Planner or Picking module to manually plan orders into waves (or to create shipments).</li>
+                                                            <li value="3">
+                                                                <p>Allocate and pick inventory for the parcel shipment. You use the Outbound Planner or Picking module to allocate inventory for a wave.</p>
+                                                                <p>If configured to do so, the application may manifest the associated parcels to hold and print parcel picking and shipping labels at allocation. You can attach the labels to the case or carton as it is being picked, and skip the manual manifesting step later in this task flow. See <a href="parcel_config.htm#Pre-manifesting_and_manifest_to_hold">Pre-manifesting and manifest to hold</a>.</p>
+                                                                <p>Depending on your configuration, the picked items are deposited at the following locations:</p>
+                                                                <ul>
+                                                                    <li>A pack station so that the items can be packed into shipping containers</li>
+                                                                    <li>A bundling station so that cartons can be banded or taped together to save on shipping costs</li>
+                                                                    <li>A parcel manifesting station, if manual manifesting is required</li>
+                                                                    <li>Ship staging</li>
+                                                                </ul>
+                                                            </li>
+                                                            <p>See <a href="parcel_config.htm#Bundling_overview">Bundling</a> and for parcel manifesting, see <a href="#Manifesting">Manifesting</a>.</p>
+                                                            <li value="4">
+                                                                <p>Monitor the shipment progress.  See <a href="procedures_for_parcels.htm#View_detailed_parcel_shipment_information">View detailed parcel shipment information</a>. </p>
+                                                                <p>You can also view the following information:</p>
+                                                                <ul>
+                                                                    <li>Pick work that was created for the shipment and the pick work that still exists for the shipment that has not been confirmed </li>
+                                                                    <li>Inventory that has been picked for the shipment</li>
+                                                                    <li>Current location of any inventory that has been picked for the shipment</li>
+                                                                    <li>Inventory that has arrived in the ship staging lane</li>
+                                                                </ul>
+                                                            </li>
+                                                            <p>See <a href="procedures_for_parcels.htm#View_parcel_packages">View parcel packages</a> and <a href="procedures_for_parcels.htm#View_detailed_manifest_information">View detailed manifest information</a>.</p>
+                                                            <li value="5">If necessary, bundle parcels. You can bundle parcels into a bundled parcel LPN or unbundle parcels from a bundled parcel LPN. See <a href="bundling.htm" class="MCXref xref">Bundling</a>.</li>
+                                                            <li value="6">If manifesting an international parcel, follow your business rules for acquiring Automated Export System (AES) information. You use the Outbound Planner or Shipping module to enter the AES information after you have acquired it. See <a href="procedures_for_shipments.htm#Add_or_modify_a_shipment">Add or modify a shipment</a> or <a href="manifesting.htm#Manifest_a_parcel">Manifest a parcel</a>.</li>
+                                                            <li value="7">Perform parcel manifesting tasks.<ol><li value="1"><p>If not already done automatically, manually manifest the packages in the parcel shipment. </p><p>You use the Manifest page to manually manifest a parcel. You can also search for better shipping rates (rate shopping) while manually manifesting a parcel. See <a href="manifesting.htm#Manifest_a_parcel">Manifest a parcel</a>.</p><p>If the parcel has been pre-manifested, then you do not need to manually manifest the parcel. </p><p>When manifesting, you may be prompted to perform workflows. You may be required to complete one or more workflows before the application manifests the parcel. </p></li><li value="2">If necessary, print or reprint shipping and tracking labels for a parcel shipment. See <a href="procedures_for_parcels.htm#Print_a_parcel_label">Print a parcel label</a>.</li><li value="3">If necessary, remove (void) parcels from a manifest that are no longer going to ship as part of the manifest. See <a href="procedures_for_parcels.htm#Void_a_manifested_parcel">Void a manifested parcel</a>.</li><li value="4">If not configured to be done automatically, release any parcels that were pre-manifested to hold. See <a href="procedures_for_parcels.htm#Release_a_held_parcel">Release a held parcel</a>.</li></ol></li>
+                                                            <li value="8">Perform parcel shipping tasks.<ol><li value="1">If desired, perform one or more of the following tasks:<ul><li>Change the carrier for a parcel shipment, if permitted by configuration settings. See <a href="procedures_for_parcels.htm#Change_the_carrier_of_a_parcel_shipment">Change the carrier of a parcel shipment</a>.</li><li>View notes, if any, about the parcel shipment.</li><li><p>Search for better shipping rates for the parcel shipment (rate shop). </p></li></ul></li><li value="2">Physically load the parcels on the parcel carrier's transport equipment.</li><li value="3"><p>Close and print the manifest. Closing the manifest list for the carrier notifies the application that all parcels have been loaded onto the transport equipment. See <a href="procedures_for_parcels.htm#Close_a_manifest">Close a manifest</a>. </p><p>Before closing the manifest, you must resolve any problem shipments. See <a href="#Problem_parcel_shipments">Problem parcel shipments</a>. </p></li><li value="4">If necessary, reprint the carrier paperwork for a closed manifest. See <a href="procedures_for_parcels.htm#Print_paperwork_for_a_closed_manifest">Print paperwork for a closed manifest</a>.</li><li value="5">If necessary, manually complete the shipments associated with a closed manifest. See <a href="procedures_for_parcels.htm#Complete_shipments_associated_with_a_closed_manifest">Complete shipments associated with a closed manifest</a>.</li></ol></li>
+                                                        </ol>
+                                                        <h2 id="Problemparcelshipments" data-magellan-target="Problemparcelshipments"><a name="Problem_parcel_shipments"></a>Problem parcel shipments</h2>
+                                                        <p>A problem shipment is a shipment that has not been staged and has non-manifested parcels, outstanding picks, replenishments, cross docks, or held parcels. Manifests with problem shipments cannot be closed. Problem shipments can be resolved manually or automatically during the manifest close process. However, some problem shipments cannot be automatically resolved by Warehouse Management and must be manually resolved by a user. Automatic resolution of a problem shipment means that a user does not need to find, void, and re-manifest the parcel associated with a problem shipment.</p>
+                                                        <p>See <a href="procedures_for_parcels.htm#Resolve_a_problem_parcel_shipment">Resolve a problem parcel shipment</a>.</p>
+                                                        <p>The following table lists the causes of problem shipments and how to resolve them. </p>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/table_plain_avoidrowbreak.css');" class="TableStyle-Table_Plain_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Type</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Description</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Automatic resolution</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Manual resolution</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Not staged</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>The parcel shipment has not yet been staged.</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>None. Must be resolved manually.</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Stage the shipment. See <a href="procedures_for_parcels.htm#Stage_a_parcel_shipment">Stage a parcel shipment</a>. If the shipment is not ready to stage, then you must complete other tasks first, such as picking the inventory for the shipment, manifesting the parcel for the shipment, and depositing the parcel in the parcel staging location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Non-manifested parcels</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>One or more of the parcels associated with the shipment have not been manifested. This typically occurs for shipments with multiple parcels.</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>For multi-parcel shipments, Warehouse Management can only resolve shipments whose carrier permits the parcel numbering information (package X of Y labeling) to be incorrect, and permits the shipment to be shipped out across different days (splitting a multi-parcel shipment).</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Manifest the parcels or split the shipment. If the carrier does not support incorrect X of Y parcel numbering, then you also need to reprint the parcel shipping and tracking label. See <a href="manifesting.htm#Manifest_a_parcel">Manifest a parcel</a> and <a href="procedures_for_parcels.htm#Print_a_parcel_label">Print a parcel label</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>Outstanding picks, replenishments, or cross docks</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>There are outstanding picks, replenishments, or cross docks for the shipment. This typically occurs for shipments with multiple parcels. Some of the parcels have been manifested, but other parcels have outstanding picks, replenishments, or cross docks.</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>None. Must be resolved manually.</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Complete or cancel the picks, replenishments, or cross docks. If you complete the picks, replenishments, or cross docks, you also need to manifest the parcel associated with the picked inventory. If you cancel the picks, replenishments, or cross docks, you also need to split the shipment. See <a href="manifesting.htm#Manifest_a_parcel">Manifest a parcel</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p>Held parcels</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p>One or more of the parcels associated with the shipment were manifested to hold. This occurs for both single-parcel and multi-parcel shipments.</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p>If resolved automatically, the held parcels are moved to the following day's manifest when it is opened.</p>
+                                                                        <p>For multi-parcel shipments with held parcels, Warehouse Management can only resolve shipments whose carrier permits the parcel numbering information (package X of Y labeling) to be incorrect, and permits the shipment to be shipped out across different days (splitting a multi-parcel shipment).</p>
+                                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: International problem shipments must be resolved manually.</p>
+                                                                    </td>
+                                                                    <td width="156" class="TableStyle-Table_Plain_AvoidRowBreak-BodyA-Column1-AvoidRowBreak">
+                                                                        <p>You need to either release the held manifested parcels, or you need to void them and then re-manifest them later. If the carrier does not support incorrect X of Y parcel numbering, then you also need to reprint the parcel shipping or tracking label. See <a href="procedures_for_parcels.htm#Release_a_held_parcel">Release a held parcel</a>, <a href="procedures_for_parcels.htm#Void_a_manifested_parcel">Void a manifested parcel</a>, and <a href="procedures_for_parcels.htm#Print_a_parcel_label">Print a parcel label</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Manifesting" data-magellan-target="Manifesting"><a name="Manifesting"></a>Manifesting</h2>
+                                                        <p>A manifest is a contract between the warehouse and a third-party parcel carrier.  The manifest lists all the parcels that are shipped together on the same day and on the same piece of transport equipment by the parcel carrier. The route-to address is used as the destination for the manifest. </p>
+                                                        <p>Manifesting is the process of assigning a tracking number and rate to a parcel, and assigning the parcel to the current manifest list for the parcel carrier.  </p>
+                                                        <p>For facilities that ship many parcels, manifesting in Warehouse Management is typically configured to be performed automatically (see <a href="parcel_config.htm#Pre-manifesting_and_manifest_to_hold">Pre-manifesting and manifest to hold</a>). However, for facilities that ship only a few parcels, or to handle exception conditions where a parcel cannot be automatically manifested, you can also manually manifest parcels using the Manifesting page (see <a href="manifesting.htm#Manifest_a_parcel">Manifest a parcel</a>) or the RF Parcel Manifest function.</p>
+                                                        <p>When you manifest a parcel, all of the appropriate parcel information is sent to the parcel application integrated through Parcel Handler. The parcel application verifies that the selections for the parcel (such as service options) are valid based on the carrier and service level, and then either manifests the parcel or returns an error indicating the reason the parcel cannot be manifested.</p>
+                                                        <h3 id="LTLmanifesting" data-magellan-target="LTLmanifesting">LTL manifesting</h3>
+                                                        <p>In addition to manifesting a parcel for a parcel carrier, you can also manifest a full LPN for an LTL (less than truckload) carrier. Similar to parcel manifesting, after the inventory identifier for the LPN is entered or scanned on the Manifesting page, you have the ability to modify dimensions, rate shop, print labels, or void a manifested LPN.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You can also manifest a non-LTL package as an LPN if it is a bundled parcel LPN.</p>
+                                                        <h2 id="Manifestingprocess" data-magellan-target="Manifestingprocess"><a name="Manifesting_process"></a>Manifesting process</h2>
+                                                        <p>When you manifest a parcel, the parcel application integrated through Parcel Handler performs the following tasks:</p>
+                                                        <ul>
+                                                            <li>Assigns a carrier-specific tracking number to the parcel. </li>
+                                                            <li>Applies a rate or cost to the parcel for shipping it with the selected carrier, using the selected service level.</li>
+                                                            <li>
+                                                                <p>Assigns the parcel to the selected carrier's open manifest. If no open manifest exists for the carrier, a new manifest is automatically created for the current date. </p>
+                                                                <div class="Note">
+                                                                    <p><b class="NoteHeadingBold">Notes</b>: </p>
+                                                                    <ul>
+                                                                        <li>During manifesting, multi-piece held packages are added to the manifest; but a single-piece held package is not added to a manifest until the package is released. </li>
+                                                                        <li>The actual manifest number is created for the carrier when the manifest is closed. Prior to the manifest being closed, the released parcels for a carrier get added to a manifest, which is identified on the Parcel page, <b>Manifests</b> tab with a Warehouse&#160;Management-generated number. When the manifest is closed, the parcel application updates  Warehouse Management with the actual manifest number for the carrier.</li>
+                                                                    </ul>
+                                                                </div>
+                                                                <p>The manifest is typically left open so that parcels using the same carrier and service level can be added to it throughout the day. At any given time, multiple manifests can be open, containing multiple parcels, to be shipped with different carriers. If a manifest contains an urgent parcel, you can close the manifest manually so that the carrier knows it is available for pickup.</p>
+                                                            </li>
+                                                        </ul>
+                                                        <p>When the manifest is closed (from the Parcel page, <b>Manifests</b> tab), the parcels become the responsibility of the carrier to be picked up and delivered. </p>
+                                                        <h2 id="Manifestlists" data-magellan-target="Manifestlists"><a name="Manifest_lists"></a>Manifest lists</h2>
+                                                        <p>When a parcel is manifested and an open manifest list (manifest) exists for the carrier, the parcel is automatically assigned to the carrier’s manifest. When an open manifest does not exist for the carrier, the parcel application creates, opens, and assigns a unique identifier to the manifest. The parcel is then automatically assigned to the newly opened manifest.</p>
+                                                        <h3 id="Openmanifests" data-magellan-target="Openmanifests">Open manifests</h3>
+                                                        <p>Only one manifest can be open for each carrier for a given day. If you close a manifest for a carrier, and then on the same day manifest an additional parcel for that carrier, the integrated parcel application opens a new manifest for the carrier for the same day. (You cannot reopen a manifest.) This results in two manifests for the same carrier on the same day, but only one of the manifests is open.</p>
+                                                        <p>If you do not close a manifest, parcels that are manifested on a different day are not added to the open manifest. Instead, the integrated parcel application opens a new manifest for the carrier on the new day without automatically closing the previous manifest. For example, yesterday you manifested several parcels for carrier A and they were added to carrier A's open manifest. However, you did not close the manifest. Today, the first parcel that you manifest for carrier A results in the parcel application opening a new manifest for carrier A. Today's first parcel is then added to the newly opened manifest. This results in two open manifests for the same carrier, but on different days.</p>
+                                                        <h2 id="Carrierandservicelevelassignmentsduringmanifesting" data-magellan-target="Carrierandservicelevelassignmentsduringmanifesting"><a name="Carrier_and_service_level_assignments_during_manifesting"></a>Carrier and service level assignments during manifesting</h2>
+                                                        <p>The carrier and service level assignments depend on the following parcel information:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">First parcel</span>: When manifesting the first parcel in a shipment, you can change the carrier and service level if permitted to do so by configuration and order line settings.</li>
+                                                            <li><span class="specialbold">Additional parcels</span>: When manifesting additional parcels in a shipment, you cannot change the carrier or service level. All parcels in a shipment must be manifested with the same carrier and service level. If you need to change the carrier or service level after manifesting one or more parcels for a shipment, you must void all of the parcels that have already been manifested for the shipment, and then manifest the parcels again with the updated carrier or service level (if carrier changes are permitted).</li>
+                                                        </ul>
+                                                        <h2 id="Rateshoppingforaparcel" data-magellan-target="Rateshoppingforaparcel"><a name="Rate_shopping_for_a_parcel"></a>Rate shopping for a parcel</h2>
+                                                        <p>Rate shopping is the process of searching for the lowest cost or shortest lead time for shipping a parcel package, while still meeting the required delivery date.</p>
+                                                        <p>Once you identify a parcel on the Manifesting page, you can click <b>Rate Shop</b> to have Warehouse Management request rates from the parcel application integrated through Parcel Handler. Warehouse Management displays the list of rates based on the selected carrier so that you can compare the cost of shipping the parcel with various carrier service levels. </p>
+                                                        <p>Depending on the configuration of Parcel Handler, rate shopping can be performed for a selected carrier or across all carriers. Additionally, if the third-party parcel application is Centiro, then rate shopping can be prioritized by either lead time or cost. See <a href="parcel_handler_sec.htm#Configure_Parcel_Handler">Configure Parcel Handler</a>.</p>
+                                                        <p>Parcel carrier rates are based on the dimensions and weight of the carton, any insurance value applied to the carton, and the destination. Rates can be displayed at any time, but changing the carrier is only allowed when the parcel is the first one being manifested for the shipment and the order is configured to allow carrier changes.</p>
+                                                        <p>See <a href="manifesting.htm#Manifest_a_parcel">Manifest a parcel</a>.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You cannot change the carrier or service level for a manifested parcel. To make changes to a manifested parcel, you must void the parcel (which removes it from the manifest), and then make the changes while manifesting the parcel again. See <a href="procedures_for_parcels.htm#Void_a_manifested_parcel">Void a manifested parcel</a>.</p>
+                                                        <h2 id="Parcelweight" data-magellan-target="Parcelweight"><a name="Parcel_weight"></a>Parcel weight</h2>
+                                                        <p>Warehouse Management can be used in conjunction with an integrated weight scale to provide an accurate weight for parcels. When interfacing with a weight scale, the operator places the parcel on the scale, clicks a button in Warehouse Management during manifesting, and Warehouse Management copies the weight from the scale into the manifest information for that parcel. Contact Blue Yonder for a list of supported weight scales. </p>
+                                                        <h3 id="Weightandmanifesttoholdprocessing" data-magellan-target="Weightandmanifesttoholdprocessing">Weight and manifest to hold processing</h3>
+                                                        <p>If the shipping weight of the parcel is estimated when it is manifested to hold, you can update the weight to the actual weight before releasing the parcel. Your Blue Yonder project team can also configure an integrated weight scale to automatically capture the actual weight before releasing the parcel; for example, when the parcel is moved over the weight scale by a conveyor.</p>
+                                                        <h3 id="Weightcalculationnoweightscale" data-magellan-target="Weightcalculationnoweightscale">Weight calculation (no weight scale)</h3>
+                                                        <p>If a weight scale is not used, Warehouse Management calculates the weight of the carton from the weight assigned to the parcel's contents footprint configurations.</p>
+                                                        <h2 id="Parcelmanifeststatuses" data-magellan-target="Parcelmanifeststatuses"><a name="Parcel_manifest_statuses"></a>Parcel manifest statuses</h2>
+                                                        <p>After being manifested, a parcel passes through several manifesting statuses. You can use the parcel's manifest status to monitor the parcel's current condition. In some cases, a parcel may not have a manifest status. This occurs when the parcel is not manifested, either because it has never been manifested, or it has been removed from a manifest (by voiding the parcel). In both cases, no manifest information, and therefore, no manifest status, exists for the parcel.</p>
+                                                        <p>The following list describes the parcel manifest statuses:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Released</span>: The parcel has been manifested and is ready to ship. If a released parcel is removed from a manifest, Warehouse Management deletes the associated manifest information and, consequently, the parcel no longer has a manifest status. When a released parcel's manifest is closed, the parcel's status changes to Closed.</li>
+                                                            <li><span class="specialbold">Hold</span>: The parcel has been manifested, but is not yet ready to ship. This status is the result of manifesting a parcel to hold (automatically or manually). If a held parcel is removed from a manifest, Warehouse Management deletes the associated manifest information and, consequently, the parcel no longer has a manifest status. If a held parcel is released (automatically or manually), then the parcel's status changes to Released. If a held parcel is removed from a manifest during problem shipment resolution (performed by clicking Resolve on the Problem Shipments tab on the Manifests page), then the parcel's status changes to Void.</li>
+                                                            <li><span class="specialbold">Void</span>: The parcel has been voided; or the parcel was automatically removed from a manifest during problem shipment resolution (performed by clicking <span class="specialbold">Resolve </span>on the <b>Problem Shipments</b> tab while viewing detailed manifest information). Parcels with a void status are not displayed in the application. </li>
+                                                            <li><span class="specialbold">Closed</span>: The parcel is associated with a manifest that has been closed. When the closed parcel is shipped (automatically or manually), the parcel's status changes to Shipped.</li>
+                                                            <li><span class="specialbold">Shipped</span>: The parcel has been loaded onto the parcel carrier's transport equipment and has left the facility. If enabled, transactions have been sent to the host system to indicate that the parcel has been shipped.</li>
+                                                        </ul>
+                                                        <h2 id="Warehouseversusnonwarehouseparcels" data-magellan-target="Warehouseversusnonwarehouseparcels"><a name="Warehouse_versus_non-warehouse_parcels"></a>Warehouse versus non-warehouse parcels</h2>
+                                                        <p>You can use the parcel manifesting functionality to manifest and ship the following types of parcels:</p>
+                                                        <ul>
+                                                            <li><b>Warehouse parcels</b>: A case, carton, or bundled LPN that has been allocated, picked, and assigned to a parcel carrier.</li>
+                                                            <li><b>Non-warehouse parcels</b>: A package that has arrived at the shipping dock from a source outside of Warehouse Management. No order, shipment, or inventory is attached to a non-warehouse parcel. This kind of parcel is also known as a manual parcel (because you select the <b>Manual</b> check box on the Manifest Package Operations window). You can use Manifest Package Operations to manifest non-warehouse parcels. For example, it is not unusual for warehouse facilities to be asked to ship parcels for other departments in the company, or for personal reasons. You can use Warehouse Management to manually identify the carton and manifest it to be shipped with a parcel carrier. When manifesting a non-warehouse parcel, you need the following information: <ul><li>Dimensions and weight of the parcel</li><li>Name and address of the person or organization to which the parcel is to be shipped</li><li>Carrier and service level to use for shipping the parcel</li></ul></li>
+                                                        </ul>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

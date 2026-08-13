@@ -1,0 +1,111 @@
+{
+  "screen": "customerTypes",
+  "phases": {
+    "create": [
+      "POST customerTypes -> 201",
+      "GET customerTypes -> 200"
+    ],
+    "edit": [
+      "PUT customerTypes/ZV96 -> 200",
+      "GET customerTypes -> 200"
+    ],
+    "copy": [],
+    "delete": [
+      "DELETE customerTypes/ZV96 -> 200"
+    ]
+  },
+  "code": "ZV9680",
+  "rowKey": "ZV96",
+  "createApplied": {
+    "customerType": "ZV96",
+    "longDescription": "ZV flow"
+  },
+  "linkFound": true,
+  "editFormFound": true,
+  "copySelect": {
+    "idx": 76,
+    "selected": 1
+  },
+  "copyInvoke": {
+    "invoked": "doCopy"
+  },
+  "deleteSelect": {
+    "idx": 76,
+    "selected": 1
+  },
+  "deleteInvoke": {
+    "invoked": "doDelete"
+  },
+  "allCalls": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "clients",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locations",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "customerDistributionStagingLocations",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "customerDistributionStorageRules",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locations",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "customerTypes",
+      "status": 201,
+      "body": "{\"customerType\":\"ZV96\",\"freshnessDateCode\":\"\",\"minimumShelfLife\":0,\"inventoryStatusProgression\":\"\",\"shipLabel\":\"\",\"createShipmentBy\":\"\",\"carrierGroup\":\"\",\"manufacturerId\":\"\",\"departmentNumber\":\"\",\"inventoryRotationMethod\":\"\",\"requiredForTMSPlanning\":\"\",\"palletBuildingConsolidateBy\":\"\",\"fullSingleItemPalletEncoding\":\"\",\"mixedPartialPalletEncoding\":\"\",\"fullSingleItemCartonEncoding\":\"\",\"mixedPartialCartonEncoding\":\"\",\"URNFormat\":\"\",\"absoluteGroup\":\"\",\"earlyDeliveryThreshold\":0,\"lateDeliveryThreshold\":0,\"quantityOvershipLimit\":0,\"maxQuantityOvershipPercentage\":0,\"quantityUndershipLimit\":0,\"maxQuantityUndershipPercentage\":0,\"shipDateValidationTransitService\":\"\",\"allowSourceFacilityOverridesFlag\":false,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"undershippingRule\":\"\",\"overshippingRule\":\"\",\"shipmentModificationRuleCode\":\"\",\"allocationSearchPath\":\"\",\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"wrapped\":\"\",\"doubleWrapped\":\"\",\"label4Sides\":\"\",\"slipSheet\":\"\",\"loadAttribute5\":\"\",\"bulkPickingFlag\":false,\"longDescription\":\"ZV flow\",\"shotDescription\":\"\",\"reservationPriority\":\"\",\"crossDockFlag\":-1,\"dateControlledInvFlag\":false,\"displayedPalletBuildingConsolidateBy\":\"Inherit from transport mode\"}"
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "customerTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "PUT",
+      "url": "customerTypes/ZV96",
+      "status": 200,
+      "body": "{\"customerType\":\"ZV96\",\"freshnessDateCode\":\"\",\"minimumShelfLife\":0,\"inventoryStatusProgression\":\"\",\"shipLabel\":\"\",\"createShipmentBy\":\"\",\"carrierGroup\":\"\",\"manufacturerId\":\"\",\"departmentNumber\":\"\",\"inventoryRotationMethod\":\"\",\"requiredForTMSPlanning\":\"\",\"palletBuildingConsolidateBy\":\"\",\"fullSingleItemPalletEncoding\":\"\",\"mixedPartialPalletEncoding\":\"\",\"fullSingleItemCartonEncoding\":\"\",\"mixedPartialCartonEncoding\":\"\",\"URNFormat\":\"\",\"absoluteGroup\":\"\",\"earlyDeliveryThreshold\":0,\"lateDeliveryThreshold\":0,\"quantityOvershipLimit\":0,\"maxQuantityOvershipPercentage\":0,\"quantityUndershipLimit\":0,\"maxQuantityUndershipPercentage\":0,\"shipDateValidationTransitService\":\"\",\"allowSourceFacilityOverridesFlag\":false,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"undershippingRule\":\"\",\"overshippingRule\":\"\",\"shipmentModificationRuleCode\":\"\",\"allocationSearchPath\":\"\",\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"wrapped\":\"\",\"doubleWrapped\":\"\",\"label4Sides\":\"\",\"slipSheet\":\"\",\"loadAttribute5\":\"\",\"bulkPickingFlag\":false,\"longDescription\":\"ZV edited\",\"shotDescription\":\"\",\"reservationPriority\":\"\",\"crossDockFlag\":-1,\"resourceId\":\"ZV96\",\"dateControlledInvFlag\":false,\"displayedPalletBuildingConsolidateBy\":\"Inherit from transport mode\"}"
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "customerTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "delete",
+      "method": "DELETE",
+      "url": "customerTypes/ZV96",
+      "status": 200,
+      "body": "{\"customerType\":\"ZV96\",\"freshnessDateCode\":\"\",\"minimumShelfLife\":0,\"inventoryStatusProgression\":\"\",\"shipLabel\":\"\",\"createShipmentBy\":\"\",\"carrierGroup\":\"\",\"manufacturerId\":\"\",\"departmentNumber\":\"\",\"inventoryRotationMethod\":\"\",\"requiredForTMSPlanning\":\"\",\"palletBuildingConsolidateBy\":\"\",\"fullSingleItemPalletEncoding\":\"\",\"mixedPartialPalletEncoding\":\"\",\"fullSingleItemCartonEncoding\":\"\",\"mixedPartialCartonEncoding\":\"\",\"URNFormat\":\"\",\"absoluteGroup\":\"\",\"earlyDeliveryThreshold\":0,\"lateDeliveryThreshold\":0,\"quantityOvershipLimit\":0,\"maxQuantityOvershipPercentage\":0,\"quantityUndershipLimit\":0,\"maxQuantityUndershipPercentage\":0,\"shipDateValidationTransitService\":\"\",\"allowSourceFacilityOverridesFlag\":false,\"enforceEarlyDeliveryRuleFlag\":false,\"enforceLateDeliveryRuleFlag\":false,\"undershippingRule\":\"\",\"overshippingRule\":\"\",\"shipmentModificationRuleCode\":\"\",\"allocationSearchPath\":\"\",\"outboundDateWindow\":0,\"outboundDateWindowUnit\":\"MIN\",\"wrapped\":\"\",\"doubleWrapped\":\"\",\"label4Sides\":\"\",\"slipSheet\":\"\",\"loadAttribute5\":\"\",\"bulkPickingFlag\":false,\"longDescription\":\"ZV edited\",\"shotDescription\":\"\",\"reservationPriority\":\"\",\"crossDockFlag\":-1,\"resourceId\":\"ZV96\",\"dateControlledInvFlag\":false,\"displayedPalletBuildingConsolidateBy\":\"Inherit from transport mode\"}"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "spec": "clients",
+  "resource": "clients",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses",
+      "body": "{\"addressId\":\"\",\"hostExternalId\":\"\",\"addressName\":\"ZV Capture Addr\",\"addressLine1\":\"\",\"addressLine2\":\"\",\"addressLine3\":\"\",\"city\":\"\",\"state\":\"\",\"postalCode\":\"\",\"addressType\":\"CLI\",\"clientId\":\"ZVCL1\",\"countryName\":\"\",\"phoneNumber\":\"\",\"timeZone\":\"\",\"firstName\":\"\",\"lastName\":\"\",\"localeId\":\"\",\"customsSiteType\":\"\",\"globalLocationNumber\":\"\",\"customsTaxSite\":\"\",\"temporary\":false,\"residentialAddress\":false,\"receivingWebAddress\":\"\",\"contactName\":\"\",\"contactPhone\":\"\",\"attentionPhone\":\"\",\"faxNumber\":\"\",\"email\":\"\",\"contactTitle\":\"\",\"attentionName\":\"\",\"shippingPhone\":\"\",\"shippingWebAddress\":\"\",\"shippingContactName\":\"\",\"shippingContactPhone\":\"\",\"shippingAttentionPhone\":\"\",\"shippingFax\":\"\",\"shippingEmail\":\"\",\"shippingContactTitle\":\"\",\"shippingAttentionName\":\"\",\"honorific\":\"\",\"addressDistrict\":\"\",\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":\"\",\"region\":\"\",\"latitude\":\"\",\"longitude\":\"\"}"
+    },
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients",
+      "body": "{\"addressId\":\"A000365884\",\"address_uri\":\"\",\"adjustmentThresholdCost\":0,\"adjustmentThresholdUnit\":0,\"assigned\":true,\"billToLocaleId\":\"\",\"clientGroups_uri\":\"\",\"clientId\":\"ZVCL1\",\"groupName\":\"\",\"isoCurrencyFlag\":false,\"lotFormatId\":\"\",\"receiptConfirmationLvl\":\"\",\"receiptConfirmationLvlDescription\":\"\",\"allClientFlg\":0,\"self_uri\":\"\",\"warehouseId\":\"SG\",\"deliverySequenceLoadingOrder\":\"\",\"displayClientId\":\"Default\"}"
+    },
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse",
+      "body": "{\"clientId\":\"ZVCL1\",\"translatedWarehouseId\":\"\",\"allowSupplierLotChange\":false,\"autoPopulateSupplierLotNum\":false,\"bulkPickingEnabled\":false,\"warehouseId\":\"SG\",\"printVisibilityEnabled\":false,\"printVisibilityMessage\":\"\",\"dateWindow\":0,\"timeCode\":\"\",\"inventoryRotationMethod\":\"\",\"autoPackSublineFlg\":false,\"inboundTransFullValidationFlag\":true,\"deliverySequenceLoadingOrder\":\"\",\"preventAllocationOnErrorFlag\":false,\"shipmentCartonRouteFlag\":false,\"displayClientId\":\"ZVCL1\"}"
+    },
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/packingConfigurations",
+      "body": "{\"warehouseId\":\"SG\",\"clientId\":\"ZVCL1\",\"weightCaptureRequired\":null,\"weightCaptureAutomatic\":null,\"weightCaptureToleranceBelow\":null,\"weightCaptureToleranceAbove\":null,\"weightCaptureNoClose\":null,\"captureItemPerSerialNumber\":false,\"packAtInventoryArrivalFlag\":false}"
+    }
+  ],
+  "reset": false,
+  "add": {
+    "id": "button-2547",
+    "count": 1
+  },
+  "applied": {
+    "clientId": "ZVCL1",
+    "addressName": "ZV Capture Addr"
+  },
+  "invalid": [],
+  "save": {
+    "id": "button-4909",
+    "count": 1
+  },
+  "ok": true
+}

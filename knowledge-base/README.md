@@ -1,0 +1,134 @@
+# Blue Yonder SCE knowledge base
+
+A recorded description of a live Blue Yonder SCE warehouse-management instance: its screens, its
+HTTP resources, the payload keys behind its forms, and the status contract of its writes — captured
+by driving the real application, not read off a specification. No specification exists.
+
+This is the thing CONTEXT.md §9 lists as *"waiting on someone else: Blue Yonder sandbox URL and
+credentials, to build Phase 1 against reality"*. Reality is now in this folder.
+
+Read [`../docs/13-blue-yonder-knowledge-base.md`](../docs/13-blue-yonder-knowledge-base.md) for what
+it changes about the design. This file describes the contents and the rules they were recorded under.
+
+## The one rule
+
+**Evidence outranks prose.** Every operational claim here points at a stored request/response pair.
+Where a written recipe and `http/exchanges/` disagree, the exchange is right and the recipe is a bug.
+
+That rule exists because it was earned: an early pass documented `transportEquipmentTypes` as a
+verified resource. The verification was "a GET afterwards returned 404, so the delete worked" — on a
+route that had never existed, and returns 404 forever. Six documented behaviours were fiction. See
+`blue-yonder-sce/http/claims.json`, which records what survived and what did not, by name.
+
+## Evidence levels
+
+Every claim carries one. They are not decoration; the lower two do not support automation.
+
+| level | meaning |
+|---|---|
+| `asserted` | written down, no stored evidence |
+| `observed` | seen once, recorded |
+| `reproduced` | re-run deliberately and got the same result |
+| `round-trip` | create → read back → update → delete → confirmed gone, all recorded |
+
+## What is in the box
+
+```
+blue-yonder-sce/
+  http/                 THE canonical evidence. Everything else is derived.
+    exchanges/*.jsonl   266 full request/response records over 21 resources
+    status-matrix.json  13 test cases × 19 resources, every cell backed by an exchange
+    claims.json         19 claims with verdicts, including the falsified ones
+    flows/*.json        35 multi-call flows with the value edges between them
+    recipe-audit.json   the written recipes checked against the evidence
+  index/
+    app-map.json        316 screens: routes, 3,412 grid columns, toolbar actions
+    form-models-all.json 84 captured Add-form field models: JSON key, label, required, type, maxLength
+    field-dictionary.json 204 payload keys, 185 joined to their business meaning (96%)
+    api-endpoints.json  551 endpoints with the screens each is seen on
+    coverage.json       six completeness dimensions per screen — measured, not asserted
+    a11y-vs-ext.json    accessibility tree vs component model, measured on four screens
+    wizards.json        multi-step Add dialogs, step by step
+  md/                   the vendor help corpus converted to markdown, 587 pages, 1:1 with raw/
+  raw/content/          the crawl verbatim: 585 help pages as fetched, unmodified
+  recipes/              human-readable per-resource procedures — SECONDARY to http/
+  images/               128 screen and help images
+tools/                  the capture harness (Playwright over CDP, ExtJS-aware)
+SCHEMA.md               the store contract: what a record must contain
+PLAN.md                 definition of done, and why capture cannot be parallelised
+STATUS.md               where each artifact lives and how it got there
+```
+
+## The vendor help corpus
+
+The product's own documentation site was crawled in full and is here three times over, because each
+form is useful for something different:
+
+| form | what it is | size |
+|---|---|---|
+| `raw/content/` | 585 help pages exactly as fetched | 32 MB |
+| `md/` | 587 markdown files, 1:1 with the crawl, front-matter carrying `url`, `toc_path` and a `source_sha1` back to the original | 7.6 MB |
+| `index/*.json` | the corpus taken apart into queryable pieces | |
+
+What the extraction produced:
+
+| file | contents |
+|---|---|
+| `index/fields.json` | **7,741 field definitions** — the visible label and its business meaning |
+| `index/procedures.json` | **1,029 procedures**, each with numbered steps, its TOC path, the nav entry it starts from, and the field tables it references |
+| `index/pages.json` · `toc.json` | 586 pages with their table-of-contents position |
+| `index/navigation.json` | the 20 top-level navigation entries |
+| `index/graph.json` | 586 nodes and the links between help pages |
+| `index/ui-vocabulary.json` · `icons.json` | the product's own words for its controls; 128 icons |
+| `index/manifest.json` | product, version, Flare build, crawl timestamp, scope |
+
+**Why this half matters.** The live capture knows `supplierNumber` is a required 32-character
+textfield; it does not know what a supplier *is*. The help corpus explains suppliers thoroughly and
+never once mentions `supplierNumber`, because user documentation speaks in labels. Joining the two on
+the normalised visible label connects them: **185 of 204 captured payload keys (96 %) now carry a
+business description, the help page that defines them, and the procedures that use them** —
+`index/field-dictionary.json`, built by `tools/build-dictionary.mjs`.
+
+That join is what makes the base usable for intent resolution rather than only for replay.
+
+## What is deliberately not here
+
+- **Credentials, cookies, CSRF tokens.** Stripped at write time by the recorder. Verified: the only
+  request headers stored across all 266 exchanges are `accept` and `content-type`.
+
+## Honest coverage
+
+`index/coverage.json` measures six dimensions per screen. It is not flattering, on purpose:
+
+| dimension | complete |
+|---|---|
+| structure (columns, actions) | 310 / 316 |
+| read APIs identified | 228 / 316 |
+| **read shapes recorded** | **4 / 316** |
+| form model captured (creatable screens) | 84 |
+| **write APIs proven** | **9 / 85 creatable** |
+| failure modes recorded | 8 / 85 |
+| **screens complete on all six** | **0** |
+
+The two bold gaps are the honest state of it: this knowledge base proves *how a small set of
+resources behaves under write*, and *what every screen looks like*. It does not yet prove what most
+GETs return. Reading that table as "20 % done" is right; reading it as "nothing usable" is wrong —
+the write contract that is proven is the part Phase 1 needs, and resources are shared across screens,
+so recording one GET per resource closes the read-shape dimension broadly rather than screen by screen.
+
+## Reproducing any of it
+
+The harness is in `tools/`. It attaches over CDP to a Chrome you have already logged into:
+
+```bash
+chrome --remote-debugging-port=9222 --user-data-dir=/tmp/by-profile
+# log in by hand, then:
+node tools/cdp/probe-resource.mjs read codes        # record a resource's read contract
+node tools/cdp/map-forms.mjs configuration          # capture Add-form models
+node tools/cdp/a11y-vs-ext.mjs "#wm.config/..."     # compare the two views of a screen
+```
+
+Session caveats that cost real time to learn are in `PLAN.md` and `blue-yonder-sce/recipes/README.md`.
+The two worst: the session lives in a **session cookie**, so restarting Chrome means logging in again;
+and the SPA **attaches one iframe per screen visited and never releases them** — 333 accumulated
+frames crashed the renderer, so any long-lived session must reset periodically.

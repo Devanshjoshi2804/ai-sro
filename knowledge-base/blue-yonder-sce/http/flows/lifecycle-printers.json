@@ -1,0 +1,103 @@
+{
+  "screen": "printers",
+  "phases": {
+    "create": [
+      "GET printers -> 200",
+      "POST printers -> 201",
+      "GET printers -> 200"
+    ],
+    "edit": [
+      "GET printers -> 200",
+      "PUT printers/ZV6553*!SG -> 200",
+      "GET printers -> 200"
+    ],
+    "copy": [],
+    "delete": [
+      "DELETE printers/ZV6553*!SG -> 200",
+      "GET printers -> 200"
+    ]
+  },
+  "code": "ZV6553",
+  "rowKey": "ZV6553",
+  "createApplied": {
+    "printerAddress": "ZV6553",
+    "printerName": "ZVflow",
+    "radio:Printer Status": "D",
+    "printerType": "i4440"
+  },
+  "linkFound": true,
+  "linkVia": ".wm-grid-navigate-link-column",
+  "editFormFound": true,
+  "copySelect": {
+    "idx": 8,
+    "selected": 1
+  },
+  "copyInvoke": {
+    "invoked": "doCopy"
+  },
+  "deleteSelect": {
+    "idx": 8,
+    "selected": 1
+  },
+  "deleteInvoke": {
+    "invoked": "doDelete"
+  },
+  "allCalls": [
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "printers",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "printers",
+      "status": 201,
+      "body": "{\"printerAddress\":\"ZV6553\",\"printerName\":\"ZVflow\",\"printerType\":\"i4440\",\"printerStatus\":\"D\",\"TCPAddress\":\"\",\"reRoutePrinter\":\"\",\"serverQueueFlag\":false,\"printQueue\":\"\",\"printerStatusDescription\":\"\",\"printerTypeDescription\":\"\",\"warehouseId\":\"SG\",\"printerLanguage\":\"\",\"printerLanguageDescription\":\"\"}"
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "printers",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "printers",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "PUT",
+      "url": "printers/ZV6553*!SG",
+      "status": 200,
+      "body": "{\"printerAddress\":\"ZV6553\",\"printerName\":\"ZV edited\",\"printerType\":\"i4440\",\"printerStatus\":\"D\",\"TCPAddress\":\"\",\"reRoutePrinter\":\"\",\"serverQueueFlag\":false,\"printQueue\":\"\",\"printerStatusDescription\":\"Disconnected\",\"printerTypeDescription\":\"Intermec EasyCoder 4400\",\"warehouseId\":\"SG\",\"printerLanguage\":\"\",\"printerLanguageDescription\":\"\",\"resourceId\":\"ZV6553*!SG\"}"
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "printers",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "delete",
+      "method": "DELETE",
+      "url": "printers/ZV6553*!SG",
+      "status": 200,
+      "body": "{\"printerAddress\":\"ZV6553\",\"printerName\":\"ZV edited\",\"printerType\":\"i4440\",\"printerStatus\":\"D\",\"TCPAddress\":\"\",\"reRoutePrinter\":\"\",\"serverQueueFlag\":false,\"printQueue\":\"\",\"printerStatusDescription\":\"Disconnected\",\"printerTypeDescription\":\"Intermec EasyCoder 4400\",\"warehouseId\":\"SG\",\"printerLanguage\":\"\",\"printerLanguageDescription\":\"\",\"resourceId\":\"ZV6553*!SG\"}"
+    },
+    {
+      "phase": "delete",
+      "method": "GET",
+      "url": "printers",
+      "status": 200,
+      "body": null
+    }
+  ]
+}

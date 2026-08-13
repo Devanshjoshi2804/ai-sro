@@ -1,0 +1,167 @@
+{
+  "screens": {
+    "Yard Locations": {
+      "hash": "#wm.config/wm.config.warehouse.locations.yard////",
+      "toolbar": [
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions"
+      ],
+      "menus": [
+        {
+          "button": "Actions",
+          "item_count": 4,
+          "items": [
+            {
+              "text": "Add",
+              "disabled": false,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Delete",
+              "disabled": true,
+              "hasSubmenu": false
+            },
+            {
+              "text": "&#160;",
+              "disabled": true,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Update Location Attributes",
+              "disabled": true,
+              "hasSubmenu": false
+            }
+          ]
+        }
+      ]
+    },
+    "Dock Locations": {
+      "hash": "#wm.config/wm.config.warehouse.locations.dock////",
+      "toolbar": [
+        "Dock Doors255",
+        "Dock Sets7",
+        "Actions"
+      ],
+      "menus": [
+        {
+          "button": "Actions",
+          "item_count": 6,
+          "items": [
+            {
+              "text": "Add",
+              "disabled": false,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Delete",
+              "disabled": true,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Maintain Dock Schedules",
+              "disabled": true,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Update Location Attributes",
+              "disabled": true,
+              "hasSubmenu": false
+            },
+            {
+              "text": "&#160;",
+              "disabled": false,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Assign to Dock Set",
+              "disabled": true,
+              "hasSubmenu": false
+            }
+          ]
+        }
+      ]
+    },
+    "Staging Locations": {
+      "hash": "#wm.config/wm.config.warehouse.locations.staging////",
+      "toolbar": [
+        "Shipping112",
+        "Receiving43",
+        "Both203",
+        "Production0",
+        "Other0",
+        "All358",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions"
+      ],
+      "menus": [
+        {
+          "button": "Actions",
+          "item_count": 4,
+          "items": [
+            {
+              "text": "Add",
+              "disabled": false,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Delete",
+              "disabled": true,
+              "hasSubmenu": false
+            },
+            {
+              "text": "&#160;",
+              "disabled": true,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Update Location Attributes",
+              "disabled": true,
+              "hasSubmenu": false
+            }
+          ]
+        }
+      ]
+    },
+    "Storage Locations": {
+      "hash": "#wm.config/wm.config.warehouse.locations.storage////",
+      "toolbar": [
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions"
+      ],
+      "menus": [
+        {
+          "button": "Actions",
+          "item_count": 3,
+          "items": [
+            {
+              "text": "Add",
+              "disabled": false,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Delete",
+              "disabled": true,
+              "hasSubmenu": false
+            },
+            {
+              "text": "Mass Update",
+              "disabled": false,
+              "hasSubmenu": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "generated_by": "tools/cdp/dump-actions-menu.mjs",
+  "readOnly": true
+}

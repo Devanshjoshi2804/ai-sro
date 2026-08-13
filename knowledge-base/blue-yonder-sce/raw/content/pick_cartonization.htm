@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Picking " data-mc-conditions="Writer Tags.Amanda" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Pick Cartonization</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#PickCartonization">Pick Cartonization</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Automaticcartonization">Automatic cartonization</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Pickingcartonization">Picking cartonization</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Shippingcartonization">Shipping cartonization</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Packstationcartonization">Pack station cartonization</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Cartonizationcalculationmethods">Cartonization calculation methods</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Manualcartonization">Manual cartonization</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Cartons">Cartons</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Repackclass">Repack class</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Cartonroutinggroups">Carton routing groups</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Example">Example&#160;</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Setup">Setup</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Cartonizationsetupandconfiguration">Cartonization setup and configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurepickcartonization">Configure pick cartonization</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PickCartonizationfields">Pick Cartonization fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Cartonsfields">Cartons fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="PickCartonization" data-magellan-target="PickCartonization"><a name="aanchor206"></a>
+                                                            <MadCap:concept term="WM" />Pick Cartonization</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#PickCartonization">Pick Cartonization</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Automaticcartonization">Automatic cartonization</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Cartonizationcalculationmethods">Cartonization calculation methods</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Manualcartonization">Manual cartonization</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Cartons">Cartons</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Repackclass">Repack class</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Cartonroutinggroups">Carton routing groups</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Cartonizationsetupandconfiguration">Cartonization setup and configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurepickcartonization">Configure pick cartonization</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PickCartonizationfields">Pick Cartonization fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Cartonsfields">Cartons fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Cartonization is the process of determining which items are to be packed together in a container and which size container is to be used. The application supports the following types of cartonization:</p>
+                                                        <ul>
+                                                            <li><b>Automatic cartonization</b>: The application determines the type of carton to use. The application supports automatic cartonization for picking, shipping, and pack station to determine the type of carton to use for each respective process.</li>
+                                                            <li><b>Manual cartonization</b>: The operator determines the type of carton to use.</li>
+                                                        </ul>
+                                                        <p>You can configure the application to automatically perform picking cartonization, shipping cartonization, both picking and shipping cartonization, or no automatic cartonization.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: To utilize cartonization and for cartonization to efficiently optimize cartons, you must first configure the item footprints with accurate dimensions and weight.</p>
+                                                        <h2 id="Automaticcartonization" data-magellan-target="Automaticcartonization"><a name="Automatic_cartonization"></a>Automatic cartonization</h2>
+                                                        <p>Automatic cartonization takes place during pick release, prior to picking or packing.</p>
+                                                        <p>Automatic cartonization considers the following information:</p>
+                                                        <ul>
+                                                            <li>Only those units of measure (UOMs) that can be cartonized, as defined by the item footprint configuration</li>
+                                                            <li>The repack classes that are defined for the item or customer</li>
+                                                            <li>Only those pick zones for which a cartonization group or packaging levels have been defined for cartonization</li>
+                                                        </ul>
+                                                        <p>During automatic cartonization, the application selects the picks to be processed and then follows the selected processing method to determine which picks will fit into which carton. It also finds the smallest carton that can contain the designated picks (based on the cartonization method) and assigns a carton ID (for picking cartonization) or shipping container ID (for shipping cartonization) to the carton.</p>
+                                                        <h3 id="Pickingcartonization" data-magellan-target="Pickingcartonization">Picking cartonization</h3>
+                                                        <p>Picking cartonization is an automatic cartonization process that determines which type of carton to use as the picking container for certain pick work, and which piece and case picks are picked to the same picking container.</p>
+                                                        <p>Picking cartonization is typically used in the following situations:</p>
+                                                        <ul>
+                                                            <li>Operators pick product directly to the final shipping container, such as a box. This cartonization process does not use pack station processing for packing inventory, but may use it to print labels and paperwork for the packed shipping containers.</li>
+                                                            <li>Picks are grouped and directed to a standard picking container, such as a reusable tote. This cartonization process typically uses pack station processing for packing inventory into shipping containers and for printing labels and paperwork for the packed shipping containers.</li>
+                                                        </ul>
+                                                        <p>Picking cartonization uses only cartons that are configured for picking.</p>
+                                                        <h3 id="Shippingcartonization" data-magellan-target="Shippingcartonization">Shipping cartonization</h3>
+                                                        <p>Shipping cartonization is an automatic cartonization process that determines which type of carton to use as the shipping container for packing the contents of a picking container into a shipping container at the pack station.</p>
+                                                        <p>Shipping cartonization is typically used when you want the application to determine, during pack station processing, which type of carton to use for packing and shipment, so that picks are grouped in advance of the pick release process. For example, a facility that uses automation to route picked inventory to a pack station uses shipping cartonization to group pick work so that the conveyor directs all picked inventory for the same shipping container to the same pack station.</p>
+                                                        <p>Shipping cartonization uses only cartons that are configured for shipping.</p>
+                                                        <h3 id="Packstationcartonization" data-magellan-target="Packstationcartonization">Pack station cartonization</h3>
+                                                        <p>Pack station cartonization is an automatic cartonization process that determines which type of carton to use as the shipping container for picked inventory that has been deposited to a pack station.</p>
+                                                        <p>Pack station cartonization performs the automatic cartonization process on the inventory in the picking container at the pack station for an individual shipment. The results are used to guide the packing operator by prompting the operator to pack, for example, Carton1, then Carton2, and so on.</p>
+                                                        <p>Pack station cartonization uses only cartons that are configured for pack station processing.</p>
+                                                        <h2 id="Cartonizationcalculationmethods" data-magellan-target="Cartonizationcalculationmethods"><a name="Cartonization_calculation_methods"></a>Cartonization calculation methods</h2>
+                                                        <p>You can configure the application to use one of the following methods for performing automatic cartonization:</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If the <b>Pick to Box</b> field is set to Yes for an item, then during cartonization, the box or carton footprint will be considered instead of the item footprint.</p>
+                                                        <ul>
+                                                            <li>
+                                                                <p><span class="specialbold">Volume</span>: This method uses volume-based calculations. The list of possible cartons is selected and sorted in sequence by descending volume. Volume is calculated as (length) x (width) x (height) x (fill percentage). The fill percentage for a carton is determined by the <b>Maximum Carton</b> and <b>Maximum Last Carton</b> fields.  After a carton is processed, and cartonization attempts to downsize into a better fit carton, the actual item and footprint dimensions (length, width, and height) are used to ensure that the item will fit into the carton in some orientation.</p>
+                                                                <p>For example, if the item is 16 x 12 x 3 and the carton is 17 x 16 x 6, the item will fit into the carton. However, if the carton is 17 x 10 x 6, the item will not fit dimensionally in any orientation. Each item is checked individually; therefore, if each item will fit in some orientation and the combined volume of the items does not exceed the capacity of the carton, the carton will be used.</p>
+                                                            </li>
+                                                            <li>
+                                                                <p><span class="specialbold">Complex</span>: This method also uses volume-based calculations (as described for the Volume method), including checking the item dimensions (length, width, and height) to ensure carton dimensions are not exceeded. After a carton passes through the volume-based calculations, the application performs additional calculations when the carton type is downsized. Complex cartonization takes place after the application determines the contents of the carton. The additional calculations validate whether the picks will fit into a smaller carton by using different possibilities of orientation and placement. Only after finding a successful packing combination will the application select a smaller carton.</p>
+                                                                <p>For example, assume the application is performing cartonization on 4 picks, and there are carton types A, B, and C, with A being the largest and C the smallest. First, the application determines how many of the picks can fit into the largest carton based on volume and weight. If pick 1, 2, and 3 can fit into carton A, but pick 4 does not fit, then the application attempts to downsize the carton for the first three picks. This is the only time that complex cartonziation is performed. During this process, the application attempts to fit pick 1, 2, and 3 into carton B by calculating different orientation and placement combinations for the items. If the application finds a successful packing combination, it selects carton B, and then attempts to downsize to carton C. </p>
+                                                                <p>Depending on the number of items in the carton, the number of iterations can quickly grow into the millions. For performance reasons, you must configure the maximum number of iterations that can occur. Contact your Blue Yonder project team to determine an appropriate  value for your configuration. Even though not every mathematically possible solution is considered, the Complex method provides a successful packing combination based on the random sampling.</p>
+                                                            </li>
+                                                        </ul>
+                                                        <h2 id="Manualcartonization" data-magellan-target="Manualcartonization"><a name="Manual_cartonization"></a>Manual cartonization</h2>
+                                                        <p>Manual cartonization is the process of picking pieces, and delivering those pieces to a pack station for further processing. Picking may be directed by a label or pick sheet, or assigned through directed work. When picking for an order or shipment is complete, the picked inventory is directed to the pack station for repacking into a shipping container.</p>
+                                                        <p>At the pack station, the operator selects the type of carton to use as the shipping container and identifies which pieces are packed into it. Completed shipping containers are typically moved to a consolidation or shipment staging location for further processing.</p>
+                                                        <h2 id="Cartons" data-magellan-target="Cartons"><a name="Cartons"></a>Cartons</h2>
+                                                        <p>A carton is a container for inventory that is used during picking and packing operations. For example, you can pick inventory to a carton so that the carton can be shipped when picking is complete, or you can pack picked inventory to a shipping carton so that the carton can be shipped when packing is complete. </p>
+                                                        <p>You define different types of cartons so that the application can select the most appropriate carton during the automatic cartonization process. The application selects the optimal carton for the picked or packed inventory based on carton attributes, such as size, weight, capacity, and purpose. </p>
+                                                        <p>The following types of cartons are used exclusively during pack station processing:</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The application does not consider the following types of cartons for use during cartonization processing. </p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Generic Carton Type</span>: This is a standard carton type provided in the application; you cannot add or delete the generic carton type; however, you can configure its dimensions. The generic carton type is used, for example, when a packing operator needs to process a full case (carton) or box without packing it into a shipping container. The packing operator can override the suggested carton type with the generic carton, add or edit its dimensions to match the full case, and process the inventory without packing it to a shipping container. As another example, if the suggested carton is not available and the operator needs to use a different carton that has no pre-defined dimensions, the operator can use the generic carton type to process the inventory.</li>
+                                                            <li><span class="specialbold">Pallet Type</span>: This carton attribute defines a physical pallet as a carton. Cartons of this type are used exclusively in pack station processing when an operator needs to process inventory, such as a full case (carton) or box, without packing it to a shipping carton. The packing operator can override the suggested carton with a pallet carton type and process the inventory to the pallet. Upon completion of the pallet, the operator can edit the dimensions to enter the number of boxes that were packed to the pallet.</li>
+                                                        </ul>
+                                                        <h2 id="Repackclass" data-magellan-target="Repackclass"><a name="Repack_class"></a>Repack class</h2>
+                                                        <p>Repack classes are optional attributes that you can apply to items and cartons, or to items, customers, and cartons. Repack classes help to ensure that specialty products or products with unique packaging or customer requirements are packaged into suitable cartons for shipping. The following situations are examples where you would use repack classes:</p>
+                                                        <ul>
+                                                            <li>Packing heavy items into sturdier boxes</li>
+                                                            <li>Packing frozen food into an insulated container for customers located far away, but use a regular container for customers located close enough that the frozen food will not thaw</li>
+                                                            <li>For a 3PL environment, packing client A's items into client A's cartons and client B's items into client B's cartons</li>
+                                                        </ul>
+                                                        <p>During cartonization, the application looks for a matching repack class on the item, customer, and carton. If a repack class is not defined for the customer, then the application looks for a matching repack class on the item and carton. If a matching repack class is found, then the application selects the appropriate shipping carton. If multiple matching repack classes are found, then the first matching repack class with the highest priority sequence (as defined for the item) is used. The following is an example of how the application looks for a carton based on the repack classes:</p>
+                                                        <ul>
+                                                            <li>If the item has no assigned repack classes, then the application selects the largest carton  without an associated repack class.</li>
+                                                            <li>If the item has one assigned repack class and no customer repack class, then the application selects the largest carton with a repack class that matches the item.</li>
+                                                            <li>If the item has more than one assigned repack class and no customer repack class, then the application finds the cartons with a repack class that matches one defined for the item, and then selects the largest carton with the highest priority matching repack class (as defined for the item). </li>
+                                                            <li>If the item has one assigned repack class that matches the customer repack class, then the application selects the largest carton with a repack class that matches the item and customer.</li>
+                                                            <li>If the item and the customer each have more than one assigned repack class, the application finds the cartons with a repack class that matches a class defined for both the item and customer, and then selects the largest carton with the highest priority matching repack class (as defined for the item).</li>
+                                                        </ul>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If the customer requirement policy is not enabled (INSTALLED), the application ignores any defined customer repack classes and only considers the item and carton repack classes. You can configure the CUSTOMER-REQUIREMNT-PROCESSING/INSTALLED policy in <a href="policies/policy_maintenance.htm">Policy Maintenance</a>.</p>
+                                                        <h2 id="Cartonroutinggroups" data-magellan-target="Cartonroutinggroups"><a name="Carton_routing_groups"></a>Carton routing groups</h2>
+                                                        <p>A carton routing group specifies one or more carton types or a number of carton types (such as less than 3 or more than 6) that are grouped together for processing. For example, if certain pack stations in the warehouse operate more efficiently (higher throughput) based on the carton types or number of carton types that pass through it, then you can create a carton routing group that can be used to direct shipments that require certain carton types to specific pack stations. </p>
+                                                        <p>If carton routing groups are enabled for the warehouse or a  client, then when a shipment is created with at least one order type enabled for carton routing, the application performs precartonization to determine the carton type for the inventory on each order line. If the carton type requirements match the criteria defined for a carton routing group, the application assigns the carton routing group to the shipment. A carton routing group can be used as criteria on a movement path to direct the shipment to, for example, a particular pack station. A carton routing group can also be used as an attribute in building a work assignment to group order lines for picking. </p>
+                                                        <h3 id="Example" data-magellan-target="Example">Example&#160;</h3>
+                                                        <p>For this example, assume SHIP01 is created and the application determines that carton types CT1 and CT2 are required for cartonization. </p>
+                                                        <p>Consider the following carton routing group configurations:&#160;</p>
+                                                        <table style="width: 700px;border-collapse: separate;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 156px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 140px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 273px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 191px;" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Carton Routing Group</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Entity</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Column</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Value</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">CRG1</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Carton</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Carton Type</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">= CT1, CT2</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">CRG2</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Carton</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Number of Carton Types</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">&gt; 2</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>Consider the following work assignment rule configurations:&#160;</p>
+                                                        <table style="width: 700px;border-collapse: separate;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 196px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 130px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 253px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 180px;" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Rule Configuration</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Entity</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Column</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Value</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Selection Criteria</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Shipment</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Carton&#160;Routing Group</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">= CRG1 OR&#160;CRG2</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Criteria Grouping</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow" colspan="3">
+                                                                        <p colspan="3"><b>Carton Routing Group</b> criteria is selected</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>Consider the following movement path criteria: </p>
+                                                        <table style="width: 700px;border-collapse: separate;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Criteria</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Entity</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Column</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Value</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">CRT01</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Shipment</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Carton Routing Group</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">CRG1</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">CRT02</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Shipment</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Carton Routing Group</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">CRG2</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>Consider the following movement paths and associated hop criteria:&#160;</p>
+                                                        <table style="width: 700px;border-collapse: separate;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 168px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Source zone</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Destination zone</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Hop sequence</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Hop</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Criteria</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">SA1</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">DA1</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">1</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">HOP1</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">CRT01</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">SA1</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">DA1</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">2</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">HOP2</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">CRT02</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">SA1</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">DA1</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">3</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">HOP3</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">n/a</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p style="font-weight: bold;">Assumptions</p>
+                                                        <p>The following assumptions can be made with this information:&#160;</p>
+                                                        <ul>
+                                                            <li>The application assigns carton routing group CRG1 to SHIP01 based on the need for carton types CT1 and CT2. Carton routing group CRG2 does not apply because the number of carton types needed for the shipment is not greater than 2. </li>
+                                                            <li>A&#160;work assignment for the shipment is created from the work assignment rule above because the shipment's carton routing group meets the criteria of being CRG1. The selected Carton Routing Group criteria grouping ensures that the work assignment can only have picks for 1 carton routing group. </li>
+                                                            <li>Inventory&#160;for SHIP01 meets the movement path criteria CRT01 based on the shipment's carton routing group CRG1.</li>
+                                                            <li>Inventory for SHIP01 follows hop sequence 1, stopping at HOP1, based on the movement path criteria CRT01. </li>
+                                                        </ul>
+                                                        <h3 id="Setup" data-magellan-target="Setup">Setup</h3>
+                                                        <p>You must perform the following tasks to use carton routing groups:&#160;</p>
+                                                        <ol>
+                                                            <li value="1">Configure automatic cartonization. See <a href="#Cartonization_setup_and_configuration">Cartonization setup and configuration</a>.</li>
+                                                            <li value="2">Configure the following carton routing group attributes:&#160;<ul><li>Enable carton routing groups for the warehouse, or in a 3PL environment, select the clients for which carton routing groups are enabled.</li><li>Select the order types for which carton routing groups are enabled.</li><li><p>Define the carton routing group rules that determine the attributes of the carton routing groups.</p></li></ul><p>See <a href="#Configure_pick_cartonization">Configure pick cartonization</a>.</p></li>
+                                                            <li value="3">To build work assignments based on carton routing groups, add work assignment rules: <ul><li>Define selection criteria that includes the carton routing group column and value for the shipment entity. </li><li><p>To indicate that a work assignment can only contain picks for shipments of the same carton routing group, select the Carton Routing Group check box in the criteria grouping configuration.</p></li></ul><p>See <a href="procedures_for_work_assignment_configuration.htm#Add_or_modify_work_assignment_rules">Add or modify work assignment rules</a>. </p></li>
+                                                            <li value="4">Add movement path criteria that includes the Carton Routing Group column and the specific carton routing group value for the shipment entity. See Add or modify movement path criteria. </li>
+                                                            <li value="5">Assign the movement path criteria to a movement path hop. See <a href="movement_paths.htm#Add_or_modify_a_movement_path">Add or modify a movement path</a>. </li>
+                                                        </ol>
+                                                        <h2 id="Cartonizationsetupandconfiguration" data-magellan-target="Cartonizationsetupandconfiguration"><a name="Cartonization_setup_and_configuration"></a>Cartonization setup and configuration</h2>
+                                                        <p>You must perform the following tasks to set up and configure automatic cartonization. </p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Configure cartonization. When you configure cartonization you enable the application to perform automatic cartonization, and you define the following attributes:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The following configurations are required for picking cartonization, and as noted for shipping and pack station cartonization.</p>
+                                                                <ul>
+                                                                    <li>Repack classes that restrict the assignment of inventory to a specific class of cartons. See <a href="#Repack_class">Repack class</a>. (Also used for shipping cartonization.)</li>
+                                                                    <li>Cartons that can be used for cartonization processing. Carton attributes define the size and use of the carton, and the types of cartonization to which it can be automatically assigned. (Also required for shipping and pack station cartonization.) See <a href="#Configure_pick_cartonization">Configure pick cartonization</a>. </li>
+                                                                    <li>Attributes that define how eligible picks are grouped and sequenced for cartonization</li>
+                                                                    <li>Attributes that define grouping for pre-cartonization estimation in support of parcel rating</li>
+                                                                    <li>Attributes that define grouping during actual cartonization</li>
+                                                                    <li>Attributes that define which qualified picks can be placed into the same carton</li>
+                                                                    <li>How sensitive-item cartons are selected for items that are configured for being picked to a box before being placed in a carton with other items</li>
+                                                                    <li>The cartonization method used for determining how much inventory can be placed into each carton</li>
+                                                                    <li>Attributes that determine how RF carton picking takes place</li>
+                                                                    <li>Whether carton routing groups are used to direct shipments to a hop on a movement path (such as to a pack station)&#160;based on carton type. See <a href="#Carton_routing_groups">Carton routing groups</a>. </li>
+                                                                </ul>
+                                                                <p>See <a href="#Configure_pick_cartonization">Configure pick cartonization</a>.</p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p>Configure items for cartonization. Define the following attributes to enable items for cartonization:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The following configurations are required for picking cartonization, and as noted for shipping and pack station cartonization.</p>
+                                                                <ul>
+                                                                    <li>Units of measure (UOMs) to cartonize. For each item to cartonize, you use the item footprint configuration to set up UOMs, and to enable cartonization for the UOMs (such as eaches) that can be cartonized. The item footprint also defines the size and weight of the UOM, which are used in cartonization processing. (Also required for shipping and pack station cartonization.) See <a href="footprints_config.htm#Item_footprints">Item footprints</a>.</li>
+                                                                    <li>Whether the item must be placed in a box before being placed into a carton with other items. You use the item processing configuration to enable the <b>Pick to Box</b> field. This attribute is used during picking cartonization to direct the operator to place the item in a carton configured as a sensitive item carton, before packing the item into a carton with other items.</li>
+                                                                    <li>Repack classes. This attribute is used for picking and shipping cartonization. An item will only be directed to cartons that have a matching repack class. If no repack class is defined for the item, it will be directed to a carton that has no repack class defined. See <a href="#Repack_class">Repack class</a>.</li>
+                                                                    <li>Nesting dimensions and nesting class codes. If an item is able to be nested, you use the item footprint configuration to define the nesting dimensions. If an item can be nested with other items, you use the item configuration to define the nesting class code. These attributes are used during cartonization processing to assign cartons or split nested structures based on their stacked dimensions. (Also used for shipping and pack station cartonization.) See <a href="items_page.htm#Nesting_for_cartonization">Nesting for cartonization</a>.</li>
+                                                                </ul>
+                                                                <p>See <a href="items_page.htm">Items</a>.</p>
+                                                            </li>
+                                                            <li value="3">
+                                                                <p>Configure pick zones. For the pick zones in which you store the item UOMs that have been enabled for cartonization, define the following attributes:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The following configurations are required for picking cartonization.</p>
+                                                                <ul>
+                                                                    <li>Select the LPN level at which picks are allowed in a pick zone. For example, if the Each UOM is enabled for cartonization, then set the LPN level to Detail LPN to allow the Each UOM to be picked from the zone.</li>
+                                                                    <li>Optionally, select a cartonization group for the pick zone. A cartonization group is used to group pick zones from which inventory can be cartonized together. For example, your warehouse may have 10 pick zones in which you want to perform cartonization, but 5 of the pick zones are located close together on the north side of the building while the other 5 pick zones are located close together on the south side of the building. You can define 2 cartonization groups and assign one to the north pick zones and one to the south pick zones, so that inventory from the 5 north pick zones is cartonized together and inventory from the 5 south pick zones is cartonized together, separately from the north pick zones. </li>
+                                                                </ul>
+                                                                <p>See <a href="pick_zones.htm">Pick Zones</a>.</p>
+                                                            </li>
+                                                            <li value="4">
+                                                                <p>Configure pick methods.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The following configuration is required for picking cartonization.</p>
+                                                                <p>A pick method defines the types of picks that are created and released.  After the pick method is defined, you assign the pick method to the allocation search path rules used to allocate carton picks. See <a href="pick_methods.htm">Pick Methods</a>.</p>
+                                                            </li>
+                                                            <li value="5">
+                                                                <p>Configure allocation search paths.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The following configurations are required for picking cartonization.</p>
+                                                                <p>An allocation search path defines the source zone from which inventory is allocated for a pick, based on the attributes of the required inventory. For each search path that you want to use to allocate the item UOMs that are configured for cartonization, configure a search path rule with the following attributes:</p>
+                                                                <ul>
+                                                                    <li>Select the pick zone in which you store item UOMs enabled for cartonization.</li>
+                                                                    <li>Select the LPN level at which picks can be allocated from the pick zone to a level that matches the item UOMs to cartonize. For example, if you cartonize Each UOMs, then select the Detail LPN level, or select Any to allow allocation at any level.</li>
+                                                                    <li>Ensure that the value for the <span class="specialbold">Allocation UOM </span>field does not prevent allocating the item UOM to cartonize. For example, if you cartonize Each UOMs, then set <span class="specialbold">Allocation UOM </span>to Each or leave it blank.</li>
+                                                                    <li>Select a pick method that creates and releases carton picks from the pick zone.</li>
+                                                                </ul>
+                                                                <p>See <a href="allocation_search_paths.htm">Allocation Search Paths</a>.</p>
+                                                            </li>
+                                                            <li value="6">
+                                                                <p>Configure shipping cartonization.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The following configurations are required for shipping cartonization.</p>
+                                                                <p>If you want the application to automatically cartonize picked inventory into appropriate shipping containers, perform the following tasks:</p>
+                                                                <ul>
+                                                                    <li>Configure shipping cartonization. See <a href="cartonization.htm">Outbound Cartonization</a>.</li>
+                                                                    <li>Enable automatic carton numbering for the workstation so that the application assigns the shipping container number; otherwise, the operator assigns it, typically by scanning a generic label. See <a href="workstations.htm">Workstations</a>.</li>
+                                                                    <li>For each carrier service level used to transport shipping containers, specify the shipping cartonization thresholds for weight, volume, and value thresholds for each carrier and service level. See <a href="existing_carriers.htm">Existing Carriers</a>.</li>
+                                                                </ul>
+                                                            </li>
+                                                            <li value="7">
+                                                                <p>Configure pack station cartonization.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The following configurations are required for pack station cartonization.</p>
+                                                                <p>If you want the application to determine which picks are to be packed together in cartons for a shipment, then configure the following cartonization attributes for pack station:</p>
+                                                                <ul>
+                                                                    <li>Enable automatic cartonization, which evaluates the picked inventory at the pack station and determines which inventory is to be packed into which shipping carton.</li>
+                                                                    <li>Define whether the pack station operator is allowed to pack an item into a shipping carton if doing so violates the separation of items based on the break-on values.</li>
+                                                                    <li>Define the break-on value (such as shipment ID) that determines when a new shipping carton is started even though there is room for more inventory in the current carton.</li>
+                                                                    <li>Define the order-by value (such as weight) that controls the order in which picks will be considered for adding to a carton.</li>
+                                                                    <li>Define whether you want the application to parse the carton type and if so, specify the command used to parse the shipping container code.</li>
+                                                                </ul>
+                                                                <p>See <a href="settings_and_pack_station.htm">Settings and Pack Station</a>.</p>
+                                                            </li>
+                                                            <li value="8">Configure handling unit types. If your warehouse tracks inventory handling units, you can select the types of cartons that can be picked to the handling unit during a work assignment. See <a href="handling_unit_types_section.htm">Handling Unit Types</a>.</li>
+                                                            <li value="9">
+                                                                <p>Configure processing for Carton Confirmation Operations. If you will be using Carton Configuration Operations to confirm picks to a carton, then configure the following attributes:</p>
+                                                                <ul>
+                                                                    <li>Define the workstations that are used to perform Carton Confirmation Operations. When users process cartons in Carton Confirmation Operations, the application creates a temporary location based on the workstation when processing a carton. See <a href="workstations.htm">Workstations</a>.</li>
+                                                                    <li>Use Policy Maintenance to configure the carton confirmation operations (CTNCNFOPR) policies that determine how inventory is processed using Carton Confirmation Operations.</li>
+                                                                </ul>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Configurepickcartonization" data-magellan-target="Configurepickcartonization"><a name="Configure_pick_cartonization"></a>Configure pick cartonization</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Outbound &gt; Picking &gt; Pick Cartonization</span>.</li>
+                                                            <li value="2">Enter information in the <a href="#Pick_Cartonization_fields">Pick Cartonization fields</a>.</li>
+                                                            <li value="3">To define repack classes: <ol><li value="1">Under <span class="specialbold">CARTON SPECIFICATIONS</span>, click <span class="specialbold">Repack Class Definition</span>.</li><li value="2">Perform one of the following tasks:<ul><li>To add a repack class, click <b>Add</b>. </li><li>To modify a repack class, in the grid, click the description of the repack class.</li></ul></li><li value="3"><p>Enter information in the following fields: </p><table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0"><col class="TableStyle-Field_Descriptions-Column-Column1" /><col class="TableStyle-Field_Descriptions-Column-Column2" /><thead><tr class="TableStyle-Field_Descriptions-Head-Header1"><th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th><th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th></tr></thead><tbody><tr class="TableStyle-Field_Descriptions-Body-Body1"><td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Repack Class</td><td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1"><p>Code that represents the value for the repack class. Repack classes are optional attributes that you can apply to ensure that your products are packaged into suitable cartons for shipping.</p></td></tr><tr class="TableStyle-Field_Descriptions-Body-Body2"><td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Description</td><td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2"><p>Long description of the repack class. This is the value that represents the repack class, for example, in a drop-down list.</p></td></tr><tr class="TableStyle-Field_Descriptions-Body-Body1"><td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Short Description</td><td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1"><p>Brief description of the repack class. This is the value that represents the repack class on RF screens.</p></td></tr></tbody></table></li><li value="4">Click <b>Apply</b>.</li><li value="5">To adjust the sequence in which the application evaluates the repack class, in the grid, click and drag the repack class to the preferred position.</li><li value="6">To translate the name and description of repack classes:<ol><li value="1">Perform one of the following tasks:<ul><li>To translate specific rows, in the grid, select the check box of the rows, and then above the grid, click <span class="specialbold">Translation</span>.</li><li>To translate all rows, above the grid, click <span class="specialbold">Translation</span>.</li></ul></li><li value="2">From the <span class="specialbold">Destination Locale</span> drop-down list, select the locale.</li><li value="3">In the grid, select a translated description or short description, and then enter the new value.</li><li value="4">Click <b>Save</b>.</li></ol></li></ol></li>
+                                                            <li value="4">To define cartons:<ol><li value="1">Under <span class="specialbold">CARTON SPECIFICATIONS</span>, click <span class="specialbold">Carton Definition</span>.</li><li value="2">Perform one of the following tasks:<ul><li>To add a new carton, click <b>Add</b>.</li><li>To modify a carton, in the grid, click the carton name.</li><li>To copy a carton, in the grid, select the check box next to the carton, and then click <b>Copy</b>.</li></ul></li><li value="3">Enter information in the <a href="#Cartons_fields">Cartons fields</a>.</li><li value="4">To assign or unassign repack classes for the carton:<ol><li value="1">Click <span class="specialbold">Repack Classes</span>.</li><li value="2">In the <span class="specialbold">Available Repack Classes</span> column, select the check box for the repack classes to assign.</li><li value="3">Click <b>Apply</b>.</li></ol></li><li value="5">Click <b>Save</b>.</li></ol></li>
+                                                            <li value="5">To enable processing by carton routing group for clients in a 3PL environment:<ol><li value="1">Under <b>CARTON&#160;ROUTING&#160;GROUPS</b>, click <b>Clients</b>.</li><li value="2">In the <b>Available Clients</b> column, select the check box next to each client.</li><li value="3">Click <b>Apply</b>. </li></ol></li>
+                                                            <li value="6">To define a carton routing group:<ol><li value="1">Under <b>CARTON&#160;ROUTING&#160;GROUPS</b>, click <b>Carton Routing Group Rules</b>.</li><li value="2">Perform one of the following tasks:<ul><li>To add a carton routing group, click <b>Add</b>.</li><li>To create a carton routing group from an existing group, select the check box next to the group, and then click <b>Copy</b>. </li></ul></li><li value="3"><p>Enter information in the following fields:</p><table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0"><col class="TableStyle-Field_Descriptions-Column-Column1" /><col class="TableStyle-Field_Descriptions-Column-Column2" /><thead><tr class="TableStyle-Field_Descriptions-Head-Header1"><th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th><th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th></tr></thead><tbody><tr class="TableStyle-Field_Descriptions-Body-Body1"><td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Group Name</td><td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1"><p>Name of the carton routing group. A carton routing group specifies one or more carton types or a number of carton types (such as less than 3 or more than 6) that are grouped together for processing.</p></td></tr><tr class="TableStyle-Field_Descriptions-Body-Body2"><td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Description</td><td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">Meaningful description of the carton routing group.</td></tr><tr class="TableStyle-Field_Descriptions-Body-Body1"><td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Sequence Number</td><td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1"><p>Sequence in which the application considers the carton routing group rule when attempting to assign a group to a shipment. The lower a sequence number, the higher its priority, with 1 being the highest. When the application matches a carton routing group with a shipment, the remaining rules with a higher sequence are no longer considered. </p></td></tr></tbody></table></li><li value="4">To define the criteria of the group that determines which carton types (or the number of carton types) are included in the carton routing group:<ol><li value="1">Under <b>Criteria Definition</b>, click <b>Expression</b>.</li><li value="2">Select the <b>Carton</b> entity. </li><li value="3">Select the <b>Carton Type</b> column or the <b>Number of Carton Types</b> column. </li><li value="4">Select the qualifier to use, such as "<b>=</b>".</li><li value="5">Select the value to use, such as a specific carton type or the number of carton types allowed.</li><li value="6">To add additional expressions:<ol><li value="1">Select the mathematical argument used to evaluate multiple rows of criteria.<ul><li><span class="specialbold">OR</span>: Must match either group of the defined criteria.</li><li><span class="specialbold">AND</span>: Must match both groups of the defined criteria.</li><li><span class="specialbold">(</span>: Opening argument used to group criteria together. </li><li><p><span class="specialbold">)</span>: Closing argument used to group criteria together.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: Other operators that represent a combination of these arguments, such as ")AND(" are also available. The operator determines how the application evaluates the criteria. For example, if you have two criteria lines connected with the operator AND, that means the shipment must match both attributes to meet the criteria. If the two lines are connected with the operator OR, the shipment only has to match one of the field values to meet the criteria.</p></li></ul></li><li value="2">Click <b>Expression</b>, and define its criteria.</li></ol></li></ol></li><li value="5">Click <b>Save</b>. </li></ol></li>
+                                                            <li value="7">To select the order types for which carton routing groups are enabled:<ol><li value="1">Under <b>CARTON&#160;ROUTING&#160;GROUPS</b>, click <b>Order Type</b>.</li><li value="2">In the <b>Available</b> column, select the check box next to each order type.</li><li value="3">Click <b>Apply</b>. </li></ol></li>
+                                                            <li value="8">To define the criteria that is used to group eligible picks for cartonization:<ol><li value="1">Under <span class="specialbold">CARTON ASSIGNMENTS</span>, click <span class="specialbold">Grouping Picks</span>.</li><li value="2">To select criteria from displayed entities:<ol><li value="1">If the advanced query<b> </b>is displayed, click <span class="specialbold">Simple</span>.</li><li value="2">If the available entities are not displayed, click <span class="specialbold">Show Available</span>.</li><li value="3">In the <b>Available </b>grid, select the entities that you want to use as criteria. </li><li value="4">Click <span class="specialbold">Add selected</span>. The entities are added to the <b>Selected </b>grid.</li><li value="5">To remove criteria, in the <b>Selected </b>grid, select the criteria to remove, and click <span class="specialbold">Remove selected</span>.</li><li value="6">To reorder the criteria, in the<span class="specialbold"> Selected </span>grid, click a row, and then click the up or down arrow to move the selected criteria. The application applies the criteria in sequential order according to how it is displayed in the grid.</li></ol></li><li value="3"><p>To enter criteria using database entities, click <span class="specialbold">Advanced</span>, and then enter the column and field name, using a period to separate the column and field. Multiple column and field entries must be separated by a comma and space.</p><p>You can use operators like IS NULL or IS NOT NULL to build an advanced query. For example, <span class="var">&lt;</span><i class="var">column name</i><span class="var">&gt;</span>.<span class="var">&lt;</span><i class="var">field name</i><span class="var">&gt;</span> IS NOT NULL, <span class="var">&lt;</span><i class="var">column name</i><span class="var">&gt;</span>.<span class="var">&lt; </span><i class="var">field name</i><span class="var">&gt;</span>.</p></li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="9">To define criteria that is used to determine the sequence in which picks are considered for cartonization:<ol><li value="1">Under <span class="specialbold">CARTON ASSIGNMENTS</span>, click <span class="specialbold">Sequencing</span>.</li><li value="2">To select criteria from displayed entities:<ol><li value="1">If the advanced query<b> </b>is displayed, click <span class="specialbold">Simple</span>.</li><li value="2">If the available entities are not displayed, click <span class="specialbold">Show Available</span>.</li><li value="3">In the <b>Available </b>grid, select the entities that you want to use as criteria. </li><li value="4">Click <span class="specialbold">Add selected</span>. The entities are added to the <b>Selected </b>grid.</li><li value="5">To remove criteria, in the <b>Selected </b>grid, select the criteria to remove, and click <span class="specialbold">Remove selected</span>.</li><li value="6">To reorder the criteria, in the<span class="specialbold"> Selected </span>grid, click a row, and then click the up or down arrow to move the selected criteria. The application applies the criteria in sequential order according to how it is displayed in the grid.</li></ol></li><li value="3"><p>To enter criteria using database entities, click <span class="specialbold">Advanced</span>, and then enter the column and field name, using a period to separate the column and field. Multiple column and field entries must be separated by a comma and space. </p><p>You can use operators like IS NULL or IS NOT NULL to build an advanced query. For example, <span class="var">&lt;</span><i class="var">column</i><i class="var">name</i><span class="var">&gt;</span>.<span class="var">&lt;</span><i class="var">field name</i><span class="var">&gt;</span> IS NOT NULL, <span class="var">&lt;</span><i class="var">column</i><i class="var">name</i><span class="var">&gt;</span>.<span class="var">&lt;</span><i class="var">field name</i><span class="var">&gt;</span>.</p></li><li value="4">Click <b>Save</b>.</li></ol></li>
+                                                            <li value="10">To define the criteria that is used to match picks for placement into the same carton during a picking work assignment:<ol><li value="1">Under <span class="specialbold">CARTON ASSIGNMENTS</span>, click <span class="specialbold">Pick Cartonization Rules</span>.</li><li value="2">Under <span class="specialbold">Criteria Definition</span>:<ol><li value="1">Click <span class="specialbold">Expression</span>.</li><li value="2">Select an entity that has the attribute to use, such as <span class="specialbold">Customer</span>.</li><li value="3">Select the attribute to use, such as <span class="specialbold">Store Type</span>.</li><li value="4">Select the qualifier to use, such as "=".</li><li value="5">Select the value to use, such as <span class="specialbold">Chain Store</span>.</li><li value="6">Click <b>Apply</b>.</li><li value="7">To add additional expressions:<ol><li value="1">Select the mathematical argument used to evaluate multiple rows of criteria.<ul><li><span class="specialbold">OR</span>: Must match either group of the defined criteria.</li><li><span class="specialbold">AND</span>: Must match both groups of the defined criteria.</li><li><span class="specialbold">(</span>: Opening argument used to group criteria together. </li><li><p><span class="specialbold">)</span>: Closing argument used to group criteria together.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: Other operators that represent a combination of these arguments, such as ")AND(" are also available. The operator determines how the application evaluates the criteria. For example, if you have two criteria lines connected with the operator AND, that means the inventory must match both attributes to meet the criteria. If the two lines are connected with the operator OR, the inventory only has to match one of the field values to meet the criteria.</p></li></ul></li><li value="2">Click <span class="specialbold">Expression</span>, and define its criteria.</li><li value="3">Click <b>Apply</b>.</li></ol></li></ol></li></ol></li>
+                                                            <li value="11">
+                                                                <p>To be able to obtain pre-cartonization estimates for rating parcels: </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: This setting is used to obtain pre-cartonization estimates for rating parcels and is only used when Warehouse Management is integrated with a parcel application through Parcel Handler. See <a href="parcel_handler_sec.htm#Rate_shopping">Rate shopping</a>.</p>
+                                                                <ol>
+                                                                    <li value="1">Under <span class="specialbold">CARTON ASSIGNMENTS</span>, click <span class="specialbold">Pre-Cartonization Criteria</span>.</li>
+                                                                    <li value="2">To select criteria from displayed entities:<ol><li value="1">If the advanced query<b> </b>is displayed, click <span class="specialbold">Simple</span>.</li><li value="2">If the available entities are not displayed, click <span class="specialbold">Show Available</span>.</li><li value="3">In the <b>Available </b>grid, select the entities that you want to use as criteria. </li><li value="4">Click <span class="specialbold">Add Selected</span>. The entities are added to the <b>Selected </b>grid.</li><li value="5">To remove criteria, in the <b>Selected </b>grid, select the criteria to remove, and click <span class="specialbold">Remove selected</span>.</li><li value="6">To reorder the criteria, in the<span class="specialbold"> Selected </span>grid, click a row, and then click the up or down arrow to move the selected criteria. The application applies the criteria in sequential order according to how it is displayed in the grid.</li></ol></li>
+                                                                    <li value="3">
+                                                                        <p>To enter criteria using database entities, click <span class="specialbold">Advanced</span>, and then enter the column and field name, using a period to separate the column and field. Multiple column and field entries must be separated by a pipe character (||) and space. </p>
+                                                                        <p>You can use operators like IS NULL or IS NOT NULL to build an advanced query. For example, <span class="var">&lt;</span><i class="var">column name</i><span class="var">&gt;</span>.<span class="var">&lt;</span><i class="var">field name</i><span class="var">&gt;</span> IS NOT NULL || <span class="var">&lt;</span><i class="var">column name</i><span class="var">&gt;</span>.<span class="var">&lt; </span><i class="var">field name</i><span class="var">&gt;</span>.</p>
+                                                                    </li>
+                                                                    <li value="4">Click <b>Apply</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="12">To define the criteria to group inventory into a picking container:<ol><li value="1">Under <span class="specialbold">CARTON ASSIGNMENTS</span>, click <span class="specialbold">Cartonization Criteria</span>.</li><li value="2">To select criteria from displayed entities:<ol><li value="1">If the advanced query<b> </b>is displayed, click <span class="specialbold">Simple</span>.</li><li value="2">If the available entities are not displayed, click <span class="specialbold">Show Available</span>.</li><li value="3">In the <b>Available </b>grid, select the entities that you want to use as criteria. </li><li value="4">Click <span class="specialbold">Add Selected</span>. The entities are added to the <b>Selected </b>grid.</li><li value="5">To remove criteria, in the <b>Selected </b>grid, select the criteria to remove, and click <span class="specialbold">Remove selected</span>.</li><li value="6">To reorder the criteria, in the<span class="specialbold"> Selected </span>grid, click a row, and then click the up or down arrow to move the selected criteria. The application applies the criteria in sequential order according to how it is displayed in the grid.</li></ol></li><li value="3"><p>To enter criteria using database entities, click <span class="specialbold">Advanced</span>, and then enter the column and field name, using a period to separate the column and field. Multiple column and field entries must be separated by a pipe character (||) and space.</p><p>You can use operators like IS NULL or IS NOT NULL to build an advanced query. For example, <span class="var">&lt;</span><i class="var">column name</i><span class="var">&gt;</span>.<span class="var">&lt;</span><i class="var">field name</i><span class="var">&gt;</span> IS NOT NULL || <span class="var">&lt;</span><i class="var">column name</i><span class="var">&gt;</span>.<span class="var">&lt; </span><i class="var">field name</i><span class="var">&gt;</span>.</p></li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="13">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="PickCartonizationfields" data-magellan-target="PickCartonizationfields"><a name="Pick_Cartonization_fields"></a>Pick Cartonization fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" style="width: 95px;" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Enable Cartonization</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Enabled, picking cartonization is enabled for the warehouse. Cartonization is the process by which the application determines which items are to be packed together in a container and which size container is to be used. Picking cartonization is typically used when operators pick product directly to the final shipping container.</p>
+                                                                        <p>If Disabled,  the application does not create cartonized picks during allocation and pick release.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Enable Carton Routing Groups</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then processing by carton routing group is enabled for the warehouse. A carton routing group specifies one or more carton types or a number of carton types (such as less than 3 or more than 6) that are grouped together for processing. For example, if certain pack stations in the warehouse operate more efficiently (higher throughput) based on the carton types or number of carton types that pass through it, then you can create a carton routing group that can be used to direct shipments that require certain carton types to specific pack stations. See <a href="#Carton_routing_groups">Carton routing groups</a>. </p>
+                                                                        <p>If No, then carton routing groups are not enabled. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Splitting Picks</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, a pick quantity can be split and deposited into multiple picking containers when processing multiple containers for any single shipment.</p>
+                                                                        <p>If No, the entire pick quantity must be deposited to one picking container. If you use the complex cartonization method, then splitting is allowed regardless of this value.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Sensitive Item Carton</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, an item that is configured as Pick to Box needs to be picked to a sensitive item carton (box) before being cartonized into a shipping carton. It is used, for example, to pack a fragile item in a protective box before packing the item in a container with other items, or to pack one or more small items in a box so that the items do not get lost in the shipping container. During cartonization, the footprint of the carton will be considered instead of the footprint of the item. Therefore, you should also assign a repack class to the item that is same as the repack class assigned for the sensitive item carton.</p>
+                                                                        <p>If No, sensitive item cartons will not be considered during pick cartonization.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Grouping</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Value that represents the maximum number of sensitive item cartons that can be packed into a single picking container. If no value is defined, then the number of sensitive item cartons is subject to the weight, volume, and other limiting criteria defined for the picking container.</p>
+                                                                        <p>Only available if <span class="specialbold">Sensitive Item Carton</span> is set to Yes.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">LPN&#160;Level</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>LPN level at which an item configured for Pick to Box can be picked to a carton that has been configured for sensitive items. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">LPN</span>: Typically a full pallet pick.</li>
+                                                                            <li><span class="specialbold">Sub-LPN</span>: Typically a case pick.</li>
+                                                                            <li><span class="specialbold">Detail LPN</span>: Typically an each pick.</li>
+                                                                        </ul>
+                                                                        <p>Only available if <span class="specialbold">Sensitive Item Carton</span> is set to Yes.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Cartonization Method</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>The cartonization method that determines how the application performs automatic cartonization processing.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Volume</span>: Cartonization is based on a calculated volume. The application sorts the list of possible cartons in a descending volume sequence. Volume is calculated as (length x width x height x fill percentage). The actual item and footprint dimensions are used to ensure that the item will fit into the carton in some orientation. Each item is checked individually, therefore, if each item will fit in some orientation, and the combined volume of the items does not exceed the capacity of the carton, the carton will be used.</li>
+                                                                            <li>
+                                                                                <p><span class="specialbold">Complex</span>: Cartonization is based on volume and additional calculations. This method also uses volume-based calculations (as described for the Volume method), but after a carton passes through the volume-based method, the application performs additional calculations when the carton type is downsized. Complex cartonization takes place after the application determines the contents of the carton; the additional calculations validate whether the picks will fit into a smaller carton by using different possibilities of orientation and placement. Only after finding a successful packing combination will the application select a smaller carton.</p>
+                                                                                <p>Depending on the number of items in the carton, the number of iterations can quickly grow into the millions. For performance reasons, you must configure the maximum number of iterations that can occur. Even though not every mathematically possible solution is considered, the Complex method provides a successful packing combination based on the random sampling.</p>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Maximum Iterations</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Value limits the number of iterations the application performs during complex cartonization processing. You use this limit to avoid a significant decrease in the application performance. The default value is 750000. Contact your Blue Yonder project team before changing the default value.</p>
+                                                                        <p>Only available if the<span class="specialbold"> Cartonization Method</span> is <span class="specialbold">Complex</span>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Popup Iterations</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Value that represents the percentage of popup iterations to decrement if the abandonment limit is reached during complex cartonization. This value is used for performance reasons to accomplish a sampling of possible solutions rather than processing every possible solution. The default value is 50.0. Contact your Blue Yonder project team before changing the default value.</p>
+                                                                        <p>Only available if the<span class="specialbold"> Cartonization Method</span> is <span class="specialbold">Complex</span>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Cancel Pick Release</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application will not release picks for a shipment when a cartonization error occurs. A cartonization error occurs when the dimensions or weight of an item that is being cartonized exceeds the limits that are defined for the largest available carton enabled for cartonization and in its repack class. If an error occurs, the application prevents pick release for all picks in the wave or shipment in which the cartonization error occurred, and the picks are set to an Error status. Picks that trigger a cartonization error can either be cancelled and the remaining picks for an order or wave can be reset to a Pending status; or the cartonization error can be resolved, and all picks can be reset to a Pending status.</p>
+                                                                        <p>If No, the application will release the pick regardless of whether the item can fit in the largest available carton. If the item exceeds carton limits, the application will select the largest available carton enabled for cartonization by default.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Abandonment</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Value for the maximum number of iterations that are performed during complex cartonization before a specific packing pattern is abandoned. This value is used for performance reasons to direct the application to stop processing a possible solution set after a number of unsuccessful attempts, and move on to a different possible cartonization solution. When the application stops an iteration, the abandonment limit is decremented by the value for <span class="specialbold">Popup Iterations</span> (for example, by 50 percent), and processing continues. The default is 2000.</p>
+                                                                        <p>Only available if the<span class="specialbold"> Cartonization Method</span> is <span class="specialbold">Complex</span>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work Reference Verification</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, during RF carton picking or case confirm, the Ref (work reference) field is enabled on the RF Pickup screen and a work reference number is displayed.<br /><br />If No, the work reference number is displayed but the Ref field is not enabled, which relieves the RF operator from having to enter through this field (saving a keystroke) and prevents the operator from inadvertently scanning an LPN into this field.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Destination Carton Identifier</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Value that determines whether the application displays the application-generated carton number or the UCC label number for the destination carton on RF screens during carton picking.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">UCC Label Number</span>: The UCC number is displayed on the operator's RF device during carton picking.</li>
+                                                                            <li><span class="specialbold">Carton Number</span>: The application-generated carton number is displayed on the operator's RF device during carton picking.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work Zone Restriction</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, operators can perform carton picks outside their designated work zone. A work zone is a designated area in a work area and is typically defined as a group of locations that are in the same general vicinity. For example, an entire narrow-aisle area can be considered a single work area, and each aisle can be set up as a separate work zone.</p>
+                                                                        <p>If No, operators perform carton picks in their designated work zone and then deposit the cartons to a valid pickup and deposit (P&amp;D) location so that they can be completed by another operator in another work zone.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">RF&#160;Forms</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the<span class="specialbold"> RF Form Name</span> field becomes available so that you can specify the name of the custom RF screen that is displayed when an RF operator completes that last pick of a cartonized series of picks.</p>
+                                                                        <p>If No, then when the operator has completed the last pick of a cartonized series of picks, a message is displayed stating that the picking for the case is complete.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">RF&#160;Form Name</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                        <p>Name of the custom RF screen that is displayed when the RF operator has completed the last pick of a cartonized series of picks. The screen should be one that was created specifically for this situation. </p>
+                                                                        <p>Only available if the <span class="specialbold">RF Forms</span> field is set to Yes.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Cartonsfields" data-magellan-target="Cartonsfields"><a name="Cartons_fields"></a>Cartons fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Carton Name</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Name that identifies the carton. A carton is a corrugated box or container of any size that serves as packaging for an item. Each type of carton is defined by a configuration that defines what the carton can hold and how the carton is used.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Sensitive Item</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the carton is used for items that are configured to be picked to sensitive item cartons (pick to box items). These items, when picked at a specified LPN level, are first picked to a sensitive item carton before being packed into another carton for shipping.</p>
+                                                                        <p>If No, the carton is not used for items that are configured for Pick to Box.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Description</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Description of the carton. Descriptions let you further define the carton. For example, if a carton's name is B1, the description might be "Box Size 1" or "Box 15L x 15W x 15H".</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Labels</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Determines the point at which labels are printed. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Before picking</span>: The carton has pre-printed labels. Select this option is selected to indicates that labels are printed prior to the time of picking.</li>
+                                                                            <li><span class="specialbold">At the start of picking</span>: The carton does not have pre-printed labels. Select this option to indicate that labels need to be printed at the time of picking.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Pallet Type Carton</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the carton is a physical pallet, not a box. A carton of this type is available for use only during pack station processing. It is typically used to process inventory that has been picked as a full case or box, and does not require over-packing to a shipping carton. Instead, the operator can pack the cases or boxes directly to the pallet. The application does not consider the pallet carton type for any other cartonization process. The fields related to cartonization processing are not available for this carton type. </p>
+                                                                        <p>If No, the carton is not a physical pallet. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Length</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Length of the inside of the carton.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Width</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Width of the inside of the carton.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Height</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Height of the inside of the carton.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Weight</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Weight of the carton.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Max Weight</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Maximum weight of inventory that the carton can accommodate.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Maximum Carton</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Value representing the percentage of the carton that will be filled during cartonization. The fill percentage is calculated as (volume of the item or items) / (total volume of the carton) x 100%. For example, if the carton volume is 1000 and the  item volume is 490, then the fill percentage is 490 / 1000 x 100 = 49%. The fill percentage compensates for possible item footprint errors and also allows for packing material to be added to the carton. For example, if you enter 80, then the application will only fill the carton up to 80% of its capacity (volume), leaving 20% of available carton capacity.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Work Assignments</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, when this carton is included in a picking work assignment, and the application determines that there is available space in the carton, the application adds additional case or each picks to the work assignment to fill the available space in the carton. This attribute only applies to work assignments that have a break value based on Volume. </p>
+                                                                        <p>If No, the application will not add additional picks to the work assignment in order to fill available space in the carton.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Maximum Last Carton</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Value representing the percentage of the last carton that will be filled during cartonization. The fill percentage is calculated as (volume of the item or items) / (total volume of the carton) x 100%. For example, if the carton volume is 1000 and the  item volume is 490, then the fill percentage is 490 / 1000 x 100 = 49%. Generally, this value is greater than the maximum carton percentage. When packing the final items you can exceed the default fill percentage for the last carton without having to package items in a new carton. For example, if you enter 90, then the application will only fill the last carton up to 90% of its capacity (volume), leaving 10% of available carton capacity.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Picking</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the carton is considered for use by the automatic picking cartonization process. The application performs the automatic picking cartonization process by selecting the best carton type and directing the operator to use it during picking.</p>
+                                                                        <p>If No, the carton is not used by the automatic picking cartonization process. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Shipping</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the carton is considered for use by the automatic shipping cartonization process. The application performs the automatic shipping cartonization process by selecting the best carton type and directing the packing operator to use it when packing picked inventory into a shipping container during pack station processing.</p>
+                                                                        <p>If No, the carton is not used by the automatic shipping cartonization process.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">Pack Station</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>If Yes, the carton can be used for pack station processing during which an operator manually packs the carton with picked inventory. Pack station processing can automatically determine the best carton to be used for the inventory at the pack station. During this process, the application will only select from the list of cartons that are supported for the pack station process.</p>
+                                                                        <p>If No, the carton is not used for pack station processing.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

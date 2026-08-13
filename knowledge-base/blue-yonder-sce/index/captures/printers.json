@@ -1,0 +1,28 @@
+{
+  "spec": "printers",
+  "resource": "printers",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers",
+      "body": "{\"printerAddress\":\"ZVP1\",\"printerName\":\"ZV cap\",\"printerType\":\"i4440\",\"printerStatus\":\"D\",\"TCPAddress\":\"\",\"reRoutePrinter\":\"\",\"serverQueueFlag\":false,\"printQueue\":\"\",\"printerStatusDescription\":\"\",\"printerTypeDescription\":\"\",\"warehouseId\":\"SG\",\"printerLanguage\":\"\",\"printerLanguageDescription\":\"\"}"
+    }
+  ],
+  "reset": false,
+  "add": {
+    "id": "button-6108",
+    "count": 1
+  },
+  "applied": {
+    "printerAddress": "ZVP1",
+    "printerName": "ZV cap",
+    "radio:Printer Status": "D",
+    "printerType": "i4440"
+  },
+  "invalid": [],
+  "save": {
+    "id": "button-6166",
+    "count": 1
+  },
+  "ok": true
+}

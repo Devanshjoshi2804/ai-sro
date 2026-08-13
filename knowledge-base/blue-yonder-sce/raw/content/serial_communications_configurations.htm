@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Packing" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Serial Communication</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#SerialCommunication">Serial Communication</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Example">Example</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyaserialcommunicationconfiguration">Add or modify a serial communication configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteaserialcommunicationconfiguration">Delete a serial communication configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#SerialCommunicationfields">Serial Communication fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="SerialCommunication" data-magellan-target="SerialCommunication"><a name="aanchor47"></a>
+                                                            <MadCap:concept term="WM" />Serial Communication</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#SerialCommunication">Serial Communication</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Addormodifyaserialcommunicationconfiguration">Add or modify a serial communication configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteaserialcommunicationconfiguration">Delete a serial communication configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#SerialCommunicationfields">Serial Communication fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A serial communication configuration is a set of attributes, such as parity, baud rate, and port, that specifies how information is transferred to and from a serial device. A serial device, such as a  serial bar code scanner, is a device that transmits information one bit at a time in sequence using one data stream. This is as opposed to parallel devices, such as parallel printers, that transmit several bits of information at the same time using multiple data streams. A serial device is physically connected to a serial port of a PC.</p>
+                                                        <p>In the application, a serial communication configuration is used to represent a group of serial devices that all share the exact same communication attributes. You define one serial communication configuration for each group of serial devices, instead of defining each serial device separately, which could be repetitive since they share the same attributes. A serial communication configuration is also associated with each workstation device that is connected to a serial device that is represented by the serial communication configuration. This enables the application to properly interact with your physical serial devices; for example, to read a bar code and use the incoming data, such as the item number, to fill in a field on the window. For more information on devices, see <a href="rf_devices.htm">RF Devices</a>.</p>
+                                                        <h3 id="Example" data-magellan-target="Example">Example</h3>
+                                                        <p>The following example explains how you can use and configure serial device communication configurations with multiple bar code scanners that are not the same. </p>
+                                                        <p>If you are using 20 bar code scanners in your facility and 16 have the same communication attributes (for example, simple scanners), and 4 have a different set of shared communication attributes (for example, a more expensive, specialized scanner), then you would create 2 serial communication configurations—1 for the group of 16 scanners and 1 for the group of 4 scanners. Then, for each of the 16 workstations to which you have physically connected the simple scanners, you associate the workstation device with the simple scanner's serial communication configuration. For each of the 4 workstations to which you have physically connected the specialized scanners, you associate the workstation device with the specialized scanner's serial communication configuration.</p>
+                                                        <p>After physically attaching a serial bar code scanner to a pack station and completing the configuration, the application automatically captures and displays the information retrieved from the bar code in the appropriate fields.</p>
+                                                        <h2 id="Addormodifyaserialcommunicationconfiguration" data-magellan-target="Addormodifyaserialcommunicationconfiguration"><a name="Add_or_modify_a_serial_communication_configuration"></a>Add or modify a serial communication configuration</h2>
+                                                        <p>You can add a new serial communication configuration or change the attributes of an existing serial communication configuration for a group of serial devices that share the same serial communication attributes. </p>
+                                                        <ol>
+                                                            <li value="1">Select <b>Configuration&#160;&gt;&#160;Outbound &gt;&#160;Packing &gt; Serial Communication</b>.</li>
+                                                            <li value="2">Perform one of the following tasks in the top grid:</li>
+                                                            <ul>
+                                                                <li>To add a serial communication, from the <b>Actions</b> drop-down list, select <b class="SpecialBold">Add</b>.</li>
+                                                                <li>To modify a serial communication, select the check box next to the configuration, and then from the <b>Actions</b> drop-down list, select <b class="SpecialBold">Edit</b>.</li>
+                                                                <li>To copy a serial communication, select the check box next to the configuration, and then from the <b>Actions</b> drop-down list, select <b class="SpecialBold">Copy</b>.</li>
+                                                            </ul>
+                                                            <li value="3">
+                                                                <p>Enter information in the <a href="#Serial_Communications_fields">Serial Communications fields</a>.</p>
+                                                            </li>
+                                                            <li value="4">Click <b class="SpecialBold">Save</b>. </li>
+                                                            <li value="5">To add a device to a serial communication configuration:<ol><li value="1">In the top grid, select the check box next to the configuration.</li><li value="2">In the Devices (bottom) grid, from the <b>Actions</b> drop-down list, select <b>Add</b>.</li><li value="3"><p>In the <b>Device Code</b> field, enter the unique identifier for a piece of equipment such as a radio frequency terminal or mobile device that has access to or communicates with the application. The device code is the display name for the device and represents a logical location during warehouse operations.</p><p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;The <b>Serial Communication&#160;ID</b> and <b>Warehouse</b> field values are populated based on the selected serial communication configuration. </p></li><li value="4">Click <b>Save</b>.</li></ol></li>
+                                                        </ol>
+                                                        <h2 id="Deleteaserialcommunicationconfiguration" data-magellan-target="Deleteaserialcommunicationconfiguration"><a name="Delete_a_serial_communication_configuration"></a>Delete a serial communication configuration</h2>
+                                                        <p>You cannot delete a serial communication configuration that is currently assigned to a device.</p>
+                                                        <ol>
+                                                            <li value="1">Select <b>Configuration &gt;&#160;Outbound &gt;&#160;Packing &gt;&#160;Serial Communication</b>. </li>
+                                                            <li value="2">In the top grid, select the check box next to the configuration to delete.</li>
+                                                            <li value="3">From the <b>Actions</b> drop-down list, select <b class="SpecialBold">Delete </b>. A confirmation message is displayed.</li>
+                                                            <li value="4">Click <b class="SpecialBold">Yes</b>.</li>
+                                                        </ol>
+                                                        <h2 id="SerialCommunicationfields" data-magellan-target="SerialCommunicationfields"><a name="Serial_Communications_fields"></a>Serial Communication fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Baud Rate</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Speed of data transfer (number of signaling changes per second) for the group of serial devices represented by the serial communication configuration. This information is typically found in your serial device's user manual.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Serial Communication ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique alphanumeric code that identifies a serial communication configuration and differentiates it from other serial communication configurations in the application. A serial communication configuration is a set of attributes, such as parity, baud rate and port, that specifies how information is transferred to and from a serial device. A serial device, such as a serial bar code scanner, is a device that transmits information one bit at a time in sequence using one data stream.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Description</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Meaningful description that further explains the serial communication configuration. This is the text that is displayed on the application windows when referring to this serial communication configuration.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Serial Communication Type ID</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Code that identifies the kind of serial device that the serial communication configuration represents.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Scanner</span>: A piece of equipment that reads printed bar codes (groups of multi-width lines and spaces that encode one or more pieces of information) and converts them to text (letters, numbers, or symbols).</li>
+                                                                        </ul>
+                                                                        <p>You can use Code Maintenance-Supervisor to define additional serial communication type values using the ser_dev_typ column.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Barcode Scanner Delay Time</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Number representing the time interval, in milliseconds, to ignore reads after a scan. Delay time is the length of time to wait before reading the next bar code. This helps prevent misreads from repeated scans, such as can occur if an item is held too long in front of the scanner or is held in a certain way that produces repeated scans. This information is typically found in your serial device's user manual; otherwise, it is suggested that you use 100. After setting this value, you would only need to change it if you were getting bad reads from the scanner, such as increasing the time to prevent double scans. Only available if <b>Scanner</b> is selected from the <b>Serial Communication Type ID</b> list.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Barcode Scanner Wait Time</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Number representing the time interval, in milliseconds, to wait for a full message from the bar code scanner represented by the serial communication configuration. Wait time is the length of time that it takes to read data from the scanner. This information is typically found in your serial device's user manual; otherwise, it is suggested that you use 50. After setting this value, you would only need to change it if you were getting bad reads from the scanner, such as only receiving the first part of the bar code information. Only available if <b>Scanner</b> is selected from the <b>Serial Communication Type ID</b> list.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Parity</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Type of parity error check used by the group of serial devices represented by the serial communication configuration. The parity error check is used for detecting errors in a single transmission unit (defined in the <span class="specialbold">Data Bits</span> field). This information is typically found in your serial device's user manual. In parity error detection, an extra bit, known as the parity bit, is added to the end of a group of transmitted bits.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Even</span>: The parity bit is set to 1 if the number of 1's in the communication stream plus 1 results in an even number; otherwise, it is set to 0.</li>
+                                                                            <li><span class="specialbold">Odd</span>: The parity bit is set to 1 if the number of 1's in the communication stream plus 1 results in an odd number; otherwise, it is set to 0.</li>
+                                                                            <li><span class="specialbold">Space</span>: The parity bit is always set to 0, but it is not used.</li>
+                                                                            <li><span class="specialbold">Mark</span>: The parity bit is always set to 1, but it is not used.</li>
+                                                                            <li><span class="specialbold">None</span>: No parity bit is sent. Error detection may instead be handled by the communication protocol.</li>
+                                                                        </ul>
+                                                                        <p>You can use Code Maintenance-Supervisor to define additional parity values using the parity column.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Data Bits</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Number of bits representing actual data, such as 7 or 8, that the group of serial devices, represented by the serial communication configuration, transmits in one unit of transmission. This information is typically found in your serial device's user manual.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Stop Bits</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Number of bits used by the group of serial devices represented by the serial communication configuration to indicate the end of a unit of transmission. This information is typically found in your serial device's user manual. Slower devices typically use more stop bits.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">1</span>: One stop bit is used.</li>
+                                                                            <li><span class="specialbold">1.5</span>: One and one half stop bits are used.</li>
+                                                                            <li><span class="specialbold">2</span>: Two stop bits are used.</li>
+                                                                        </ul>
+                                                                        <p>You can use Code Maintenance-Supervisor to define additional stop bit values using the stopbits column.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Port</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Name of the connector to which the serial device represented by the serial communication configuration is physically connected and through which the data will be transmitted. For example, on a Windows-based workstation, this value might be COM1; on a LINUX-based workstation, this value might be /dev/tty*.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Barcode Scanner Encoding</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                        <p>Standard text format used for the information received from the scanner represented by the serial communication configuration. This information is typically found in your serial device's user manual. Depending on the bar code scanner, you might be able to configure the hardware to use different bar code scanner encodings. Only available if Scanner is selected from the Serial Communication Type ID list.</p>
+                                                                        <ul>
+                                                                            <li><b>ASCII</b>: American Standard Code for Information Interchange format for coding individual characters on a computer. ASCII uses a string of 7 or 8 binary digits to represent each character in a character set, such as English.</li>
+                                                                            <li><b>UNICODE</b>: Computer coding format that uses a variable string of up to 16 binary digits to represent each character in a character set. UNICODE can represent more characters than ASCII and is often used to represent character sets, such as Chinese, that have more characters than English.</li>
+                                                                            <li><b>UTF-32</b>: 32 bit Unicode Transformation Format is a Unicode computer coding format that uses exactly 32 binary digits to represent each character in a character set.</li>
+                                                                            <li><b>UTF-7</b>: 7 bit Unicode Transformation Format is a Unicode computer coding format that uses a variable string of up to 7 binary digits to represent each character in a character set.</li>
+                                                                            <li><b>UTF-8</b>: 8 bit Unicode Transformation Format is a Unicode computer coding format that uses one to four strings of 8 binary digits to represent each character in a character set. UTF-8 can represent every character in the Unicode character set and is compatible with ASCII.</li>
+                                                                        </ul>
+                                                                        <p>You can use Code Maintenance-Supervisor to define additional encoding values using the scanner_encoding column.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

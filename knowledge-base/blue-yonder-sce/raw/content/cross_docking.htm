@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Inbound" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Cross Docking</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#CrossDocking">Cross Docking</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Pickreplacementprocessing">Pick replacement processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Worktypesforpickreplacementprocessing">Work types for pick replacement processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ASNdistributioncrossdocks">ASN distribution cross docks</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Setup">Setup</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Crossdockingsetup">Cross docking setup</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurecrossdocking">Configure cross docking</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#CrossDockingfields">Cross Docking fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ReleaseRulesfields">Release Rules fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#DestinationReleaseRulesfields">Destination Release Rules fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="CrossDocking" data-magellan-target="CrossDocking"><a name="aanchor379"></a>
+                                                            <MadCap:concept term="WM" />Cross Docking</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#CrossDocking">Cross Docking</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Pickreplacementprocessing">Pick replacement processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Worktypesforpickreplacementprocessing">Work types for pick replacement processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ASNdistributioncrossdocks">ASN distribution cross docks</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Crossdockingsetup">Cross docking setup</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurecrossdocking">Configure cross docking</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#CrossDockingfields">Cross Docking fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ReleaseRulesfields">Release Rules fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#DestinationReleaseRulesfields">Destination Release Rules fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Cross docking is the process of moving inventory directly from receiving to shipping to satisfy an outbound order line. This process bypasses the intermediate step of storage.</p>
+                                                        <p>You can configure cross docking to deliver inventory to either of the following locations:</p>
+                                                        <ul>
+                                                            <li>Ship staging location for the order (direct cross docking). This location is specified during order allocation.</li>
+                                                            <li>Location in a cross dock zone, where the application generates pick work to move it to ship staging (indirect cross docking). Cross dock zones are defined during the configuration of cross docking.</li>
+                                                        </ul>
+                                                        <p>If configured, the application automatically creates cross docks for distributions that are downloaded as part of an advanced shipment notification (ASN). See <a href="#ASN_distribution_cross_docks">ASN distribution cross docks</a>.</p>
+                                                        <p>You can also configure the process of pick replacement. This process replaces the source location (typically in a storage zone) of an outstanding pick or replenishment with a location in a receiving zone (such as a receiving dock door or production zone) that has been enabled for this process. For example, with pick replacement functionality enabled, received inventory can be used to satisfy a pick and moved directly from receiving to the customer order's destination location (typically ship staging).</p>
+                                                        <p>After cross docking is enabled and configured, if an order line is not marked for planned cross docking, the application may still use opportunistic cross docking to fulfill the order line. Opportunistic cross docking occurs when inventory is received and moved directly to ship staging (or other cross dock location) to satisfy a short order line. However, order lines marked for planned cross docking can only be fulfilled with cross docked inventory, and the lines are not considered short. See <a href="outbound_planning_concepts.htm#Cross_docking_process">Cross docking process</a>.</p>
+                                                        <h2 id="Pickreplacementprocessing" data-magellan-target="Pickreplacementprocessing"><a name="Pick_replacement_processing"></a>Pick replacement processing</h2>
+                                                        <p>Pick replacement is the process by which the application automatically changes the source location (typically in a storage zone) of an outstanding pick or replenishment with a location in a receiving zone (such as a receiving dock door or production location) that has been enabled for pick replacement. For example, with pick replacement enabled, received inventory can be used to satisfy a pick and moved directly from receiving to the customer order's destination location. </p>
+                                                        <p>You must perform the following tasks to configure pick replacement processing:</p>
+                                                        <ol>
+                                                            <li value="1">Configure cross docking. See <a href="#Configure_cross_docking">Configure cross docking</a>.<ol><li value="1">Enable cross docking.</li><li value="2">Enable pick replacement processing by setting the <span class="specialbold">Fill Picks with Received Inventory</span> field to Yes.</li><li value="3">Select from the <b>LPN Levels </b>field which levels you allow inventory in a receiving location to be used to fulfill a pick.</li><li value="4">Select the from the <b>Status</b> field which pick statuses can be replaced. You use this setting to prevent the source location of picks that is a certain status, such as Released, from being changed.</li><li value="5">Select the types of directed work for which pick replacement processing is enabled. For example, if you specify top-off replenishments, then when a top-off replenishment is allocated, the application evaluates whether the pick can be fulfilled with inventory from a receiving location instead of from storage. You can specify types of picks (such as bulk picks and kit picks), types of replenishments (such as manual, top-off, and triggered), and inventory transfers.</li><li value="6">Select the items for which pick replacement is enabled. While pick replacement processing saves travel time, you must also consider whether this is good practice with date-tracked inventory. If enabled for date-tracked items, the process can result in fulfilling picks with newer inventory than that which may exist in storage.</li><li value="7">Select whether replacement picks can be fulfilled with inventory that is on a handling unit different from the one requested on the order line. This is an optional setting that is configured by setting the <span class="specialbold">Pick Inventory from Other Handling Units </span>field. If set to Yes, then the replacement pick is allocated successfully if it is on a handling unit that is in the same allocation handling unit group as the handling unit specified on the order line. While allocation is successful, the inventory must be moved to the requested handling unit type prior to shipping. Select Yes, if you would rather allocate the inventory and move it to a different handling unit, than fail to allocate the pick at all. Select No if you only want to perform replacement picks that are on the requested handling unit type.</li></ol></li>
+                                                            <li value="2">Configure pick zones. Select the pick zones in which you allow the source location of picks to be changed to a receiving location. To enable this process for a pick zone, in the pick zone configuration, set the <span class="specialbold">Replace Picks</span> field to Yes. See <a href="pick_zones.htm">Pick Zones</a>.</li>
+                                                        </ol>
+                                                        <h2 id="Worktypesforpickreplacementprocessing" data-magellan-target="Worktypesforpickreplacementprocessing"><a name="Work_types_for_pick_replacement_processing"></a>Work types for pick replacement processing</h2>
+                                                        <p>The following types of directed work may be enabled for pick replacement processing:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Pick</span>: Work type used to pick inventory to fill an order.</li>
+                                                            <li><span class="specialbold">Kit</span>: Work type used to pick component items to fill a work order.</li>
+                                                            <li><span class="specialbold">Bulk Pick</span>: Work type used to perform bulk picks.</li>
+                                                            <li><span class="specialbold">Manual Replenishment</span>: Replenishment work type initiated by an operator for a specific location.</li>
+                                                            <li><span class="specialbold">Top-off Replenishment</span>: Replenishment work type generated automatically when an item in a zone or a location has dropped below a user-defined level.</li>
+                                                            <li><span class="specialbold">Triggered Replenishment</span>: Replenishment work type generated automatically at timed intervals.</li>
+                                                            <li><span class="specialbold">Emergency Replenishment</span>: Replenishment work type generated automatically when there is insufficient inventory in a pick zone to satisfy a shipment line.</li>
+                                                            <li><span class="specialbold">Replenishment</span>: Work type used to fill a pickface location with inventory from a storage location.</li>
+                                                            <li><span class="specialbold">Stage Transfer</span>: Pick work generated to transfer inventory typically from a cross docking location to a staging lane.</li>
+                                                        </ul>
+                                                        <h2 id="ASNdistributioncrossdocks" data-magellan-target="ASNdistributioncrossdocks"><a name="ASN_distribution_cross_docks"></a>ASN distribution cross docks</h2>
+                                                        <p>Some facilities download and process advanced shipments notifications (ASNs) that include distribution information, and then fulfill the distribution by using direct cross dock functionality. For example, when an ASN distribution is downloaded, the application creates the planned inbound order, and then creates the outbound orders and shipments that are required to fulfill the distribution. The shipments are then allocated (short) to create cross dock requests for the inbound inventory. When the inventory is received, the application allocates inventory for the cross docks, and then the inventory can be ship staged.</p>
+                                                        <p>You can configure the application to pre-process ASN distribution cross docks, which means the inventory is considered allocated and picked prior to its arrival. When the ASN inventory arrives at the warehouse and is scanned, the inventory is received and then can be immediately deposited to a staging location for the distribution (depending on the movement path). The application pre-processes ASN distribution cross docks only for fully distributed LPNs. If an LPN contains inventory that is destined for storage, pre-processing is not executed.</p>
+                                                        <p>If pre-processing is not enabled, then the application processes the distribution cross dock picks (allocation and auto-picking) when the ASN inventory is received.</p>
+                                                        <p>The application processes all of the cross dock allocation requests for a single distributed LPN at once. For example, if there are 10 sub-LPNs on a distributed LPN, each for a single cross dock, instead of attempting to allocate each cross dock separately (10 different times), the application processes the allocation for all 10 sub-LPNs at the same time.</p>
+                                                        <h3 id="Setup" data-magellan-target="Setup">Setup</h3>
+                                                        <p>You must perform the following tasks before the application can process ASN distribution cross docks:</p>
+                                                        <ol>
+                                                            <li value="1">Configure advanced shipment notification receiving attributes. See <a href="inbound_identification.htm#Configure_inbound_identification">Configure inbound identification</a>.</li>
+                                                            <li value="2">Configure distributions. See <a href="distribution.htm#Distribution_setup">Distribution setup</a>.</li>
+                                                            <li value="3">Create an auto allocation method with the <b>Include Unplanned Orders</b> field set to Yes and with criteria that matches the orders to auto allocate. See <a href="automatic_allocation.htm">Automatic Allocation</a>.</li>
+                                                            <li value="4">
+                                                                <p>Enable and configure cross docking. See <a href="#Cross_docking_setup">Cross docking setup</a>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: You can enable pre-processing for ASN distribution cross docks in the cross dock configuration. Pre-processing takes place only if an auto allocation method is configured and when the allocation event occurs (download or scheduled).</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Crossdockingsetup" data-magellan-target="Crossdockingsetup"><a name="Cross_docking_setup"></a>Cross docking setup</h2>
+                                                        <p>You must perform the following tasks to set up automated cross docking:</p>
+                                                        <ol>
+                                                            <li value="1">Enable and configure cross docking. This task requires the configuration of the cross docking settings and defining the following zones and their associations:<ul><li><span class="specialbold">Cross Docking Zones</span>: A cross docking zone defines the locations to which inventory can be moved from receiving and deposited prior to being directed to a ship staging location for an outbound order. Standard product provides the XDCK zone and the XDCK01 location in that zone, but you can create additional zones and locations as needed.</li><li><p><span class="specialbold">Zone Movement Associations</span>: A zone movement association defines the movement path that is used to direct inventory from a source zone (such returns staging, the receiving dock, or inbound order staging) to a cross docking zone, and finally to a destination zone (such as ship staging). When cross docked inventory is available, the application uses these path associations to direct inventory to its next location. </p><p>Zone movement associations for direct cross docking define the logical cross docking zones to which inventory is systematically moved from a source (receiving) zone. Zone movement associations for indirect cross docking define the zones to which inventory is physically moved from a source zone. </p></li></ul><ul><li><span class="specialbold">Release Rules</span>: Release rules define the actions that the application takes to release work for cross docking. For cross docking, the application typically uses pick work to move inventory directly from receiving to a ship staging location to satisfy an order. Release rules determine the action that takes place to release work to pick (move) inventory. For example, a release rule is used to create directed work to pick inventory out of a source location to a cross dock or ship staging location. For each release rule you define the following attributes: <ul><li>LPN level to which the release rule applies; for example, LPNs, sub-LPNs, or detail LPNs.</li><li>Action that takes place when the release command is executed; for example, to create directed work</li><li>Type of work (such as move or pick) that is created by a release command that creates work. In addition, you can optionally define the priority in which the work should be created, if you want it to be different from the standard base priority.</li><li><p>Destination rule, which is a specific release rule that is used based on a pick's destination movement zone.</p></li></ul></li></ul><p>See <a href="#Configure_cross_docking">Configure cross docking</a>.</p></li>
+                                                            <li value="2">Configure pick replacement processing. When you configure cross docking, you can also configure the application to automatically replace the source location of a pick with a location in receiving that contains inventory required for the pick. To configure pick replacement processing, you select the following attributes:<ul><li>LPN levels that can be fulfilled with replacement picks. For example, you may allow full LPN picks but not sub-LPN picks.</li><li>Pick statuses in which picks can be fulfilled with replacement picks. For example, you may allow pending picks to be replaced but not picks that have already been released for picking.</li><li>Types of directed pick work (such as kit, bulk, and replenishment picks) that can be fulfilled with replacement picks.</li><li>Items that are eligible to be fulfilled with replacement picks. For example, to preserve inventory rotation methods, date-tracked items should not be selected for pick replacement.</li><li><p>Pick zones in which pick replacement processing is enabled. See <a href="pick_zones.htm">Pick Zones</a>. </p></li></ul></li>
+                                                        </ol>
+                                                        <h2 id="Configurecrossdocking" data-magellan-target="Configurecrossdocking"><a name="Configure_cross_docking"></a>Configure cross docking</h2>
+                                                        <ol>
+                                                            <li value="1">Start <span class="specialbold">Configuration &gt; Inbound &gt; Cross Docking.</span></li>
+                                                            <li value="2">To enable automated cross dock processing, select <span class="specialbold">ENABLED</span>.</li>
+                                                            <li value="3">Enter information in the <a href="#Cross_Docking_fields">Cross Docking fields</a>.</li>
+                                                            <li value="4">To configure the release rules for creating work to move cross docked inventory:<ol><li value="1">Under <b>DIRECT&#160;CROSS&#160;DOCKING&#160;SETTINGS</b>, click <span class="specialbold">Release Rules</span>. The Release Rules page is displayed.</li><li value="2">Click the LPN level for which you want to define release rules. </li><li value="3">Enter the information in the <a href="#Release_Rule_fields">Release Rules fields</a>.</li><li value="4"><p>To define the attributes that must match for individual pieces of work to be grouped into a single task, click <span class="specialbold">Work Groupings</span>, select the check box for the attributes that must match, and click <b>Save</b>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: The work groupings can limit the performance of the action you specified for the release rule by grouping individual pieces of work into one piece of work. For example, if you select PRODUCE WORK ASSIGNMENT as the action for the release rule, and then select Operation Code and Cartonization Group as the work groupings, the application will only produce on one work assignment for all picks that are of the same type of operation and that have the same cartonization group.</p></li><li value="5"><p>To add or modify a destination rule:</p><p class="Note"><b class="NoteHeadingBold">Note</b>: A destination rule is a separate release rule that is used instead of the normal release rule when the pick's destination movement zone is that which you specify in the destination rule.</p><ol><li value="1">Under <b>DIRECT&#160;CROSS&#160;DOCKING&#160;SETTINGS</b>, click <span class="specialbold">Destination Rules</span>.</li><li value="2">Perform one of the following tasks:<ul><li>To add a new destination rule, click <b>Add</b>.</li><li>To modify an existing destination rule, in the grid, select the rule.</li></ul></li><li value="3">Enter information in the <a href="#Destination_Release_Rule_fields">Destination Release Rules fields</a>.</li><li value="4">To define the attributes that must match for individual pieces of work to be grouped into a single task when the destination rule is used, click <span class="specialbold">Work Groupings</span>, select the check box for the attributes that must match, and click <b>Save</b>.</li><li value="5">Click <b>Save</b>.</li></ol></li><li value="6">Click <img src="resources/images/image430894.png" width="28" height="25" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Previous page" /> until the Cross Docking page is displayed.</li></ol></li>
+                                                            <li value="5">To configure the logical movement of inventory that is directly cross docked between zones:<ol><li value="1"><p>Under <span class="specialbold">DIRECT CROSS DOCKING SETTINGS</span>, click <span class="specialbold">Zone Movement Associations</span>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: Zone movement associations for direct cross docking define the logical cross docking zones to which inventory is systematically moved from a source (receiving) zone. Inventory is not physically moved to the direct cross docking zone, but the zone can be configured as the source for a movement path.</p></li><li value="2"><p>To define associations, draw a line from a box in one column to a box in the next column. </p><p class="Note"><b class="NoteHeadingBold">Note</b>: To draw a line, click a box, and drag your pointer. Alternatively, you can hold <span class="specialbold">Ctrl</span>, click the two boxes, and then click <span class="specialbold">Assign</span>.</p></li><li value="3">To remove an association, click a line, and then click <span class="specialbold">Clear</span>.</li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="6">To select the locations to which indirectly cross docked inventory can be deposited before being moved to ship staging:<ol><li value="1"><p>Under <span class="specialbold">INDIRECT CROSS DOCKING SETTINGS</span>, click<span class="specialbold"> Cross Docking Zones</span>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Indirect cross docking occurs when the final destination of the inventory is not defined at the time of allocation, or if the destination location is unavailable. The inventory is physically moved  to an intermediate location in a cross docking zone until the final destination is defined and the location is available.</p></li><li value="2">Perform one of the following tasks:<ul><li>To add a zone, click <b>Add</b>.</li><li>To modify a zone, in the grid, click the zone.</li></ul></li><li value="3"> In <span class="specialbold">Zone Name</span>, <span class="specialbold">Description</span>, and <span class="specialbold">Building </span>fields, enter the values.</li><li value="4">Click <span class="specialbold">Layout </span>or <b>Next</b>.</li><li value="5">To draw the zone on the floor plan, click <b>Draw</b>, and then size and drag the box the map.</li><li value="6">To display areas or other zones on the floor plan, click <b>View</b>, and then select the check box next to the selections you want.  </li><li value="7">Click <span class="specialbold">Locations </span>or <b>Next</b>.</li><li value="8">In the <span class="specialbold">Available Locations</span> column, select the locations that belong to the cross dock zone. You must select at least one location.</li><li value="9">Click <b>Finish</b>, and then click <img src="resources/images/image430894.png" width="28" height="25" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Previous page" /> to return to the Cross Docking page.</li></ol></li>
+                                                            <li value="7">To configure the movement of inventory that is indirectly cross docked between zones:<ol><li value="1"><p>Under <span class="specialbold">INDIRECT CROSS DOCKING SETTINGS</span>, click <span class="specialbold">Zone Movement Associations</span>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: Zone associations define the zones to which inventory can be moved from receiving to cross docking, and from a cross docking zone to ship staging. </p></li><li value="2"><p>To define associations, draw a line from a box in one column to a box in the next column. </p><p class="Note"><b class="NoteHeadingBold">Note</b>: To draw a line, click a box, and drag your pointer. Alternatively, you can hold <span class="specialbold">Ctrl</span>, click the two boxes, and then click <span class="specialbold">Assign</span>.</p></li><li value="3">To remove an association, click a line, and then click <span class="specialbold">Clear</span>.</li><li value="4">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="8">
+                                                                <p>To select the types of directed pick work that can be fulfilled with inventory in a receiving zone:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: To configure pick replacement processing, the <span class="specialbold">Fill Picks with Cross Dock Inventory</span> field must be set to <span class="specialbold">Yes</span>.</p>
+                                                                <ol>
+                                                                    <li value="1">Under <span class="specialbold">REPLACE PICKS</span>, click <span class="specialbold">Work Types</span>.</li>
+                                                                    <li value="2">In the <span class="specialbold">Available Work Types</span> column, select the work types that apply.</li>
+                                                                    <li value="3">Click <b>Save</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="9">To select the items for which replacement picks can be created:<ol><li value="1">Under <span class="specialbold">REPLACE PICKS</span>, click <span class="specialbold">Items</span>.</li><li value="2">In the <span class="specialbold">Available Items</span> column, select the items that apply.</li><li value="3">Click <b>Save</b>.</li></ol></li>
+                                                            <li value="10">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="CrossDockingfields" data-magellan-target="CrossDockingfields"><a name="Cross_Docking_fields"></a>Cross Docking fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Split LPN</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, received LPNs can be split into less than full pallet quantities to fulfill cross docking requirements. Any remaining inventory is directed to a storage location. </p>
+                                                                        <p>If No, the application does not attempt to fulfill outstanding picks with a partial quantity of a received LPN. Select No if you want do not want operators to remove cases from a full pallet for the purpose of fulfilling a cross dock request with a less than full pallet quantity. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Display Location Failure</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, a message is displayed to the operator when the application cannot find an acceptable cross dock or ship staging location for the inventory picked up from a receiving location.</p>
+                                                                        <p>If No, no message is displayed to the operator when a suitable deposit location is not found for cross dock inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Cross Dock Priority</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Indicates whether work order lines or outbound order lines are given priority when they both require the same cross docked inventory.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Work Orders</span>: When inbound inventory is available to fulfill cross dock opportunities, the application allocates the appropriate quantity to work order lines first (starting with the highest processing priority). If there is excess inventory, or if no work order lines need cross docked inventory, the application allocates the available inventory to outbound order lines with cross dock requests (starting with the highest processing priority).</li>
+                                                                            <li><span class="specialbold">Outbound Orders</span>: When inbound inventory is available to fulfill cross dock opportunities, the application allocates the appropriate quantity to outbound order lines first (starting with the highest processing priority). If there is excess inventory, or if no outbound order lines need cross docked inventory, the application allocates the available inventory to work order lines with cross dock requests (starting with the highest processing priority).</li>
+                                                                            <li><span class="specialbold">No selection (blank)</span>: When inbound inventory is available to fulfill a cross dock request, the application allocates the appropriate quantity to any outbound order lines and work order lines (starting with the highest processing priority across all order lines).</li>
+                                                                        </ul>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: This configuration has no effect on pick stealing, which is the process that replaces the source location of an outstanding pick with the receiving location to which inbound inventory has been identified. Pick stealing does not happen until inventory is already allocated. Therefore, there is no need to prioritize since there is no short.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Direct Move Zone</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Movement zone to which inventory for a direct cross dock is systematically moved to by default when it is received. Direct cross docking occurs when the final destination of the inventory is defined at the time of allocation. Direct cross docking entails moving the inventory directly from receiving to its final destination (such as ship staging) without an intermediate stop. The default direct move zone is used when there are no other direct zone associations configured for the source zone (zone in which the inventory is received). Inventory is not physically moved to the direct cross docking zone, but the zone can be configured as the source for a movement path.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Indirect Move Zone</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Default movement zone to which the application directs inventory for an indirect cross dock when it is received. Indirect cross docking occurs when the final destination of the inventory is not defined at the time of allocation, or if the destination location is unavailable. Indirect cross docking entails physically moving the inventory to an intermediate location until the final destination is defined and the location is available. The default indirect move zone is used when there are no other indirect zone associations configured for the source zone (zone in which the inventory is received).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Pre-Process ASN Distribution Cross Docks</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then when an ASN that includes distribution information is allocated (on download or when scheduled), the application processes the resulting cross docks immediately so that the inventory is considered allocated and picked prior to its arrival. When the ASN inventory arrives at the warehouse and is scanned, the inventory is received and then can be immediately deposited to the destination location for the shipment (typically, ship staging). The application pre-processes ASN distribution cross docks only for fully distributed LPNs. If an LPN contains inventory that is destined for storage, pre-processing is not executed.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If this field is set to Yes, the application does not reserve locations during pre-processing pick release, regardless of the cross dock pick method configuration.</p>
+                                                                        <p>If No, then the application processes the distribution cross dock picks (allocation and picking) when the ASN inventory is received.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Additional setup is required before the system can process ASN distribution cross docks. See <a href="#ASN_distribution_cross_docks">ASN distribution cross docks</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Fill Picks with Received Inventory</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when the application finds inventory in a receiving zone (such as a dock door or production location) that can be used to fulfill an outbound order, it directs the user to pick that inventory for the order. This process replaces the source location (typically in storage) of an outstanding pick or replenishment with a location in a receiving zone. If enabled, this process takes place after distribution inventory, finished goods for which shipments are waiting, and cross docking processes are complete. </p>
+                                                                        <p>If No, the application does not attempt to automatically change the source location of a pick to a location in a receiving zone.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">LPN Levels</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>LPN level at which inventory in a receiving zone can be used to fulfill a pick. Select either LPN, Sub-LPN, or both. If neither check box is selected, pick replacements will not take place.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Pick Inventory from Other Handling Units</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then the application allocates the inventory required to fulfill the pick if it is on the handling unit requested on the order line or if is available on one of the other handling unit types in the same handling unit group as the type requested on the order line. If inventory on an alternate handling unit type is allocated, that inventory must be transferred to the requested handling unit type prior to shipping.</p>
+                                                                        <p>If No, the application does not allocate inventory for a replacement pick if the inventory is not on the specific handling unit type requested on the order line. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Pick work statuses that are eligible for pick replacement. When pick work is in a selected status, the application attempts to fulfill the pick with inventory from a receiving location, if possible. Select all the statuses that you want to enable for pick replacement.</p>
+                                                                        <ul>
+                                                                            <li><b>Pending</b>: Pick work inventory is reserved for allocation until automatically released by the application.</li>
+                                                                            <li><b>On Hold</b>: Pick work inventory is reserved for allocation until manually released by a user.</li>
+                                                                            <li><b>Released</b>: Pick work inventory is released to the work queue.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="ReleaseRulesfields" data-magellan-target="ReleaseRulesfields"><a name="Release_Rule_fields"></a>Release Rules fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Action</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Action that the application performs to release the pick:</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">CREATE DIRECTED WORK</span>: Creates a directed work request for the pick, which is added to the work queue so that an RF operator can perform it.</li>
+                                                                            <li><span class="specialbold">CREATE WORK</span>: Releases the pick as undirected work. </li>
+                                                                            <li><b>CREATE WORK FOR PM PRE MANIFEST PACKAGE</b>: Creates a work queue entry for a case pick or kit pick, and manifests the parcel package.
+</li>
+                                                                            <li><b>PROCESS PM PRE MANIFEST PACKAGE</b>: Creates a work queue entry for a case pick or kit pick, manifests the parcel package, and prints a manifest label with pick information and parcel package information.</li>
+                                                                            <li>
+                                                                                <p><b>CREATE LABEL FILE FOR PM PREMANIFEST PACKAGE</b>: Manifests the parcel package and prints a manifest label with pick information and parcel package information.</p>
+                                                                            </li>
+                                                                            <li><span class="specialbold">PRODUCE SHIPMENT LABEL</span>: Prints a pick label that includes the information for the pick work.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Operation</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Work operation that identifies the type of work that is created, such as piece pick, case pick, kit pick, list pick, pallet pick, or replenishment pick.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Priority</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Priority at which work initially enters the work queue. It is the priority at which a work request is created. Priority is used, for example, to assign a higher priority to pallet and case replenishment work to fill pick locations than to pallet or case pick work to fulfill orders.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Use base priority</span>: The value for the operation's base priority at the time of allocation is used when work is created. The base priority is the current priority that is defined for the operation.</li>
+                                                                            <li><span class="specialbold">Override base priority</span>: The operation's base priority is overridden at the time of allocation for the selected zone with the number specified in the <span class="specialbold">Value </span>field. For example, you may consider your case replenishments coming out of your flow racks more important than your case replenishments coming out of your floor zone.</li>
+                                                                            <li><span class="specialbold">Increase priority from base priority</span>: The operation's base priority is increased at the time of allocation by the number specified in the <span class="specialbold">Value </span>field.</li>
+                                                                            <li><span class="specialbold">Decrease priority from base priority</span>: The operation's base priority is decreased at the time of allocation by the number specified in the <span class="specialbold">Value </span>field.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">Value</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                        <p>Value that is applied against the base priority of the operation. Depending on what is selected for <span class="specialbold">Priority</span>, the value either replaces the base priority, or it is added to or subtracted from the base priority to result in a new priority.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="DestinationReleaseRulesfields" data-magellan-target="DestinationReleaseRulesfields"><a name="Destination_Release_Rule_fields"></a>Destination Release Rules fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Destination</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Movement zone that contains the final destination location for inventory that was picked or moved. For example, for inventory picked for an outbound order, this could be a zone that contains ship staging locations. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Action</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Action that the application performs to release the pick:</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">CREATE DIRECTED WORK</span>: Creates a directed work request for the pick, which is added to the work queue so that an RF operator can perform it.</li>
+                                                                            <li><span class="specialbold">CREATE WORK</span>: Releases the pick as undirected work. </li>
+                                                                            <li><b>CREATE WORK FOR PM PRE MANIFEST PACKAGE</b>: Creates a work queue entry for a case pick or kit pick, and manifests the parcel package.
+</li>
+                                                                            <li><b>PROCESS PM PRE MANIFEST PACKAGE</b>: Creates a work queue entry for a case pick or kit pick, manifests the parcel package, and prints a manifest label with pick information and parcel package information.</li>
+                                                                            <li>
+                                                                                <p><b>CREATE LABEL FILE FOR PM PREMANIFEST PACKAGE</b>: Manifests the parcel package and prints a manifest label with pick information and parcel package information.</p>
+                                                                            </li>
+                                                                            <li><span class="specialbold">PRODUCE SHIPMENT LABEL</span>: Prints a pick label that includes the information for the pick work.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Operation</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Work operation that identifies the type of work that is created, such as piece pick, case pick, kit pick, list pick, pallet pick, or replenishment pick.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Priority</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Priority at which work initially enters the work queue. It is the priority at which a work request is created. Priority is used, for example, to assign a higher priority to pallet and case replenishment work to fill pick locations than to pallet or case pick work to fulfill orders.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Use base priority</span>: The value for the operation's base priority at the time of allocation is used when work is created. The base priority is the current priority that is defined for the operation.</li>
+                                                                            <li><span class="specialbold">Override base priority</span>: The operation's base priority is overridden at the time of allocation for the selected zone with the number specified in the <span class="specialbold">Value </span>field. For example, you may consider your case replenishments coming out of your flow racks more important than your case replenishments coming out of your floor zone.</li>
+                                                                            <li><span class="specialbold">Increase priority from base priority</span>: The operation's base priority is increased at the time of allocation by the number specified in the <span class="specialbold">Value </span>field.</li>
+                                                                            <li><span class="specialbold">Decrease priority from base priority</span>: The operation's base priority is decreased at the time of allocation by the number specified in the <span class="specialbold">Value </span>field.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1" style="font-weight: bold;">Value</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                        <p>Value that is applied against the base priority of the operation. Depending on what is selected for <span class="specialbold">Priority</span>, the value either replaces the base priority, or it is added to or subtracted from the base priority to result in a new priority.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                        <p> </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

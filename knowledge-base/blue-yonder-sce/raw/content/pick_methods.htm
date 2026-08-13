@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Picking " data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Pick Methods</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#PickMethods">Pick Methods</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Inlinereplenishments">In-line replenishments</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyapickmethod">Add or modify a pick method</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteapickmethod">Delete a pick method</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PickMethodfields">Pick Method fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ReleaseRulesfields">Release Rules fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="PickMethods" data-magellan-target="PickMethods"><a name="aanchor296"></a>
+                                                            <MadCap:concept term="WM" />Pick Methods</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#PickMethods">Pick Methods</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Inlinereplenishments">In-line replenishments</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyapickmethod">Add or modify a pick method</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteapickmethod">Delete a pick method</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PickMethodfields">Pick Method fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ReleaseRulesfields">Release Rules fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A pick method is a required attribute of an allocation search path. A pick method is a configuration that defines the type of pick that is created when inventory on the search path is allocated for a pick or replenishment, and how that pick is released (such as, whether the application creates directed work that is added to the work queue or produces a pick sheet for paper-based picking). </p>
+                                                        <p>Each pick method is defined by a name, description, and a pick pre-validation scheme. See <a href="pick_pre-validation_scheme.htm">Pick Pre-Validation Scheme</a>.</p>
+                                                        <p>To each pick method you add one or more release rules, as required, to release the work in your facility. For example, you may configure the release rules for different types of picks (standard, carton, threshold, bulk, and bulk threshold) and different types of replenishments (top-off, triggered, emergency, and manual). </p>
+                                                        <p>A release rule is defined by the following attributes:</p>
+                                                        <ul>
+                                                            <li>Action that occurs when the pick is released, such as to create work for an RF operator to perform or produce a pick sheet for paper-based picking.</li>
+                                                            <li>Operation (for actions that create work) that is used to perform the work, such as Pallet Pick or Case Pick. You can also adjust the priority of the operation so that it is released to a position higher or lower in the work queue.</li>
+                                                            <li>Work groupings (for actions that create work) that direct the application to group pieces of work together that have similar attributes that you select.</li>
+                                                            <li>Destination rules that override the release rule for picks that have a destination in a specific movement zone. The application uses the normal release rule configuration except when a pick is destined to a movement zone for which a specific destination release rule is configured.</li>
+                                                            <li>
+                                                                <p>Priority that determines position in the work queue. The base priority can be overridden, increased, or decreased by a specified value at the time of allocation.</p>
+                                                            </li>
+                                                        </ul>
+                                                        <p>After you create a pick method, you can assign it to the allocation search path that should use it. See <a href="allocation_search_paths.htm">Allocation Search Paths</a> or <a href="replenishment_search_paths.htm">Replenishment Search Paths</a>. </p>
+                                                        <h2 id="Inlinereplenishments" data-magellan-target="Inlinereplenishments"><a name="In-line_replenishments"></a>In-line replenishments</h2>
+                                                        <p>An in-line replenishment is a replenishment performed by a picking operator while picking a work assignment when the specified location does not have the pick quantity available. For example, if an operator arrives at a location to complete picks from a list and there is not enough inventory available, the operator can set down the completed pick work and immediately complete a replenishment to the location. Once the replenishment is complete, the operator can resume the work assignment and complete the rest of the picks. If an operator arrives at a location where a replenishment is already in process, the operator has the option of waiting for the replenishment instead of having to skip or cancel the pick.</p>
+                                                        <p>In-line replenishments can be enabled by setting the <span class="specialbold">Replenish While Picking</span> field to Yes for a pick method.  </p>
+                                                        <p>You can also configure a work assignment rule to specify whether the work assignment must be resumed by the original operator who set down the picks to complete the in-line replenishment. See <a href="work_assignments.htm#Work_assignment_rules">Work assignment rules</a>.</p>
+                                                        <h2 id="Addormodifyapickmethod" data-magellan-target="Addormodifyapickmethod"><a name="Add_or_modify_a_pick_method"></a>Add or modify a pick method</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Configuration &gt; Outbound &gt; Picking &gt; Pick Methods</b>.</li>
+                                                            <li value="2">Perform one of the following tasks:<ul><li>To add a pick method, click <b>Add</b>.</li><li>To modify a pick method, in the grid, click the pick method name.</li></ul></li>
+                                                            <li value="3">Enter information in the <a href="#Pick_Method_fields">Pick Method fields</a>.</li>
+                                                            <li value="4">Configure release rules for the pick method:<ol><li value="1">Under <span class="specialbold">RELEASE RULES</span>, click the type of pick work for which you want to configure the release rules.</li><li value="2">Enter information in the <a href="#Release_Rule_fields">Release Rules fields</a>.</li><li value="3"><p>To define the attributes that determine how work is grouped, click <span class="specialbold">Work Groupings</span>, select the check box for the attributes that must match, and click <b>Save</b>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: The work groupings can limit the performance of the action you specified for the release rule by grouping individual pieces of work into one piece of work. For example, if you select PRODUCE WORK ASSIGNMENT as the action for the release rule, and then select Operation Code and Cartonization Group as the work groupings, the application will only produce on one work assignment for all picks that are of the same type of operation and that have the same cartonization group.</p></li><li value="4"><p>To add or modify a destination rule:</p><p class="Note"><b class="NoteHeadingBold">Note</b>: A destination rule is a separate release rule that is used instead of the normal release rule when the pick's destination movement zone is that which you specify in the destination rule.</p><ol><li value="1">Click <span class="specialbold">Destination Rules</span>.</li><li value="2">Perform one of the following tasks:<ul><li>To add a new destination rule, click <b>Add</b>.</li><li>To modify an existing destination rule, select the rule you want to modify.</li></ul></li><li value="3">Enter information  in the <a href="#Release_Rule_fields">Release Rules fields</a>.</li><li value="4">To define the attributes that must match for individual pieces of work to be grouped into a single task when the destination rule is used, click <span class="specialbold">Work Groupings</span>, select the check box for the attributes that must match, and click <b>Apply</b>.</li><li value="5">Click <b>Save</b></li><li value="6">Repeat the necessary steps to define additional destination rules for the pick work type.</li><li value="7">Click <b>Apply</b>.</li></ol></li><li value="5"><p>Click <b>Save</b>.</p></li></ol></li>
+                                                            <li value="5">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Deleteapickmethod" data-magellan-target="Deleteapickmethod"><a name="Delete_a_pick_method"></a>Delete a pick method</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Configuration &gt; Outbound &gt; Picking &gt; Pick Methods</b>.</li>
+                                                            <li value="2">In the grid, select the check box next to the pick method to delete.</li>
+                                                            <li value="3">Click <b>Delete</b>. A confirmation message is displayed.</li>
+                                                            <li value="4">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="PickMethodfields" data-magellan-target="PickMethodfields"><a name="Pick_Method_fields"></a>Pick Method fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Method Name</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Name of the pick method. A pick method is a set of configuration options that define how picks are created and released. You can create separate pick methods for outbound picks, which fulfill orders shipped from the warehouse, and for replenishment picks, which restock picking locations in the warehouse. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Description</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Text that further describes the pick method.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Pre-validation Scheme</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Name of a configuration that determines what occurs when a pick fails pre-validation. Pick pre-validation is a process that determines whether inventory is available in a location prior to displaying the pick to an operator. Using a pre-validation scheme can help prevent an operator from being directed to a location that either no longer contains available inventory for the pick or which is locked from picking.</p>
+                                                                        <p>After you have created a pick pre-validation scheme, you must assign the scheme to a pick method for the type of pick to which it applies. Assigning a pre-validation scheme to a pick method determines how the application handles pre-validation for the each pick method.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Reserve&#160;During Pick Release</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Determines which locations in the movement zones defined for a movement path are reserved during pick release when the application uses this pick method.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">All</span>: During pick release, a location is reserved in all of the defined movement zones for a movement path. If selected, then the application only releases the picks if all zones in the movement path have an available location at the time of pick release; if not, the application does not release the picks until a location is available in all defined movement path zones.</li>
+                                                                            <li><span class="specialbold">First</span>: Only the first deposit location (in the movement zone that follows the source zone) is reserved during pick release. Each subsequent location in the remaining movement path zones is only reserved when the operator picks up the inventory from its current location. If selected, and if there are no locations available in the first movement zone that follows the source zone, then the application does not release the picks. If a location is available and the picks release, but there is not a location available in the next zone in the movement path, then the operator can deposit the picks to a P&amp;D location until a location is available in the next movement zone.</li>
+                                                                            <li><span class="specialbold">None</span>: No locations in the movement zones defined for a movement path are reserved during pick release. The first deposit location (in the movement zone that follows the source zone) is reserved when the operator picks the inventory, and each subsequent location in the remaining movement path zones is only reserved when the operator picks up the inventory from its current location. If selected, the application always releases the picks, regardless of whether there are available locations in the movement path zones. If the next zone in the movement path is full, the operator can deposit the picks to a pickup and deposit (P&amp;D) location until a location is available in the next movement zone.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Work Assignments</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then picks that are allocated using the pick method can be built into work assignments. A work assignment is a picking process by which the application combines individual picks into a list (work assignment) that an operator can perform in one picking tour, moving from one pick location to another until the list is complete. </p>
+                                                                        <p>If No, then picks are not added to work assignments.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Cartonization</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, picks that are allocated using the pick method are subject to cartonization. Cartonization is the process of determining which items are to be packed together in a container and which size container is to be used.</p>
+                                                                        <p>If No, picks are not cartonized.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Replenish While Picking</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                        <p>If Yes, an operator completing picks that were allocated using the pick method is allowed to perform an in-line replenishment. An in-line replenishment is a replenishment performed by a picking operator when the specified location does not have the pick quantity available. For example, if an operator arrives at a location to complete picks and there is not enough inventory available, the operator can set down the completed pick work and immediately complete a replenishment to the location.</p>
+                                                                        <p>If No, the operator is not directed to perform in-line replenishments when performing picks.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="ReleaseRulesfields" data-magellan-target="ReleaseRulesfields"><a name="Release_Rule_fields"></a>Release Rules fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Destination</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Movement zone that contains the final destination location for inventory that was picked. For example, for inventory picked for an outbound order, this could be a zone that contains ship staging locations. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Action</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Action that the application performs to release the pick:</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">CREATE DIRECTED WORK: </span>Creates a directed work request for the pick, which is added to the work queue so that an RF operator can perform it.</li>
+                                                                            <li><span class="specialbold">CREATE PICKS</span>: Releases the pick as undirected work.</li>
+                                                                            <li><b>CREATE WORK FOR PM PRE MANIFEST PACKAGE</b>: Creates a work queue entry for a case pick or kit pick, and manifests the parcel package.
+</li>
+                                                                            <li><b>PROCESS PM PRE MANIFEST PACKAGE</b>: Creates a work queue entry for a case pick or kit pick, manifests the parcel package, and prints a manifest label with pick information and parcel package information.</li>
+                                                                            <li>
+                                                                                <p><b>CREATE LABEL FILE FOR PM PREMANIFEST PACKAGE</b>: Manifests the parcel package and prints a manifest label with pick information and parcel package information.</p>
+                                                                            </li>
+                                                                            <li><span class="specialbold">PRODUCE PICK LIST</span>: Produces a report that displays the pick information. An operator uses the report to perform paper-based picking. </li>
+                                                                            <li><span class="specialbold">PRODUCE SHIPMENT LABEL</span>: Prints a pick label that includes the information for the pick work.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Operation</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Work operation that identifies the type of work that is created, such as piece pick, case pick, kit pick, list pick, pallet pick, or replenishment pick.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Priority</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Priority at which work initially enters the work queue. It is the priority at which a work request is created. Priority is used, for example, to assign a higher priority to pallet and case replenishment work to fill pick locations than to pallet or case pick work to fulfill orders.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Use base priority</span>: The value for the operation's base priority at the time of allocation is used when work is created. The base priority is the current priority that is defined for the operation.</li>
+                                                                            <li><span class="specialbold">Override base priority</span>: The operation's base priority is overridden at the time of allocation for the selected zone with the number specified in the <span class="specialbold">Value </span>field. For example, you may consider your case replenishments coming out of your flow racks more important than your case replenishments coming out of your floor zone.</li>
+                                                                            <li><span class="specialbold">Increase priority from base priority</span>: The operation's base priority is increased at the time of allocation by the number specified in the <span class="specialbold">Value </span>field.</li>
+                                                                            <li><span class="specialbold">Decrease priority from base priority</span>: The operation's base priority is decreased at the time of allocation by the number specified in the <span class="specialbold">Value </span>field.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Value</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                        <p>Value that is applied against the base priority of the operation. Depending on what is selected for <span class="specialbold">Priority</span>, the value either replaces the base priority, or it is added to or subtracted from the base priority to result in a new priority.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

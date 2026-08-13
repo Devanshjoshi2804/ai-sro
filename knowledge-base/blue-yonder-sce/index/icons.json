@@ -1,0 +1,1391 @@
+[
+ {
+  "src": "/content/resources/images/image939070_21x20.png",
+  "alt": [
+   "Help"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm"
+  ],
+  "sha1": "771fc94d1a2344b4da6dd9e253226d33ca1bc97f"
+ },
+ {
+  "src": "/content/resources/images/search_20x20.png",
+  "alt": [
+   "Search"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm"
+  ],
+  "sha1": "a245acf728c6e6e871b33a1bcd8dcb4b17ced34e"
+ },
+ {
+  "src": "/content/resources/images/displaymore.png",
+  "alt": [
+   "Display More"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm"
+  ],
+  "sha1": "f05e2794e8f0e1ffd9d68ac482197ff4fc58cb57"
+ },
+ {
+  "src": "/content/resources/images/hide_title_bar.png",
+  "alt": [
+   "Collapse"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm"
+  ],
+  "sha1": "fa275ee1f79ba269084b0de4d1f7a9dbcef344dc"
+ },
+ {
+  "src": "/content/resources/images/show_title_bar.png",
+  "alt": [
+   "Expand"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm"
+  ],
+  "sha1": "2cc4e06594f23efd61d2ab11a191e38b5ed8b069"
+ },
+ {
+  "src": "/content/resources/images/image1141268.png",
+  "alt": [
+   "Navigation bar toggle"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm"
+  ],
+  "sha1": "6baef5ace15fc9d70fd23f7aa6993bbcbd285376"
+ },
+ {
+  "src": "/content/resources/images/image996381.png",
+  "alt": [
+   "Pin"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm"
+  ],
+  "sha1": "7b0ef159b6644410dfd0e2b580066ee354ed6345"
+ },
+ {
+  "src": "/content/resources/images/image942438.png",
+  "alt": [
+   "Previous page"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm",
+   "/content/suppliers.htm",
+   "/content/existing_carriers.htm",
+   "/content/carrier_pro_numbers.htm",
+   "/content/outbound_paperwork.htm"
+  ],
+  "sha1": "46236e9790288f60b7b2d140df1dfbef90cc10c8"
+ },
+ {
+  "src": "/content/resources/images/image944211.png",
+  "alt": [
+   "Invalid"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm"
+  ],
+  "sha1": "52ff926811731314ca219cdd462e8c70309bff2d"
+ },
+ {
+  "src": "/content/resources/images/image640155_13x13.png",
+  "alt": [
+   "Help"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm",
+   "/content/get_started/help.htm"
+  ],
+  "sha1": "e5e538d8040220dfefbabf948ba9dbae3d17af87"
+ },
+ {
+  "src": "/content/resources/images/image640155.png",
+  "alt": [
+   "Help"
+  ],
+  "used_on": [
+   "/content/get_started/user_interface.htm",
+   "/content/get_started/help.htm"
+  ],
+  "sha1": "9c393c3941862d5f9f785ea4604c9f5582316418"
+ },
+ {
+  "src": "/content/resources/images/image430212.png",
+  "alt": [
+   "Refresh"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "bd2d6df64758897711e56bd1f707729a828a40b3"
+ },
+ {
+  "src": "/content/resources/images/image569280.png",
+  "alt": [
+   "Refresh"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm",
+   "/content/admin/integration_errors.htm",
+   "/content/admin/system_management.htm"
+  ],
+  "sha1": "bcc22e3609932b1759cf7923b1cdfb0c3e6ca8e8"
+ },
+ {
+  "src": "/content/resources/images/image944050.png",
+  "alt": [
+   "Drop-down"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "c2b66fae9e10e24aff9404f40145727bfcb12b14"
+ },
+ {
+  "src": "/content/resources/images/image620926.png",
+  "alt": [
+   "Print"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "949e0ceabed89141ea552934b4999094f328289a"
+ },
+ {
+  "src": "/content/resources/images/image621867_12x12.png",
+  "alt": [
+   "Export"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "4c366d3a4d7d6811d8b05b7150d4c6ec66f6eeea"
+ },
+ {
+  "src": "/content/resources/images/image621867.png",
+  "alt": [
+   "Export"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm",
+   "/content/admin/page_builder.htm"
+  ],
+  "sha1": "ec9efe818023e322b8f9e4f15e7e2b4946172c07"
+ },
+ {
+  "src": "/content/resources/images/set_default_state_icon_no_border_14x14.png",
+  "alt": [
+   "Save Default State"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "5407d93dee5cad6eb6ba07026c07391adfd284ac"
+ },
+ {
+  "src": "/content/resources/images/set_default_state_icon_no_border.png",
+  "alt": [
+   "Save Default State"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "2a0d5ec073e05d932e2362187ebe0173fc2c7bc8"
+ },
+ {
+  "src": "/content/resources/images/image430213.png",
+  "alt": [
+   "Date selection tool"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "ecd3c3be797a86b25753edcf6376731379595d6c"
+ },
+ {
+  "src": "/content/resources/images/image1178160.png",
+  "alt": [
+   "Drop-down list"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "a78d67ac588a1ba1e18b8dd2d5790f2aa080d0ed"
+ },
+ {
+  "src": "/content/resources/images/image623574.png",
+  "alt": [
+   "Calendar"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "c8cb5401155c21db374a9f3c8f14cde4999ef2e9"
+ },
+ {
+  "src": "/content/resources/images/image933567_13x13.png",
+  "alt": [
+   "Previous Month"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "1eca74a1f214b69987661ba0065b73815a4c5402"
+ },
+ {
+  "src": "/content/resources/images/image933568.png",
+  "alt": [
+   "Next Month"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "310d28dbbbe4841e6f1b2f9f950923da78021b6c"
+ },
+ {
+  "src": "/content/resources/images/image632381_15x15.png",
+  "alt": [
+   "Lookup"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_pages.htm"
+  ],
+  "sha1": "60b8ee77e0945cfdb4b364ab101375c6abad8bab"
+ },
+ {
+  "src": "/content/resources/images/image1083973.png",
+  "alt": [
+   "First page"
+  ],
+  "used_on": [
+   "/content/get_started/grids.htm"
+  ],
+  "sha1": "cd62d6dc66e9abd08eb9d9067499af6e1fa77c76"
+ },
+ {
+  "src": "/content/resources/images/image1083971.png",
+  "alt": [
+   "Previous page"
+  ],
+  "used_on": [
+   "/content/get_started/grids.htm"
+  ],
+  "sha1": "3c944a9a59fcdfa3416519102a164162c6d0f9e0"
+ },
+ {
+  "src": "/content/resources/images/image1083972.png",
+  "alt": [
+   "Next page"
+  ],
+  "used_on": [
+   "/content/get_started/grids.htm"
+  ],
+  "sha1": "85bb1a4d11f2b285476161d851e404c9a8c17818"
+ },
+ {
+  "src": "/content/resources/images/image1083974.png",
+  "alt": [
+   "Last page"
+  ],
+  "used_on": [
+   "/content/get_started/grids.htm"
+  ],
+  "sha1": "b7989e98e9936f49e60f13ca03c300567852ecf8"
+ },
+ {
+  "src": "/content/resources/images/image1083816.png",
+  "alt": [
+   "Page controls"
+  ],
+  "used_on": [
+   "/content/get_started/grids.htm"
+  ],
+  "sha1": "29aae87e20f9dc8bbe36a74f023bf0872bd74be7"
+ },
+ {
+  "src": "/content/resources/images/image1083817.png",
+  "alt": [
+   "Size field"
+  ],
+  "used_on": [
+   "/content/get_started/grids.htm"
+  ],
+  "sha1": "2f9bb1b4a321c548c42409f5b0959e27c9864c9d"
+ },
+ {
+  "src": "/content/resources/images/image933520.png",
+  "alt": [
+   "Drop-down"
+  ],
+  "used_on": [
+   "/content/get_started/grids.htm"
+  ],
+  "sha1": "3458cc3e5079b6b2ee0270b75226c77542c9403d"
+ },
+ {
+  "src": "/content/resources/images/image430214.png",
+  "alt": [
+   "Filter field"
+  ],
+  "used_on": [
+   "/content/get_started/filters.htm"
+  ],
+  "sha1": "0732da35d8cb6e1a41859677be768bdfcd274b45"
+ },
+ {
+  "src": "/content/resources/images/adhoc.png",
+  "alt": [
+   "Single criteria ad-hoc filter"
+  ],
+  "used_on": [
+   "/content/get_started/filters.htm"
+  ],
+  "sha1": "a9d010d693fcad853f4b8408d334a52999d06133"
+ },
+ {
+  "src": "/content/resources/images/equal_to.png",
+  "alt": [
+   "Equal-to operator"
+  ],
+  "used_on": [
+   "/content/get_started/filters.htm"
+  ],
+  "sha1": "bfa84d3871cd01075848027468d8289ae82a7281"
+ },
+ {
+  "src": "/content/resources/images/adhoc2.png",
+  "alt": [
+   "Multiple criteria ad-hoc filter"
+  ],
+  "used_on": [
+   "/content/get_started/filters.htm"
+  ],
+  "sha1": "70ba03eec6e4bfa246f48704b6d3b5403cbfbb56"
+ },
+ {
+  "src": "/content/resources/images/image933578.png",
+  "alt": [
+   "Load Saved Filter"
+  ],
+  "used_on": [
+   "/content/get_started/filters.htm",
+   "/content/get_started/work_with_filters.htm"
+  ],
+  "sha1": "a5bfc71e5f8ab53dc08717e80da232418a246d46"
+ },
+ {
+  "src": "/content/resources/images/image895478_11x10.png",
+  "alt": [
+   "Delete",
+   "Close",
+   "Remove"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_filters.htm"
+  ],
+  "sha1": "3e5c443bdcffecefee2677af278324e1a98f5d41"
+ },
+ {
+  "src": "/content/resources/images/image933790_12x11.png",
+  "alt": [
+   "Not a favorite"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_filters.htm"
+  ],
+  "sha1": "28683eb7fcf546edfef05cdb7811661366aad373"
+ },
+ {
+  "src": "/content/resources/images/image942485.png",
+  "alt": [
+   "Favorite"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_filters.htm"
+  ],
+  "sha1": "3e6664a2d39488bf9db7dbee7eadf979045d4b4e"
+ },
+ {
+  "src": "/content/resources/images/image942485_12x12.png",
+  "alt": [
+   "Favorite"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_filters.htm"
+  ],
+  "sha1": "234493f98bd0ece65819aa09ed25a8beebcb8937"
+ },
+ {
+  "src": "/content/resources/images/image933790.png",
+  "alt": [
+   "Not a favorite"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_filters.htm"
+  ],
+  "sha1": "11dba898cd968da58605676684b3815c2da0e9d2"
+ },
+ {
+  "src": "/content/resources/images/image895478_9x8.png",
+  "alt": [
+   "Remove"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_filters.htm"
+  ],
+  "sha1": "aa9e4600a62e71e421c9d5276d21f2f43fbaa875"
+ },
+ {
+  "src": "/content/resources/images/image524298.png",
+  "alt": [
+   "Close"
+  ],
+  "used_on": [
+   "/content/get_started/work_with_filters.htm",
+   "/content/get_started/media.htm",
+   "/content/procedures_for_packing.htm",
+   "/content/admin/system_management.htm",
+   "/content/admin/field_editor.htm",
+   "/content/admin/grid.htm",
+   "/content/admin/chart.htm",
+   "/content/admin/form.htm"
+  ],
+  "sha1": "d1394371a50a60bec527aa6b1cb8d4039753188e"
+ },
+ {
+  "src": "/content/resources/images/image602559.png",
+  "alt": [
+   "Media settings"
+  ],
+  "used_on": [
+   "/content/get_started/media.htm"
+  ],
+  "sha1": "51a1aa77201dc6604ab710f1204c09f4a719ea4b"
+ },
+ {
+  "src": "/content/resources/images/image1076421.png",
+  "alt": [
+   "Enlarge"
+  ],
+  "used_on": [
+   "/content/get_started/media.htm"
+  ],
+  "sha1": "de3e7330b4bc4bd0c13c497d48b67c68194414e5"
+ },
+ {
+  "src": "/content/resources/images/image524298_14x14.png",
+  "alt": [
+   "Close"
+  ],
+  "used_on": [
+   "/content/get_started/media.htm"
+  ],
+  "sha1": "0d7f0ca6f24ce1e6d6dd4640a97fb3ab12572b1c"
+ },
+ {
+  "src": "/content/resources/images/skin/filter_gray_20x20.png",
+  "alt": [
+   "Filter"
+  ],
+  "used_on": [
+   "/content/get_started/help.htm"
+  ],
+  "sha1": "aa56f8bf83e3a8e5904530706326b97899f22f58"
+ },
+ {
+  "src": "/content/resources/images/skin/search_gray_20x20.png",
+  "alt": [
+   "Search"
+  ],
+  "used_on": [
+   "/content/get_started/help.htm"
+  ],
+  "sha1": "09804869448ab4aefe9d760d145e3409a0c65e19"
+ },
+ {
+  "src": "/content/resources/images/image632381.png",
+  "alt": [
+   "Lookup"
+  ],
+  "used_on": [
+   "/content/buildings.htm",
+   "/content/warehouses.htm",
+   "/content/suppliers.htm",
+   "/content/clients.htm",
+   "/content/existing_customers.htm",
+   "/content/existing_carriers.htm",
+   "/content/procedures_for_transport_equipment.htm",
+   "/content/admin/grid.htm",
+   "/content/admin/chart.htm"
+  ],
+  "sha1": "9f2ced1badb44630f73e57139ee4295ab64561c9"
+ },
+ {
+  "src": "/content/resources/images/backfill_locations_525x217.png",
+  "alt": [
+   "Backfill Storage Locations"
+  ],
+  "used_on": [
+   "/content/location_types.htm"
+  ],
+  "sha1": "57e3bf3faf792f682752a97fb24773a9f50dc397"
+ },
+ {
+  "src": "/content/resources/images/image429922.png",
+  "alt": [
+   "Expand"
+  ],
+  "used_on": [
+   "/content/yard_locations.htm",
+   "/content/dock_locations.htm",
+   "/content/staging_locations.htm",
+   "/content/storage_locations.htm",
+   "/content/processing_locations.htm",
+   "/content/pickup_and_deposit_locations.htm",
+   "/content/production_locations.htm",
+   "/content/procedures_for_shipping_issues.htm",
+   "/content/procedures_for_waves.htm",
+   "/content/em/event_configuration.htm"
+  ],
+  "sha1": "9862d31d353ed20661c535f000584883656b1b0d"
+ },
+ {
+  "src": "/content/resources/images/emea_pallet_level_units.png",
+  "alt": [
+   "Emea Pallet Level Units"
+  ],
+  "used_on": [
+   "/content/level_types.htm"
+  ],
+  "sha1": "7fedd696220723bd388d8813684ce3952972e8d8"
+ },
+ {
+  "src": "/content/resources/images/us_pallet_level_units.png",
+  "alt": [
+   "EMEA / US Pallet Level Units"
+  ],
+  "used_on": [
+   "/content/level_types.htm"
+  ],
+  "sha1": "992c009a4b77b77512a018239ffbcf93a47ef4cb"
+ },
+ {
+  "src": "/content/resources/images/ex_storage_seq_follows_travel_seq.png",
+  "alt": [
+   "Left/Right Side Aisle Sequences"
+  ],
+  "used_on": [
+   "/content/location_sequences.htm"
+  ],
+  "sha1": "52aba36cccb39b5e777bb11412c0818699a099c7"
+ },
+ {
+  "src": "/content/resources/images/ex_storage_seq_is_rev_of_travel_seq.png",
+  "alt": [
+   "Left/Right Aisle Reverse Sequences"
+  ],
+  "used_on": [
+   "/content/location_sequences.htm"
+  ],
+  "sha1": "890d7e4843aff802e7730024f8968a0b20d67138"
+ },
+ {
+  "src": "/content/resources/images/ex_storage_seq_alternates.png",
+  "alt": [
+   "Left/Right Aisle Sequence Alternates"
+  ],
+  "used_on": [
+   "/content/location_sequences.htm"
+  ],
+  "sha1": "9af515f97c0a9a94c87c8db980fe1074f598a0cb"
+ },
+ {
+  "src": "/content/resources/images/image430894.png",
+  "alt": [
+   "Previous page"
+  ],
+  "used_on": [
+   "/content/existing_customers.htm",
+   "/content/returns_config.htm",
+   "/content/cross_docking.htm"
+  ],
+  "sha1": "bd9e72c00017c81f0b257d46119637e0fefaad13"
+ },
+ {
+  "src": "/content/resources/images/image895478_12x11.png",
+  "alt": [
+   "Delete"
+  ],
+  "used_on": [
+   "/content/count_settings.htm"
+  ],
+  "sha1": "b3f90460ba479ba4222234e3476701607d6c29e5"
+ },
+ {
+  "src": "/content/resources/images/image942307.png",
+  "alt": [
+   "Close"
+  ],
+  "used_on": [
+   "/content/count_settings.htm",
+   "/content/pick_release.htm"
+  ],
+  "sha1": "2950be3243e85d1b8c20b3ba3c9e2207176a8779"
+ },
+ {
+  "src": "/content/resources/images/keyboardhelp_29x20.png",
+  "alt": [
+   "Keyboard Shortcuts"
+  ],
+  "used_on": [
+   "/content/settings_and_pack_station.htm",
+   "/content/procedures_for_packing.htm"
+  ],
+  "sha1": "1b6fa43c71cd2bc3f624d0cb75fa48fe37973d9f"
+ },
+ {
+  "src": "/content/resources/images/back_wmconfig_22x20.png",
+  "alt": [
+   "Previous page"
+  ],
+  "used_on": [
+   "/content/outbound_loading.htm"
+  ],
+  "sha1": "b3456cbfbe6e9c18b1084f93dc722e43127d5378"
+ },
+ {
+  "src": "/content/resources/images/back_wmconfig.png",
+  "alt": [
+   "Previous page"
+  ],
+  "used_on": [
+   "/content/connect.htm"
+  ],
+  "sha1": "59918f0d81649b4767f8366fd02e15456a3c86c3"
+ },
+ {
+  "src": "/content/resources/images/image1178162.png",
+  "alt": [
+   "Negative Performance Trend"
+  ],
+  "used_on": [
+   "/content/labor_tab.htm",
+   "/content/labor_tab_picking.htm",
+   "/content/labor_productivity_widget.htm",
+   "/content/labor_performance_widget.htm",
+   "/content/people_labor_section.htm"
+  ],
+  "sha1": "469a833f20454cf550fa1179f997c6831401f97e"
+ },
+ {
+  "src": "/content/resources/images/image1178163.png",
+  "alt": [
+   "Positive Performance Trend"
+  ],
+  "used_on": [
+   "/content/labor_tab.htm",
+   "/content/labor_tab_picking.htm",
+   "/content/labor_productivity_widget.htm",
+   "/content/labor_performance_widget.htm",
+   "/content/people_labor_section.htm"
+  ],
+  "sha1": "52c866ac30971152729e56ed45eb399d3d1fc095"
+ },
+ {
+  "src": "/content/resources/images/image1178164.png",
+  "alt": [
+   "Neutral Performance Trend"
+  ],
+  "used_on": [
+   "/content/labor_tab.htm",
+   "/content/labor_tab_picking.htm",
+   "/content/labor_productivity_widget.htm",
+   "/content/labor_performance_widget.htm",
+   "/content/people_labor_section.htm"
+  ],
+  "sha1": "0dd59ed0dacd53077fc58408b4753703e05e5e5c"
+ },
+ {
+  "src": "/content/resources/images/image1182503.png",
+  "alt": [
+   "Expand",
+   "Toggle (Expand)",
+   "Toggle Down"
+  ],
+  "used_on": [
+   "/content/labor_tab.htm",
+   "/content/labor_tab_picking.htm",
+   "/content/labor_dashboard.htm",
+   "/content/labor_productivity_widget.htm",
+   "/content/labor_performance_widget.htm"
+  ],
+  "sha1": "2150401060ac97773963514783bc192c4c783271"
+ },
+ {
+  "src": "/content/resources/images/image1182504.png",
+  "alt": [
+   "Collapse",
+   "Toggle (Collapse)",
+   "Toggle Up"
+  ],
+  "used_on": [
+   "/content/labor_tab.htm",
+   "/content/labor_tab_picking.htm",
+   "/content/labor_dashboard.htm",
+   "/content/labor_productivity_widget.htm",
+   "/content/labor_performance_widget.htm"
+  ],
+  "sha1": "c867446ad66a956f9a97825fc407059b21a3d6ed"
+ },
+ {
+  "src": "/content/resources/images/image430285.png",
+  "alt": [
+   "Delete"
+  ],
+  "used_on": [
+   "/content/procedures_for_loads_outbound.htm",
+   "/content/procedures_for_loads.htm"
+  ],
+  "sha1": "a5a5416929200f99a5c0efe746ba1ebc1f12c3d1"
+ },
+ {
+  "src": "/content/resources/images/image1083390.png",
+  "alt": [
+   "Refresh"
+  ],
+  "used_on": [
+   "/content/procedures_for_picking_issues.htm",
+   "/content/message.htm"
+  ],
+  "sha1": "6a56e71091c873de20c711e1a9b3bd3bcbd92fb3"
+ },
+ {
+  "src": "/content/resources/images/image430108.png",
+  "alt": [
+   "Earlier time"
+  ],
+  "used_on": [
+   "/content/dashboard_receiving.htm",
+   "/content/appointments.htm",
+   "/content/procedures_for_appointments.htm",
+   "/content/procedures_for_check_in.htm",
+   "/content/procedures_for_transport_equipment.htm"
+  ],
+  "sha1": "2dde562d8daf451bffec2c8b5edc72f53dce4fcf"
+ },
+ {
+  "src": "/content/resources/images/image430109.png",
+  "alt": [
+   "Later time"
+  ],
+  "used_on": [
+   "/content/dashboard_receiving.htm",
+   "/content/appointments.htm",
+   "/content/procedures_for_appointments.htm",
+   "/content/procedures_for_check_in.htm",
+   "/content/procedures_for_transport_equipment.htm"
+  ],
+  "sha1": "8881ee02a00606e2c6ba476aecf9308b9f9ff3ed"
+ },
+ {
+  "src": "/content/resources/images/image429922_16x16.png",
+  "alt": [
+   "Expand"
+  ],
+  "used_on": [
+   "/content/procedures_for_receiving_issues.htm"
+  ],
+  "sha1": "33f24e6dc7465beef354f127428d3ed23a0ef86f"
+ },
+ {
+  "src": "/content/resources/images/image430276_16x16.png",
+  "alt": [
+   "Collapse"
+  ],
+  "used_on": [
+   "/content/procedures_for_receiving_issues.htm"
+  ],
+  "sha1": "27cad27e2921dca377bd5a5de7cbb0b87fe2d15f"
+ },
+ {
+  "src": "/content/resources/images/image1010461.png",
+  "alt": [
+   "Later time"
+  ],
+  "used_on": [
+   "/content/dashboard_shipping.htm"
+  ],
+  "sha1": "993f2ea91d5003808620bed5e8daa075accd2bc2"
+ },
+ {
+  "src": "/content/resources/images/image1010462.png",
+  "alt": [
+   "Earlier time"
+  ],
+  "used_on": [
+   "/content/dashboard_shipping.htm"
+  ],
+  "sha1": "c353deaabfecef815b8b880b0e2eb4f99719fd20"
+ },
+ {
+  "src": "/content/resources/images/image1010464.png",
+  "alt": [
+   "Left"
+  ],
+  "used_on": [
+   "/content/dashboard_shipping.htm"
+  ],
+  "sha1": "0c644508d8cf9566bbe3795b199834165cc3440b"
+ },
+ {
+  "src": "/content/resources/images/image1010465.png",
+  "alt": [
+   "Right"
+  ],
+  "used_on": [
+   "/content/dashboard_shipping.htm"
+  ],
+  "sha1": "424d95d063f2e877f89031de97fe2f4680cdb178"
+ },
+ {
+  "src": "/content/resources/images/image430893.png",
+  "alt": [
+   "Present time"
+  ],
+  "used_on": [
+   "/content/appointments.htm"
+  ],
+  "sha1": "66f4b3461d6bffd703e0d875ac9d5f36f2f5b3d4"
+ },
+ {
+  "src": "/content/resources/images/image1033098.png",
+  "alt": [
+   "Received"
+  ],
+  "used_on": [
+   "/content/status_bars_door_activity.htm",
+   "/content/status_bars.htm"
+  ],
+  "sha1": "43d232b7c2b9b5b86d99f7b735dd00483de1b4f3"
+ },
+ {
+  "src": "/content/resources/images/image1033100.png",
+  "alt": [
+   "Stored",
+   "Receiving"
+  ],
+  "used_on": [
+   "/content/status_bars_door_activity.htm",
+   "/content/status_bars.htm"
+  ],
+  "sha1": "ccd195f38811611b87c5ad0f59b1a01686ace008"
+ },
+ {
+  "src": "/content/resources/images/image1033099.png",
+  "alt": [
+   "Picked"
+  ],
+  "used_on": [
+   "/content/status_bars_door_activity.htm",
+   "/content/status_bars.htm"
+  ],
+  "sha1": "e2895f4b70eb11dab54042fd171adfeff3eaab35"
+ },
+ {
+  "src": "/content/resources/images/image1033101.png",
+  "alt": [
+   "Loaded",
+   "Shipping"
+  ],
+  "used_on": [
+   "/content/status_bars_door_activity.htm",
+   "/content/status_bars.htm"
+  ],
+  "sha1": "ff690003dfd89f11f87cf07b59cef692f3fb10b9"
+ },
+ {
+  "src": "/content/resources/images/image1032965.png",
+  "alt": [
+   "Receiving Status Bar Example"
+  ],
+  "used_on": [
+   "/content/status_bars_door_activity.htm",
+   "/content/status_bars.htm"
+  ],
+  "sha1": "7a063aa6782e7cce1496f1bed9735f4da04ea813"
+ },
+ {
+  "src": "/content/resources/images/image1033089_337x34.png",
+  "alt": [
+   "Shipping Status Bar Example"
+  ],
+  "used_on": [
+   "/content/status_bars_door_activity.htm",
+   "/content/status_bars.htm"
+  ],
+  "sha1": "35b973c51645ef03119963d280c65f04488d6b59"
+ },
+ {
+  "src": "/content/resources/images/image1033112.png",
+  "alt": [
+   "Storage"
+  ],
+  "used_on": [
+   "/content/status_bars_door_activity.htm",
+   "/content/status_bars.htm"
+  ],
+  "sha1": "2371ed6a34df60e83e3fd39339aaec052aa82734"
+ },
+ {
+  "src": "/content/resources/images/image1033113.png",
+  "alt": [
+   "Storage Status Bar Example"
+  ],
+  "used_on": [
+   "/content/status_bars_door_activity.htm",
+   "/content/status_bars.htm"
+  ],
+  "sha1": "0b1887b65c5840bf87418cfbd8819a1545745993"
+ },
+ {
+  "src": "/content/resources/images/image1076719.png",
+  "alt": [
+   "Expand",
+   "Expand/Collapse"
+  ],
+  "used_on": [
+   "/content/procedures_for_waves.htm",
+   "/content/labor_assignments.htm"
+  ],
+  "sha1": "04d006c03e572875e949d29d441b736293be5a10"
+ },
+ {
+  "src": "/content/resources/images/image1076720.png",
+  "alt": [
+   "Expand",
+   "Expand/Collapse"
+  ],
+  "used_on": [
+   "/content/procedures_for_waves.htm",
+   "/content/labor_assignments.htm"
+  ],
+  "sha1": "d9131ed4dcd8e9b0f57c65c332713b53d2a7bdfc"
+ },
+ {
+  "src": "/content/resources/images/labor_pending_small.png",
+  "alt": [
+   "Pending: Due Today / Past Due"
+  ],
+  "used_on": [
+   "/content/labor_dashboard.htm",
+   "/content/labor_observations_widget.htm"
+  ],
+  "sha1": "19be9b85d6d82d167dddf28908d850699bc6b8c3"
+ },
+ {
+  "src": "/content/resources/images/laborobvs_in_process.png",
+  "alt": [
+   "In Process"
+  ],
+  "used_on": [
+   "/content/labor_dashboard.htm",
+   "/content/labor_observations_widget.htm",
+   "/content/people_labor_section.htm"
+  ],
+  "sha1": "820f3233bb46438783fbfee072c701dbef7edd3a"
+ },
+ {
+  "src": "/content/resources/images/laborobvs_observed.png",
+  "alt": [
+   "Observed"
+  ],
+  "used_on": [
+   "/content/labor_dashboard.htm",
+   "/content/labor_observations_widget.htm"
+  ],
+  "sha1": "d4613afe66664f92b7d75ca38545ecd5004c14fd"
+ },
+ {
+  "src": "/content/resources/images/labor_pending_approval.png",
+  "alt": [
+   "Pending Approvals"
+  ],
+  "used_on": [
+   "/content/labor_performance_widget.htm"
+  ],
+  "sha1": "ba7324108b6d0328fa27e204fb3b21b0c476749f"
+ },
+ {
+  "src": "/content/resources/images/labor_addobservation.png",
+  "alt": [
+   "Add observation"
+  ],
+  "used_on": [
+   "/content/labor_performance_widget.htm",
+   "/content/labor_observations_widget.htm"
+  ],
+  "sha1": "3e3915a8046e95e01d4106860b1271e97827e1e3"
+ },
+ {
+  "src": "/content/resources/images/image1182340.png",
+  "alt": [
+   "Collapse"
+  ],
+  "used_on": [
+   "/content/labor_performance_widget.htm"
+  ],
+  "sha1": "c0375d46e57a48fd2e7a23e9d21a23286def2785"
+ },
+ {
+  "src": "/content/resources/images/labor_pastdueobvs.png",
+  "alt": [
+   "Past Due"
+  ],
+  "used_on": [
+   "/content/labor_observations_widget.htm"
+  ],
+  "sha1": "8403dedc88742a872c76e07af6370483bcbb0a37"
+ },
+ {
+  "src": "/content/resources/images/labor_approve_time.png",
+  "alt": [
+   "Approve"
+  ],
+  "used_on": [
+   "/content/labor_approvals_widget.htm"
+  ],
+  "sha1": "53420deeb884492943781cd92a694faf8ce46ff0"
+ },
+ {
+  "src": "/content/resources/images/labor_adjust_time.png",
+  "alt": [
+   "Adjust Duration"
+  ],
+  "used_on": [
+   "/content/labor_approvals_widget.htm"
+  ],
+  "sha1": "840d50e65f4055d3714c2d4216c80eea84110da8"
+ },
+ {
+  "src": "/content/resources/images/labor_reject_time.png",
+  "alt": [
+   "Reject"
+  ],
+  "used_on": [
+   "/content/labor_approvals_widget.htm"
+  ],
+  "sha1": "43a818bf01a8e9d4f1ceb81c75b3d959552d3863"
+ },
+ {
+  "src": "/content/resources/images/labor_home_24x24.png",
+  "alt": [
+   "My Details"
+  ],
+  "used_on": [
+   "/content/people_labor_section.htm"
+  ],
+  "sha1": "ebaad2791c4709406f18f921729f5b6d0b74dfac"
+ },
+ {
+  "src": "/content/resources/images/labor_milestone_19x18.png",
+  "alt": [
+   "Milestone"
+  ],
+  "used_on": [
+   "/content/people_labor_section.htm"
+  ],
+  "sha1": "4115d215c8de7c851ad01614c89087b1d4d5d7ec"
+ },
+ {
+  "src": "/content/resources/images/labor_home_25x25.png",
+  "alt": [
+   "My Details"
+  ],
+  "used_on": [
+   "/content/people_labor_section.htm"
+  ],
+  "sha1": "cd24aee62402702d48d4f34b3c16175de1fcdef6"
+ },
+ {
+  "src": "/content/resources/images/expand_widget.png",
+  "alt": [
+   "Expand"
+  ],
+  "used_on": [
+   "/content/people_labor_section.htm"
+  ],
+  "sha1": "f9db0789cac5fb39b84763300566320ee4cafbfd"
+ },
+ {
+  "src": "/content/resources/images/image1033123.png",
+  "alt": [
+   "Attachment"
+  ],
+  "used_on": [
+   "/content/em/alerts.htm"
+  ],
+  "sha1": "2af23036d06341f14db3c6590fd39efea28dc735"
+ },
+ {
+  "src": "/content/resources/images/image1139573_16x20.png",
+  "alt": [
+   "Rotate"
+  ],
+  "used_on": [
+   "/content/admin/operations.htm",
+   "/content/admin/archive.htm"
+  ],
+  "sha1": "a4c307121bc872bf44f6575eaba4d2d08ff13260"
+ },
+ {
+  "src": "/content/resources/images/image1139575_17x20.png",
+  "alt": [
+   "Download"
+  ],
+  "used_on": [
+   "/content/admin/operations.htm",
+   "/content/admin/archive.htm"
+  ],
+  "sha1": "74fa8254e37b88c75352bfe597ad703dcc82b0dc"
+ },
+ {
+  "src": "/content/resources/images/image1139616_19x20.png",
+  "alt": [
+   "Print"
+  ],
+  "used_on": [
+   "/content/admin/operations.htm",
+   "/content/admin/archive.htm"
+  ],
+  "sha1": "8f19575c66697874284fdec711df649071e9571c"
+ },
+ {
+  "src": "/content/resources/images/image1139577_19x20.png",
+  "alt": [
+   "Fit to page"
+  ],
+  "used_on": [
+   "/content/admin/operations.htm",
+   "/content/admin/archive.htm"
+  ],
+  "sha1": "4e671b9097b158d891a9e1037a88659718a8cbd5"
+ },
+ {
+  "src": "/content/resources/images/image1139618_19x20.png",
+  "alt": [
+   "Fit to width"
+  ],
+  "used_on": [
+   "/content/admin/operations.htm",
+   "/content/admin/archive.htm"
+  ],
+  "sha1": "3426bf023bbb00bd834e21ce7b8cfd236f4cb6bc"
+ },
+ {
+  "src": "/content/resources/images/image1139581_21x20.png",
+  "alt": [
+   "Zoom in"
+  ],
+  "used_on": [
+   "/content/admin/operations.htm",
+   "/content/admin/archive.htm"
+  ],
+  "sha1": "1ffc34fdb96c64c577df1dd32d86dea300366a25"
+ },
+ {
+  "src": "/content/resources/images/image1139583_22x20.png",
+  "alt": [
+   "Zoom out"
+  ],
+  "used_on": [
+   "/content/admin/operations.htm",
+   "/content/admin/archive.htm"
+  ],
+  "sha1": "78e1d96eba5fc35d69bf8c3cfae4bc68698d8a1a"
+ },
+ {
+  "src": "/content/resources/images/image1100232.png",
+  "alt": [
+   "Extensions settings"
+  ],
+  "used_on": [
+   "/content/admin/extensions.htm",
+   "/content/admin/field_editor.htm"
+  ],
+  "sha1": "0b0de637e4095c2f95c58130063250c1a8069548"
+ },
+ {
+  "src": "/content/resources/images/image1098457_13x13.png",
+  "alt": [
+   "Extensions settings"
+  ],
+  "used_on": [
+   "/content/admin/extensions.htm"
+  ],
+  "sha1": "98172e3aaf2be17c65d8041ed4cb007b1182f272"
+ },
+ {
+  "src": "/content/resources/images/image598345.png",
+  "alt": [
+   "Edit"
+  ],
+  "used_on": [
+   "/content/admin/message_editor.htm"
+  ],
+  "sha1": "94863d334ff31fcdf645a12fcbc6f4903cc33b1d"
+ },
+ {
+  "src": "/content/resources/images/image1098457.png",
+  "alt": [
+   "Extensions settings"
+  ],
+  "used_on": [
+   "/content/admin/field_editor.htm",
+   "/content/admin/page_builder.htm",
+   "/content/admin/grid.htm",
+   "/content/admin/chart.htm",
+   "/content/admin/dashboard.htm",
+   "/content/admin/form.htm"
+  ],
+  "sha1": "ea87792d3d28c603191c836d6e8e142c1b9ff34d"
+ },
+ {
+  "src": "/content/resources/images/image1140974.png",
+  "alt": [
+   "Edit"
+  ],
+  "used_on": [
+   "/content/admin/field_editor.htm",
+   "/content/admin/grid.htm",
+   "/content/admin/chart.htm",
+   "/content/admin/form.htm"
+  ],
+  "sha1": "08b92c9069eba8efd1fcdfaed274aefcddf0b26b"
+ },
+ {
+  "src": "/content/resources/images/normal_import_24_15x15.png",
+  "alt": [
+   "Import"
+  ],
+  "used_on": [
+   "/content/admin/page_builder.htm"
+  ],
+  "sha1": "d4cbe0c4bfa144a3ec77cec1331338941266d011"
+ },
+ {
+  "src": "/content/resources/images/image1140974_11x10.png",
+  "alt": [
+   "Edit"
+  ],
+  "used_on": [
+   "/content/admin/grid.htm"
+  ],
+  "sha1": "c3ed8b20f323149ab831de0bdb2caae6ac908fb9"
+ },
+ {
+  "src": "/content/resources/images/image1081617_177x174.png",
+  "alt": [
+   "Pie chart"
+  ],
+  "used_on": [
+   "/content/admin/chart.htm"
+  ],
+  "sha1": "8efabd3d084242f37ef3d29016f717fb54f77248"
+ },
+ {
+  "src": "/content/resources/images/image1081616_323x174.png",
+  "alt": [
+   "Line chart"
+  ],
+  "used_on": [
+   "/content/admin/chart.htm"
+  ],
+  "sha1": "1a12993a0216af56345cb37fa7a477e799439c3d"
+ },
+ {
+  "src": "/content/resources/images/image1081615_264x146.png",
+  "alt": [
+   "Horizontal Bar and Column chart"
+  ],
+  "used_on": [
+   "/content/admin/chart.htm"
+  ],
+  "sha1": "eae314fc71365482fff3c48ae0f49caa2dddc70e"
+ },
+ {
+  "src": "/content/resources/images/image1081613_293x129.png",
+  "alt": [
+   "Vertical Bar and Column chart"
+  ],
+  "used_on": [
+   "/content/admin/chart.htm"
+  ],
+  "sha1": "b0c1fd3521cbfb07d1488057cad459b11cf2ced3"
+ },
+ {
+  "src": "/content/resources/images/image1139491.png",
+  "alt": [
+   "Reset"
+  ],
+  "used_on": [
+   "/content/admin/dashboard.htm"
+  ],
+  "sha1": "7d953726d44e40e5c2f899aa9b7fd28b8d4e2ba4"
+ },
+ {
+  "src": "/content/resources/images/image1139492.png",
+  "alt": [
+   "Add"
+  ],
+  "used_on": [
+   "/content/admin/dashboard.htm"
+  ],
+  "sha1": "5bc7534c65013dda0413bb28ee7ce976b46f88d7"
+ },
+ {
+  "src": "/content/resources/images/image1130427.png",
+  "alt": [
+   "Single-column layout"
+  ],
+  "used_on": [
+   "/content/admin/form.htm"
+  ],
+  "sha1": "2f0176de030d1d8cf4dc4e20522b57d783fc9359"
+ },
+ {
+  "src": "/content/resources/images/image1130428.png",
+  "alt": [
+   "Two-column layout"
+  ],
+  "used_on": [
+   "/content/admin/form.htm"
+  ],
+  "sha1": "289bb55bf478162c653f534c2c11616467587372"
+ },
+ {
+  "src": "/content/resources/images/image1139545.png",
+  "alt": [
+   "Expand"
+  ],
+  "used_on": [
+   "/content/admin/menu_editor.htm"
+  ],
+  "sha1": "6fdfca6efb260fb10830679a2dfc08a597dbdcd9"
+ },
+ {
+  "src": "/content/resources/images/image1139607.png",
+  "alt": [
+   "Search"
+  ],
+  "used_on": [
+   "/content/admin/menu_editor.htm"
+  ],
+  "sha1": "053c7fcae84dfff87d458e07074944233f181c9a"
+ }
+]

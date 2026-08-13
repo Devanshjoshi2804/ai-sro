@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Allocation" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Inventory rotation allocation </title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Inventoryrotationallocation">Inventory rotation allocation </a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Inventoryrotationmethods">Inventory rotation methods</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventoryrotationallocationprocessing">Inventory rotation allocation processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventorymustmatchinventoryrotationmethod">Inventory must match inventory rotation method</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Continuetoallocateinventorybeyondbestdate">Continue to allocate inventory beyond best date</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#ExampleNotenoughbestdateinventorytomatchrotationmethod">Example: Not enough best-date inventory to match rotation method</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Datebasedinventoryrotationmethodprocessing">Date-based inventory rotation method processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Datebasedabsoluteinventoryrotationmethodprocessing">Date-based absolute inventory rotation method processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Locationattributeinventoryrotationmethodprocessing">Location attribute inventory rotation method processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventoryrotationallocationprocessingexamples">Inventory rotation allocation processing examples</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Outbounddatewindow">Outbound date window</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Datewindowcalculations">Date window calculations</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Movementzonesforabsoluteinventoryrotationallocation">Movement zones for absolute inventory rotation allocation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventoryrotationallocationprocessingsetup">Inventory rotation allocation processing setup</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Inventoryrotationallocation" data-magellan-target="Inventoryrotationallocation"><a name="aanchor297"></a>
+                                                            <MadCap:concept term="WM" />Inventory rotation allocation </h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Inventoryrotationallocation">Inventory rotation allocation </a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Inventoryrotationmethods">Inventory rotation methods</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventoryrotationallocationprocessing">Inventory rotation allocation processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventorymustmatchinventoryrotationmethod">Inventory must match inventory rotation method</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Datebasedinventoryrotationmethodprocessing">Date-based inventory rotation method processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Datebasedabsoluteinventoryrotationmethodprocessing">Date-based absolute inventory rotation method processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Locationattributeinventoryrotationmethodprocessing">Location attribute inventory rotation method processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventoryrotationallocationprocessingexamples">Inventory rotation allocation processing examples</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Outbounddatewindow">Outbound date window</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Movementzonesforabsoluteinventoryrotationallocation">Movement zones for absolute inventory rotation allocation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventoryrotationallocationprocessingsetup">Inventory rotation allocation processing setup</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Inventory rotation allocation is a process that allocation uses to find and allocate inventory for an order based on an inventory rotation method and the received, manufactured, or expiration date of inventory. The inventory rotation method determines the sequence in which allocation evaluates available inventory for allocation.</p>
+                                                        <p>If an order or work order line does not use an inventory rotation method, such as first-expired, first-out (FEFO), allocation processing follows the sequence of allocation search paths, and it allocates the first inventory that it finds that matches the required attributes on the order or work order line.</p>
+                                                        <p>If the order or work order line uses an inventory rotation method that is not absolute, such as FEFO, allocation follows the sequence of allocation search paths to find a zone that contains the inventory, and then from that zone it allocates the inventory closest to the processing date defined by the inventory rotation method.</p>
+                                                        <p>If the order or work order line uses an absolute inventory rotation method, such as absolute FEFO, and absolute groups are not defined, allocation searches all of the appropriate search paths until it finds the inventory that is closest to the appropriate processing date. If absolute groups are defined, it searches the sequence of absolute groups until it finds matching inventory within an absolute group, and then it allocates from within that group the inventory closest to the appropriate processing date. Movement zones not associated with a shipping or replenishment allocation search path can also be included in the search for inventory closest to the processing date. See <a href="#Movement_zones_for_absolute_inventory_rotation_allocation">Movement zones for absolute inventory rotation allocation</a>.</p>
+                                                        <h2 id="Inventoryrotationmethods" data-magellan-target="Inventoryrotationmethods"><a name="Inventory_rotation_methods"></a>Inventory rotation methods</h2>
+                                                        <p>An inventory rotation method determines the order in which the application chooses available inventory for allocation and replenishment.</p>
+                                                        <p>Allocation for an order or work order follows the sequence of allocation search paths and, if appropriate, absolute groups, if they are defined for search paths. Replenishments follow the sequence of replenishment search paths.</p>
+                                                        <div class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: The regular and absolute FEFO and LEFO methods of inventory rotation are only supported for date-tracked inventory that is assigned to an aging profile with an <span class="notebold">Expired</span> status defined.</div>
+                                                        <p>The application supports the following default inventory rotation methods:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">FIFO-ORDER-BY</span>: First-in, first-out. The oldest inventory, based on received date, is selected first from the first search path that contains matching inventory.</li>
+                                                            <li><span class="specialbold">FIFO-ORDER-BY-ABSOLUTE</span>: The oldest inventory, based on received date, is selected first based on a search of all search paths or, if absolute groups are defined, from the first absolute group that contains matching inventory.</li>
+                                                            <li><span class="specialbold">LIFO-ORDER-BY</span>: Last-in, first-out. The newest inventory, based on received date, is selected first from the first search path that contains matching inventory.</li>
+                                                            <li><span class="specialbold">LIFO-ORDER-BY-ABSOLUTE</span>: The newest inventory, based on received date, is selected first based on a search of all search paths or, if absolute groups are defined, from the first absolute group that contains matching inventory.</li>
+                                                            <li><span class="specialbold">FEFO-ORDER-BY</span>: First-expiration, first-out. The first inventory to expire, based on expiration date, is selected first from the first search path that contains matching inventory.</li>
+                                                            <li><span class="specialbold">FEFO-ORDER-BY-ABSOLUTE</span>: The first inventory to expire, based on expiration date, is selected first based on a search of all search paths or, if absolute groups are defined, from the first absolute group that contains matching inventory.</li>
+                                                            <li><span class="specialbold">LEFO-ORDER-BY</span>: Last-expiration, first-out. The last inventory to expire, based on expiration date, is selected first from the first search path that contains matching inventory.</li>
+                                                            <li><span class="specialbold">LEFO-ORDER-BY-ABSOLUTE</span>: The last inventory to expire, based on expiration date, is selected first based on a search of all search paths or, if absolute groups are defined, from the first absolute group that contains matching inventory.</li>
+                                                            <li><span class="specialbold">LOCATION-ORDER-BY</span>: Locations are ordered within an pick zone (maintaining the search path order) by the location attributes specified for the <span class="specialbold">Location Sort</span> configuration in the inventory selection settings.</li>
+                                                        </ul>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The <b>Inventory in Location Sort</b> configuration is not an inventory rotation method, but is an additional sorting method applied after allocation to ensure the consumption of proper inventory during picking. LPNs of inventory within a location are ordered by the attributes specified by the <b>Inventory in Location Sort</b> configuration in the inventory selection settings. </p>
+                                                        <h2 id="Inventoryrotationallocationprocessing" data-magellan-target="Inventoryrotationallocationprocessing"><a name="Inventory_rotation_allocation_processing"></a>Inventory rotation allocation processing</h2>
+                                                        <p>Inventory rotation allocation processing is an allocation process that is directed by an inventory rotation method. An inventory rotation method determines the order in which allocation chooses available inventory to fulfill an order or replenishment. For inventory rotation methods, allocation searches for inventory according to the sequence of allocation or replenishment search paths. For absolute inventory rotation methods, allocation ignores the search path sequence but can be limited to search paths defined by absolute groups.  </p>
+                                                        <p>If an inventory rotation method is specified at any of the following levels, the application uses the one with the highest precedence. The precedence is defined from highest to lowest in the following order: </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Inventory rotation methods defined at a lower precedence (except the default method) are automatically copied to the order line or work order line when the line is created. For example, if an order line is created for a date-tracked item with a rotation method defined, the rotation method is copied from the item to the order line, and then the application uses the order line rotation method during allocation.</p>
+                                                        <ul>
+                                                            <li>Order line or work order line</li>
+                                                            <li>Customer item</li>
+                                                            <li>Item</li>
+                                                            <li>Customer (ship to)</li>
+                                                            <li>Customer type</li>
+                                                            <li>Client</li>
+                                                            <li>Default rotation method<ul><li>For order allocations, defined by the allocation inventory selection configuration</li><li>For replenishments, defined by the replenishment settings configuration</li></ul></li>
+                                                        </ul>
+                                                        <p>After inventory has been allocated from a location using a date-based inventory rotation method, the application directs the picker to pick the best inventory available in that location. The operator can pick any inventory that is within the date window of the best inventory available.</p>
+                                                        <h2 id="Inventorymustmatchinventoryrotationmethod" data-magellan-target="Inventorymustmatchinventoryrotationmethod"><a name="Inventory_must_match_inventory_rotation_method"></a>Inventory must match inventory rotation method</h2>
+                                                        <p>Allocation attempts to fulfill a request for inventory (such as an order line) with inventory closest to the processing date based on the inventory rotation method associated with the request. The inventory rotation method configuration determines what takes place when the application finds an insufficient quantity of best-date inventory or when the best-date inventory cannot be allocated. Best-date inventory may not be eligible for allocation if the unit of measure (UOM) does not match the UOM of the request, for example.</p>
+                                                        <p>You use the <span class="specialbold">Inventory Must Match Inventory Rotation Method</span> field to specify whether the application must allocate inventory for an order line that matches the best date as determined by the inventory rotation method. </p>
+                                                        <p>If you set this field to Yes, then for order lines that require the inventory rotation method,  the application must allocate inventory  that matches the best date as determined by the inventory rotation method. If no quantity of best-date inventory can be allocated, then the entire order line is shorted.  When there is not enough best-date inventory to fulfill the request, the <b>Continue to Allocate Inventory Beyond Best Date</b> field, which becomes available when the <b>Inventory Must Match Inventory Rotation Method</b> field is set to Yes, determines whether the application shorts the remaining quantity or attempts to allocate inventory using the next best date. See <a href="#Continue_to_allocate_inventory_beyond_best_date">Continue to allocate inventory beyond best date</a>.</p>
+                                                        <p>If you set this field to No, then when the available inventory (based on the best date for the inventory rotation method) is not enough to fulfill the order line or the best-date inventory cannot be allocated, the application attempts to fulfill the remaining quantity with the next closest date based on the inventory rotation method until the order line is fulfilled. If the application cannot allocate the required quantity after considering all dates for the inventory rotation method, then the order line is shorted.</p>
+                                                        <p>You can access both the <b>Inventory Must Match Rotation Method</b> and <b>Continue to Allocate Inventory Beyond Best Date</b> fields when configuring <span class="specialbold">Location Sort</span> for an absolute rotation method. See <a href="allocation_inventory_selection.htm#Configure_allocation_inventory_selection_settings">Configure allocation inventory selection settings</a>.</p>
+                                                        <h3 id="Continuetoallocateinventorybeyondbestdate" data-magellan-target="Continuetoallocateinventorybeyondbestdate"><a name="Continue_to_allocate_inventory_beyond_best_date"></a>Continue to allocate inventory beyond best date</h3>
+                                                        <p>When the <b>Inventory Must Match Inventory Rotation Method</b> field is set to Yes, you use the <b>Continue to Allocate Inventory Beyond Best Date</b> field to specify whether the application attempts to allocate inventory with the next best date if there is not enough best-date inventory available to fulfill an order line.</p>
+                                                        <p>If you set this field to Yes, then when the application has allocated all available best-date inventory for an order line based on the inventory rotation method and there is unfulfilled quantity, the application continues to allocate inventory with the next best date to fulfill the order line. The application continues searching for the next best date until the order line is fully allocated or the next best-date inventory is unavailable. If the application cannot allocate the required quantity after considering all dates for the inventory rotation method, then the order line is shorted. The application only continues to allocate beyond the best date for an order line if a partial quantity of best-date inventory is allocated; if no best-date inventory is able to be allocated, then the entire order line is shorted.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If this field is set to Yes and an order line does not allow case splitting, the application's behavior when encountering a partial case of best-date inventory is determined by the <b>Ignore Partial Cases for Strict Absolute Date Allocation</b> field in the allocation inventory selection configuration. If the <b>Ignore Partial Cases for Strict Absolute Date Allocation</b> field is set to Yes, then the application allocates any full cases with the same date as the partial case, skips the partial case, and continues to allocate the next best-date inventory. If the <b>Ignore Partial Cases for Strict Absolute Date Allocation</b> field is set to No, then the application allocates any full cases with the same date as the partial case, but the remaining quantity for the order line is shorted.</p>
+                                                        <p>If you set this field to No, then the application does not allocate inventory beyond the best date for an order line based on the inventory rotation method. For example, if the application can only allocate 10 eaches of best-date inventory for an order line requiring 20 eaches, then the remaining 10 eaches are shorted, even if there is available inventory with the next best date. This field is set to No by default. </p>
+                                                        <h3 id="ExampleNotenoughbestdateinventorytomatchrotationmethod" data-magellan-target="ExampleNotenoughbestdateinventorytomatchrotationmethod">Example: Not enough best-date inventory to match rotation method</h3>
+                                                        <p>For example, an order line requires 20 eaches of ITEM-A with an inventory rotation method of first-expired, first-out (FEFO). When the order line is allocated, the application finds the first-expired inventory, but there are only 10 eaches with that expiration date available for allocation.</p>
+                                                        <ul>
+                                                            <li>If the <span class="specialbold">Inventory Must Match Inventory Rotation Method</span> field is set to Yes and the <b>Continue to Allocate Inventory Beyond Best Date</b> field is set to No, the application allocates the 10 eaches with the oldest expiration date and shorts the remaining quantity (10 eaches). </li>
+                                                            <li>If the <span class="specialbold">Inventory Must Match Inventory Rotation Method</span> field is set to Yes and the <b>Continue to Allocate Inventory Beyond Best Date</b> field is set to Yes, the application allocates the 10 eaches with the oldest expiration date and then continues to allocate inventory from the next oldest expiration date to fulfill the order line until the order line quantity is fulfilled. If the  inventory with the next oldest expiration date cannot be allocated, then the application shorts the remaining quantity. </li>
+                                                            <li>If the <span class="specialbold">Inventory Must Match Inventory Rotation Method</span> field is set to No, the application searches for inventory with the next oldest expiration date to fulfill the rest of the quantity needed by the order line, and continues searching the next oldest expiration dates until the order line quantity is fulfilled.</li>
+                                                        </ul>
+                                                        <h2 id="Datebasedinventoryrotationmethodprocessing" data-magellan-target="Datebasedinventoryrotationmethodprocessing"><a name="Date-based_inventory_rotation_method_processing"></a>Date-based inventory rotation method processing</h2>
+                                                        <p>When using a date-based inventory rotation method (FEFO-ORDER-BY, FIFO-ORDER-BY, LEFO-ORDER-BY, and LIFO-ORDER-BY), the application searches for inventory by search path sequence. When it finds a pick zone that contains the inventory, then the inventory closest to the preferred processing date is reserved, even when this inventory spans multiple locations in the zone. A location may contain inventory that has different dates, so the application determines the amount of inventory available for each date. After the inventory for a date has been allocated, the application considers inventory in all of the locations in a zone to determine the next date to allocate. This logic only considers pick zones in which the unit of measure (UOM) is valid for picking.</p>
+                                                        <p>Date-based inventory rotation methods are typically used by companies that have items that have a longer shelf life; therefore, shipping inventory based on the priority of the search path is acceptable.</p>
+                                                        <p>For example, if the order is for ITEM01 and the inventory rotation method is first-in, first-out (FIFO-ORDER-BY), then the application finds the first pick zone that contains ITEM01 and allocates the oldest inventory based on its received date that matches all of the required attributes on the order line.</p>
+                                                        <h2 id="Datebasedabsoluteinventoryrotationmethodprocessing" data-magellan-target="Datebasedabsoluteinventoryrotationmethodprocessing"><a name="Date-based_absolute_inventory_rotation_method_processing"></a>Date-based absolute inventory rotation method processing</h2>
+                                                        <p>When using an absolute date-based inventory rotation method (FEFO-ORDER-BY-ABSOLUTE, FIFO-ORDER-BY-ABSOLUTE, LEFO-ORDER-BY-ABSOLUTE, and LIFO-ORDER-BY-ABSOLUTE), the application searches in one of the following ways, depending on whether absolute groups have been defined:</p>
+                                                        <ul>
+                                                            <li>If absolute groups are not defined, the application searches all search paths for inventory that is closest to the preferred processing date, even when this inventory spans multiple pick zones and locations. A location may contain inventory that has different dates, so the application determines the amount of inventory for each date. After the inventory for the preferred date is allocated, the application considers all other search paths to determine the next date to allocate. This logic only considers pick zones in which the UOM is valid for picking.</li>
+                                                            <li>If absolute groups are defined, the application searches each absolute group, in sequence, until it finds matching inventory, and then it allocates inventory that is closest to the preferred processing date within that absolute group. If sufficient inventory is not found, the application searches the next sequential absolute group.</li>
+                                                        </ul>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If the <b>Inventory Must Match Inventory Rotation Method</b> field is set to Yes, then the application must allocate inventory for an order line that matches the best date as determined by the inventory rotation method. If no quantity of best-date inventory can be allocated, then the entire order line is shorted. However, if a partial quantity of best-date inventory can be allocated, then the <b>Continue to Allocate Inventory Beyond Best Date</b> field determines whether the application shorts the remaining quantity or attempts to allocate inventory using the next best date. If the <b>Inventory Must Match Inventory Rotation Method</b> field is set to No, then the application can allocate inventory with the next closest date. See <a href="#Inventory_must_match_inventory_rotation_method">Inventory must match inventory rotation method</a>. </p>
+                                                        <p>Absolute date-based inventory rotation methods are typically used by companies that have items that have a very short shelf life; therefore, shipping the oldest inventory is critical to prevent it from expiring in the warehouse.</p>
+                                                        <p>For example, if the order is for ITEM01 and the absolute first-in, first-out (FIFO-ORDER-BY-ABSOLUTE) inventory rotation method is selected, the application searches in one of the following ways:</p>
+                                                        <ul>
+                                                            <li>The application searches all search paths until it finds the oldest inventory for ITEM01 based on its received date that matches all of the required attributes on the order line.</li>
+                                                            <li>The application searches each absolute group in sequence until it finds ITEM01, and then allocates the oldest inventory for ITEM01 based on its received date that matches all of the required attributes on the order line.</li>
+                                                        </ul>
+                                                        <h2 id="Locationattributeinventoryrotationmethodprocessing" data-magellan-target="Locationattributeinventoryrotationmethodprocessing"><a name="Location_attribute_inventory_rotation_method_processing"></a>Location attribute inventory rotation method processing</h2>
+                                                        <p>When using the location attribute inventory rotation method (<b>Location Order By</b>), the application searches for inventory by allocation search path sequence and then in the order defined by the location attributes specified in the <b>Location Order By</b> configuration.</p>
+                                                        <h2 id="Inventoryrotationallocationprocessingexamples" data-magellan-target="Inventoryrotationallocationprocessingexamples"><a name="Inventory_rotation_allocation_processing_examples"></a>Inventory rotation allocation processing examples</h2>
+                                                        <p><b><a targets="Example 1" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Example 1"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Example: Allocating in absolute date order with absolute groups</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Example 1">
+                                                            <p>For allocation search paths set to search GROUP1, then GROUP2, then GROUP3, the following table provides an example of the absolute date processing order in which the application would search for allocatable inventory using ABSOLUTE-FEFO-ORDER-BY.</p>
+                                                            <table style="width: 700;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <thead>
+                                                                    <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                        <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Group</th>
+                                                                        <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Search path</th>
+                                                                        <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Inventory</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="102" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>GROUP1</p>
+                                                                        </td>
+                                                                        <td width="156" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>Pick Zones 4, 6, and 8</p>
+                                                                        </td>
+                                                                        <td width="366" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>Expires May 5, May 12, and May 16</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="102" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>GROUP2</p>
+                                                                        </td>
+                                                                        <td width="156" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>Pick Zones 3, 5, and 7</p>
+                                                                        </td>
+                                                                        <td width="366" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>Expires May 1 and May 2</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="102" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                            <p>GROUP3</p>
+                                                                        </td>
+                                                                        <td width="156" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                            <p>Pick Zones 9 and 10</p>
+                                                                        </td>
+                                                                        <td width="366" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                            <p>Expires April 30, May 3, and May 4</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <p>The inventory expiring on May 5 in GROUP1 would be allocated first because the application stops searching other absolute groups when it finds inventory in an absolute group. If there is insufficient inventory that expires on May 5, it uses the inventory expiring on May 12 and then on May 16 in that same group. If additional inventory is still needed, the application allocates the inventory expiring on May 1 from GROUP2, and so on.</p>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: The example assumes that the inventory rotation method does not require all inventory on the order line to match the best date found. Instead, allocation will continue searching for the remaining inventory required to fulfill the order line. See <a href="#Inventory_must_match_inventory_rotation_method">Inventory must match inventory rotation method</a>.</p>
+                                                        </div>
+                                                        <p><b><a targets="Example 2" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Example 2"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Example: Allocating in absolute date order without absolute groups</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Example 2">
+                                                            <p>For allocation search paths set to search Pick Zone 1, 2, and then 3, the following table provides an example of the absolute date processing order in which the application would search for allocatable inventory using ABSOLUTE-FEFO-ORDER-BY.</p>
+                                                            <table style="width: 396;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <thead>
+                                                                    <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                        <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Search path</th>
+                                                                        <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Inventory</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="144" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>Pick Zone 1</p>
+                                                                        </td>
+                                                                        <td width="252" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>Expires May 12</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="144" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>Pick Zone 2</p>
+                                                                        </td>
+                                                                        <td width="252" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>Expires April 30</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="144" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                            <p>Pick Zone 3</p>
+                                                                        </td>
+                                                                        <td width="252" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                            <p>Expires May 5</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <p>The inventory expiring on April 30 would be allocated first, and then the inventory expiring on May 5, because for absolute date processing the application allocates the inventory that expires first, regardless of search path sequence.</p>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: The example assumes that the inventory rotation method does not require all inventory on the order line to match the best date found. Instead, allocation will continue searching for the remaining inventory required to fulfill the order line. See <a href="#Inventory_must_match_inventory_rotation_method">Inventory must match inventory rotation method</a>.</p>
+                                                        </div>
+                                                        <p><b><a targets="Example 3" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Example 3"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Example: Allocating in search path order</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Example 3">
+                                                            <p>For search paths set to search Pick Zone 1, 2, and then 3, the following table provides an example of the allocation search path order in which the application would search for allocatable inventory using FEFO-ORDER-BY.</p>
+                                                            <table style="width: 330;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <thead>
+                                                                    <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                        <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                            <p class="tableheading">Search Path</p>
+                                                                        </th>
+                                                                        <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                            <p class="tableheading">Inventory</p>
+                                                                        </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="156" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>Pick Zone 1</p>
+                                                                        </td>
+                                                                        <td width="174" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>Expires May 12</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="156" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>Pick Zone 2</p>
+                                                                        </td>
+                                                                        <td width="174" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>Expires April 30</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="156" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                            <p>Pick Zone 3</p>
+                                                                        </td>
+                                                                        <td width="174" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                            <p>Expires May 5</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <p>The inventory expiring on May 12 would be allocated instead of the inventory expiring on April 30, because the application allocates the first inventory that it finds based on search path sequence.</p>
+                                                        </div>
+                                                        <p><b><a targets="Example 4" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Example 4"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Example: Allocating locations</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Example 4">
+                                                            <p>When using absolute date processing, after selecting a pick zone, allocation sorts the locations to determine the one from which to allocate inventory. The following table provides a sample scenario.</p>
+                                                            <table style="width: 500;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <thead>
+                                                                    <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                        <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                            <p class="tableheading">Search path</p>
+                                                                        </th>
+                                                                        <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                            <p class="tableheading">Location</p>
+                                                                        </th>
+                                                                        <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                            <p class="tableheading">Inventory</p>
+                                                                        </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="138" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" rowspan="2">
+                                                                            <p>Pick Zone 1</p>
+                                                                        </td>
+                                                                        <td width="114" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>LOC1A</p>
+                                                                        </td>
+                                                                        <td width="216" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>4 cases that expire April 30</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="114" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">LOC2B</td>
+                                                                        <td width="216" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>4 cases that expire May 12</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="138" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                            <p>Pick Zone 2</p>
+                                                                        </td>
+                                                                        <td width="114" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                            <p>LOC2A</p>
+                                                                        </td>
+                                                                        <td width="216" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                            <p>2 cases that expire May 5</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <p>If the order quantity is for 7 cases, then using ABSOLUTE-FEFO-ORDER-BY, the application would allocate 4 cases from LOC1A, 2 cases from LOC2A, and 1 case from LOC1B.</p>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: The example assumes that the inventory rotation method does not require all inventory on the order line to match the best date found. Instead, allocation will continue searching for the remaining inventory required to fulfill the order line. See <a href="#Inventory_must_match_inventory_rotation_method">Inventory must match inventory rotation method</a>.</p>
+                                                        </div>
+                                                        <p><b><a targets="Example 5" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Example 5"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Example: Allocating a specific pallet</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Example 5">
+                                                            <p>When using absolute date processing, if a location contains mixed expiration dates, the application allocates the specific pallet of inventory using FEFO that is closest to expiring. The following table provides a sample scenario.</p>
+                                                            <table style="width: 474;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                                <col class="TableStyle-Table_Plain-Column-Column1">
+                                                                </col>
+                                                                <col class="TableStyle-Table_Plain-Column-Column1">
+                                                                </col>
+                                                                <col class="TableStyle-Table_Plain-Column-Column1">
+                                                                </col>
+                                                                <thead>
+                                                                    <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                        <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                            <p class="tableheading">Location</p>
+                                                                        </th>
+                                                                        <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                            <p class="tableheading">LPN</p>
+                                                                        </th>
+                                                                        <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                            <p class="tableheading">Inventory</p>
+                                                                        </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="132" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" rowspan="2">
+                                                                            <p>LOCA</p>
+                                                                        </td>
+                                                                        <td width="138" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>LPN100</p>
+                                                                        </td>
+                                                                        <td width="204" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>Expires May 5</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="138" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                            <p>LPN101</p>
+                                                                        </td>
+                                                                        <td width="204" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                            <p>Expires April 30</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <p>The application allocates LPN101 and directs the operator to pick it.</p>
+                                                        </div>
+                                                        <h2 id="Outbounddatewindow" data-magellan-target="Outbounddatewindow"><a name="Outbound_date_window"></a>Outbound date window</h2>
+                                                        <p>An outbound date window is an amount of time in relation to inventory’s received date or expiration date during which inventory is considered the same age for allocation when one of the FEFO/FIFO/LEFO/LIFO or absolute FEFO/FIFO/LEFO/LIFO inventory rotation methods is selected.</p>
+                                                        <p>An outbound date window can be defined for an order line, work order line, disassembly work order, bill of material (BOM) line, disassembly BOM, customer item, customer, customer type, item, client, allocation (default value for order allocations), and replenishment (default value for replenishment allocations). The application uses the date window defined for an entity based on the defined order of precedence. See <a href="allocation_inventory_selection.htm">Allocation Inventory Selection</a>.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: The<span class="notebold"> Enable Outbound Date Window</span> field in the allocation inventory selection configuration must be set to Yes for the outbound date window to take effect. </p>
+                                                        <p>To enhance the efficiency of inventory rotation allocation processing, you can define a window of time (in minutes, hours, or days) in which inventory of different ages is considered the same age for allocation even if inventory that is closer to or matches the exact expiration or receiving date is available.</p>
+                                                        <p>For example, if an outbound date window is defined, then the application processes allocation and picking in the following ways:</p>
+                                                        <ul>
+                                                            <li>The application allocates inventory within the window from a single location, even if inventory closer to the preferred processing date exists in another location.</li>
+                                                            <li>If an order line requires a full pallet, the application allocates a full pallet of inventory with expiration or receiving dates that fall within the configured window, even if partial pallets with expiration or receiving dates closer to the preferred processing date are available.</li>
+                                                            <li>If a location contains inventory with different expiration dates, the application allows operators to pick inventory from the location, as long as the expiration dates for the inventory fall within the configured window. This process eliminates having to search for and pick inventory with a specific expiration date.</li>
+                                                        </ul>
+                                                        <h3 id="Datewindowcalculations" data-magellan-target="Datewindowcalculations">Date window calculations</h3>
+                                                        <p>The following examples explain how the application calculates the outbound date window (time) for choosing inventory during allocation:</p>
+                                                        <ul>
+                                                            <li>For FEFO and absolute FEFO, the time is added to the earliest expiration date. For example, if the earliest expiration date is 8 A.M. on January 15 and the date window is three days, then inventory that expires up to 8 A.M. on January 18 is considered the same date for processing.</li>
+                                                            <li>For FIFO and absolute FIFO, the time is added to the earliest received date. For example, if the earliest received date is 8 A.M. on January 15 and the date window is three days, then inventory that was received up to 8 A.M. on January 18 is considered the same date for processing.</li>
+                                                            <li>For LEFO and absolute LEFO, the time is subtracted from the latest expiration date. For example, if the latest expiration date is 8 A.M. on January 15 and the date window is three days, then inventory that expires up to 8 A.M. on January 12 is considered the same date for processing.</li>
+                                                            <li>For LIFO and absolute LIFO, the time is subtracted from the latest received date. For example, if the latest received date is 8 A.M. on January 15 and the date window is three days, then inventory that was received up to 8 A.M. on January 12 is considered the same date for processing.</li>
+                                                        </ul>
+                                                        <h2 id="Movementzonesforabsoluteinventoryrotationallocation" data-magellan-target="Movementzonesforabsoluteinventoryrotationallocation"><a name="Movement_zones_for_absolute_inventory_rotation_allocation"></a>Movement zones for absolute inventory rotation allocation</h2>
+                                                        <p>The application supports the ability to fulfill order lines with the first inventory to expire and to ensure that the oldest inventory is shipped prior to newer inventory. The application supports these requirements by providing absolute inventory rotation methods, such as absolute first-expired, first-out (absolute FEFO) or absolute first-in, first-out (absolute FIFO). Inventory rotation methods can be assigned to order lines, items, customers, and customer types as well as allocation and replenishment processing. During allocation, the application attempts to fulfill a request for an absolute inventory rotation method by searching all appropriate search paths or absolute groups to find the inventory that is closest to the preferred processing date.</p>
+                                                        <p>You can expand the search for inventory to satisfy an absolute inventory rotation method to locations that do not belong to an allocation search path. You do this through the configuration of movement zones for absolute inventory rotation method allocation, using the <span class="specialbold">Non Allocation Search Path Zones for Absolute</span> field. This configuration enables you to select, for the warehouse or by client, the movement zones to include in the search. </p>
+                                                        <p>The following types of movement zones can be selected:</p>
+                                                        <ul>
+                                                            <li>A movement zone that is not assigned to a shipping or replenishment allocation search path. During the allocation of an order or replenishment pick, the application checks for better inventory from this zone before allocating inventory from a shipping or replenishment allocation search path.</li>
+                                                            <li>A movement zone that is not assigned to a shipping allocation search path, but is assigned to a replenishment allocation search path. The application checks for better inventory from this zone before allocating inventory from a shipping allocation search path, but not before allocating replenishments. The reason is that the zone is already assigned to a replenishment search path.</li>
+                                                        </ul>
+                                                        <p>You can select movement zones, for example, that contain pickup and deposit (P&amp;D) locations, pallet build locations, or RF devices. If allocation finds better inventory in one of these movement zones, it generates a short allocation until the inventory can be moved to a pick location to fulfill the request.</p>
+                                                        <p>Replenishment processing also considers inventory in the selected movement zones when fulfilling requests based on an absolute inventory rotation method. The following processes take place when non-search path movement zones are configured for consideration:</p>
+                                                        <ul>
+                                                            <li>Allocation includes reserve inventory (residing in a movement zone configured for consideration) in its search to find inventory closest to the preferred processing date. If preferred inventory is found in reserve storage, then instead of using available inventory in a pickface, the application attempts to replenish a pickface with the preferred inventory to fulfill the request.</li>
+                                                            <li>The application does not use excess inventory from a pallet replenishment that does not match the rotation method on the order line. Following a replenishment, the application evaluates the inventory that was deposited to the pickface. If multiple orders require the inventory, but the inventory cannot be used for an order line with an absolute inventory rotation method, then the application generates another replenishment for inventory that matches the date requirement. </li>
+                                                            <li>The application considers the inventory rotation method and inventory available before generating picks and replenishments. For example, during the process of fulfilling a triggered replenishment, the inventory required for an order is deposited to a P&amp;D location in a zone configured for consideration. If that inventory is the best match for the date required by the order line (based on absolute inventory rotation method), the application generates a short allocation instead of fulfilling the order line with the next best inventory that is already in a pickable location. The short allocation is fulfilled when the better inventory is moved to a pickable location.</li>
+                                                            <li>If an absolute inventory rotation method is required for replenishments, then the application considers (in addition to storage locations) inventory in movement zones configured for consideration. This can include inventory, for example, that has yet to be put away (in P&amp;D locations) as well as inventory in transit (on an RF device). For example, a top-off replenishment fails if the application finds inventory closer to the required date is in one of the selected movement zones. </li>
+                                                        </ul>
+                                                        <p>During order allocation, the application also evaluates inventory that has been allocated to a replenishment pick. When an absolute inventory rotation method is required for an order line, allocation considers inventory that has been committed to existing replenishment picks before allocating inventory from an allocation search path. If the replenishment inventory is closer to the preferred processing date, then a short allocation is generated with a reason indicating that the preferred inventory is committed to a replenishment pick.</p>
+                                                        <p>Whenever the application calculates the best date, it only considers inventory that is an exact match for allocation. For example, if inventory for LotA is closest to the preferred processing date, but allocation is searching for LotB, then it will not consider inventory for LotA.</p>
+                                                        <p>When an allocation or replenishment fails because inventory is found outside of an allocation search path (in one of the movement zones configured for consideration), one of following reasons is displayed for short allocation or failed replenishment:</p>
+                                                        <ul>
+                                                            <li>Older/New Inventory Outside of Search Path</li>
+                                                            <li>Older/Newer Inventory Committed to Replenishment Pick</li>
+                                                        </ul>
+                                                        <p>Allocation can take place when the inventory is moved to a pickable location.</p>
+                                                        <h2 id="Inventoryrotationallocationprocessingsetup" data-magellan-target="Inventoryrotationallocationprocessingsetup"><a name="Inventory_rotation_allocation_processing_setup"></a>Inventory rotation allocation processing setup</h2>
+                                                        <p>You must perform the following tasks to configure inventory rotation allocation processing for allocating inventory for order lines, work order lines, and replenishments.</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Define the allocation inventory selection settings. </p>
+                                                                <ul>
+                                                                    <li>Select how inventory is evaluated during allocation.</li>
+                                                                    <li>
+                                                                        <p>Enable and define a default outbound date window.</p>
+                                                                        <div class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: If you set the <span class="notebold">Enable Outbound Date Window </span>field to No, then even though you may have outbound date windows defined at several levels, they have no effect on application processing.</div>
+                                                                    </li>
+                                                                    <li>
+                                                                        <p>Define the precedence that determines which outbound date window is used if it is defined at several levels. The precedence determines the order in which the application enforces the outbound date window when allocating order lines for which a FEFO/FIFO/LEFO/LIFO or absolute FEFO/FIFO/LEFO/LIFO inventory rotation method has been selected. It determines, for example, whether the value on the order line overrides the value for the customer item, whether the value for the customer item overrides the value for the customer, and so on. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The precedence that determines which inventory rotation method is used is not configurable. See <a href="#Inventory_rotation_allocation_processing">Inventory rotation allocation processing</a>.</p>
+                                                                        <p>The application considers the outbound date window and the inventory rotation method separately, so if there is a value defined for one but not the other at a certain level, the application moves to the next level in order of precedence to locate the missing value. For example, if the top two levels in order of precedence are Order Line and Customer Item, respectively, the application would consider the values defined for the order line first. If the order line specified an outbound date window but no inventory rotation method, the application would use the outbound date window at the order line level, and then use the rotation method defined at the next level in order of precedence.</p>
+                                                                    </li>
+                                                                    <li>Configure the location sort, which defines the sequence in which allocation chooses available inventory for allocation.</li>
+                                                                    <li>To include non-search path movement zones during the allocation of inventory using an absolute inventory rotation method, select the zones to search. For example, you can select movement zones that contain pickup and deposit (P&amp;D) locations or pallet build locations. If the application finds inventory in one of the movement zones, it generates a short allocation until the inventory can be moved to a pickable location. Non-search path movement zones also apply to the allocation of replenishments. See <a href="#Movement_zones_for_absolute_inventory_rotation_allocation">Movement zones for absolute inventory rotation allocation</a>. </li>
+                                                                </ul>
+                                                                <p>See <a href="allocation_inventory_selection.htm">Allocation Inventory Selection</a>.</p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p>Configure the inventory rotation method and outbound date window for each of the levels to which it should be applied.</p>
+                                                                <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: The regular and absolute FEFO and LEFO methods of inventory rotation are only supported for date-tracked inventory that is assigned to an aging profile with an <span class="notebold">Expired</span> status defined.</p>
+                                                                <ul>
+                                                                    <li><span class="specialbold">Order line</span>: Values are defined on the order line.</li>
+                                                                    <li><span class="specialbold">Work order line</span>: Values are defined on the work order line.</li>
+                                                                    <li><span class="specialbold">Work orders</span>: Values for disassembly work orders are defined on the work order.</li>
+                                                                    <li><span class="specialbold">Bill of materials (BOM) detail</span>: Values are defined on the bill of material detail.</li>
+                                                                    <li><span class="specialbold">Bill of materials</span>: Values for disassembly BOMs are defined on the bill of material.</li>
+                                                                    <li><span class="specialbold">Customer item and customer</span>: Values are defined in the customer configuration. See <a href="existing_customers.htm">Existing Customers</a>.</li>
+                                                                    <li><span class="specialbold">Customer type</span>: Values are defined in the customer type configuration. See <a href="customer_types.htm">Customer Types</a>.</li>
+                                                                    <li><span class="specialbold">Item</span>: Values are defined in the item configuration. See <a href="items_page.htm">Items</a>.</li>
+                                                                    <li><span class="specialbold">Client</span>: Values are defined in the client configuration. See <a href="clients.htm">Clients</a>.</li>
+                                                                    <li><span class="specialbold">Allocation Configuration</span>: Values are defined in the allocation inventory selection configuration. These values are used if a value is not specified for any of the other levels. See <a href="allocation_inventory_selection.htm">Allocation Inventory Selection</a>. </li>
+                                                                </ul>
+                                                            </li>
+                                                            <li value="3">
+                                                                <p>Configure replenishments for inventory rotation allocation processing.</p>
+                                                                <p>You use the replenishment settings configuration to define the default inventory rotation method for replenishments, which is used for replenishment allocation only if an inventory rotation method is not defined at any other level. You can also specify an outbound date window, which is used based on the pre-defined order of precedence. See <a href="replenishment_settings.htm">Replenishment Settings</a>.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

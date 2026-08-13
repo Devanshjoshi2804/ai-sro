@@ -1,0 +1,946 @@
+{
+  "readOnly": true,
+  "results": [
+    {
+      "area": "inventory",
+      "label": "Workstation",
+      "route": "#/wm.workstation",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "SG",
+      "route": "#/refs-Site",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "Dashboard",
+      "route": "#wm.inventory/wm.inventory.dashboard////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "Inventory",
+      "route": "#wm.inventory/wm.inventorydisplay////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200,
+          "rowCount": 7
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/loadAttributeConfigurations",
+          "status": 200,
+          "rowCount": 5
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/uDIAConfigs",
+          "status": 200,
+          "rowCount": 28
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 5,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 6,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+          "status": 200,
+          "rowCount": 3
+        },
+        {
+          "seq": 7,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 8,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 9,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 10,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/uDIAConfigs",
+          "status": 200,
+          "rowCount": 28
+        },
+        {
+          "seq": 11,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 12,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 13,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/reasonCodes",
+          "status": 200,
+          "rowCount": 22
+        },
+        {
+          "seq": 14,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200,
+          "rowCount": 72
+        },
+        {
+          "seq": 15,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200,
+          "rowCount": 72
+        },
+        {
+          "seq": 16,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Footprints",
+      "route": "#wm.inventory/wm.inventory.footprints////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/stackMethods",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/uoms",
+          "status": 200,
+          "rowCount": 31
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/loadAttributeConfigurations",
+          "status": 200,
+          "rowCount": 5
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/uoms",
+          "status": 200,
+          "rowCount": 31
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "Item Lots",
+      "route": "#wm.inventory/wm.inventory.itemlots////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMItemLots",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemLots",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/agingProfiles",
+          "status": 200,
+          "rowCount": 236
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMItemLots",
+          "status": 200,
+          "rowCount": 12
+        },
+        {
+          "seq": 5,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Holds",
+      "route": "#wm.inventory/wm.inventory.holds////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/refs/data/api/v1/rp/admin/sessionKeepAlive",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/holdDefinitions",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/holdDefinitions",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/holdsHistory",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 5,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST api/v1/rp/admin/sessionKeepAlive",
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Adjustments",
+      "route": "#wm.inventory/wm.inventory.adjustments////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+          "status": 200,
+          "rowCount": 6
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventoryAdjustmentApprovals",
+          "status": 200,
+          "rowCount": 2
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventoryAdjustmentApprovals/history",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/commands/generateNextNumber",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 5,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Counts",
+      "route": "#wm.inventory/wm.inventory.counts////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMInventoryCounts",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventoryCounts/count",
+          "status": 200,
+          "rowCount": 5
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMInventoryCountBatches",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMCountTemplates",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMCountsHistory",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 5,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMInventoryCountBatches",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 6,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 7,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventoryCounts/count",
+          "status": 200,
+          "rowCount": 5
+        },
+        {
+          "seq": 8,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventoryCounts",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 9,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/countZones/nonpaged",
+          "status": 200,
+          "rowCount": 4
+        },
+        {
+          "seq": 10,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMInventoryCounts",
+          "status": 200,
+          "rowCount": 26
+        },
+        {
+          "seq": 11,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMInventoryCountBatches",
+          "status": 200,
+          "rowCount": 11
+        },
+        {
+          "seq": 12,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMCountTemplates",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 13,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMCountsHistory",
+          "status": 200,
+          "rowCount": 19
+        },
+        {
+          "seq": 14,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMInventoryCountBatches",
+          "status": 200,
+          "rowCount": 11
+        },
+        {
+          "seq": 15,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/countBatches",
+          "status": 200,
+          "rowCount": 5
+        },
+        {
+          "seq": 16,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/countBatches/history",
+          "status": 200,
+          "rowCount": 19
+        },
+        {
+          "seq": 17,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Location Audit",
+      "route": "#wm.inventory/wm.inventory.locationaudit////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Work Queue",
+      "route": "#wm.inventory/wm.workqueue////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/directedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/undirectedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 5,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/consolidatedWork",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 6,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        },
+        {
+          "seq": 7,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/directedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 8,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/undirectedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 9,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Workflows",
+      "route": "#wm.inventory/wm.workflowhistory////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/services/backgroundServices",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMInboundWorkflows",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMOutboundWorkflows",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMEquipmentWorkflows",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMUserWorkflows",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 5,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 6,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inboundWorkflowPlans/consolidatedPlans",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 7,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workflowOperations/paged",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 8,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workflowOperations/paged",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 9,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workflowOperations/paged",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 10,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMInboundWorkflows",
+          "status": 200,
+          "rowCount": 18
+        },
+        {
+          "seq": 11,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMOutboundWorkflows",
+          "status": 200,
+          "rowCount": 21
+        },
+        {
+          "seq": 12,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMEquipmentWorkflows",
+          "status": 200,
+          "rowCount": 17
+        },
+        {
+          "seq": 13,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMUserWorkflows",
+          "status": 200,
+          "rowCount": 21
+        },
+        {
+          "seq": 14,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Print Compliant Labels",
+      "route": "#wm.inventory/wm.printcompliantlabels////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers",
+          "status": 200,
+          "rowCount": 8
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/complianceLabelFormats/exitPoints",
+          "status": 200,
+          "rowCount": 10
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "History",
+      "route": "#wm.inventory/wm.dailytransaction////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/loadAttributeConfigurations",
+          "status": 200,
+          "rowCount": 5
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Send RF Message",
+      "route": "#wm.inventory/wm.rfmessage////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "Log Indirect Work",
+      "route": "#wm.inventory/wm.lmindirect////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/refs/data/api/v1/rp/admin/sessionKeepAlive",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/lmIndirectWorkTypes",
+          "status": 200,
+          "rowCount": 19
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices",
+          "status": 200,
+          "rowCount": 199
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST api/v1/rp/admin/sessionKeepAlive"
+      ]
+    },
+    {
+      "area": "inventory",
+      "label": "Items Not Assigned To A Location",
+      "route": "#wm.inventory/wm-inventory-Itemnotassignedtoalocation////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "Non Serialized Handling Unit Adjustment ",
+      "route": "#wm.inventory/Non-Serialized-Handling-Unit-Adjustment-Operations////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "RF Display",
+      "route": "#wm.inventory/RFT-Display////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "WCS Inventory Discrepancy Display",
+      "route": "#wm.inventory/WCS-Inventory-Discrepancy-Display////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "WCS Inventory Snapshot",
+      "route": "#wm.inventory/WCS-Inventory-Snapshot////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "Distribution Status Display",
+      "route": "#wm.inventory/Distribution-Status-Display////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "Distribution Status Store Schedule",
+      "route": "#wm.inventory/Distribution-Status-Store-Schedule////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "inventory",
+      "label": "BY GO Inventory Recon",
+      "route": "#wm.inventory/BY-GO-Inventory-Recon-YhpDFJGpR4CKx8Wj_1Px5g////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    }
+  ]
+}

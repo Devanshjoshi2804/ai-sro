@@ -1,0 +1,1963 @@
+{
+  "generated_from": "http/exchanges/*.jsonl",
+  "generated_by": "tools/cdp/build-matrix.mjs",
+  "note": "Derived view. Every cell is backed by a stored request/response pair; nothing here is asserted.",
+  "resources": {
+    "addresses": {
+      "evidence": "http/exchanges/addresses.jsonl",
+      "exchanges": 24,
+      "cases": {
+        "route-exists": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/addresses"
+        },
+        "read-collection": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/addresses"
+        },
+        "read-missing": {
+          "observations": 2,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/addresses/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "create-valid": {
+          "observations": 2,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/addresses"
+        },
+        "create-duplicate": {
+          "observations": 2,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/addresses"
+        },
+        "create-empty": {
+          "observations": 2,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/addresses",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/addresses/A000365892"
+        },
+        "update-valid": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/addresses/A000365892"
+        },
+        "read-updated": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/addresses/A000365892"
+        },
+        "delete-valid": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/addresses/A000365892"
+        },
+        "delete-again": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/addresses/A000365892"
+        },
+        "confirm-gone": {
+          "observations": 2,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/addresses/A000365892",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "businessUnits": {
+      "evidence": "http/exchanges/businessUnits.jsonl",
+      "exchanges": 13,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/businessUnits"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/businessUnits"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/businessUnits/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/businessUnits"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/businessUnits",
+          "userMessage": "Business Unit: ZV224234\nWarehouse ID: SG already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/businessUnits",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/businessUnits/ZV224234*!SG"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/businessUnits/ZV224234*!SG"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/businessUnits/ZV224234*!SG"
+        },
+        "update-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "PUT",
+          "url": "/wm/businessUnits/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/businessUnits/ZV224234*!SG"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/businessUnits/ZV224234*!SG"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/businessUnits/ZV224234*!SG",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "carrierCrossReferences": {
+      "evidence": "http/exchanges/carrierCrossReferences.jsonl",
+      "exchanges": 12,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierCrossReferences"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierCrossReferences"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/carrierCrossReferences/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/carrierCrossReferences"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/carrierCrossReferences",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/carrierCrossReferences",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierCrossReferences/0000*!TANDATA*!ZV3999"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/carrierCrossReferences/0000*!TANDATA*!ZV3999"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierCrossReferences/0000*!TANDATA*!ZV3999"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/carrierCrossReferences/0000*!TANDATA*!ZV3999"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/carrierCrossReferences/0000*!TANDATA*!ZV3999"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/carrierCrossReferences/0000*!TANDATA*!ZV3999",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "carrierProNumbers": {
+      "evidence": "http/exchanges/carrierProNumbers.jsonl",
+      "exchanges": 12,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierProNumbers"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierProNumbers"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/carrierProNumbers/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/carrierProNumbers"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/carrierProNumbers",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/carrierProNumbers",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierProNumbers/A000278094*!0000*!ZV345068"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/carrierProNumbers/A000278094*!0000*!ZV345068"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierProNumbers/A000278094*!0000*!ZV345068"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/carrierProNumbers/A000278094*!0000*!ZV345068"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/carrierProNumbers/A000278094*!0000*!ZV345068"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/carrierProNumbers/A000278094*!0000*!ZV345068",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "carriers": {
+      "evidence": "http/exchanges/carriers.jsonl",
+      "exchanges": 13,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carriers"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carriers"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/carriers/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/carriers"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/carriers",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/carriers",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carriers/ZV183603"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/carriers/ZV183603"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carriers/ZV183603"
+        },
+        "update-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "PUT",
+          "url": "/wm/carriers/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/carriers/ZV183603"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/carriers/ZV183603"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/carriers/ZV183603",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "clientGroups": {
+      "evidence": "http/exchanges/clientGroups.jsonl",
+      "exchanges": 26,
+      "cases": {
+        "route-exists": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientGroups"
+        },
+        "read-collection": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientGroups"
+        },
+        "read-missing": {
+          "observations": 2,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/clientGroups/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "create-valid": {
+          "observations": 2,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/clientGroups"
+        },
+        "create-duplicate": {
+          "observations": 2,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/clientGroups",
+          "userMessage": "Client Group: ZV06440 already exists."
+        },
+        "create-empty": {
+          "observations": 2,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/clientGroups",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientGroups/ZV06440"
+        },
+        "update-valid": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/clientGroups/ZV06440"
+        },
+        "read-updated": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientGroups/ZV06440"
+        },
+        "update-missing": {
+          "observations": 2,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "PUT",
+          "url": "/wm/clientGroups/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "delete-valid": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/clientGroups/ZV06440"
+        },
+        "delete-again": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/clientGroups/ZV06440"
+        },
+        "confirm-gone": {
+          "observations": 2,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/clientGroups/ZV06440",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "clientWarehouse": {
+      "evidence": "http/exchanges/clientWarehouse.jsonl",
+      "exchanges": 12,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientWarehouse"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientWarehouse"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/clientWarehouse/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/clientWarehouse"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/clientWarehouse",
+          "userMessage": "Client ID: ZVCW375\nWarehouse ID: SG already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/clientWarehouse",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientWarehouse/ZVCW375*!SG"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/clientWarehouse/ZVCW375*!SG"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientWarehouse/ZVCW375*!SG"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/clientWarehouse/ZVCW375*!SG"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "DELETE",
+          "url": "/wm/clientWarehouse/ZVCW375*!SG",
+          "userMessage": "Invalid value (Client ID: ZVCW375\nWarehouse ID: SG) for Client Warehouse"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/clientWarehouse/ZVCW375*!SG",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "clients": {
+      "evidence": "http/exchanges/clients.jsonl",
+      "exchanges": 10,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clients"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clients"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/clients/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/clients"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/clients",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/clients",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/clients/ZV097223",
+          "userMessage": "The requested web resource was not found."
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/clients/ZV097223"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "DELETE",
+          "url": "/wm/clients/ZV097223",
+          "userMessage": "no rows affected"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/clients/ZV097223",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "customerTypes": {
+      "evidence": "http/exchanges/customerTypes.jsonl",
+      "exchanges": 13,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customerTypes"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customerTypes"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/customerTypes/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/customerTypes"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/customerTypes",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/customerTypes",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customerTypes/ZV10"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/customerTypes/ZV10"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customerTypes/ZV10"
+        },
+        "update-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "PUT",
+          "url": "/wm/customerTypes/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/customerTypes/ZV10"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/customerTypes/ZV10"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/customerTypes/ZV10",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "customers": {
+      "evidence": "http/exchanges/customers.jsonl",
+      "exchanges": 6,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customers"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customers"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/customers/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/customers"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/customers",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/customers",
+          "userMessage": "Bad Request"
+        }
+      }
+    },
+    "devices": {
+      "evidence": "http/exchanges/devices.jsonl",
+      "exchanges": 12,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/devices"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/devices"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/devices/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/devices"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/devices",
+          "userMessage": "Warehouse ID: SG\nDevice Code: ZV231196 already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/devices",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/devices/ZV231196*!SG"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/devices/ZV231196*!SG"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/devices/ZV231196*!SG"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/devices/ZV231196*!SG"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/devices/ZV231196*!SG"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/devices/ZV231196*!SG",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "equipmentTypes": {
+      "evidence": "http/exchanges/equipmentTypes.jsonl",
+      "exchanges": 13,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/equipmentTypes"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/equipmentTypes"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/equipmentTypes/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/equipmentTypes"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/equipmentTypes",
+          "userMessage": "Vehicle Type ID: ZV347737 already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/equipmentTypes",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/equipmentTypes/ZV347737"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/equipmentTypes/ZV347737"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/equipmentTypes/ZV347737"
+        },
+        "update-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "PUT",
+          "url": "/wm/equipmentTypes/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/equipmentTypes/ZV347737"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/equipmentTypes/ZV347737"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/equipmentTypes/ZV347737",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "levelTypes": {
+      "evidence": "http/exchanges/levelTypes.jsonl",
+      "exchanges": 13,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/levelTypes"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/levelTypes"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/levelTypes/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/levelTypes"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/levelTypes",
+          "userMessage": "lvl_type_name: ZV307796\nWarehouse ID: SG already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/levelTypes",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/levelTypes/000000000000026*!SG"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/levelTypes/000000000000026*!SG"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/levelTypes/000000000000026*!SG"
+        },
+        "update-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "PUT",
+          "url": "/wm/levelTypes/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/levelTypes/000000000000026*!SG"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/levelTypes/000000000000026*!SG"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/levelTypes/000000000000026*!SG",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "locationTypes": {
+      "evidence": "http/exchanges/locationTypes.jsonl",
+      "exchanges": 13,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locationTypes"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locationTypes"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/locationTypes/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/locationTypes"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/locationTypes",
+          "userMessage": "Location Type: ZV264335\nWarehouse ID: SG already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/locationTypes",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locationTypes/10683"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/locationTypes/10683"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locationTypes/10683"
+        },
+        "update-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "PUT",
+          "url": "/wm/locationTypes/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/locationTypes/10683"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/locationTypes/10683"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/locationTypes/10683",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "packingConfigurations": {
+      "evidence": "http/exchanges/packingConfigurations.jsonl",
+      "exchanges": 6,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/packingConfigurations"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/packingConfigurations"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/packingConfigurations/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/packingConfigurations"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/packingConfigurations",
+          "userMessage": "Warehouse ID: SG\nClient ID: ZVPC252 already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/packingConfigurations",
+          "userMessage": "Bad Request"
+        }
+      }
+    },
+    "printers": {
+      "evidence": "http/exchanges/printers.jsonl",
+      "exchanges": 12,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/printers"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/printers"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/printers/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/printers"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/printers",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/printers",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/printers/ZV269737*!SG"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/printers/ZV269737*!SG"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/printers/ZV269737*!SG"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/printers/ZV269737*!SG"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/printers/ZV269737*!SG"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/printers/ZV269737*!SG",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "suppliers": {
+      "evidence": "http/exchanges/suppliers.jsonl",
+      "exchanges": 12,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/suppliers"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/suppliers"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/suppliers/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/suppliers"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/suppliers",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/suppliers",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/suppliers/----*!ZV021231"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/suppliers/----*!ZV021231"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/suppliers/----*!ZV021231"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/suppliers/----*!ZV021231"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/suppliers/----*!ZV021231"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/suppliers/----*!ZV021231",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "transportEquipmentTypes": {
+      "evidence": "http/exchanges/transportEquipmentTypes.jsonl",
+      "exchanges": 6,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 404,
+          "kind": "ROUTE-MISSING",
+          "method": "GET",
+          "url": "/wm/transportEquipmentTypes",
+          "message": "Not Found"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 404,
+          "kind": "ROUTE-MISSING",
+          "method": "GET",
+          "url": "/wm/transportEquipmentTypes",
+          "message": "Not Found"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "ROUTE-MISSING",
+          "method": "GET",
+          "url": "/wm/transportEquipmentTypes/ZZDOESNOTEXIST0001",
+          "message": "Not Found"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 404,
+          "kind": "ROUTE-MISSING",
+          "method": "POST",
+          "url": "/wm/transportEquipmentTypes",
+          "message": "Not Found"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 404,
+          "kind": "ROUTE-MISSING",
+          "method": "POST",
+          "url": "/wm/transportEquipmentTypes",
+          "message": "Not Found"
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 404,
+          "kind": "ROUTE-MISSING",
+          "method": "POST",
+          "url": "/wm/transportEquipmentTypes",
+          "message": "Not Found"
+        }
+      }
+    },
+    "transportModes": {
+      "evidence": "http/exchanges/transportModes.jsonl",
+      "exchanges": 13,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/transportModes"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/transportModes"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/transportModes/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/transportModes"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/transportModes",
+          "userMessage": "Transport Mode: ZV1 already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/transportModes",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/transportModes/ZV1"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/transportModes/ZV1"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/transportModes/ZV1"
+        },
+        "update-missing": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "PUT",
+          "url": "/wm/transportModes/ZZDOESNOTEXIST0001",
+          "userMessage": "The requested web resource was not found."
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/transportModes/ZV1"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/transportModes/ZV1"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/transportModes/ZV1",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    }
+  },
+  "by_case": {
+    "route-exists": {
+      "addresses": "200",
+      "businessUnits": "200",
+      "carrierCrossReferences": "200",
+      "carrierProNumbers": "200",
+      "carriers": "200",
+      "clientGroups": "200",
+      "clientWarehouse": "200",
+      "clients": "200",
+      "customerTypes": "200",
+      "customers": "200",
+      "devices": "200",
+      "equipmentTypes": "200",
+      "levelTypes": "200",
+      "locationTypes": "200",
+      "packingConfigurations": "200",
+      "printers": "200",
+      "suppliers": "200",
+      "transportEquipmentTypes": "404/ROUTE-MISSING",
+      "transportModes": "200"
+    },
+    "read-collection": {
+      "addresses": "200",
+      "businessUnits": "200",
+      "carrierCrossReferences": "200",
+      "carrierProNumbers": "200",
+      "carriers": "200",
+      "clientGroups": "200",
+      "clientWarehouse": "200",
+      "clients": "200",
+      "customerTypes": "200",
+      "customers": "200",
+      "devices": "200",
+      "equipmentTypes": "200",
+      "levelTypes": "200",
+      "locationTypes": "200",
+      "packingConfigurations": "200",
+      "printers": "200",
+      "suppliers": "200",
+      "transportEquipmentTypes": "404/ROUTE-MISSING",
+      "transportModes": "200"
+    },
+    "read-missing": {
+      "addresses": "404/RECORD-MISSING",
+      "businessUnits": "400/HTTP-400",
+      "carrierCrossReferences": "400/HTTP-400",
+      "carrierProNumbers": "400/HTTP-400",
+      "carriers": "404/RECORD-MISSING",
+      "clientGroups": "404/RECORD-MISSING",
+      "clientWarehouse": "400/HTTP-400",
+      "clients": "404/RECORD-MISSING",
+      "customerTypes": "404/RECORD-MISSING",
+      "customers": "400/HTTP-400",
+      "devices": "400/HTTP-400",
+      "equipmentTypes": "404/RECORD-MISSING",
+      "levelTypes": "400/HTTP-400",
+      "locationTypes": "400/HTTP-400",
+      "packingConfigurations": "400/HTTP-400",
+      "printers": "400/HTTP-400",
+      "suppliers": "400/HTTP-400",
+      "transportEquipmentTypes": "404/ROUTE-MISSING",
+      "transportModes": "404/RECORD-MISSING"
+    },
+    "create-valid": {
+      "addresses": "201",
+      "businessUnits": "201",
+      "carrierCrossReferences": "201",
+      "carrierProNumbers": "201",
+      "carriers": "201",
+      "clientGroups": "201",
+      "clientWarehouse": "201",
+      "clients": "201",
+      "customerTypes": "201",
+      "customers": "201",
+      "devices": "201",
+      "equipmentTypes": "201",
+      "levelTypes": "201",
+      "locationTypes": "201",
+      "packingConfigurations": "201",
+      "printers": "201",
+      "suppliers": "201",
+      "transportEquipmentTypes": "404/ROUTE-MISSING",
+      "transportModes": "201"
+    },
+    "create-duplicate": {
+      "addresses": "201",
+      "businessUnits": "409/HTTP-409",
+      "carrierCrossReferences": "409/HTTP-409",
+      "carrierProNumbers": "422/HTTP-422",
+      "carriers": "409/HTTP-409",
+      "clientGroups": "409/HTTP-409",
+      "clientWarehouse": "409/HTTP-409",
+      "clients": "422/HTTP-422",
+      "customerTypes": "422/HTTP-422",
+      "customers": "409/HTTP-409",
+      "devices": "409/HTTP-409",
+      "equipmentTypes": "409/HTTP-409",
+      "levelTypes": "409/HTTP-409",
+      "locationTypes": "409/HTTP-409",
+      "packingConfigurations": "409/HTTP-409",
+      "printers": "409/HTTP-409",
+      "suppliers": "409/HTTP-409",
+      "transportEquipmentTypes": "404/ROUTE-MISSING",
+      "transportModes": "409/HTTP-409"
+    },
+    "create-empty": {
+      "addresses": "400/HTTP-400",
+      "businessUnits": "400/HTTP-400",
+      "carrierCrossReferences": "400/HTTP-400",
+      "carrierProNumbers": "400/HTTP-400",
+      "carriers": "400/HTTP-400",
+      "clientGroups": "400/HTTP-400",
+      "clientWarehouse": "400/HTTP-400",
+      "clients": "400/HTTP-400",
+      "customerTypes": "400/HTTP-400",
+      "customers": "400/HTTP-400",
+      "devices": "400/HTTP-400",
+      "equipmentTypes": "400/HTTP-400",
+      "levelTypes": "400/HTTP-400",
+      "locationTypes": "400/HTTP-400",
+      "packingConfigurations": "400/HTTP-400",
+      "printers": "400/HTTP-400",
+      "suppliers": "400/HTTP-400",
+      "transportEquipmentTypes": "404/ROUTE-MISSING",
+      "transportModes": "400/HTTP-400"
+    },
+    "read-created": {
+      "addresses": "200",
+      "businessUnits": "200",
+      "carrierCrossReferences": "200",
+      "carrierProNumbers": "200",
+      "carriers": "200",
+      "clientGroups": "200",
+      "clientWarehouse": "200",
+      "clients": "404/RECORD-MISSING",
+      "customerTypes": "200",
+      "devices": "200",
+      "equipmentTypes": "200",
+      "levelTypes": "200",
+      "locationTypes": "200",
+      "printers": "200",
+      "suppliers": "200",
+      "transportModes": "200"
+    },
+    "update-valid": {
+      "addresses": "200",
+      "businessUnits": "200",
+      "carrierCrossReferences": "200",
+      "carrierProNumbers": "200",
+      "carriers": "200",
+      "clientGroups": "200",
+      "clientWarehouse": "200",
+      "customerTypes": "200",
+      "devices": "200",
+      "equipmentTypes": "200",
+      "levelTypes": "200",
+      "locationTypes": "200",
+      "printers": "200",
+      "suppliers": "200",
+      "transportModes": "200"
+    },
+    "read-updated": {
+      "addresses": "200",
+      "businessUnits": "200",
+      "carrierCrossReferences": "200",
+      "carrierProNumbers": "200",
+      "carriers": "200",
+      "clientGroups": "200",
+      "clientWarehouse": "200",
+      "customerTypes": "200",
+      "devices": "200",
+      "equipmentTypes": "200",
+      "levelTypes": "200",
+      "locationTypes": "200",
+      "printers": "200",
+      "suppliers": "200",
+      "transportModes": "200"
+    },
+    "delete-valid": {
+      "addresses": "200",
+      "businessUnits": "200",
+      "carrierCrossReferences": "200",
+      "carrierProNumbers": "200",
+      "carriers": "200",
+      "clientGroups": "200",
+      "clientWarehouse": "200",
+      "clients": "200",
+      "customerTypes": "200",
+      "devices": "200",
+      "equipmentTypes": "200",
+      "levelTypes": "200",
+      "locationTypes": "200",
+      "printers": "200",
+      "suppliers": "200",
+      "transportModes": "200"
+    },
+    "delete-again": {
+      "addresses": "200",
+      "businessUnits": "200",
+      "carrierCrossReferences": "200",
+      "carrierProNumbers": "200",
+      "carriers": "200",
+      "clientGroups": "200",
+      "clientWarehouse": "422/HTTP-422",
+      "clients": "404/RECORD-MISSING",
+      "customerTypes": "200",
+      "devices": "200",
+      "equipmentTypes": "200",
+      "levelTypes": "200",
+      "locationTypes": "200",
+      "printers": "200",
+      "suppliers": "200",
+      "transportModes": "200"
+    },
+    "confirm-gone": {
+      "addresses": "404/RECORD-MISSING",
+      "businessUnits": "404/RECORD-MISSING",
+      "carrierCrossReferences": "404/RECORD-MISSING",
+      "carrierProNumbers": "404/RECORD-MISSING",
+      "carriers": "404/RECORD-MISSING",
+      "clientGroups": "404/RECORD-MISSING",
+      "clientWarehouse": "404/RECORD-MISSING",
+      "clients": "404/RECORD-MISSING",
+      "customerTypes": "404/RECORD-MISSING",
+      "devices": "404/RECORD-MISSING",
+      "equipmentTypes": "404/RECORD-MISSING",
+      "levelTypes": "404/RECORD-MISSING",
+      "locationTypes": "404/RECORD-MISSING",
+      "printers": "404/RECORD-MISSING",
+      "suppliers": "404/RECORD-MISSING",
+      "transportModes": "404/RECORD-MISSING"
+    },
+    "update-missing": {
+      "businessUnits": "400/HTTP-400",
+      "carriers": "404/RECORD-MISSING",
+      "clientGroups": "404/RECORD-MISSING",
+      "customerTypes": "404/RECORD-MISSING",
+      "equipmentTypes": "404/RECORD-MISSING",
+      "levelTypes": "400/HTTP-400",
+      "locationTypes": "400/HTTP-400",
+      "transportModes": "404/RECORD-MISSING"
+    }
+  }
+}

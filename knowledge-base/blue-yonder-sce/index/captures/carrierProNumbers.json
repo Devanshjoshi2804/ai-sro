@@ -1,0 +1,27 @@
+{
+  "spec": "carrierProNumbers",
+  "resource": "carrierProNumbers",
+  "requests": [],
+  "add": {
+    "id": "button-3029",
+    "count": 1
+  },
+  "load": {
+    "loaded": 10,
+    "picked": "0000"
+  },
+  "applied": {
+    "addressName": "ZV Pro Addr"
+  },
+  "invalid": [
+    {
+      "field": "carrier",
+      "label": "Carrier",
+      "errors": [
+        "This field is required"
+      ]
+    }
+  ],
+  "note": "invalid before Save; not saving",
+  "ok": false
+}

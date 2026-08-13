@@ -1,0 +1,229 @@
+{
+  "screen": "systemAdmin",
+  "route": "#mcs-SystemAdmin/Deferred-Executions-2019-1-0////",
+  "readOnly": true,
+  "calls": [
+    {
+      "seq": 0,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+      "query": "siteId=SG&subsites=----&_dc=1786530217369&query=%5B%7B%22OR%22%3A%5B%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22LABOR-MANAGEMENT-SYSTEM%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22TRANSPORTATION-MANAGEMENT%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22PARCEL-MANIFEST%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22FASCOR%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22LENS-SYSTEM%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SLOTTING-SYSTEM%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22EMS%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22THIRD-PARTY-LOGISTICS%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22EXTERNAL-BILLING-SYSTEM%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22INSTALLED%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%5D%7D%5D",
+      "status": 200,
+      "bytes": 4000,
+      "rowCount": 8,
+      "sampleKeys": [
+        "groupName",
+        "overrideFlag",
+        "policyCode",
+        "policyValue",
+        "policyVariable",
+        "resourceId",
+        "returnFloat1",
+        "returnFloat2",
+        "returnNumber1",
+        "returnNumber2",
+        "returnString1",
+        "returnString2"
+      ]
+    },
+    {
+      "seq": 1,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/movementZones/nonpaged",
+      "query": "showLocationCount=1&siteId=SG&subsites=----&_dc=1786530218130",
+      "status": 200,
+      "bytes": 159405,
+      "rowCount": 92,
+      "sampleKeys": [
+        "RDTFlag",
+        "allocMaxUomRplFlag",
+        "allowDynamicPickFaceReplenishment",
+        "allowOverpickingOfReplenishmentQuantity",
+        "autoCancelPick",
+        "autoCloseShipmentFlag",
+        "buildingId",
+        "clearDestinationLocationOnDeposit",
+        "consolidations_uri",
+        "defaultReplConfigInvSts",
+        "defaultReplConfigMaxUnit",
+        "defaultReplConfigMinUnit"
+      ]
+    },
+    {
+      "seq": 2,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inboundOrderTypes",
+      "query": "receivingTypesOnly=true&siteId=SG&subsites=----&_dc=1786530218356",
+      "status": 200,
+      "bytes": 5272,
+      "rowCount": 18,
+      "sampleKeys": [
+        "deliveryFlag",
+        "gs1InboundOrderType",
+        "inboundOrderType",
+        "longDescription",
+        "resourceId",
+        "returnFlag",
+        "self_uri",
+        "standardPutawayFlag",
+        "wmDefaultFlag"
+      ]
+    },
+    {
+      "seq": 3,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/movementZones/nonpaged",
+      "query": "showLocationCount=0&warehouseId=SG&siteId=SG&subsites=----&_dc=1786530218357",
+      "status": 200,
+      "bytes": 159405,
+      "rowCount": 92,
+      "sampleKeys": [
+        "RDTFlag",
+        "allocMaxUomRplFlag",
+        "allowDynamicPickFaceReplenishment",
+        "allowOverpickingOfReplenishmentQuantity",
+        "autoCancelPick",
+        "autoCloseShipmentFlag",
+        "buildingId",
+        "clearDestinationLocationOnDeposit",
+        "consolidations_uri",
+        "defaultReplConfigInvSts",
+        "defaultReplConfigMaxUnit",
+        "defaultReplConfigMinUnit"
+      ]
+    },
+    {
+      "seq": 4,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMDoorActivity",
+      "query": "_dc=1786530218475&siteId=SG&subsites=----",
+      "status": 200,
+      "bytes": 38,
+      "rowCount": null,
+      "sampleKeys": null
+    },
+    {
+      "seq": 5,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMDoorActivity",
+      "query": "_dc=1786530218492&siteId=SG&subsites=----",
+      "status": 200,
+      "bytes": 38,
+      "rowCount": null,
+      "sampleKeys": null
+    },
+    {
+      "seq": 6,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/trailers/occupiedYardLocations",
+      "query": "siteId=SG&subsites=----&_dc=1786530218545",
+      "status": 200,
+      "bytes": 1128283,
+      "rowCount": 503,
+      "sampleKeys": [
+        "currentCapacity",
+        "displayNames",
+        "failedAudit",
+        "locationStatus",
+        "locationStatusDescription",
+        "maximumCapacity",
+        "needSafety",
+        "pendingAudit",
+        "resourceId",
+        "safety",
+        "self_uri",
+        "storageLocation"
+      ]
+    },
+    {
+      "seq": 7,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMDoorActivity",
+      "query": "siteId=SG&subsites=----&_dc=1786530218545",
+      "status": 200,
+      "bytes": 11347,
+      "rowCount": 33,
+      "sampleKeys": [
+        "discriminator",
+        "insertDate",
+        "modifiedDate",
+        "insertUserId",
+        "modifiedUserId",
+        "dataType",
+        "funcGroup",
+        "sortSequence",
+        "filterType",
+        "columnName",
+        "id",
+        "resourceId"
+      ]
+    },
+    {
+      "seq": 8,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMDoorActivity",
+      "query": "siteId=SG&subsites=----&_dc=1786530218546",
+      "status": 200,
+      "bytes": 11347,
+      "rowCount": 33,
+      "sampleKeys": [
+        "discriminator",
+        "insertDate",
+        "modifiedDate",
+        "insertUserId",
+        "modifiedUserId",
+        "dataType",
+        "funcGroup",
+        "sortSequence",
+        "filterType",
+        "columnName",
+        "id",
+        "resourceId"
+      ]
+    },
+    {
+      "seq": 9,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/trailerAuditWork/locationsForAudit",
+      "query": "siteId=SG&subsites=----&_dc=1786530218546",
+      "status": 200,
+      "bytes": 47859,
+      "rowCount": 758,
+      "sampleKeys": [
+        "storageLocation",
+        "warehouseId",
+        "yardFlag"
+      ]
+    },
+    {
+      "seq": 10,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/doorsWithAppointments",
+      "query": "query=%5B%5D&startDate=%5B%7B%22op%22%3A%22gt%22%2C%22val%22%3A%222026-08-11T04%3A00%3A00.000Z%22%7D%5D&endDate=%5B%7B%22op%22%3A%22le%22%2C%22val%22%3A%222026-08-15T04%3A00%3A00.000Z%22%7D%5D&siteId=SG&subsites=----&_dc=1786530218838",
+      "status": 200,
+      "bytes": 712718,
+      "rowCount": 255,
+      "sampleKeys": [
+        "appointments",
+        "areaCode",
+        "buildingId",
+        "carrierMoveId",
+        "displayName",
+        "displayNameList",
+        "dockedTrailer",
+        "endDate",
+        "failedAudit",
+        "locationStatus",
+        "locationStatusDescription",
+        "pendingAudit"
+      ]
+    }
+  ],
+  "screenState": {
+    "title": "Blue Yonder - Deferred Executions",
+    "grids": [],
+    "forms": [],
+    "buttons": []
+  },
+  "writesObservedOnLoad": []
+}

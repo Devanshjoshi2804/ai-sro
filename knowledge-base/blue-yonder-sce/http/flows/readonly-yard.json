@@ -1,0 +1,13 @@
+{
+  "screen": "yard",
+  "route": "#wm.yard/wm.dooractivity////",
+  "readOnly": true,
+  "calls": [],
+  "screenState": {
+    "title": "Blue Yonder - Door Activity",
+    "grids": [],
+    "forms": [],
+    "buttons": []
+  },
+  "writesObservedOnLoad": []
+}

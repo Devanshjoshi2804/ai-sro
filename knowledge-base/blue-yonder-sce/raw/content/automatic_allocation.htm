@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Allocation" data-mc-conditions="Writer Tags.Amanda" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Automatic Allocation</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#AutomaticAllocation">Automatic Allocation</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Allocationmethods">Allocation methods</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ExampleAllocationmethod">Example: Allocation method </a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Automaticallocationprocessing">Automatic allocation processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Automaticallocationofunplannedorders">Automatic allocation of unplanned orders</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Setup">Setup</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ExampleAutomaticallocationofunplannedorders">Example: Automatic allocation of unplanned orders</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Setupautomaticwaveprocessing">Set up automatic wave processing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configureautomaticallocationsettings">Configure automatic allocation settings</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#AutomaticAllocationfields">Automatic Allocation fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Methodfields">Method fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="AutomaticAllocation" data-magellan-target="AutomaticAllocation"><a name="aanchor121"></a>
+                                                            <MadCap:concept term="WM" />Automatic Allocation</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#AutomaticAllocation">Automatic Allocation</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Allocationmethods">Allocation methods</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ExampleAllocationmethod">Example: Allocation method </a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Automaticallocationprocessing">Automatic allocation processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Automaticallocationofunplannedorders">Automatic allocation of unplanned orders</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ExampleAutomaticallocationofunplannedorders">Example: Automatic allocation of unplanned orders</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Setupautomaticwaveprocessing">Set up automatic wave processing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configureautomaticallocationsettings">Configure automatic allocation settings</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#AutomaticAllocationfields">Automatic Allocation fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Methodfields">Method fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Automatic allocation is the process by which the application chooses when and which orders or shipments to allocate automatically on a scheduled basis.</p>
+                                                        <p>You can configure the application to automatically allocate selected orders or work orders when they are downloaded from a host or when the order falls within the auto allocation method's time criteria. The order or work order must satisfy all of the defined criteria for a method in order to qualify for auto allocation. You use the Automatic settings to configure and enable auto allocation methods and the criteria for each method.</p>
+                                                        <h2 id="Allocationmethods" data-magellan-target="Allocationmethods"><a name="Allocation_methods"></a>Allocation methods</h2>
+                                                        <p>An allocation method is a configuration that defines when and which orders are automatically allocated. An order or work order must satisfy all of the defined criteria in the method in order to qualify for automatic allocation.</p>
+                                                        <p>When you configure an auto allocation method, you specify the following information:</p>
+                                                        <ul>
+                                                            <li>Whether the method is enabled </li>
+                                                            <li>A unique identifier and description</li>
+                                                            <li>The event at which orders or work orders that match the method's criteria become candidates for automatic allocation. You can specify the event to occur when the order or work order is downloaded from the host, when the specified method date of the order or work order falls within the method's time window, or whichever happens first. </li>
+                                                            <li>If the method should be used for orders or work orders </li>
+                                                            <li>A date related to the order or work order, such as the late delivery date, that you want to use for scheduling auto allocation, and the amount of time in hours prior to that date your facility wants the inventory to be allocated. For example, if a method specifies 24 hours and Late Delivery Date, then an order that has a late delivery date of July 10th would be a candidate for allocation on July 9th to allow for the 24 hour lead time, assuming that July 9th is a picking day and is not a defined exception day. </li>
+                                                            <li>Whether the method includes unplanned orders (outbound orders that have not been planned into a shipment or wave)</li>
+                                                        </ul>
+                                                        <h2 id="ExampleAllocationmethod" data-magellan-target="ExampleAllocationmethod"><a name="Example:_Allocation_method"></a>Example: Allocation method </h2>
+                                                        <p>The following example shows how you can configure an auto allocation method and its related criteria.</p>
+                                                        <p>The following table shows the configuration of an auto allocation method that takes effect 48 hours in advance of the late delivery date and includes unplanned orders.</p>
+                                                        <table style="width: 390;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1">
+                                                            </col>
+                                                            <col class="TableStyle-Table_Plain-Column-Column1">
+                                                            </col>
+                                                            <col class="TableStyle-Table_Plain-Column-Column1">
+                                                            </col>
+                                                            <col class="TableStyle-Table_Plain-Column-Column1">
+                                                            </col>
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Event</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Hours Prior to Date</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Date</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Include Unplanned Orders</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow" width="78">
+                                                                        <p>Scheduled</p>
+                                                                    </td>
+                                                                    <td width="72" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>48</p>
+                                                                    </td>
+                                                                    <td width="120" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Late Delivery Date</p>
+                                                                    </td>
+                                                                    <td width="120" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>Yes</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>The following table shows the configuration of method criteria. The criteria specifies that outbound orders for which the Ship-To Customer is CustomerA are candidates for auto allocation.</p>
+                                                        <table style="width: 312;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1">
+                                                            </col>
+                                                            <col class="TableStyle-Table_Plain-Column-Column1">
+                                                            </col>
+                                                            <col class="TableStyle-Table_Plain-Column-Column1">
+                                                            </col>
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Entity</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Column</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Value</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="72" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Order</p>
+                                                                    </td>
+                                                                    <td width="138" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Ship-To Customer</p>
+                                                                    </td>
+                                                                    <td width="102" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>CustomerA</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>Since the event is defined as Scheduled, orders (both planned and unplanned) that meet the criteria would be auto allocated once the PROCESS-AUTO-ALLOCATION job runs within 48 working hours of the late delivery date. For example, if the late delivery date on an order that meets the method criteria is July 21st, and the job runs inside of 48 working hours prior to July 21st, then the application would process the auto allocation for that order. </p>
+                                                        <p>Additionally, if an unplanned order that matches the criteria and wave rule exists in the application when the auto allocation job runs within the specified time frame, it is automatically planned and allocated. During this process, the application plans the distribution order into a wave (based on the wave rule defined for the method), automatically creates the shipment and shipment line information, and then allocates the wave. When the inventory is received, it can be cross docked to fulfill the order (if the order lines are set to allow cross docking). If the method does not include unplanned orders, they must be manually planned into a wave or they remain unallocated.</p>
+                                                        <p>If the method was configured to run on download, then any orders meeting the criteria (and wave rule, for unplanned orders) that are downloaded within the 48 period prior to the late delivery date are eligible for auto allocation immediately.</p>
+                                                        <h2 id="Automaticallocationprocessing" data-magellan-target="Automaticallocationprocessing"><a name="Automatic_allocation_processing"></a>Automatic allocation processing</h2>
+                                                        <p>Automatic allocation offers a consistent process for allocating waves and maintaining a constant flow of work within a warehouse. Automatic wave processing runs on a timer (or when the the orders are downloaded from the host, depending on the configuration), searches a list of unallocated shipment lines to find lines that are ready to be allocated, and allocates the shipment lines as batches. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Even if Allocation as a Service is enabled, only a single thread is used during automatic allocation processing.</p>
+                                                        <p>The application uses the following process to automatically allocate shipments:</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Searches for unplanned orders, if the allocation method is configured to include unplanned orders. If any are found, then the application creates a new schedule batch (wave), creates shipment lines for the unplanned orders, and then adds the shipment lines to the wave. For information about including unplanned orders for automatic allocation, see <a href="#Automatic_allocation_of_unplanned_orders">Automatic allocation of unplanned orders</a>.</p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p>Searches for eligible unallocated shipment lines using rule criteria for the method.</p>
+                                                                <p>The application searches through existing shipment lines, either within an existing wave (which could include shipment lines created in step 1), or all shipment lines not linked to any wave, depending on the method configuration. </p>
+                                                                <p>Often, the rule criteria includes a value on the order line, such as the carrier, order type, transport equipment number, customer, <b>Pick Group 1</b> from the order line, or wave set. Additionally, the application checks for any  shipment lines that contain a pick exclusion value. The application does not allocate a shipment that contains a shipment line with a pick exclusion.</p>
+                                                            </li>
+                                                            <li value="3">
+                                                                <p>Assigns shipment lines to a pick group based on the grouping policy.</p>
+                                                                <p>Shipment lines are grouped for allocation based on wave, wave and shipment, or wave and item, depending on the value of the <b>Auto Allocation Grouping Level</b> field.</p>
+                                                                <div class="Note">
+                                                                    <p><b class="NoteHeadingBold">Notes</b>: </p>
+                                                                    <ul>
+                                                                        <li>
+                                                                            <p>A pick group can only contain either shipment lines from the same wave or shipment lines without a wave.</p>
+                                                                        </li>
+                                                                    </ul>
+                                                                    <ul>
+                                                                        <li>
+                                                                            <p>If a shipment line is not already linked to a wave prior to the allocation process,  then a new wave is generated to associate with the picks, but the shipment lines are not assigned to a wave. Shipment lines assigned to an existing wave remain linked to the wave. </p>
+                                                                        </li>
+                                                                    </ul>
+                                                                </div>
+                                                            </li>
+                                                            <li value="4">
+                                                                <p>Allocates the pick group.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <p>This process repeats until all found eligible orders or work orders are allocated. If there are multiple pick groups within a single wave, steps 3 and 4 are repeated for each pick group in the wave until the whole wave is allocated, and then the process repeats from step 1. </p>
+                                                        <h2 id="Automaticallocationofunplannedorders" data-magellan-target="Automaticallocationofunplannedorders"><a name="Automatic_allocation_of_unplanned_orders"></a>Automatic allocation of unplanned orders</h2>
+                                                        <p>You can configure an automatic allocation method to include unplanned orders. An unplanned order is any outbound order that has not yet been planned into a shipment or included in a wave for allocation. Auto allocation for unplanned orders is especially useful in facilities that want to use cross docking to fulfill distributions for which existing shipment information does not exist. The application automatically creates shipment and shipment line information when planning orders into a wave based on the wave rule specified in the method. </p>
+                                                        <p>If an unplanned order satisfies the method criteria but does not match the method's wave rule, it remains unplanned; alternatively, if the order matches the wave rule but violates the method criteria, it also remains unplanned. Additionally, unplanned orders must have a date value that matches the date specified in a method to be considered for automatic allocation. For example, if a method's date is Early Ship Date, and an unplanned order is created that meets all of the method's criteria, including the wave rule, but does not have an early ship date specified, then the order remains unplanned and not allocated.</p>
+                                                        <p>Use of this feature can alleviate delays in processing unplanned distribution orders, which would otherwise require manual allocation before cross docking can be performed.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Allocation methods configured to include unplanned orders cannot include shipment or shipment line criteria since the application creates shipment data during the auto allocation process.</p>
+                                                        <p>The application can plan and allocate unplanned orders that are downloaded, manually created, or automatically created from the following host transactions:</p>
+                                                        <ul>
+                                                            <li>Distribution Information (DISTRO_INB_IFD)</li>
+                                                            <li>Order Information (ORDER_INB_IFD)</li>
+                                                            <li>Order Line Information (ORDER_LINE_INB_IFD)</li>
+                                                            <li>Receipt Authorization Information (RA_INB_IFD)</li>
+                                                            <li>Receipt Information (RCPT_INB_IFD)</li>
+                                                        </ul>
+                                                        <h3 id="Setup" data-magellan-target="Setup">Setup</h3>
+                                                        <p>You must perform the following tasks to automatically plan and allocate unplanned orders:</p>
+                                                        <ol>
+                                                            <li value="1">Configure a wave rule to be used by the application when planning a wave of unplanned orders that match the criteria of an automatic allocation method. See <a href="manual_allocation.htm#Wave_rules">Wave rules</a> and <a href="manual_allocation.htm#Configure_manual_allocation">Configure manual allocation</a>.</li>
+                                                            <li value="2">
+                                                                <p>Configure an automatic allocation method with the following attributes:</p>
+                                                                <ul>
+                                                                    <li>Set the <span class="specialbold">Include Unplanned Orders</span> field to Yes.</li>
+                                                                    <li>Define method criteria that matches the attributes of the unplanned orders to include.</li>
+                                                                    <li>Select the wave rule you created in step 1, by which the unplanned orders that match the method criteria are planned into picking waves and allocated.</li>
+                                                                </ul>
+                                                                <p>See <a href="#Allocation_methods">Allocation methods</a> and <a href="#Configure_automatic_allocation_settings">Configure automatic allocation settings</a>.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="ExampleAutomaticallocationofunplannedorders" data-magellan-target="ExampleAutomaticallocationofunplannedorders"><a name="Example:_Automatic_allocation_of_unplanned_orders"></a>Example: Automatic allocation of unplanned orders</h2>
+                                                        <p>When an unplanned order that meets the method criteria is downloaded or created in the application, it becomes eligible for auto allocation based on the method configurations. See <a href="#Automatic_allocation_of_unplanned_orders">Automatic allocation of unplanned orders</a>.</p>
+                                                        <p>For example, assume an allocation method is configured with the following field values:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Include Unplanned Orders</span>: Yes</li>
+                                                            <li><span class="specialbold">Event</span>: Scheduled and On Download (Orders that meet the criteria are eligible for auto allocation when they are downloaded from the host within the date and time window, or based on the date and time window and when the PROCESS-AUTO-ALLOCATION job runs within that window, whichever comes first.)</li>
+                                                            <li><span class="specialbold">Hours Prior To Date</span>: 48</li>
+                                                            <li><span class="specialbold">Date</span>: Late delivery date</li>
+                                                        </ul>
+                                                        <p>If an unplanned order that meets the method's criteria and planning wave rule is downloaded within 48 hours of the late delivery date, the application automatically plans the order into a wave (based on the wave rule), and then allocates the wave. If any order lines allow cross docking, when the inventory is received, it can be immediately cross-docked to fulfill the lines. However, if the unplanned order was created prior to the 48 hour window, it would not be planned or allocated until the PROCESS-AUTO-ALLOCATION job runs within that time frame.</p>
+                                                        <h2 id="Setupautomaticwaveprocessing" data-magellan-target="Setupautomaticwaveprocessing"><a name="Set_up_automatic_wave_processing"></a>Set up automatic wave processing</h2>
+                                                        <p>You must perform the following tasks to set up automatic allocation processing:</p>
+                                                        <ol>
+                                                            <li value="1">Configure your host to set Pick Group 1 on each waveable order to a different value, depending on which wave you want the order to be in.</li>
+                                                            <li value="2">Configure the timer for the processing waves automatically. The timer, named Wave Generation, is configured in the Console, under Jobs.</li>
+                                                            <li value="3"><a href="#Configure_automatic_allocation_settings">Configure automatic allocation settings</a>.</li>
+                                                        </ol>
+                                                        <h2 id="Configureautomaticallocationsettings" data-magellan-target="Configureautomaticallocationsettings"><a name="Configure_automatic_allocation_settings"></a>Configure automatic allocation settings</h2>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Select <span class="specialbold">Configuration &gt; Outbound &gt; Allocation &gt; Automatic Allocation</span>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: The Job Schedule for Automatic Allocation displays the days and times on which the automatic allocation process runs. The schedule is maintained in the Console, under Jobs.</p>
+                                                            </li>
+                                                            <li value="2">Enter information in the <a href="#Automatic_Allocation_fields">Automatic Allocation fields</a>.</li>
+                                                            <li value="3">To define the methods that determine which orders are automatically allocated, according to the schedule:<ol><li value="1">Click <span class="specialbold">Define Methods</span>.</li><li value="2">Perform one of the following tasks:<ul><li>To add a method, click <b>Add</b>.</li><li>To modify a method, in the grid, click the method.</li></ul></li><li value="3">Enter information in the <a href="#Method_fields">Method fields</a>.</li><li value="4">To define the criteria that is used to find orders to allocate:<ol><li value="1">Under <span class="specialbold">Criteria Definition</span>, click <span class="specialbold">Expression</span>. </li><li value="2">Select an entity that has the attribute to use, such as <span class="specialbold">Order.</span></li><li value="3">Select the attribute to use, such as <span class="specialbold">Ship-To Customer</span>. </li><li value="4">Select the qualifier to use, such as "<span class="specialbold">=</span>". </li><li value="5">Select the value to use, such as <span class="specialbold">CustomerA </span>(the name of the shipping address for the order). </li></ol></li><li value="5">Click <b>Save</b>. </li><li value="6">To delete an allocation method:<ol><li value="1">In the grid, select the check box next to the method to delete.</li><li value="2">Click <b>Delete</b>. A confirmation message is displayed.</li><li value="3">Click <b>OK</b>.</li></ol></li></ol></li>
+                                                            <li value="4">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="AutomaticAllocationfields" data-magellan-target="AutomaticAllocationfields"><a name="Automatic_Allocation_fields"></a>Automatic Allocation fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Allocate Shipments in Wave</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then shipments that have been added to a wave are processed (allocated) automatically. When this field is set to Yes, the Wave Generation job runs based on the job timer, which is maintained in the Console. If you enable automatic allocation of shipments in waves, then you can use the <b>Exclusion Command</b> field to specify the command used to exclude specific shipments or shipment lines (such as those that are cancelled) from the automatic allocation process.</p>
+                                                                        <p>If No, then waves are not processed (allocated) automatically. When this field is set to No, the Wave Generation job does not run, and shipments in waves must be manually allocated.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Exclusion Action</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Server command used to exclude specific shipments or shipment lines (such as those that are cancelled) from automatic wave processing. This setting is only used if you want to exclude certain shipments or shipment lines marked as waveable (such as those that are cancelled) from automatic wave processing.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Maximum In Process</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Maximum number of waves that are processed at the same time. Enter a value if automatic wave processing is enabled.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2" data-mc-conditions="">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Auto Allocation Grouping Level</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Level at which shipment lines are grouped together for automatic allocation. The grouping level affects how many shipment lines are allocated at one time, which can impact processing time and picking operations. During allocation, the database is locked, which prevents operators from picking allocated inventory; therefore, larger allocation batches may result in longer processing times and delayed picking operations.</p>
+                                                                        <ul>
+                                                                            <li>
+                                                                                <p><b>Wave</b>: All shipment lines in a wave are grouped and allocated together as a single batch. This is the default value.</p>
+                                                                            </li>
+                                                                            <li>
+                                                                                <p><b>Shipment</b>: All shipment lines for a single shipment in a wave are grouped and allocated together as a single batch. Each shipment in a wave is allocated in a separate batch.</p>
+                                                                            </li>
+                                                                            <li>
+                                                                                <p><b>Item</b>: All shipment lines for a unique item in a wave are grouped and allocated together as a single batch. Each group of shipment lines for an item in a wave is allocated in a separate batch.</p>
+                                                                            </li>
+                                                                        </ul>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If a shipment line is not already linked to a wave, such as a shipment in an unplanned order, then a new wave is generated to associate with the picks, but the shipment lines are not assigned to a wave. Shipment lines assigned to an existing wave remain linked to the wave. </p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Methodfields" data-magellan-target="Methodfields"><a name="Method_fields"></a>Method fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Enable Method</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If ENABLED, the application uses the method during automatic allocation processing to determine if there are any orders or work orders matching the selection criteria that can be allocated. If there are, the process attempts to allocate the orders and work orders automatically.</p>
+                                                                        <p>If DISABLED, the application does not consider the method during automatic allocation processing.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Method Name</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Name of the method used to find orders for automatic allocation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Method Description</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Text that further describes the method.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Include Unplanned Orders</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application includes unplanned orders that are found by the specified criteria. An unplanned order is any outbound order that has not yet been planned into a shipment or included in a wave for allocation. If set to Yes, when an unplanned order that meets the method criteria is downloaded or created in the application, it becomes eligible for auto allocation based on the method configurations. During the auto allocation of an unplanned order, the application plans the order into a wave (based on the rule specified in the <b>Planning Wave Rule</b> field), automatically creates the shipment and shipment line information, and then allocates the wave. See <a href="#Automatic_allocation_of_unplanned_orders">Automatic allocation of unplanned orders</a>.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Allocation methods that include unplanned orders cannot include shipment or shipment line criteria since the application creates shipment data during the auto allocation process. If the method is already configured with shipment or shipment line criteria, and you set this field to Yes, a message is displayed indicating that shipment and shipment line criteria will be removed if you continue.</p>
+                                                                        <p>If No, then the application does not consider unplanned orders when using this method.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Planning Wave Rule</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Wave rule that is used to group unplanned orders into a wave for automatic allocation. When an unplanned order is included in automatic allocation and wave processing, the application plans the wave based on this rule, which automatically creates shipment information for the order, and then allocates the wave. Only available if the <b>Include Unplanned Orders</b> field is set to Yes.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Wave rules related to shipments are not available for selection since the rule only applies to unplanned orders (orders not yet planned into a shipment or wave).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Always Run</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then the application allocates orders and shipments that fit the method criteria whenever the scheduled auto allocation job runs. If set to Yes, the <b>Event</b>, <b>Date</b>, and <b>Hours Prior To&#160;Date</b> fields are not available because shipments that meet the criteria are always eligible for auto allocation. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: This field can be set to Yes for only one automatic allocation method. Typically, the method set to always run is configured to allocate shipments that had previously failed address validation or carrier selection. See <a href="parcel_config.htm#Parcel_address_validation_and_carrier_selection">Parcel address validation and carrier selection</a>.</p>
+                                                                        <p>If No, then orders and shipments that fit the method criteria are eligible for automatic allocation according to the <b>Event</b>, <b>Date</b>, and <b>Hours Prior To Date</b> fields.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Event</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Value that determines when the orders or work orders that meet the method criteria become eligible for auto allocation.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Scheduled</span>: Occurs based on the date window defined for the method. For example, if the <span class="specialbold">Hours Prior To Date</span> is set to 24, and the <span class="specialbold">Date </span>field is set to Early Ship Date, then an order that matches the method's criteria becomes eligible for auto allocation when the current date and time is within 24 hours of the early ship date defined for the order. </li>
+                                                                            <li><span class="specialbold">On Download</span>: Occurs when the order or work order is received from the host within the date and time window for the method. </li>
+                                                                            <li><span class="specialbold">Scheduled and On Download</span>: Occurs when the order or work order is received from the host within the date and time window, or based on the date and time window defined for the method, whichever comes first.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Hours Prior To Date</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number of hours prior to the date specified in the <span class="specialbold">Date </span>field that defines the date and time window in which orders or work orders that match the method criteria become eligible for auto allocation. For example, if the <span class="specialbold">Date </span>is Early Ship Date and your facility needs to allocate 2 working days before the early ship date, then set the <span class="specialbold">Hours Prior To Date</span> to 48.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Date</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                        <p>Date field associated with the order or work order that you want to use for scheduling auto allocations. The <span class="specialbold">Hours Prior to Date</span> field determines how far in advance of the select date the order or work order becomes eligible for auto allocation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

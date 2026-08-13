@@ -1,0 +1,566 @@
+{
+  "generated_by": "recipe audit agent",
+  "generated_at": "2026-08-13",
+  "method": "Every factual assertion in recipes/*/*.md, recipes/README.md and KNOWLEDGE-BASE.md about HTTP status codes, endpoint existence, request/response shape, id format, required fields, cascade ordering, atomicity, validation locus (client vs server) and idempotency was extracted and matched against the evidence store, in this priority order: http/exchanges/*.jsonl (stored request+response pairs) > http/status-matrix.json > http/claims.json > http/flows/*.json > http/graph.json > index/write-endpoints.json. A claim is SUPPORTED only when a stored exchange or flow shows the exact wire behaviour asserted; CONTRADICTED when a stored exchange shows different behaviour; UNSUPPORTED when nothing in the store speaks to it either way (the default, and the largest bucket); STALE when the store or a later correction has superseded it. Two disqualifiers were applied throughout: (1) a 404 only proves deletion when kind==RECORD-MISSING (body carries errors[]); kind==ROUTE-MISSING (body carries \"url\":\"/ws/...\") proves only that the route never existed, so any 'deleted, confirmed by a later 404' proof on a route with no positive evidence is UNSUPPORTED at best and circular at worst. (2) A UI modal, red field icon or disabled Save is not evidence of server behaviour; any 'server-side validation' claim needs a recorded request, and any 'client-side, zero requests' claim needs a recorded probe showing an empty request list. Note on coverage: the exchange store covers 19 resources; it contains NO exchanges at all for codes, locations, areas, buildings, warehouses, or any query-string variant (every stored URL is bare, no siteId/offset/query params), so every recipe claim about those resources or about query-parameter behaviour is necessarily UNSUPPORTED here rather than wrong.",
+  "totals": {
+    "supported": 21,
+    "contradicted": 13,
+    "unsupported": 28,
+    "stale": 7
+  },
+  "totals_note": "69 findings over 16 files. Three of the STALE findings are clusters covering the same defect across several recipes (Copy-not-tested in 7 files, Edit-PUT-not-tested in 3, UI-Delete-not-captured folded into the carriers entry), so the number of stale statements in the corpus is roughly 20, not 7.",
+  "findings": [
+    {
+      "file": "recipes/equipment/transport-equipment-type.md",
+      "line_hint": "24-26",
+      "claim_text": "Practical implication: `DELETE /data/WM/wm/transportEquipmentTypes/{code}*!{columnName}` works directly (confirmed) — you don't have to go through the generic `/wm/codes/{code}*!{columnName}` path for this specific screen.",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/exchanges/transportEquipmentTypes.jsonl — all 6 cases: {\"case\":\"route-exists\",\"request\":{\"method\":\"GET\",\"url\":\"/wm/transportEquipmentTypes\"},\"response\":{\"status\":404,\"kind\":\"ROUTE-MISSING\"}}; likewise read-missing, create-valid, create-duplicate, create-empty. status-matrix.json by_case marks transportEquipmentTypes \"404/ROUTE-MISSING\" in every single case row. index/write-endpoints.json DELETE entry: \"FALSIFIED 2026-08-12 ... GET /wm/transportEquipmentTypes/AIR (a real existing code) both return a ROUTE-MISSING 404 ... The route does not exist on this deployment.\"",
+      "note": "LOAD-BEARING AND STILL UNCORRECTED. write-endpoints.json entries 48/49 were flipped to verified:false and claims.json records the falsification, but this recipe file was never updated — it still tells an executor to DELETE against a route that does not exist. The recipe's own 'confirmed' is the exact circular proof claims.json calls out: a nonexistent route 404s forever."
+    },
+    {
+      "file": "recipes/equipment/transport-equipment-type.md",
+      "line_hint": "35-36 (Buttons and actions table)",
+      "claim_text": "| Add | full-page form ... | `POST /data/WM/wm/transportEquipmentTypes` | ... | checkbox + Delete | remove | `DELETE /data/WM/wm/transportEquipmentTypes/{code}*!{columnName}` | ... Fires directly — no separate page-level Save step needed here",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/exchanges/transportEquipmentTypes.jsonl case create-valid: POST /wm/transportEquipmentTypes -> 404 ROUTE-MISSING. No POST or DELETE against this path has ever returned anything but ROUTE-MISSING.",
+      "note": "Both rows of the actions table name an endpoint that does not exist. Whatever the UI actually fired went to /wm/codes (columnName=trlr_typ), per the recipe's own list-call observation."
+    },
+    {
+      "file": "recipes/equipment/transport-equipment-type.md",
+      "line_hint": "17-19, 50",
+      "claim_text": "this screen's records are also exposed under their own dedicated resource path: `/data/WM/wm/transportEquipmentTypes/{code}*!trlr_typ` (this is the `self_uri` on the record)",
+      "verdict": "CONTRADICTED",
+      "evidence": "index/write-endpoints.json (transportEquipmentTypes DELETE entry evidence field): \"GET /wm/transportEquipmentTypes/AIR (a real existing code)\" returns ROUTE-MISSING 404 with body {\"message\":\"Not Found\",\"url\":\"/ws/wm/transportEquipmentTypes\"}. http/exchanges/transportEquipmentTypes.jsonl read-missing -> 404 ROUTE-MISSING.",
+      "note": "The whole '## Fields (`/data/WM/wm/transportEquipmentTypes/{code}*!trlr_typ`)' section is addressed to a nonexistent resource path. The field names themselves may well be right (they are /wm/codes fields), but the path heading is wrong."
+    },
+    {
+      "file": "recipes/equipment/transport-equipment-type.md",
+      "line_hint": "64-67",
+      "claim_text": "Full cycle: `POST /data/WM/wm/transportEquipmentTypes` (code truncated to `ZZAUD`) → confirmed correct via `GET /wm/codes/transportEquipmentTypes?columnName=trlr_typ` → checkbox + Delete (confirm modal) → `DELETE /wm/transportEquipmentTypes/{code}*!trlr_typ` → separate `GET` 404.",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/exchanges/transportEquipmentTypes.jsonl — every method/path pair 404 ROUTE-MISSING. http/claims.json id=transportEquipmentTypes-endpoint-exists, verdict FALSIFIED: \"The delete proof was 'a later GET returned 404' — circular, since a nonexistent route 404s forever.\"",
+      "note": "Textbook instance of the ROUTE-MISSING/RECORD-MISSING conflation. The 'Verified write' heading on this file should be deleted, not annotated."
+    },
+    {
+      "file": "recipes/equipment/hardware.md",
+      "line_hint": "51-58",
+      "claim_text": "## Voice Devices ... Verified: `POST /data/WM/wm/devices` (`deviceClass=V`) → 201 → checkbox + Delete → separate GET 404.",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/exchanges/devices.jsonl cases voice-create-len4/len5/len6/len7/noterm-len6/noterm-len7 — all six: POST /wm/devices with \"deviceClass\":\"V\" -> 404 RECORD-MISSING, body {\"errors\":[{\"errorCode\":\"-1403\",\"userMessage\":\"no rows affected\"}]}. http/flows/lifecycle-voiceDevices.json phases.create = [\"GET deviceWorkAreas -> 200\", \"POST devices -> 404\"], createBlocked. http/claims.json id=voicedevices-create-404, verdict \"CONFIRMED, UNEXPLAINED\".",
+      "note": "HIGHEST-SEVERITY FINDING. The recipe presents voice-device creation as a verified, repeatable write. The evidence store carries an explicit operational_rule to the opposite effect: \"DO NOT automate voice-device creation via this screen or via POST /wm/devices with deviceClass 'V'. Beyond the 404, a failed save WEDGES the screen permanently ... poisoning any later step in the same session.\" An executor following this recipe will 404, wedge the browser session, and silently corrupt every subsequent step in the run. This warning appears nowhere in hardware.md."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "159-167 (§3b)",
+      "claim_text": "POST /data/WM/wm/addresses -> 201 ... POST /data/WM/wm/clients -> 201 ... POST /data/WM/wm/clientWarehouse -> 201, enables the client for one warehouse / POST /data/WM/wm/packingConfigurations -> 201, per-warehouse packing settings",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/flows/clients.json call sequence: [3] POST /wm/addresses -> 201, [4] POST /wm/clients -> 201, [6] POST /wm/packingConfigurations -> 201, [7] POST /wm/clientWarehouse -> 201. http/graph.json cascades[0]: {\"flow\":\"clients.json\",\"order\":[\"POST addresses\",\"POST clients\",\"POST packingConfigurations\",\"POST clientWarehouse\"]}.",
+      "note": "LOAD-BEARING. The last two POSTs are in the opposite order from what both KNOWLEDGE-BASE §3b and recipes/partners/clients.md state. The recorded flow puts packingConfigurations BEFORE clientWarehouse. Everything derived from the stated order (the dependency direction, the reverse-order delete rule) inherits the error."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "175-178 (§3b)",
+      "claim_text": "Deleting reverses the dependency order exactly: `packingConfigurations` → `clientWarehouse` → `clients` → `addresses`. Deleting out of order risks a foreign-key-style rejection",
+      "verdict": "CONTRADICTED",
+      "evidence": "Same as above: the real create order is addresses → clients → packingConfigurations → clientWarehouse (http/flows/clients.json, http/graph.json cascades[0]). The exact reverse of that is clientWarehouse → packingConfigurations → clients → addresses, not what is written.",
+      "note": "The sentence asserts an exact inversion that is not an inversion of the observed order. Worse, the paragraph admits the FK-rejection failure mode is untested, then asserts 'the dependency direction is directly observed from the create order' — the create order it was observed from is wrong."
+    },
+    {
+      "file": "recipes/partners/clients.md",
+      "line_hint": "19",
+      "claim_text": "`POST /data/WM/wm/addresses` → `POST /data/WM/wm/clients` → `POST /data/WM/wm/clientWarehouse` → `POST /data/WM/wm/packingConfigurations`, in that order, each `201`",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/flows/clients.json: addresses(call 3) -> clients(call 4) -> packingConfigurations(call 6) -> clientWarehouse(call 7). http/graph.json cascades[0].",
+      "note": "'in that order' is explicitly asserted and explicitly wrong on the last two steps. The 201s themselves are correct for all four."
+    },
+    {
+      "file": "recipes/partners/clients.md",
+      "line_hint": "22, 65",
+      "claim_text": "`DELETE packingConfigurations/{id}` → `DELETE clientWarehouse/{id}` → `DELETE clients/{id}` → `DELETE addresses/{id}`, reverse of the create cascade ... `DELETE` on all four of the above, reverse order — verified",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/claims.json open_questions: \"POST /wm/packingConfigurations returns 201 with a COMPLETELY EMPTY body (no resourceId, no fields), and the created row is not retrievable from the collection listing either. Its update/delete path therefore remains unverified — there is no id to address it by. This is the only resource in the catalogue with no way to confirm what was written.\" http/exchanges/packingConfigurations.jsonl carries only 6 cases (route-exists, read-collection, read-missing, create-valid, create-duplicate, create-empty) — no read-created, no delete-valid, no confirm-gone. Confirmed by inspection: create-valid response body is the literal empty string \"\".",
+      "note": "LOAD-BEARING. 'DELETE on all four — verified' is not verifiable for packingConfigurations by the store's own account. The same claim appears in KNOWLEDGE-BASE.md §7 row 20 ('4 DELETEs in reverse order to clean up, all 200'). An executor cleaning up a failed client create will be unable to address the packingConfigurations row at all and will leave it behind."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "292 (§7 row 20)",
+      "claim_text": "`clients` — 4 `POST`s to create (`addresses`→`clients`→`clientWarehouse`→`packingConfigurations`), all `201`; 4 `DELETE`s in reverse order to clean up, all `200`; both endpoints confirm `404` after. Fully clean, no orphan data.",
+      "verdict": "CONTRADICTED",
+      "evidence": "Order contradicted by http/flows/clients.json + http/graph.json cascades[0]. The 4-DELETE claim contradicted by http/claims.json open_questions (packingConfigurations has no addressable id). Also note http/exchanges/clients.jsonl delete-again -> 404 RECORD-MISSING, i.e. a second DELETE on clients is NOT a 200.",
+      "note": "Three separate defects in one table row: wrong order, unverifiable delete, and 'both endpoints confirm 404' does not distinguish which kind of 404."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "106-109 (§2)",
+      "claim_text": "Complex writes (create): **async job pattern** — `POST /data/WM/wm/<collection>/async` returns `202`-equivalent with an `asynchronousResourceGroupId`; poll `GET /data/WM/wm/<collection>/async/{groupId}/resources` until `asynchronousStatus` leaves `IN_PROGRESS`.",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/status-matrix.json by_case.create-valid: every one of the 18 routable resources returns 201 to a plain synchronous POST /wm/<collection> (addresses, businessUnits, carrierCrossReferences, carrierProNumbers, carriers, clientGroups, clientWarehouse, clients, customerTypes, customers, devices, equipmentTypes, levelTypes, locationTypes, packingConfigurations, printers, suppliers, transportModes). No /async path appears anywhere in http/exchanges/*.jsonl or http/flows/*.json.",
+      "note": "LOAD-BEARING. Stated as the platform's create contract; it is the warehouses-create special case generalised without evidence. An executor building a poll loop around every create would be writing dead code, and worse, might treat a synchronous 201 as an unfinished job."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "232 (§5 quirks table)",
+      "claim_text": "GET on a bad resource ID → structured `400` | `GET .../warehouses/ZZNOTREAL` returns {\"errorCode\":\"910\",...} — a real, parseable error contract.",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/status-matrix.json by_case.read-missing splits 7/11: 404/RECORD-MISSING on addresses, carriers, clientGroups, clients, customerTypes, equipmentTypes, transportModes; 400/HTTP-400 on businessUnits, carrierCrossReferences, carrierProNumbers, clientWarehouse, customers, devices, levelTypes, locationTypes, packingConfigurations, printers, suppliers.",
+      "note": "LOAD-BEARING and directly in the blast radius of the two-404s trap. Presented in the quirks table as the platform contract for a missing record; it holds on roughly half the catalogue. An executor that treats 400 as 'record absent' will misread 7 resources, and one that treats 404 as 'route absent' will misread the other 11."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "284 (§7 row 12)",
+      "claim_text": "No optimistic-locking field (`version`/`etag`) observed in any response body — two sequential edits both succeeded with no conflict signal.",
+      "verdict": "CONTRADICTED",
+      "evidence": "http/exchanges/carrierProNumbers.jsonl create-valid response body ends \"separator\": null, \"version\": 1}; update-valid response returns \"version\": 2; read-updated confirms 2 on a separate GET.",
+      "note": "A `version` field is plainly present in stored response bodies. recipes/partners/carriers.md, warehouse/areas.md, warehouse/buildings.md and warehouse/locations.md all discuss it at length. The row's conclusion (no lock enforcement) may still hold, but its stated premise is false, and the row has not been updated since carriers.md documented the field."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "15",
+      "claim_text": "| Delete | not captured via UI; direct-API equivalent tested | `DELETE /data/WM/wm/carriers/{id}` |",
+      "verdict": "STALE",
+      "evidence": "http/flows/lifecycle-carriers.json phases.delete: [\"DELETE carriers/ZV3628 -> 200\", \"GET carriers -> 200\"], captured through the UI grid.",
+      "note": "Now captured. Same for the generic 'Delete not captured via UI' caveat in clients.md:22/94, existing-customers.md:14, suppliers.md:51 — claims.json id=nonadd-flows-copy-edit-delete records UI Delete as a single store-issued DELETE identical to the direct-API call, on 7 screens."
+    },
+    {
+      "file": "recipes/partners/suppliers.md",
+      "line_hint": "104",
+      "claim_text": "`receivingPhone`, `receivingFax`, `manufacturerId`, ... | all nullable business config; **PUT-editable only if supplier was created in-app, not on EDI-synced records** (see above)",
+      "verdict": "STALE",
+      "evidence": "Contradicted by this same file, lines 55-64: \"created supplier ZZAUDIT01 through the API, then immediately PUT ... A record seconds old, never touched by EDI — and the same fields still dropped. So it was never about record provenance.\" The join-view explanation replaced the provenance explanation; this table row is a survivor of the old one.",
+      "note": "Self-contradiction inside one file. An executor reading only the field table will conclude a freshly created supplier accepts receivingPhone edits; the file's own prose says it does not."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "234 (§5 quirks) and 291 (§7 row 19)",
+      "claim_text": "Suppliers here are EDI/receiving-synced master data, most likely read-only at the field level regardless of the route accepting a PUT. ... `suppliers` — `200`, response body echoes the record back completely unchanged.",
+      "verdict": "STALE",
+      "evidence": "Superseded by recipes/partners/suppliers.md §'The PUT rejection was a misdiagnosis — this is a join view (settled 2026-08-11)'. Positive wire evidence that suppliers PUT does persist supplier-owned columns: http/exchanges/suppliers.jsonl update-valid PUT /wm/suppliers/----*!ZV021231 sets \"consignmentType\": \"ZVUPD\" -> 200, and read-updated (separate GET) returns \"consignmentType\": \"ZVUPD\".",
+      "note": "The general lesson in the row ('never trust a 200 alone') is sound and worth keeping; the diagnosis attached to it ('read-only master data') is the reading the recipe already retracted. The narrower claim that address-owned columns are silently dropped is UNSUPPORTED separately — no stored exchange PUTs a non-null receivingPhone."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "25-31",
+      "claim_text": "a `PUT` carrying `version: 1` against a record already stored at version 2 was accepted, applied, and bumped to 3. No `409`, no error, no rejection. ... **Consequence for the executor: this API has no lost-update protection at all.**",
+      "verdict": "UNSUPPORTED",
+      "evidence": "http/exchanges/carrierProNumbers.jsonl records only a MATCHED-version write: create-valid -> \"version\": 1, then update-valid sends \"version\": 1 against a record at version 1 -> 200, response \"version\": 2. No stored exchange sends a stale version. The 1→2→3 sequence the recipe describes is not in the store.",
+      "note": "LOAD-BEARING. The version-increments-on-write half IS supported (1 -> 2, confirmed on a separate read). The stale-version-accepted half — the entire basis for 'no lost-update protection' — has no recorded request. The recipe's operational advice (serialise per record) is the safe default either way, so acting on it is not dangerous; asserting it as settled fact is."
+    },
+    {
+      "file": "recipes/warehouse/locations.md",
+      "line_hint": "60-63",
+      "claim_text": "Fell back to a direct authenticated `DELETE` with the `CSRF-ENCRYPT-TOKEN` header pulled live from the app iframe's `Ext.Ajax.defaultHeaders` — a bare `fetch` DELETE with only `credentials:'include'` 404s, confirming the header is required (not just cookie auth) for this verb.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No exchange in http/exchanges/*.jsonl is recorded without the CSRF header, and there are no /wm/locations exchanges at all. The 404 cited is uncategorised — it is neither shown to be ROUTE-MISSING nor RECORD-MISSING.",
+      "note": "LOAD-BEARING and the same conflation that sank transportEquipmentTypes. KNOWLEDGE-BASE §1 independently records that a wrong-token write produced 'a bare 404 with an empty body' which was for months misread as a WAF block — i.e. this deployment has at least a third flavour of 404 (auth failure) that carries neither marker. 'It 404'd, therefore the header is required' does not follow."
+    },
+    {
+      "file": "recipes/warehouse/locations.md",
+      "line_hint": "26-27, 52-53, 70, 167-171",
+      "claim_text": "**`POST /data/WM/wm/locations/batch`** — confirmed across Production, Yard, Dock, Staging, Processing, Pickup and Deposit. ... Fires `DELETE /data/WM/wm/locations/{locationId}*!{warehouseId}?buildingId=` ... `PUT /data/WM/wm/locations/{id}*!{warehouseId}` — Enable/Disable toggle edit→verify→revert.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "There is no http/exchanges/locations.jsonl. http/status-matrix.json contains no `locations` resource. http/claims.json open_questions states plainly: \"locations remains untested by policy (25k+ real rows, batch-create path).\"",
+      "note": "LOAD-BEARING: this is the highest-blast-radius resource in the app (25,469+ real storage rows) and the only recipe describing a batch-create endpoint, and none of it has a stored request/response pair. The screen-behaviour observations may well be accurate; the wire contract is unrecorded. Do not let an executor write to /wm/locations on the strength of this file."
+    },
+    {
+      "file": "recipes/warehouse/locations.md",
+      "line_hint": "146-163",
+      "claim_text": "Backed by **`/data/WM/wm/codes`** ... keyed by **`{code}*!{columnName}`** ... `DELETE /data/WM/wm/codes/ZZAUDIT*!dck_acc_cod` → separate `GET codes?columnName=dck_acc_cod` confirmed 0 rows.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "There is no http/exchanges/codes.jsonl and no `codes` row in http/status-matrix.json. `wm/codes` appears in http/flows/*.json only as GETs fired for combo population during other screens' flows.",
+      "note": "LOAD-BEARING. /wm/codes is, per this repo's own reading, the backing table for at least three screens (dck_acc_cod, locacc, trlr_typ) and per http/claims.json id=tier2-readonly-trace it is the second most depended-on resource in the app (16 screens). Its entire write contract — POST shape, DELETE id format, the staged-delete-then-page-Save behaviour — rests on hand-driven observation with no stored exchange. Given that the trlr_typ screen's documented endpoint turned out not to exist, this cluster deserves a battery run before anything automated touches it."
+    },
+    {
+      "file": "recipes/equipment/location-access-groups.md",
+      "line_hint": "29-31, 50-53",
+      "claim_text": "| page-level Save | commits staged deletes | `DELETE /data/WM/wm/codes/{code}*!{columnName}` | This is the call that actually removes the record — confirmed via network capture ... → `DELETE /data/WM/wm/codes/ZZAUDIT*!locacc` → separate `GET` confirmed 0 rows",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No codes exchanges exist (see above). The 'confirmed via network capture' is a hand-driven observation of the kind claims.json headline identifies as the root cause of all three earlier falsifications: \"a hand-driven session read the UI (a modal, a network panel) and inferred what the wire did, instead of recording the wire.\"",
+      "note": "LOAD-BEARING: the two-phase delete (checkbox stages client-side, page-level Save commits) is a behavioural claim an executor must get right or it will believe it deleted a record it did not. Untested on the wire."
+    },
+    {
+      "file": "recipes/equipment/hardware.md",
+      "line_hint": "8-11, 43-44",
+      "claim_text": "Three of the five Hardware screens share one resource, `/data/WM/wm/devices`, differentiated by `deviceClass`: `R` (RF Devices), `V` (Voice Devices), `W` (Workstations). Confirmed by creating a throwaway record on each ... Verified: `POST /data/WM/wm/devices` (`deviceClass=R`) → 201",
+      "verdict": "UNSUPPORTED",
+      "evidence": "http/exchanges/devices.jsonl create-valid carries \"deviceClass\": \"W\" (201). The only other deviceClass in the store is \"V\", and it 404s. There is no stored exchange with deviceClass \"R\". http/flows/lifecycle-workstations.json confirms W; there is no lifecycle-rfDevices.json.",
+      "note": "LOAD-BEARING. Two of the three classes the sharing claim rests on are unproven or disproven: V is CONTRADICTED (see the voice-device finding), R has no recorded request at all. Given that V and W behave differently on the identical endpoint, R must not be assumed to behave like W. RF Devices is also the screen the recipe itself flags as highest-risk (293 live terminals with logged-in operators)."
+    },
+    {
+      "file": "recipes/partners/existing-customers.md",
+      "line_hint": "13, 14, 54-55",
+      "claim_text": "| Save (in edit) | persists edit | `PUT /data/WM/wm/customers/{id}` | full mutated record minus `address` | Unlike `suppliers`, this genuinely persists. ... `DELETE customers/{id}` + `DELETE addresses/{id}` (reverse-order delete)",
+      "verdict": "UNSUPPORTED",
+      "evidence": "http/exchanges/customers.jsonl contains only 6 cases: route-exists, read-collection, read-missing, create-valid, create-duplicate, create-empty. There is no read-created, no update-valid, no read-updated, no delete-valid, no confirm-gone. status-matrix.json by_case.update-valid and by_case.delete-valid both omit `customers` entirely.",
+      "note": "LOAD-BEARING. Both the PUT-persists claim and the whole delete path for customers are unrecorded, and the same gap sits behind KNOWLEDGE-BASE §7 row 23 ('DELETE customers→DELETE addresses (both 200) ... both confirmed 404 after'). The customers create path IS supported (201, and duplicate 409)."
+    },
+    {
+      "file": "recipes/partners/suppliers.md",
+      "line_hint": "88-92",
+      "claim_text": "the address is *not* required to create a supplier. `POST /suppliers` with only `{supplierNumber, clientId, trustedFlag, trackConsignment}` returns `201`.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "http/exchanges/suppliers.jsonl create-valid sends a ~30-field body including \"addressId\": \"A000365894\" -> 201. No minimal-body POST is stored. The only near-minimal case, create-empty, returns 400.",
+      "note": "LOAD-BEARING: an executor told the minimum payload is four fields, on a resource whose only recorded 201 came from a full body and whose only recorded thin body was a 400. Worth one battery case to settle."
+    },
+    {
+      "file": "recipes/partners/suppliers.md",
+      "line_hint": "21-24",
+      "claim_text": "**`start` is NOT a synonym for `offset`** — it is accepted and silently ignored. Verified 2026-08-11: `limit=3&offset=3` returns rows 4-6, while `limit=3&start=3` returns rows 1-3 ... Anything sending `start` reads page 1 forever and looks like it is working.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "Every URL in http/exchanges/*.jsonl is bare — the store contains zero query strings of any kind (verified by extracting the query component of all 250+ stored request URLs: the set is empty). No paging behaviour is recorded anywhere in the evidence store.",
+      "note": "LOAD-BEARING and silent-failure-shaped: if wrong in either direction it produces a client that reads one page forever, or one that thinks it did. Same UNSUPPORTED status applies to the sibling claims in this section (query=[] semantics, the LK filter returning 422, the separate /count call) and to their restatement in KNOWLEDGE-BASE §2 lines 111-127."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "67-70",
+      "claim_text": "**Critical: this collection is NOT site-scoped.** Calling it with `?siteId=SG&subsites=----` returns a `500`, not an empty result — the real app calls it with **no query params at all**.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "http/exchanges/transportModes.jsonl route-exists/read-collection call the bare URL /wm/transportModes -> 200. No stored exchange sends siteId or subsites to any endpoint, so the 500 is unrecorded.",
+      "note": "LOAD-BEARING: restated as a platform-level exception in KNOWLEDGE-BASE §2 line 128 ('transportModes rejects siteId/subsites outright (500)'). A 500 against a shared QA backend is exactly the kind of claim that should be on the wire before it is repeated. The 'no params' shape is at least consistent with the stored bare-URL 200."
+    },
+    {
+      "file": "recipes/partners/customer-types.md",
+      "line_hint": "51-58",
+      "claim_text": "**Duplicate-code rejection is entirely client-side.** ... Confirmed via `read_network_requests` that **zero network calls** accompany this check",
+      "verdict": "UNSUPPORTED",
+      "evidence": "http/claims.json records scripted modal-probe runs for carriersDuplicate, customersDuplicate, ccrDuplicate, transportModesDuplicate, clientsDuplicate and suppliersDuplicate. There is no customerTypesDuplicate probe and no http/flows entry for it. At the API layer, http/exchanges/customerTypes.jsonl create-duplicate -> 422.",
+      "note": "LOAD-BEARING BY PRECEDENT. This is the identical claim shape, from the identical hand-driven method (reading the network panel), that was FALSIFIED on carriers. Two of the six screens that WERE scripted (clients, suppliers) turned out to fire real POSTs on a duplicate attempt. Note also that http/claims.json id=duplicate-key-five-architectures overstates in the other direction — its 'every Partners screen re-tested blocks CLIENT-side and sends nothing' is contradicted by its own flows/clientsDuplicate.json (POST addresses 201, POST clients 422) and flows/suppliersDuplicate.json (POST addresses 201, POST suppliers 409)."
+    },
+    {
+      "file": "recipes/partners/clients.md",
+      "line_hint": "72-73",
+      "claim_text": "**Save gates proactively client-side** (like Customer Types, unlike Suppliers) — red icon on `Name*` visible on page load, Save disabled until filled.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No blank-form probe for clients is stored. http/flows/clientsDuplicate.json shows the form does NOT gate on a duplicate name — it submits and fires POST /wm/addresses -> 201 then POST /wm/clients -> 422.",
+      "note": "The blank-field gate and the duplicate gate are separate mechanisms, so the flow does not disprove this — but on this screen the gating story is demonstrably not uniform, and the blank-form half rests on a screenshot. Same status for the equivalent blank-Save claims in suppliers.md:114-120, carriers.md:99-100/115-120/131-132, customer-types.md:44-50."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "36-44",
+      "claim_text": "Typing a real carrier code (e.g. `EXLA`) into it **visually fills the box but never binds the underlying model value** ... **Clicking Save on this state produces zero symptoms**: no error dialog, no modal mask, no network request at all",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No stored probe covers the Carrier PRO Number Add form. The scripted modal-probe suite in http/claims.json covers carriers, customers, ccr, transportModes only.",
+      "note": "LOAD-BEARING for automation design (it is the origin of the 'confirm a request actually fired' rule restated in KNOWLEDGE-BASE §5) but it is a hand-driven observation of an absence of requests, the exact evidentiary shape that failed on carriers. The API workaround it recommends IS supported: http/exchanges/carrierProNumbers.jsonl create-valid POST body {\"addressId\":\"A000278094\",\"carrier\":\"0000\",\"poolPointAddressId\":\"ZV345068\",...} -> 201."
+    },
+    {
+      "file": "recipes/partners/clients.md",
+      "line_hint": "61-64",
+      "claim_text": "`POST /data/WM/wm/addresses`, `POST /data/WM/wm/clients`, `POST /data/WM/wm/clientWarehouse`, `POST /data/WM/wm/packingConfigurations` — verified, full cascade",
+      "verdict": "UNSUPPORTED",
+      "evidence": "The POSTs themselves are supported (http/flows/clients.json, all four 201). What is unstated and unsupported is how a create is confirmed. http/claims.json open_questions: \"a newly created client does NOT appear in GET /wm/clients?query=[]&limit=400 immediately after a 201, even though GET by id returns it ... An executor must not use the collection listing to confirm a create.\"",
+      "note": "LOAD-BEARING OMISSION rather than a false statement. Every 'confirmed via a separate GET' in this repo needs to say which GET; on clients, the collection listing lies for a window after create, and on packingConfigurations there is no id to GET by at all."
+    },
+    {
+      "file": "recipes/warehouse/buildings.md",
+      "line_hint": "18, 37, 41, 46-47",
+      "claim_text": "`PUT /data/WM/wm/buildings/{buildingId}*!{warehouseId}` ... `fluidLoadFlag` edit→verify→revert, confirmed via separate `GET`, both directions. ... `version` | int | **Does NOT increment on write** (stayed 97 before/after a confirmed-persisted `PUT`)",
+      "verdict": "UNSUPPORTED",
+      "evidence": "There is no http/exchanges/buildings.jsonl and no `buildings` entry in http/status-matrix.json. `wm/buildings` appears zero times across all of http/flows/*.json.",
+      "note": "The version-does-not-increment finding is interesting and specifically contrasted against carrierProNumbers (which the store DOES confirm increments), but the buildings side of that contrast has no stored exchange. Same coverage gap applies to areas.md (PUT /wm/areas, id order, version) and warehouse.md (PUT /wm/warehouses longDescription) — none of the three resources appear in the exchange store."
+    },
+    {
+      "file": "recipes/warehouse/buildings.md",
+      "line_hint": "28-31",
+      "claim_text": "**Bare collection call works** ... the naive single-record path guess (`/buildings/B1`, `/buildings/B1?siteId=...`) 400s — same 400 the real app itself hits if you replay that exact URL",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No buildings exchanges. Comparable behaviour is recorded on other compound-key resources: http/status-matrix.json by_case.read-missing gives 400/HTTP-400 for businessUnits, clientWarehouse, levelTypes, printers, suppliers, devices — all compound-key resources, all 400 on a non-compound id.",
+      "note": "Plausible and consistent with a pattern the store does show, but unproven for buildings specifically. The practical advice (take resourceId from a collection row) is sound regardless."
+    },
+    {
+      "file": "recipes/warehouse/buildings.md",
+      "line_hint": "42",
+      "claim_text": "**Mismatch found:** API reported `areaCount: 94`, `locationCount: 61912`; the Grid View row for the same building showed `76` areas / `19816` locations. Not yet root-caused",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No buildings exchange stores either number.",
+      "note": "Flagged as unresolved in the recipe itself, so it is honest — recorded here only because an executor reading a count field off this resource would be reading an unvalidated number."
+    },
+    {
+      "file": "recipes/equipment/transport-equipment-type.md",
+      "line_hint": "9-10, 35, 73-74",
+      "claim_text": "Equipment (code, **max 5 chars, silently truncates** — typed `ZZAUDIT`, saved as `ZZAUD`) ... Whether the 5-char code limit is server-enforced or purely client-side UI truncation wasn't isolated",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No exchange exists for this screen's real backing resource (/wm/codes, columnName=trlr_typ), and the resource the recipe names 404s ROUTE-MISSING for every method.",
+      "note": "The truncation may be real, but since the POST the recipe attributes it to cannot have happened as described, the observation is unanchored. The same applies to customer-types.md's 'max 4 chars, silently truncates' — http/exchanges/customerTypes.jsonl create-valid sends \"customerType\": \"ZV10\" (already 4 chars), so no truncation is exercised."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "233 (§5 quirks)",
+      "claim_text": "**`null` in a PUT body does not clear a field** ... Sending `{\"bolaPrefix\": \"\"}` (empty string) worked ... **General write-client rule for this API: to clear a field, send `\"\"`, never `null`.**",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No stored exchange performs a null-clear followed by a separate read. http/exchanges/suppliers.jsonl update-valid does send many null-valued fields, but none of them is being cleared from a non-null value, so it tests nothing.",
+      "note": "LOAD-BEARING: this rule is cited by recipes/partners/clients.md:21 and shapes every revert routine in the campaign. It is elevated to a 'general write-client rule for this API' on a single hand-driven observation of one field on one resource."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "237 (§5 quirks), 293 (§7 row 21)",
+      "claim_text": "**Only GET/POST/PUT/DELETE exist here — full stop** ... Probed `OPTIONS` ..., `HEAD`, and `PATCH` ... All five returned Cloudflare **error 520** ... **`PATCH` is not a thing here**",
+      "verdict": "UNSUPPORTED",
+      "evidence": "http/exchanges/*.jsonl contains only GET, POST, PUT and DELETE requests. No OPTIONS, HEAD or PATCH request is stored, so the 520 result is unrecorded.",
+      "note": "Also internally inconsistent: 'probed OPTIONS (on a resource and its collection), HEAD, and PATCH' is four probes, reported as 'all five'. Low executor risk (nobody is worse off assuming PATCH is absent), but it is asserted with 'full stop' emphasis on unrecorded evidence."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "226-230 (§5 quirks)",
+      "claim_text": "Unauthenticated request → HTTP 200 | Expired/missing session returns the login page HTML with status `200`, not `401`. ... `Warehouse.Description` truncates at ~28 characters with **no error, no warning** ... square brackets `[ ]` trigger an explicit \"Invalid Warehouse Description\" error banner",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No stored exchange is unauthenticated; no stored exchange writes an over-length or bracketed description; there are no warehouses exchanges at all.",
+      "note": "The 200-on-expired-session claim is the highest-consequence of the three (a client checking res.ok reads a dead session as healthy data) and is worth one recorded exchange."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "149-153 (§3)",
+      "claim_text": "**[live] Atomicity:** a `FAILURE` async job leaves **zero partial state**. Verified by re-checking the warehouse list after the failed `ZZTEST01` create — nothing persisted.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No warehouses exchanges. Meanwhile the two atomicity claims the store DOES cover both fail in the other direction: http/flows/clientsDuplicate.json (POST addresses 201, then POST clients 422, orphan left) and http/flows/suppliersDuplicate.json (POST addresses 201, then POST suppliers 409, orphan left).",
+      "note": "LOAD-BEARING: 'atomic, no orphan' as a platform-level statement about failed writes is the exact belief that made suppliers look safe to retry. Scope it to the async warehouse-create job, where it was observed, and never let it be read as a general property."
+    },
+    {
+      "file": "recipes/warehouse/locations.md",
+      "line_hint": "99",
+      "claim_text": "| `version` | — | present; not tested for optimistic-locking behavior this pass — see `carriers.md`/`buildings.md`, this API's `version` semantics are resource-specific and must be tested per-resource, never assumed",
+      "verdict": "SUPPORTED",
+      "evidence": "The 'per-resource, never assume' rule is the correct reading of the store: http/exchanges/carrierProNumbers.jsonl shows version 1 -> 2 across a PUT, and no other stored resource's response body carries a version field at all.",
+      "note": "Correctly hedged. This is the model the rest of the corpus should follow."
+    },
+    {
+      "file": "recipes/partners/suppliers.md",
+      "line_hint": "98",
+      "claim_text": "resource id is `{clientId}*!{supplierNumber}` — that order, confirmed 2026-08-11 (the reverse returns 404, the bare number returns 400)",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/suppliers.jsonl read-created: GET /wm/suppliers/----*!ZV021231 -> 200 OK, where clientId is \"----\" and supplierNumber is \"ZV021231\". Same id used successfully for update-valid, read-updated, delete-valid.",
+      "note": "The id ORDER is confirmed. The parenthetical is not: no reversed-id or bare-number request is stored, and suppliers read-missing is 400/HTTP-400, not 404 — so the '404 on reverse' detail is UNSUPPORTED and probably misremembered."
+    },
+    {
+      "file": "recipes/partners/suppliers.md",
+      "line_hint": "121-125",
+      "claim_text": "**Duplicate supplier number is a real server-side 409.** ... returns `POST /data/WM/wm/suppliers` → **409 Conflict** ... a genuine REST status code, not a client-side check",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/suppliers.jsonl create-duplicate: POST /wm/suppliers -> 409 HTTP-409. http/flows/suppliersDuplicate.json call 5: POST /wm/suppliers -> 409, body {\"errors\":[{\"errorCode\":\"-1\",\"userMessage\":\"Record already exists.\"}]} — and this one is a recorded request from the UI, not just the API battery.",
+      "note": "One of the few server-side-validation claims in the corpus with a recorded request behind it, at both the API and the UI layer."
+    },
+    {
+      "file": "recipes/partners/suppliers.md",
+      "line_hint": "126-141",
+      "claim_text": "**CORRECTED 2026-08-12 — this screen DOES orphan an address.** ... POST /data/WM/wm/addresses -> 201 (addressId A000365889); POST /data/WM/wm/suppliers -> 409 ... a retry loop on this screen leaks one address record per failed attempt.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/flows/suppliersDuplicate.json: call 4 POST /wm/addresses -> 201 with addressType \"SUP\" (addressId A000365889), call 5 POST /wm/suppliers -> 409; edges link addresses.data.addressId -> suppliers.body.addressId. http/claims.json id=suppliers-duplicate-no-orphan, verdict FALSIFIED, cleanup \"A000365889 deleted, confirmed RECORD-MISSING\".",
+      "note": "Correction is accurate and the cleanup was itself verified with the right kind of 404."
+    },
+    {
+      "file": "recipes/partners/clients.md",
+      "line_hint": "74-90",
+      "claim_text": "**CRITICAL — the create cascade is NOT atomic, and a failed duplicate-name attempt orphans a real address record.** ... `POST /wm/addresses` fires first and **succeeds** (`201`) — only *then* does `POST /wm/clients` fire and fail with **`422 Unprocessable Entity`, \"Record already exists.\"**",
+      "verdict": "SUPPORTED",
+      "evidence": "http/flows/clientsDuplicate.json: call 3 POST /wm/addresses -> 201 (A000365888, addressType CLI), call 4 POST /wm/clients -> 422, body {\"errors\":[{\"errorCode\":\"-1\",\"userMessage\":\"Record already exists.\"}]}. Corroborated by http/exchanges/clients.jsonl create-duplicate -> 422 HTTP-422 at the API layer. http/claims.json id=clients-duplicate-orphans-address, verdict REPRODUCED.",
+      "note": "Fully supported, including the 422-not-409 detail, which is genuinely unusual (14 of 19 resources return 409)."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "102-111",
+      "claim_text": "**CORRECTED 2026-08-12 — the duplicate check is NOT server-side.** ... clicking Save produces the modal `Error / Record already exists` while sending **zero requests** — 0 before the click, 0 after. ... At the API layer a duplicate carrier *does* return `409`",
+      "verdict": "SUPPORTED",
+      "evidence": "http/flows/carriersDuplicate.json: \"calls\": [] (zero, literally), \"writes\": [], \"edges\": []. http/exchanges/carriers.jsonl create-duplicate: POST /wm/carriers -> 409 HTTP-409. http/claims.json id=carriers-duplicate-is-server-side, verdict FALSIFIED.",
+      "note": "Both halves supported, and the file correctly separates the API fact from the UI fact. This is the template the rest of the corpus should be rewritten to."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "115-120",
+      "claim_text": "Blank Save: red required-field icons ... confirmed **zero network requests** fire — purely client-side. Duplicate code test (typed a real existing mode code): same result — Save click produces no request",
+      "verdict": "SUPPORTED",
+      "evidence": "http/flows/transportModesDuplicate.json: \"writes\": [], \"edges\": [], 1 call total (a read), invalid: [{\"field\":\"transportMode\",\"label\":\"Transport Mode\",\"errors\":[\"The transport mode already exists\"]}]. http/claims.json id=transportModes-duplicate-client-side, verdict REPRODUCED.",
+      "note": "The duplicate half is scripted and reproduced; the blank-Save half is not separately probed but is consistent with it."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "131-141",
+      "claim_text": "All three fields immediately show a red icon **and** a real, queryable validation message: `\"The External System Cross References already exists.\"` ... Save produces **zero network requests** ... No orphan-record risk since nothing ever POSTs.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/claims.json id=ccr-duplicate-client-side-with-message, verdict REPRODUCED via tools/cdp/modal-probe.mjs ccrDuplicate: \"All three key fields carry: 'The External System Cross References already exists.' requests before Save: 0. after Save: 0.\"",
+      "note": "Note the API layer disagrees in the usual way: http/exchanges/carrierCrossReferences.jsonl create-duplicate -> 409. Two independent facts, and this file keeps them separate correctly."
+    },
+    {
+      "file": "recipes/partners/existing-customers.md",
+      "line_hint": "61-68",
+      "claim_text": "**Duplicate Customer number is a client-side gate** ... keeps Save permanently disabled with a red icon on the Customer field; confirmed via network capture that zero requests fire.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/claims.json id=existing-customers-duplicate-client-side, verdict REPRODUCED: \"Field error on customerNumber: 'This customer has already existed'. requests before Save: 2 (GETs). after Save: 2. No write was sent.\" Corollary recorded there: the customers cascade cannot orphan an address on duplicate, because the gate fires before any POST.",
+      "note": "Supported, and the corollary is the one place in the corpus where a client-side gate is correctly used to rule OUT an orphan risk."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "48-60",
+      "claim_text": "POST /data/WM/wm/carrierProNumbers {addressId, carrier, poolPointAddressId, checkDigitMethod, format, numberLength, nextValue, prefix, separator} → `201`, `resourceId` = `{addressId}*!{carrier}*!{poolPointAddressId}`. `DELETE` on that id returns `200`, confirmed `404` on a following read.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/carrierProNumbers.jsonl create-valid request body is field-for-field the documented shape -> 201, response \"resourceId\": \"A000278094*!0000*!ZV345068\". delete-valid -> 200; confirm-gone -> 404 RECORD-MISSING (the right kind of 404).",
+      "note": "Fully supported including the id composition order. One correction available for free: this resource's create-duplicate is 422, not the 409 the file's cross-screen section implies is uniform."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "83-87",
+      "claim_text": "Resource: `/data/WM/wm/carrierCrossReferences/{id}`, id = `{carrier}*!{destinationName}*!{serviceLevel}`. ... Create body: `{carrier, destinationCarrier, destinationLevel, destinationName, serviceLevel, groundFlag:false, serverPrintsLabelFlag:false}`.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/carrierCrossReferences.jsonl create-valid -> 201; read-created GET /wm/carrierCrossReferences/0000*!TANDATA*!ZV3999 -> 200 (carrier=0000, destinationName=TANDATA, serviceLevel=ZV3999 — the documented order); update-valid 200, delete-valid 200, confirm-gone 404 RECORD-MISSING.",
+      "note": "Full CRUD confirmed on the wire with the correct kind of 404 at the end."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "74-78",
+      "claim_text": "Transport Modes: edit `PUT /transportModes/{id}`, create `POST /transportModes` {transportMode, transportModeDescription, directFlag:0, smallPackageFlag:0, ...}, delete `DELETE /transportModes/{id}`. All verified edit→verify→revert and create→verify→delete→verify",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/transportModes.jsonl: create-valid 201, read-created GET /wm/transportModes/ZV1 200, update-valid 200, read-updated 200, delete-valid 200, confirm-gone 404 RECORD-MISSING. http/flows/lifecycle-transportModes.json captures the same three writes through the UI.",
+      "note": "One undocumented wrinkle the store adds: the UI writes to /transportModes but reads back through /warehouseTransportModes (lifecycle-transportModes.json phases), a different collection than the one it wrote."
+    },
+    {
+      "file": "recipes/partners/customer-types.md",
+      "line_hint": "22, 28-29, 77-79",
+      "claim_text": "`DELETE /data/WM/wm/customerTypes/{code}` ... Bare entered code as resourceId (`customerTypes/ZZAU`) — **no compound key** ... Full cycle: POST → separate GET confirmed → checkbox + Delete → separate GET 404.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/customerTypes.jsonl: create-valid 201, read-created GET /wm/customerTypes/ZV10 -> 200 (bare code, no compound key), delete-valid 200, confirm-gone 404 RECORD-MISSING. http/flows/lifecycle-customerTypes.json and nonadd2-customerTypes.json capture POST/PUT/DELETE through the UI grid.",
+      "note": "The 'separate GET 404' here happens to be RECORD-MISSING, so the claim survives — but the recipe did not distinguish, and got lucky. This is also the one screen where UI-vs-direct-API delete equivalence is proven (claims.json id=nonadd-flows-copy-edit-delete)."
+    },
+    {
+      "file": "recipes/equipment/equipment-types.md",
+      "line_hint": "18-19, 25-26, 44-46",
+      "claim_text": "`POST /data/WM/wm/equipmentTypes` ... **resourceId is the bare entered code** ... `DELETE /data/WM/wm/equipmentTypes/{code}` ... Full cycle: POST → 201 → separate GET confirmed → Delete → separate GET /equipmentTypes/{code} → 404.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/equipmentTypes.jsonl: create-valid 201, read-created GET /wm/equipmentTypes/ZV347737 -> 200 (bare code), update-valid 200, delete-valid 200, delete-again 200, confirm-gone 404 RECORD-MISSING. http/flows/lifecycle-equipmentTypes.json captures POST/PUT/DELETE through the UI.",
+      "note": "Supported. The recipe's open item 'Edit (PUT) not tested' is now STALE — both the battery (update-valid 200) and the UI flow (PUT equipmentTypes/ZV9749 -> 200) cover it."
+    },
+    {
+      "file": "recipes/warehouse/business-units.md",
+      "line_hint": "14-17, 21-22",
+      "claim_text": "`POST /data/WM/wm/businessUnits` {businessUnit, description} ... `201` on success ... `PUT /data/WM/wm/businessUnits/{businessUnit}*!{warehouseId}` ... `DELETE ...` `200` on confirm ... Resource id order: `{businessUnit}*!{warehouseId}`, e.g. `ZZAUDIT*!SG`",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/businessUnits.jsonl: create-valid 201, read-created GET /wm/businessUnits/ZV224234*!SG -> 200, update-valid 200, delete-valid 200, confirm-gone 404 RECORD-MISSING. http/flows/lifecycle-businessUnits.json captures POST 201 and PUT 200 through the UI.",
+      "note": "This file is essentially clean — the only recipe in the corpus with no contradicted or load-bearing-unsupported claim. Three facts the store can now add to it: create-duplicate is 409 with userMessage \"Business Unit: ZV224234\\nWarehouse ID: SG already exists.\", delete-again is 200 (idempotent here), and read-missing on a non-compound id is 400, not 404. Its 'Open items: None' line is the only overreach."
+    },
+    {
+      "file": "recipes/warehouse/locations.md",
+      "line_hint": "112-117",
+      "claim_text": "**Exception:** `resourceId` is a **bare numeric id** (observed `10663`), not the `{code}*!{warehouseId}` compound key ... Verified: `POST /data/WM/wm/locationTypes` → 201-equivalent → separate `GET` confirmed → checkbox + Delete → confirmed gone.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/locationTypes.jsonl: create-valid 201, read-created GET /wm/locationTypes/10683 -> 200 (bare numeric), update-valid 200, delete-valid 200, confirm-gone 404 RECORD-MISSING.",
+      "note": "Id-scheme exception confirmed independently by the battery."
+    },
+    {
+      "file": "recipes/warehouse/locations.md",
+      "line_hint": "127-133",
+      "claim_text": "**Exception:** `resourceId` is a **synthetic zero-padded numeric id** (`000000000000001*!SG`), not derived from the entered Name ... Verified: `POST /data/WM/wm/levelTypes` → separate `GET` (0→1 row) → checkbox + Delete → separate `GET` (1→0 row).",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/levelTypes.jsonl: create-valid 201, read-created GET /wm/levelTypes/000000000000026*!SG -> 200 (zero-padded synthetic + compound warehouse half), update-valid 200, delete-valid 200, confirm-gone 404 RECORD-MISSING. http/flows/lifecycle-levelTypes.json captures POST/PUT/DELETE through the UI on 000000000000028*!SG.",
+      "note": "Supported, including the specific id shape."
+    },
+    {
+      "file": "recipes/equipment/hardware.md",
+      "line_hint": "13-15, 27-28, 60-68",
+      "claim_text": "**Printers is NOT part of this table** — it has its own dedicated resource, `/data/WM/wm/printers` (also `{code}*!{warehouseId}`) ... Verified: `POST /data/WM/wm/printers` → 201 → ... `DELETE /data/WM/wm/printers/{code}*!{warehouseId}` → separate GET 404. ... Workstations: `POST /data/WM/wm/devices` (`deviceClass=W`) → 201",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/printers.jsonl: create-valid 201, read-created GET /wm/printers/ZV269737*!SG -> 200, update-valid 200, delete-valid 200, confirm-gone 404 RECORD-MISSING — a separate resource from devices, with its own route. http/exchanges/devices.jsonl create-valid carries \"deviceClass\": \"W\" -> 201, read-created /wm/devices/ZV231196*!SG 200, delete-valid 200, confirm-gone RECORD-MISSING. http/flows/lifecycle-printers.json and lifecycle-workstations.json capture both through the UI.",
+      "note": "Printers and Workstations are solid. RF Devices (deviceClass R) is UNSUPPORTED and Voice Devices (V) is CONTRADICTED — see those findings. The file's 'Verified writes (summary)' line collapses all three classes into one bullet and must be split."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "11, 14, 17",
+      "claim_text": "| Add | `POST /data/WM/wm/carriers` | ... | Save (edit) | `PUT /data/WM/wm/carriers/{id}` ... 1581 real carriers in this environment.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/carriers.jsonl: create-valid 201, read-created GET /wm/carriers/ZV183603 -> 200 (bare code id), update-valid 200, delete-valid 200, confirm-gone 404 RECORD-MISSING. http/flows/lifecycle-carriers.json captures POST/PUT/DELETE through the UI. The 1581 count is corroborated by http/claims.json id=grid-edit-coverage-complete: \"the carriers grid holds 25 of 1581 rows across 64 pages\".",
+      "note": "Supported. The store adds one operationally important detail the recipe lacks: carriers uses SERVER-SIDE PAGING, so a newly created record is not in the loaded page and neither sorting nor filtering surfaces it — an executor confirming a create by scanning the grid will wrongly conclude it failed."
+    },
+    {
+      "file": "recipes/partners/clients.md",
+      "line_hint": "45, 48, 66-68",
+      "claim_text": "| Add (Groups tab) | `POST /data/WM/wm/clientGroups` | {clientGroup, clientGroupDescription, adjustmentThresholdCost:0, adjustmentThresholdUnit:0, ...} | **Single-resource create** ... `DELETE /data/WM/wm/clientGroups/{id}` — Tested via direct API, `200`, confirmed `404` on a following read.",
+      "verdict": "SUPPORTED",
+      "evidence": "http/exchanges/clientGroups.jsonl (2 full runs): create-valid 201, read-created GET /wm/clientGroups/ZV88239 -> 200, update-valid 200, delete-valid 200, delete-again 200, confirm-gone 404 RECORD-MISSING. http/flows/lifecycle-clientGroups.json captures POST/PUT/DELETE through the UI.",
+      "note": "Supported, and the 404 is the right kind. The Groups tab is the best-evidenced part of clients.md."
+    },
+    {
+      "file": "recipes/partners/existing-customers.md",
+      "line_hint": "10",
+      "claim_text": "| Add | `POST /data/WM/wm/addresses` (addressType `CST`) → `POST /data/WM/wm/customers`, both `201` |",
+      "verdict": "UNSUPPORTED",
+      "evidence": "http/exchanges/customers.jsonl create-valid -> 201 confirms the customers POST, but no captured flow exists for this screen's cascade, so neither the two-step ordering nor addressType \"CST\" is on the wire. The two addressType values the store does contain are \"CLI\" (http/flows/clients.json) and \"SUP\" (http/flows/suppliersDuplicate.json).",
+      "note": "Moderate risk: addressType is a discriminator the create depends on, and the two values that ARE recorded were both read off captured request bodies, while this one was not."
+    },
+    {
+      "file": "recipes/partners/suppliers.md",
+      "line_hint": "50-51, 108-110",
+      "claim_text": "| Save (in edit) | **works for supplier-owned fields only** | `PUT /data/WM/wm/suppliers/{id}` | ... `200` always ... `PUT suppliers/{id}` documented as a **negative result** — silently ignored on existing records.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "The PUT itself is supported and does persist: http/exchanges/suppliers.jsonl update-valid sets \"consignmentType\": \"ZVUPD\" -> 200, read-updated (separate GET) returns ZVUPD. What is NOT recorded is any field being dropped — every address-owned field in the stored PUT body (receivingPhone, addressLine1, city, ...) was already null going in, so nothing was ever tested for silent-drop.",
+      "note": "The join-view model is the best available explanation and is probably right, but the drop table at lines 66-71 has no wire evidence behind a single row of it. Also note line 110's summary ('silently ignored on existing records') still reads as the retracted blanket claim and contradicts line 50's own scoping."
+    },
+    {
+      "file": "recipes/README.md",
+      "line_hint": "33-36",
+      "claim_text": "**Do not write a recipe entry from documentation or a guess.** Every row in \"Buttons and actions\" must come from actually clicking the button once and watching the network tab",
+      "verdict": "STALE",
+      "evidence": "http/claims.json headline: \"All 3 failures share one root cause: a hand-driven session read the UI (a modal, a network panel) and inferred what the wire did, instead of recording the wire.\"",
+      "note": "The rule as written authorises exactly the method that produced all four known-wrong claims. 'Watching the network tab' is what missed the addresses POST on suppliers and what read a client-side modal as a 409 on carriers. It should now read: record the request/response pair to http/exchanges or http/flows, and cite the case name."
+    },
+    {
+      "file": "recipes/equipment/equipment-types.md; recipes/partners/carriers.md; recipes/partners/clients.md; recipes/partners/customer-types.md; recipes/partners/existing-customers.md; recipes/partners/suppliers.md; recipes/equipment/transport-equipment-type.md",
+      "line_hint": "equipment-types.md:21,53; carriers.md:12,153; clients.md (Open items); customer-types.md:24,84; existing-customers.md:11,72-74; suppliers.md:48,145; transport-equipment-type.md:38,72",
+      "claim_text": "| Copy | duplicate | — | not tested |  /  \"Copy button — not captured. Open item.\"  /  \"**Copy** button — never clicked, unknown what it fires (likely a client-side pre-fill ... or a direct duplicate-POST...)\"",
+      "verdict": "STALE",
+      "evidence": "http/claims.json id=nonadd-flows-copy-edit-delete: \"UI Copy fires ZERO requests, by design ... doCopy is records[0].copy(null,true,true) + fireEvent('copied', ...). It is a client-side clone handed to a listener and CANNOT produce a request.\" id=grid-lifecycle-across-screens: \"COPY fired ZERO requests on all 10 screens ... This is the behaviour, not missing coverage.\" Confirmed by empty phases.copy in all 10 http/flows/lifecycle-*.json.",
+      "note": "Seven recipes still carry Copy as an open coverage gap; it is answered and framework-level (WM.plugins.grid.GridActions). existing-customers.md goes further and speculates it 'may reveal a cheaper way to construct a valid create payload' — it cannot, it never touches the network."
+    },
+    {
+      "file": "recipes/equipment/equipment-types.md; recipes/equipment/hardware.md; recipes/partners/customer-types.md",
+      "line_hint": "equipment-types.md:50; hardware.md:106; customer-types.md:83",
+      "claim_text": "Edit (`PUT`) not tested — only create/delete.  /  Edit (`PUT`) not tested on any Hardware screen — only create/delete.  /  Row-click edit (`PUT`) not tested.",
+      "verdict": "STALE",
+      "evidence": "equipmentTypes: exchanges update-valid 200 + http/flows/lifecycle-equipmentTypes.json PUT equipmentTypes/ZV9749 -> 200. Hardware: exchanges devices update-valid 200 + printers update-valid 200, plus http/flows/lifecycle-printers.json PUT printers/ZV6553*!SG -> 200 and lifecycle-workstations.json PUT devices/ZV9405*!SG -> 200. customerTypes: exchanges update-valid 200 + http/flows/nonadd2-customerTypes.json editApplied with PUT -> 200.",
+      "note": "All three gaps are closed by the evidence store; the recipes were never back-filled. (Voice Devices edit remains genuinely uncaptured — its create fails before an edit is reachable.)"
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "5 (front matter), 297 (§7 row 25)",
+      "claim_text": "last_validated: \"2026-08-10\"",
+      "verdict": "STALE",
+      "evidence": "The entire evidence store postdates it: http/exchanges/*.jsonl and http/claims.json are 2026-08-12, and four of this document's own claims (async-create, structured-400, no-version-field, suppliers-read-only) are contradicted or superseded by it.",
+      "note": "The document has not been reconciled against the evidence store at all. Every §5 quirk and §7 matrix row should carry an evidence pointer into http/ or be demoted to asserted."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "97-101 (§2)",
+      "claim_text": "**[live] Throttling limits discovered:** none observed. No `429`, no `Retry-After`, no rate-limit headers on any of ~600 requests captured",
+      "verdict": "SUPPORTED",
+      "evidence": "Zero occurrences of status 429 across all of http/exchanges/*.jsonl (250+ stored exchanges) and http/flows/*.json.",
+      "note": "Weakly supported — absence of a 429 in the store is consistent with the claim, and the accompanying caution ('treat the absence of a rate limit as a constraint on us') is the right conclusion regardless."
+    },
+    {
+      "file": "KNOWLEDGE-BASE.md",
+      "line_hint": "201-218 (§4)",
+      "claim_text": "error dialogs can be completely invisible to accessibility-tree snapshots while still blocking the entire page ... Every subsequent click on the real Save button landed on the invisible mask instead and produced **zero symptoms**",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No stored probe reproduces the invisible-mask incident on the Add Customer form. The store does independently corroborate persistent-mask behaviour in a different context: http/claims.json id=voicedevices-create-404 — \"After the failed save the screen stays wedged: 3-4 .x-mask elements persist after the modal is closed\" — and id=grid-edit-coverage-complete — \"A blocking 'Exception Occurred' modal over 6 masks was never dismissed, so one screen's failure silently poisoned every screen after it in a batch run.\"",
+      "note": "Not reproduced as stated, but the class of failure is confirmed twice over by scripted runs, and the recommended detection method (Ext.ComponentQuery for floating modals rather than the a11y tree) is the one the tooling actually adopted. Keep the rule; label the originating incident as asserted."
+    },
+    {
+      "file": "recipes/partners/carriers.md",
+      "line_hint": "91-95",
+      "claim_text": "Every one of these four screens: `PUT`/`POST`/`DELETE` all work cleanly, no silent-ignore behavior like `suppliers` showed. The only real gotchas found across all four Partners carrier screens were (a) the site-scoping trap on `transportModes`, and (b) the general null-vs-empty-string revert rule from `clients` (applies here too, not re-verified per field but assume it holds).",
+      "verdict": "UNSUPPORTED",
+      "evidence": "The CRUD half is supported for all four resources (carriers, carrierProNumbers, transportModes, carrierCrossReferences — all show create-valid 201 / update-valid 200 / delete-valid 200 / confirm-gone RECORD-MISSING in http/exchanges/). The 'only real gotchas' enumeration is not: gotcha (a) has no stored exchange, gotcha (b) is explicitly self-flagged as assumed, and the store shows a third, unlisted gotcha — carrierProNumbers create-duplicate returns 422 while its three siblings return 409.",
+      "note": "'Assume it holds' is doing load-bearing work in a summary sentence that reads as verified. The clause 'not re-verified per field but assume it holds' is the single most quotable instance in the corpus of the habit this audit exists to catch."
+    },
+    {
+      "file": "recipes/warehouse/locations.md",
+      "line_hint": "7-14, 56-63, 186-189",
+      "claim_text": "All 7 physical-location-category screens ... share one underlying resource: `/data/WM/wm/locations` ... **Exception — Pickup and Deposit:** the main grid ... never showed the just-created record ... Search-box free-text mis-targets the `Aisle` column",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No locations exchanges or flows exist. However http/claims.json id=grid-edit-coverage-complete documents a general, framework-level cause for exactly this symptom on a different screen: \"SERVER-SIDE PAGING: the carriers grid holds 25 of 1581 rows across 64 pages. A new record is never in the loaded page, and neither sorting nor filtering the loaded page surfaces it.\"",
+      "note": "The Pickup-and-Deposit 'record never appeared' anomaly is probably not a P&D-specific bug at all — it matches the general server-side-paging behaviour later found on carriers, on a resource with 25,469+ rows. Worth re-reading before anyone treats it as a screen-level exception requiring a direct-API workaround."
+    },
+    {
+      "file": "recipes/warehouse/warehouse.md",
+      "line_hint": "15, 41-42",
+      "claim_text": "| Save (in edit) | `PUT /data/WM/wm/warehouses/{id}` | full record | Re-verified 2026-08-11: edit `longDescription` → `200` → separate `GET` confirmed persisted → reverted → separate `GET` confirmed reverted. ... The single-record `GET`/`PUT` envelope (`{@type, data:{...}}`) matches every other screen.",
+      "verdict": "UNSUPPORTED",
+      "evidence": "No warehouses exchanges. The envelope half IS corroborated: every stored single-record response in http/exchanges/*.jsonl opens {\"@type\": \"ResponseBodyWrapper\", \"data\": {...}} — e.g. suppliers read-updated, carrierProNumbers read-updated.",
+      "note": "Envelope shape supported by 19 resources; the warehouses PUT itself is unrecorded. Low urgency (single-warehouse env, edit-only), listed for completeness of coverage."
+    }
+  ]
+}

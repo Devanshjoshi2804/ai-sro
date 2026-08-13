@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Integration|Warehouse control system integration" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Systems and settings for WCS integration</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#SystemsandsettingsforWCSintegration">Systems and settings for WCS integration</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Movementzonesettings">Movement zone settings</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Pickgroupingsettings">Pick grouping settings</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Eventsettings">Event settings</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventoryreconciliationsettings">Inventory reconciliation settings</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Inventorymovementsettings">Inventory movement settings </a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="SystemsandsettingsforWCSintegration" data-magellan-target="SystemsandsettingsforWCSintegration"><a name="aanchor72"></a>
+                                                            <MadCap:concept term="WM" />Systems and settings for WCS integration</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#SystemsandsettingsforWCSintegration">Systems and settings for WCS integration</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Movementzonesettings">Movement zone settings</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Pickgroupingsettings">Pick grouping settings</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Eventsettings">Event settings</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventoryreconciliationsettings">Inventory reconciliation settings</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Inventorymovementsettings">Inventory movement settings </a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>For each WCS that you are integrating with, you must select a system. The following systems are available:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">AGV_OUT</span>: Used for partial (outbound to) WCS integration. </li>
+                                                            <li><span class="specialbold">ASRS_OUT</span>: Used for partial (outbound to) WCS integration. </li>
+                                                            <li><span class="specialbold">WCS</span>: Master system that is used for complete integration between Warehouse Management and the WCS. </li>
+                                                            <li><span class="specialbold">WCS_IN</span>: Not currently active for WCS integration. </li>
+                                                            <li><span class="specialbold">WCS_RECON</span>: Not currently active for WCS integration.</li>
+                                                        </ul>
+                                                        <p>For each system, configure the following settings:</p>
+                                                        <ul>
+                                                            <li>Movement zones</li>
+                                                            <li>Pick groupings</li>
+                                                            <li>Events</li>
+                                                            <li>Inventory reconciliation</li>
+                                                            <li>Inventory movement</li>
+                                                        </ul>
+                                                        <h2 id="Movementzonesettings" data-magellan-target="Movementzonesettings"><a name="Movement_zone_settings_for_WCS_integration_standardization"></a>Movement zone settings</h2>
+                                                        <p>You can set the Warehouse Management movement zones associated with the WCS. Typical movement zones include those used for moving inventory into the ASRS, storing inventory in the ASRS, and moving inventory out of the ASRS.</p>
+                                                        <p>For more information, see <a href="movement_zones.htm">Movement Zones</a>.</p>
+                                                        <h2 id="Pickgroupingsettings" data-magellan-target="Pickgroupingsettings"><a name="Pick_grouping_settings_for_WCS_integration_standardization"></a>Pick grouping settings</h2>
+                                                        <p>You can set the way in which messages are grouped for specific work types when they are sent from Warehouse Management to the WCS. </p>
+                                                        <p>You can configure the following pick groupings:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Order</span>: Pick requests are grouped by order when the message is sent to the WCS.</li>
+                                                            <li><span class="specialbold">Order, Work Order</span>: Pick requests are grouped first by order and then by work order when the message is sent to the WCS.</li>
+                                                            <li><span class="specialbold">Shipment</span>: Pick requests are grouped by shipment when the message is sent to the WCS.</li>
+                                                            <li><span class="specialbold">Shipment, Work Order</span>: Pick requests are grouped first by shipment and then by work order when the message is sent to the WCS.</li>
+                                                            <li><span class="specialbold">Wave</span>: Pick requests are grouped by wave when the message is sent to the WCS.</li>
+                                                            <li><span class="specialbold">Entire WCS</span>: Pick requests are grouped into a single message and sent to the WCS.</li>
+                                                            <li><span class="specialbold">No Grouping</span>: Pick requests are sent individually to the WCS.</li>
+                                                        </ul>
+                                                        <p>You can configure the following work types:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Pick</span>: Work type used to pick inventory to fill an order.</li>
+                                                            <li><span class="specialbold">Kit</span>: Work type used to pick component items to fill a work order.</li>
+                                                            <li><span class="specialbold">Bulk Pick</span>: This work type is not currently supported.</li>
+                                                            <li><span class="specialbold">Manual Replenishment</span>: Work type used for manual replenishment. A manual replenishment is an inventory move request initiated by a user or RF operator that serves as a top-off replenishment. It is typically generated when the user determines that a location must be replenished with a specific item. In response to the move request, the application allocates the inventory and generates replenishment pick work to fill the location with inventory. If initiated by an RF operator, the application assigns the replenishment pick work to the requesting operator.</li>
+                                                            <li><span class="specialbold">Top-off Replenishment</span>: Work type used for top-off replenishment. A top-off replenishment is a replenishment process that can be automatically generated at timed intervals or started manually by a user at a specific time (for example, a slow time of day for the warehouse). When initiated, the top-off replenishment process checks the quantities of items in areas and locations that are configured for top-off replenishments. If the process finds quantities that have dropped below the top-off levels, it issues a replenishment request.</li>
+                                                            <li><span class="specialbold">Triggered Replenishment</span>: Work type used for triggered replenishment. A triggered replenishment is the replenishment of a location that is generated automatically when an operator picks inventory from a location to the point that the quantity of the inventory falls below a user-defined level for the location.</li>
+                                                            <li><span class="specialbold">Emergency Replenishment</span>: Work type used for emergency replenishment. If replenishment processing is enabled, an emergency replenishment is generated automatically during allocation when there is insufficient inventory in a pick location to satisfy an order or work order line. The quantity that is replenished is based on the order demand and the replenishment item configuration; however, you can configure the application to allocate not only the replenishment quantity but any additional quantity needed to fill the pickface location to its maximum capacity, if it can be done without generating an additional pick.</li>
+                                                            <li><span class="specialbold">Replenishment</span>: Work type used to pick component items to fill a work order.</li>
+                                                            <li><span class="specialbold">Stage Transfer</span>: Work type used for stage transfer. Stage transfer is pick work generated to transfer inventory typically from a cross docking area to a staging lane.</li>
+                                                            <li><span class="specialbold">Demand Replenishment</span>: Work type used for demand replenishment. A demand replenishment is generated when pre-inventory allocation (PIA) is enabled, and a pick location does not have sufficient inventory to complete an order. PIA is a process in which picks are allocated from a pickface location before the necessary inventory physically exists at the location. With PIA enabled, the application generates demand replenishments from reserve storage locations to the pick location, and then generates picks based on the inventory pending to the pick location. The quantity that is replenished is based on the order demand; however, you can configure the application to allocate not only the replenishment quantity but any additional quantity needed to fill the pickface location to its maximum capacity, if it can be done without generating an additional pick.</li>
+                                                        </ul>
+                                                        <h2 id="Eventsettings" data-magellan-target="Eventsettings"><a name="Event_settings_for_WCS_integration_standardization"></a>Event settings</h2>
+                                                        <p>You can set the Warehouse Management events that are logged in response to the corresponding WCS events. The following table is an example of the available event settings.</p>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 20%;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 20%;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 60%;" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Event Type (in the WCS)</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Event (in Warehouse Management)</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Cancel Pick</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>PICK_CANCEL</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Request to cancel an outstanding pick request of inventory (can be a single pick or a group of picks).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Inventory Attribute Change</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>INVENTORY_ATTR_CHANGE</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Request to change an attribute of inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Inventory Status Change</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>INVENTORY_ATTR_CHANGE</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Request to change the inventory status.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Pallet Pick</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>PICK_REQUEST</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Request to pick inventory for an outbound order, work order, or replenishment (emergency, manual, top-off, demand, or trigger).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>WCS Destination Redirect</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>MOVEMENT_REQUEST</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Request that a pallet be moved from a specified source location (does not include the pallet contents).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>WCS Induction Request</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>INDUCTION</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Request that a pallet be moved from a specified source location and includes the contents of the pallet. If Warehouse Management controls storage and picking, the destination location is specified. If the WCS determines storage and picking, the destination location is not specified.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>WCS Label Response</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>LABEL_RESPONSE</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Request to communicate whether the pallet label or shipping label information was generated in response to the Label Request message, including the file name and path for the requested pallet LPN.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>WCS Load Error</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>LOAD_ERROR</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Request to inform the WCS that the pallet provided in the Request transaction was not found in Warehouse Management.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>WCS Load Request</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>LOAD_DETAIL</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>Request for a label. If a label is required, Warehouse Management generates a label file for either a pallet label or shipping label and, through the LABEL_RESPONSE message, makes that file available to the WCS.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Inventoryreconciliationsettings" data-magellan-target="Inventoryreconciliationsettings"><a name="Inventory_reconciliation_settings_for_WCS_integration_standardization"></a>Inventory reconciliation settings</h2>
+                                                        <p>Inventory data reconciliation is the ability to compare the inventory data in Warehouse Management to an inventory snapshot of the inventory data in the WCS. Inventory snapshots from the WCS are assumed to be the current state of the WCS. Additional configuration is required in the WCS to handle and process inventory snapshots. Inventory snapshots are not saved. For example, you can configure the following fields to include in your comparison of inventory data:</p>
+                                                        <ul>
+                                                            <li><b>Attribute</b>: Information expected from the WCS for use in the discrepancy comparison. The <b>Storage Location</b> and <b>Load Number</b> fields are expected and do not have to be configured.</li>
+                                                            <li><b>Sort Sequence</b>: Order in which the inventory snapshot considers the associated <b>Attribute </b>setting in the discrepancy comparison.</li>
+                                                        </ul>
+                                                        <h2 id="Inventorymovementsettings" data-magellan-target="Inventorymovementsettings"><a name="Inventory_movement_settings_for_WCS_integration_standardization"></a>Inventory movement settings </h2>
+                                                        <p>You can set the events that are logged when inventory moves within the WCS. The following table is an example of the available inventory movements.</p>
+                                                        <table style="width: 612;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 322px;" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Direction</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Event</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="198" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Inbound</p>
+                                                                    </td>
+                                                                    <td width="186" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>INDUCTION</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Inventory moves into the WCS.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="198" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Within</p>
+                                                                    </td>
+                                                                    <td width="186" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>MOVEMENT_REQUEST</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>Inventory moves inside the WCS.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="198" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Outbound</p>
+                                                                    </td>
+                                                                    <td width="186" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>REMOVAL</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>Inventory moves out of the WCS.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

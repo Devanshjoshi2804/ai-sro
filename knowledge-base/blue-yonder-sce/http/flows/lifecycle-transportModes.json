@@ -1,0 +1,107 @@
+{
+  "screen": "transportModes",
+  "phases": {
+    "create": [
+      "GET warehouseTransportModeUoms -> 200",
+      "POST transportModes -> 201",
+      "GET warehouseTransportModes -> 200"
+    ],
+    "edit": [
+      "GET warehouseTransportModeUoms -> 200",
+      "PUT transportModes/ZV9 -> 200",
+      "GET warehouseTransportModes -> 200"
+    ],
+    "copy": [],
+    "delete": [
+      "DELETE transportModes/ZV9 -> 200",
+      "GET transportModes -> 200"
+    ]
+  },
+  "code": "ZV91031",
+  "rowKey": "ZV9",
+  "createApplied": {
+    "transportMode": "ZV9",
+    "transportModeDescription": "ZV flow"
+  },
+  "linkFound": true,
+  "editFormFound": true,
+  "copySelect": {
+    "idx": 21,
+    "selected": 1
+  },
+  "copyInvoke": {
+    "error": "button missing or disabled"
+  },
+  "deleteSelect": {
+    "idx": 21,
+    "selected": 1
+  },
+  "deleteInvoke": {
+    "invoked": "doDelete"
+  },
+  "allCalls": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "warehouseTransportModes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "warehouseTransportModeUoms",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "transportModes",
+      "status": 201,
+      "body": "{\"transportMode\":\"ZV9\",\"transportModeDescription\":\"ZV flow\",\"smallPackageFlag\":0,\"palletControlssFlag\":\"\",\"palletBuildConsolidationBy\":\"\",\"directFlag\":0,\"warehouseId\":\"SG\"}"
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "warehouseTransportModes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "warehouseTransportModeUoms",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "PUT",
+      "url": "transportModes/ZV9",
+      "status": 200,
+      "body": "{\"transportMode\":\"ZV9\",\"transportModeDescription\":\"ZV edited\",\"smallPackageFlag\":0,\"palletBuildConsolidationBy\":\"\",\"directFlag\":0,\"warehouseId\":\"SG\",\"resourceId\":\"ZV9\"}"
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "warehouseTransportModes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "delete",
+      "method": "DELETE",
+      "url": "transportModes/ZV9",
+      "status": 200,
+      "body": "{\"transportMode\":\"ZV9\",\"transportModeDescription\":\"ZV edited\",\"smallPackageFlag\":0,\"palletBuildConsolidationBy\":null,\"directFlag\":0,\"warehouseId\":null,\"resourceId\":\"ZV9\"}"
+    },
+    {
+      "phase": "delete",
+      "method": "GET",
+      "url": "transportModes",
+      "status": 200,
+      "body": null
+    }
+  ]
+}

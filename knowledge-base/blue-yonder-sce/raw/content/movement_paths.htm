@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Inventory|Movement" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Movement Paths</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#MovementPaths">Movement Paths</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Locationreservation">Location reservation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyamovementpath">Add or modify a movement path</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteamovementpath">Delete a movement path</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#MovementPathfields">Movement Path fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="MovementPaths" data-magellan-target="MovementPaths"><a name="aanchor248"></a>
+                                                            <MadCap:concept term="WM" />Movement Paths</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#MovementPaths">Movement Paths</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Locationreservation">Location reservation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyamovementpath">Add or modify a movement path</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteamovementpath">Delete a movement path</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#MovementPathfields">Movement Path fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A movement path specifies the path that inventory takes from one point to another through your facility. A movement path applies to an LPN level of inventory that is moved from a source zone to a destination zone. A movement path can include a hop, which is an intermediate zone to which inventory is moved (not its final destination). A hop is typically a zone that is set up for special processing or inventory handling.</p>
+                                                        <p>You define a movement path for the following reasons:</p>
+                                                        <ul>
+                                                            <li>Any time you want the application to create work that moves inventory from its source location to a location other than its destination location. For example, movement paths are required when you want inventory to move to a processing zone before moving to its destination zone. </li>
+                                                            <li>To specify a different path for different LPN levels that may exist in a source zone. LPN levels include LPNs (such as pallet), sub-LPNs (such as cases), and detail LPNs (such as eaches). </li>
+                                                            <li>
+                                                                <p>To specify intermediate hops. If multiple hops are configured for the same source zone, destination zone, and LPN level, the application directs the inventory to each intermediate hop in the order defined by the hop sequence. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If a movement path is defined for outbound operations, then you should only select intermediate hop (movement) zones&#160;that include locations that are not used for ship staging (location type <b>Ship Staging</b> field set to No). Movement zones containing ship staging locations are typically defined as the destination of an outbound movement path.</p>
+                                                                <p>For each hop, you can optionally specify an RF directed move that should be generated automatically when inventory is deposited to the hop location. The RF directed move is added to the work queue at the base priority defined for the operation (or a different priority that you specify), and is used to move inventory to its next location in the path.</p>
+                                                                <p>You can also specify a move method, which determines how the application allocates a location in relation to the source or destination work zone of the inventory. For example, you can configure the application so that the work zone of the selected location (in the hop zone) is in the same work zone as the final storage location. </p>
+                                                            </li>
+                                                            <li>To specify criteria that defines the order, order line, and shipment attributes values that inventory must match in order to be directed to one or more hops.</li>
+                                                            <li>To establish a consistent path that inventory follows through a facility. For example, you may establish a path for cases picked from a case pick location. The path  can direct the inventory to a consolidation location for palletizing, then to a processing location for shrink wrapping, and then to shipping.  </li>
+                                                        </ul>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If there are any exceptions to a path that inventory takes in a facility, you can configure movement path criteria. See Movement Path Criteria.</p>
+                                                        <h2 id="Locationreservation" data-magellan-target="Locationreservation"><a name="Location_reservation"></a>Location reservation</h2>
+                                                        <p>You can configure the application to determine when and which locations within a movement path are reserved. For each outbound pick method, you can select whether no locations, the first location, or all locations are reserved during pick release. For more information, see <a href="pick_methods.htm">Pick Methods</a>.</p>
+                                                        <p>The application processes the reservation based off the configuration in the following ways:</p>
+                                                        <ul>
+                                                            <li>If you choose to reserve no locations during pick release, the application only reserves one location at a time, starting when the inventory is picked. The first deposit location (in the movement zone that follows the source zone) is reserved when the inventory is picked, and each next location is reserved when the inventory is picked up from its current location. </li>
+                                                            <li>If you choose to reserve the first deposit location during pick release, then the movement zone in which the first deposit takes place must have an available location for the picks to release, and locations in the remaining zones defined for the movement path are reserved one at a time when the inventory is picked up from its current location. </li>
+                                                            <li>
+                                                                <p>If you choose to reserve all locations in a path, then the application only releases the picks if all zones in the movement path have an available location at the time of pick release. If you reserve all locations in the path, then when a dock set or dock door is defined on an appointment, the application determines the staging lane by evaluating the priority of the lanes associated with the dock set or door. See <a href="dock_lane_assignment.htm#Associate_staging_lanes_and_aisles_with_shipping_dock_doors">Associate staging lanes and aisles with shipping dock doors</a>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If a lane is associated to multiple doors in a set, then the application uses the average priority of all lane-to-door associations defined in the dock lane assignment configuration. For example, if the dock set defined on an appointment has 3 doors, and a lane is assigned to each door in the set with priorities of 1, 2, and 3, then the lane priority is 2 for the dock set [(1 + 2 + 3 = 6) / 3 = 2]. If another lane is associated to the same doors with the priorities of 1, 1, and 2, then that lane would be evaluated first since its average priority is higher than 2.</p>
+                                                                <p>If a destination zone and destination lane is defined during wave planning or allocation, the application does not evaluate any other staging lanes associated with the dock set or door. Additionally, if an appointment does not have a dock set or door, or if there is no appointment associated with the group of picks, then priority is not evaluated and location sort rules are used instead.
+                </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If a pick method is configured to reserve all lanes, during the location reservation phase of pick release, the application searches for staging lanes based on the release group defined on the pick method and by matching resource codes, if enabled. See <a href="pick_release.htm#Staging_location_reservation_by_resource_code">Staging location reservation by resource code</a>. </p>
+                                                            </li>
+                                                        </ul>
+                                                        <p>Additionally, if the location type is configured to allow location overrides, then an operator can deposit the inventory to a different location from that which is already reserved, if the new location is within the original movement zone. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Operators performing distribution deposit with a voice device cannot utilize the location override functionality. </p>
+                                                        <p>If there are no locations available in the original zone defined in the movement path, then the operator can deposit the inventory to a pickup and deposit (P&amp;D) location until a location becomes available in the original movement zone. The application creates directed work to move the inventory from a P&amp;D location to the original movement zone.</p>
+                                                        <p>If a location is available but only has the capacity for a partial quantity, then depending on the RF warning display configuration for the movement zone, a message may be displayed to the operator and a portion of the inventory can be deposited to the original zone. For more information, see <a href="location_types.htm">Location Types</a> and <a href="movement_zones.htm">Movement Zones</a>.</p>
+                                                        <h2 id="Addormodifyamovementpath" data-magellan-target="Addormodifyamovementpath"><a name="Add_or_modify_a_movement_path"></a>Add or modify a movement path</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inventory &gt; Movement &gt; Movement Paths</span>.</li>
+                                                            <li value="2">Perform one of the following tasks:<ul><li>To add a movement path, click <b>Add</b>.</li><li>To modify a movement path, in the grid, click the movement path.</li><li>To copy a movement path, in the grid, select the check box next to the movement path, and then click <b>Copy</b>.</li></ul></li>
+                                                            <li value="3">Enter information in the <a href="#Movement_Path_fields">Movement Path fields</a>.</li>
+                                                            <li value="4">To define a hop and set the hop sequence: <ol><li value="1"><p>Click <span class="specialbold">Hops</span>. The Hops page is displayed. </p></li><li value="2"><p>In the <span class="specialbold">Available Zones</span> column, select the check box next to the zones that apply. </p><p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If a movement path is defined for outbound operations, then you should only select hop (movement) zones&#160;that include locations that are not used for ship staging (location type<b> Ship Staging</b> field set to No). Movement zones containing ship staging locations are typically defined as the destination of an outbound movement path.</p></li><li value="3">To assign criteria to a hop, under <b>Criteria</b>, select the attributes inventory must have in order to move to the hop-to zone within the movement path.</li><li value="4"><p>To assign a move method to a hop: </p><p class="Note"><b class="NoteHeadingBold">Note</b>: A hop move method determines how the application allocates a location in relation to the source or destination work zone of the inventory. The move method selection is considered when inventory is being moved to the hop zone for which you configure the method. </p><ol><li value="1">Perform one of the following tasks:<ul><li>To add a move method, click <b>Optional - Add New</b>.</li><li>To modify a move method, click the existing move method assigned to the hop.</li></ul></li><li value="2">From the <b>Move Method</b> drop-down list, select one of the following options:<ul><li><b>Receiving Staging Lane attached to Dock Door</b>: The application selects a receiving staging lane associated with the dock door at which the inventory is received. </li><li><b>Same Zone First Hop</b>: The application selects a location in the same work zone as the source location from which the product is moving. This can be used, for example, for outbound picking so that the application selects the pickup and deposit location at the end of the aisle from which inventory is picked. </li><li><b>Same Zone Second Hop</b>: The application selects a location in the same work zone as the destination location of the inventory. This can be used, for example, for inbound putaway so that the application selects the P&amp;D&#160;location at the end of the aisle in which the inventory is stored.</li></ul></li><li value="3">Click <b>Save</b>. </li></ol></li><li value="5"><p>To set up RF directed move for a hop:</p><p class="Note"><b class="NoteHeadingBold">Note</b>: If you assign an RF directed move to the hop, then work is added to work queue when inventory is deposited to the hop location. The directed work is used to move inventory from the hop location to its next location in the movement path.</p><ol><li value="1">Perform one of the following tasks:<ul><li>To add an RF directed move, click <span class="specialbold">Optional - Add New</span>.</li><li>To modify a RF directed move, click the RF directed move operation.</li></ul></li><li value="2"><p>Enter information in the following fields:</p><table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0"><col class="TableStyle-Field_Descriptions-Column-Column1" /><col class="TableStyle-Field_Descriptions-Column-Column2" /><thead><tr class="TableStyle-Field_Descriptions-Head-Header1"><th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th><th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th></tr></thead><tbody><tr class="TableStyle-Field_Descriptions-Body-Body1"><td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">RF Directed Move Operations</td><td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1"><p>Operation that creates work to move inventory out of the zone.</p></td></tr><tr class="TableStyle-Field_Descriptions-Body-Body2"><td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">Override Base Priority</td><td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2"><p>Priority at which the work is added to work queue. If you leave this field blank, then the base priority defined for the operation is used.</p></td></tr></tbody></table></li><li value="3">Click <b>Save</b>.</li><li value="4">To specify the sequence of the hop in the movement path, drag the zone to the preferred position in the list.</li></ol></li><li value="6">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="5">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Deleteamovementpath" data-magellan-target="Deleteamovementpath"><a name="Delete_a_movement_path"></a>Delete a movement path</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Inventory &gt; Movement &gt; Movement Paths</span>.</li>
+                                                            <li value="2">In the grid, select the check box next to the movement path to delete. </li>
+                                                            <li value="3">Click <b>Delete</b>. A confirmation message is displayed.</li>
+                                                            <li value="4">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="MovementPathfields" data-magellan-target="MovementPathfields"><a name="Movement_Path_fields"></a>Movement Path fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Movement Path Name</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a movement path. A movement path specifies the path that inventory takes from one point to another through your facility. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Source Zone</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Movement zone that contains the location from which inventory is initially picked or moved. It represents the first movement zone on the movement path.  </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Destination</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Movement zone that contains the final destination location for inventory that was picked or moved. For example, for inventory picked for an outbound order, this could be a zone that contains ship staging locations. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">LPN Level</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>LPN level of inventory to which the movement path applies. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">LPN</span>: Typically represents a pallet.</li>
+                                                                            <li><span class="specialbold">Sub-LPN</span>: Typically represents a case.</li>
+                                                                            <li><span class="specialbold">Detail LPN</span>: Typically represents an each or piece. </li>
+                                                                        </ul>
+                                                                        <p>The units of measure (UOMs) associated with LPN, sub-LPN, and detail LPN levels are defined by the <span class="specialbold">System Equivalent UOM</span> field in the item footprint. See <a href="items_page.htm#Item_footprint_uom_fields">Item Footprint UOM fields</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul> </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Pick Confirmation</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#PickConfirmation">Pick Confirmation</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Paperbasedpickingprocess">Paper-based picking process</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Confirmpicks">Confirm picks</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewpickconfirmationhistory">View pick confirmation history</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Cancelpicks">Cancel picks</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PickConfirmationHistoryfields">Pick Confirmation History fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="PickConfirmation" data-magellan-target="PickConfirmation"><a name="aanchor369"></a>
+                                                            <MadCap:concept term="WM" />Pick Confirmation</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#PickConfirmation">Pick Confirmation</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Paperbasedpickingprocess">Paper-based picking process</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Confirmpicks">Confirm picks</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewpickconfirmationhistory">View pick confirmation history</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Cancelpicks">Cancel picks</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PickConfirmationHistoryfields">Pick Confirmation History fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>You use the Pick Confirmation page to manually confirm released picks that are completed outside of the application, such as those that are completed using a paper-based picking process. You can confirm undirected and directed pick work, and you can cancel picks. The Active tab on the Pick Confirmation page displays picks that have not been confirmed, and the History tab displays picks that are confirmed.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;There are certain limitations to manual pick confirmation. See <a href="#Confirm_picks">Confirm picks</a>. </p>
+                                                        <p>When you confirm a pick, the application updates the location of the picked inventory to the destination location or LPN, and then completes any additional processes (such as updating order line quantities or initiating workflows). When you first access the page, depending on how the application is configured, a prompt may be displayed that allows you to enter or scan a barcode (carton number, work assignment identifier, or work reference). See <a href="pick_settings.htm#Configure_pick_settings">Configure pick settings</a>. If a prompt is not displayed, then you can either enter search criteria or select a quick filter to view pick information, or manually display the prompt to scan a barcode. </p>
+                                                        <p>After you select the picks to be confirmed, either by scanning a barcode at the prompt or by using the <b>Actions</b> drop-down list on the Active tab, the Confirm Picks window is displayed. The Confirm Picks window is split into the following sections:</p>
+                                                        <ul>
+                                                            <li>
+                                                                <p><b>Grid (left pane)</b>: Displays the picks that will be confirmed. When you select a grid row, the fields displayed in the right pane are updated to reflect the selected pick. For example, if a pick is for an item that is date-tracked, the ability to enter a manufactured or expiration date is available when the pick is selected in the grid.  If there are blank fields in the right pane for a selected pick, the <b>Information Needed</b> tag is displayed in the grid row. However, the tag does not prevent you from confirming a pick, unless the missing information is needed by the application to logically move the correct inventory. The tag in the left pane is removed when all of the displayed fields for a pick have a value in the right pane. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If you filter out picks on the Confirm Picks window, they are still confirmed with the rest of the visible picks. To exclude a pick that was initially selected to be confirmed, you must remove it from the list (click <b>Remove</b>). </p>
+                                                            </li>
+                                                            <li>
+                                                                <p><b>Fields (right pane)</b>:&#160;Displays the fields that are relevant to the selected pick in the grid. The fields are dynamic and can change based on the selected pick and what the application requires to confirm it. Two fields, <b>Quantity</b> and <b>UOM</b>, are always displayed and required. Additional fields are displayed based on the attributes of the pick, the source location, and the destination location. For example, if a pick is for a case (sub-LPN), the <b>To LPN</b> field is displayed to specify the destination LPN&#160;to which the picked case is being deposited. However, if the pick is for a pallet, the <b>To LPN</b> field is not displayed because an entire pallet (LPN)&#160;is already being moved. </p>
+                                                                <p>The application attempts to confirm picks with as little information as possible. However, in addition to the UOM&#160;and quantity of the pick, more information may be required to process the pick. For example, assume a source location has multiple LPNs of a lot-tracked item, with each LPN containing a different lot. To confirm a case pick from this location, you must enter the quantity and UOM, and then enter either the lot number or the source LPN (<b>From LPN</b> field). Both values are not required because either one identifies the specific inventory, so the application knows which LPN to deduct the picked inventory from. Alternatively, if the source location contained LPNs with mixed lots, then the application would require both the LPN and the lot. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Since the information needed to confirm a pick is relative to the circumstances, there is no visual indication (such as an asterisk)&#160;of which fields are required beyond <b>UOM</b> and <b>Quantity</b>.</p>
+                                                            </li>
+                                                        </ul>
+                                                        <p>The Confirm Picks window supports capturing serial numbers (cradle to grave only) and catch quantity, and also allows you to enter multiple sub-LPNs or detail LPNs for picks that require it. Additionally, you can split a pick, which creates a new grid row, by entering a quantity that is less than the expected quantity. For example, assume that the lot number must be specified for a pick with a quantity of 50. If half the quantity is from Lot1 and half is from Lot2, then with the row for the pick selected, you can enter a quantity of 25, and a new line is automatically created with a quantity of 25. You can then specify a separate lot for each quantity in the pick. </p>
+                                                        <p>When you manually confirm picks, certain outbound or background workflows may be initiated, depending on the exit point. In addition to the Pick Confirmation outbound workflow exit point, which only occurs when using the Pick Confirmation page, the following outbound workflow exit points also occur when you manually confirm picks on the Confirm Picks window:&#160;Pre-Pick, Post-Pick, and Carton Complete (which is also a background workflow exit point). See <a href="warehouse_workflows.htm">Warehouse Workflows</a>. </p>
+                                                        <h2 id="Paperbasedpickingprocess" data-magellan-target="Paperbasedpickingprocess"><a name="Paper-based_picking_process"></a>Paper-based picking process</h2>
+                                                        <p>After a shipment is allocated, the inventory required to fulfill the outbound orders must be picked. Depending on the release rule configuration used by the application, either directed or undirected pick work is created during the pick release process and when a replenishment is requested.</p>
+                                                        <p>For facilities that do not use RF devices or when a location is not accessible by RF devices, you can configure the pick method release rules to print pick labels or pick sheets to be used by operators performing the undirected pick work. The picks must then be confirmed at a workstation, using the Pick Confirmation page.</p>
+                                                        <p>The following steps are typically performed to accomplish paper-based picking:</p>
+                                                        <ol>
+                                                            <li value="1">Obtain the printed pick labels or pick sheets.</li>
+                                                            <li value="2">Travel to the specified pick location and pick the inventory.</li>
+                                                            <li value="3">To use pick labels, apply the labels to the picked inventory.</li>
+                                                            <li value="4">Take the inventory to its destination location and deposit the inventory.</li>
+                                                            <li value="5">At a workstation, confirm the pick work using the Pick Confirmation page.</li>
+                                                            <li value="6">
+                                                                <p>Process the pick work and perform any workflows, if prompted to do so.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Confirmpicks" data-magellan-target="Confirmpicks"><a name="Confirm_picks"></a>Confirm picks</h2>
+                                                        <p>Pick confirmation is used to manually confirm released picks for which a location is reserved in all of the defined movement zones for the path (<b>Reserve During Pick Release</b> field set to All.) See <a href="pick_methods.htm">Pick Methods</a>.</p>
+                                                        <p>During pick confirmation, the application verifies the pick zone for the confirmed picks, but does not verify the order details or the role of the user who confirmed the pick (which are only verified during RF picking). In addition, the application does not send any labor transactions or performance calculations for manually confirmed picks.</p>
+                                                        <p>You cannot use this procedure to confirm threshold picks or slotted picks (to a trolley, for example). These types of picks are performed using RF picking.</p>
+                                                        <ol>
+                                                            <li value="1">Select <b>Picking &gt;&#160;Pick Confirmation</b>. </li>
+                                                            <li value="2">If a barcode prompt is displayed, perform one of the following tasks:&#160;<ul><li>Scan or enter a carton number, work assignment, or work reference. If necessary, click <span style="font-weight: bold;">Process</span>. </li><li>Click <b>Cancel</b>. The grid is displayed. </li></ul></li>
+                                                            <li value="3">If the grid is displayed, perform one of the following tasks:<ul><li>To enter an identifier:<ol style="list-style-type: lower-alpha;"><li value="1">On the <b>Active</b> tab, above the grid, click <b>Enter Barcode</b>.</li><li value="2">Scan or enter a carton number, work assignment, or work reference. If necessary, click <span style="font-weight: bold;">Process</span>. </li></ol></li><li>To search for released picks to confirm:<ol style="list-style-type: lower-alpha;"><li value="1">Enter search criteria or select a quick filter.</li><li value="2">In the grid, select the check box for the picks to confirm. </li><li value="3">From the <b>Actions</b> drop-down list, select <b>Confirm Picks</b>. The Confirm Picks window is displayed.</li></ol></li></ul></li>
+                                                            <li value="4">To view information for a pick, in the left pane of the Confirm Picks window, select a pick. Information is displayed in the right pane. </li>
+                                                            <li value="5">If the <b>Information Needed</b> tag is displayed for a pick, enter information in the required fields:<ul><li><b>Quantity</b>:&#160;Pick quantity to confirm in the specified UOM. </li><li><p><b>UOM</b>:&#160;Unit of measure for the pick. </p><p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;The application attempts to confirm picks with as little information as possible. However, in addition to the UOM&#160;and quantity of the pick, more information may be required to process the pick. Since the information needed to confirm a pick is relative to the circumstances of the pick and can change, there is no visual indication (such as an asterisk)&#160;of which fields are required beyond <b>UOM</b> and <b>Quantity</b>.</p></li></ul></li>
+                                                            <li value="6">
+                                                                <p>To split a pick: </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;You can split a pick, which creates a new grid row, by entering a quantity that is less than the expected quantity. However, splitting a cartonized pick into a new carton is not supported. For example, assume that the lot number must be specified for a pick with a quantity of 50. If half the quantity is from Lot1 and half is from Lot2, then with the row for the pick selected, you can enter a quantity of 25, and a new line is automatically created with a quantity of 25. You can then specify a separate lot for the remaining quantity in the pick. </p>
+                                                                <ol>
+                                                                    <li value="1">In the left pane, select the grid row for a pick, and then in the <b>Quantity</b> field, enter a value that is less than the expected pick quantity. </li>
+                                                                    <li value="2">Select the new row and enter the required information. </li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="7">
+                                                                <p>To overpick a replenishment (confirm a quantity greater than the replenishment quantity):&#160;</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;You cannot overpick an order pick using manual confirmation. </p>
+                                                                <ol>
+                                                                    <li value="1">
+                                                                        <p>In the left pane, select the grid row
+for the replenishment to overpick, and then in the <b>Quantity</b> field, enter the UOM quantity for the overage (not including the expected quantity). The application automatically creates a new line with a quantity equal to the remaining quantity minus the quantity entered on the first pick line; adjust the quantity as necessary.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If the overage quantity is equal to the expected quantity, then enter a quantity less than expected to create a new pick line first, and then adjust the quantities. </p>
+                                                                    </li>
+                                                                    <li value="2">Select the new pick row and enter the quantity. Since the overage quantity is being confirmed on the original line, the quantity of the new line would typically match the original remaining (expected) quantity. 		</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="8">
+                                                                <p>To remove a pick from being confirmed, select the row for the pick, and then click <b>Remove</b>. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Removing a pick does not cancel or delete the pick, it only removes it from the list of picks to be confirmed; the removed pick remains in a Released status. </p>
+                                                            </li>
+                                                            <li value="9">If additional information is needed, click <b>Additional Information</b> and perform the following tasks:<ol><li value="1"><p>If the inventory is serialized and requires serial number capturing, then under <span class="specialbold">Serial Numbers</span>, enter a serial number for each LPN that requires it.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: To enter a range of serial numbers, click<span class="specialbold"> Enter Range</span>, then enter the range of numbers to apply to the inventory, and then press <span class="specialbold">Tab</span>.  </p></li><li value="2">If the inventory is catch tracked and requires a catch quantity, under <span class="specialbold">Catch Quantity</span>, enter a value for each LPN that requires it. </li><li value="3">Perform one of the following tasks:<ul><li>To confirm the additional information, click <span class="specialbold">Confirm</span>. The Confirm Picks window is displayed. </li><li>To discard the additional information, click <b>Back</b>. The Confirm Picks window is displayed. </li></ul></li></ol></li>
+                                                            <li value="10">
+                                                                <p>Click <b>Confirm Picks</b>. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;A message is displayed that indicates whether any of the picks failed confirmation. If any picks could not be confirmed, the Confirm Picks window is displayed and only the failed picks are listed. </p>
+                                                            </li>
+                                                            <li value="11">To resolve pick confirmation errors:&#160;<ol><li value="1">Select the grid row for a failed pick, and then view the error message displayed in the right pane. </li><li value="2">Resolve the error messages and then click <b>Confirm Picks</b>. </li></ol></li>
+                                                        </ol>
+                                                        <h2 id="Viewpickconfirmationhistory" data-magellan-target="Viewpickconfirmationhistory"><a name="View_pick_confirmation_history"></a>View pick confirmation history</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Picking &gt;&#160;Pick Confirmation</b>. </li>
+                                                            <li value="2">If a prompt is displayed, click <b>Cancel</b>.</li>
+                                                            <li value="3">Select <b>History</b>. </li>
+                                                            <li value="4">Enter search criteria or select a quick filter. </li>
+                                                            <li value="5">View information in the <a href="#Pick_confirmation_history_fields">Pick Confirmation History fields</a>. </li>
+                                                        </ol>
+                                                        <h2 id="Cancelpicks" data-magellan-target="Cancelpicks"><a name="Cancel_picks"></a>Cancel picks</h2>
+                                                        <ol>
+                                                            <li value="1">Perform one of the following tasks:<ul><li>Select <b>Picking &gt;&#160;Pick Confirmation</b>. If a prompt is displayed, click <b>Cancel</b>. </li><li><a href="procedures_for_picks_and_work_assignments.htm#View_picks">View picks</a>. </li></ul></li>
+                                                            <li value="2">In the grid, select the check box next to the pick work to cancel.</li>
+                                                            <li value="3">From the <b>Actions</b> drop-down list, select <span class="specialbold">Cancel Picks</span>. The Cancel Picks window is displayed.</li>
+                                                            <li value="4">From the <span class="specialbold">Select Cancel Code</span> drop-down list, select a reason for cancelling the pick.</li>
+                                                            <li value="5">To place the pick location in error, select the <span class="specialbold">Put locations in Error Status</span> check box. No picking or putaway can be performed in a location that is in error until the location is reset.</li>
+                                                            <li value="6">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="PickConfirmationHistoryfields" data-magellan-target="PickConfirmationHistoryfields"><a name="Pick_confirmation_history_fields"></a>Pick Confirmation History fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Pick Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Current status of the pick. </p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Pending</span>: Pick work inventory is reserved for allocation until automatically released by the application.</li>
+                                                                            <li><span class="specialbold">Hold</span>: Pick work inventory is reserved for allocation until manually released by a user.</li>
+                                                                            <li><span class="specialbold">Released</span>: Pick work is released to the work queue.</li>
+                                                                            <li><span class="specialbold">Complete</span>: Pick work is complete. </li>
+                                                                            <li><span class="specialbold">Un-Assigned</span>: Pick work is unassigned from a work assignment.</li>
+                                                                            <li><span class="specialbold">Ready For List</span>: Pick work has been released and the pick is qualified for a work assignment. A background process builds these picks into either a handling unit-based or regular work assignment.</li>
+                                                                            <li><span class="specialbold">Error</span>: Pre-manifesting the package for the pick work failed. The application allows packages to be pre-manifested; that is, manifested to hold. These packages are typically manifested during allocation (before the inventory is picked) and usually so that a label can be printed in advance for the package. You can view the specific error code and description on the Waves and Picks page. See <a href="waves_and_picks.htm">Waves and Picks</a>. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Source</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Location where the work originated, such as the location from which inventory is picked, at which a count is performed, or from which transport equipment is moved.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Destination</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Location where the work is completed, such as the location to which inventory is delivered or to which transport equipment is moved. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Load</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique identifier for a load. A load is one or more shipments grouped together into one or more stops that are shipped on a single piece of transport equipment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Shipment</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an outbound shipment. A shipment is a group of orders or order lines that are allocated together and shipped to the same location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Order</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique number that identifies an order. An order is a request for a supply of material or product. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Item</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for an item. An item is any specific piece of inventory that is stored or processed within the application. Items can be raw materials, packaging materials, in-process materials, supplies, and finished goods. In some warehouses, items are called stock keeping units (SKUs).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Description</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Description of the item involved in the pick that further describes the inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Quantity (in terms of material handling or stock keeping units) of the item that should be picked based on the order, work order, or replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Picked Quantity</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Quantity (in terms of material handling or stock keeping units) of inventory that is picked based on the order, work order, or replenishment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick UOM</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unit of measure in which the <span class="specialbold">Pick Quantity</span> is displayed. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work ID</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique application-assigned identifier for a piece of work in the work queue.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Work Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Current status of the work.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Undirected</span>: The work is undirected; this means that a user can perform it from a workstation, or an RF operator can perform it using an undirected work menu option. Undirected work is not available to be performed through the RF Directed Work menu option.</li>
+                                                                            <li><span class="specialbold">Pending</span>: The directed work has been allocated and released to the queue. Work in this status will be offered to an operator through the RF Directed Work function, based on permissions, priority, and proximity.</li>
+                                                                            <li><span class="specialbold">Waiting</span>: The directed work is assigned to an operator, but the operator has not acknowledged it yet.</li>
+                                                                            <li><span class="specialbold">Acknowledged</span>: The directed work has been acknowledged (accepted) by an operator.</li>
+                                                                            <li><span class="specialbold">Suspended</span>: The directed work is temporarily suspended, indicating that the application will not offer it an operator through the RF Directed Work function. </li>
+                                                                            <li><span class="specialbold">Locked</span>: The directed work is locked and is not released until the application finds an available pickface location. This status is used with the demand replenishment operation (PIARPL) to prevent work from being released until there is room in the location for the replenishment inventory.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work Order</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Identifier for a work order. A work order is an internal order used to find, allocate, and deliver product to a work-in-process area for assembly or disassembly, conversion, kitting, or repackaging.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Work Order Line</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Unique identifier for a work order line. The number corresponds to the order line's position in the work order.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Order Line</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Unique number that identifies the order line. The number corresponds to the line's position on the order. The first order line is automatically assigned a line number of 0001. Additional order lines are then automatically numbered sequentially, beginning with 0002.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Lot Tracked</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Indicates whether the item is lot tracked (<span class="specialbold">Lot Tracking</span> field set to Yes in the item configuration). A lot is a batch (quantity) of an item uniquely identified by a lot number during the manufacturing process for the purpose of tracking that batch of inventory.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Origin Tracked</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Indicates whether the item is tracked by its origin (<span class="specialbold">Origin Code</span> field set to Yes in the item configuration). The origin code is typically an identifier for the country or area of the world in which the item was manufactured. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Revision Tracked</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                        <p>Indicates whether the item is revision tracked (<b>Revision</b> field set to Yes in the item configuration). A revision may be used to identify a specific manufactured version of the item, so that when the item is modified or improved, the manufacturer may assign a new version number to reflect the change.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

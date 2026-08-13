@@ -69,5 +69,7 @@ make web       # :3000
 | [09-agentic-standards.md](09-agentic-standards.md) | Rules for the LLM-driven modules of later phases |
 | [10-security-and-data.md](10-security-and-data.md) | Tenancy, credentials, what a recording contains, retention |
 | [11-capture-completeness.md](11-capture-completeness.md) | What is captured, and why nothing is dropped |
+| [12-execution-and-agents.md](12-execution-and-agents.md) | The medium ladder, verification, and the execution agents |
+| [13-blue-yonder-knowledge-base.md](13-blue-yonder-knowledge-base.md) | What we recorded about the target WMS, and what it corrects |
 
 Agents read [../AGENTS.md](../AGENTS.md) instead of this file.

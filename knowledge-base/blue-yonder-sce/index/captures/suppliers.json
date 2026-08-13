@@ -1,0 +1,32 @@
+{
+  "spec": "suppliers",
+  "resource": "suppliers",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses",
+      "body": "{\"addressId\":\"\",\"hostExternalId\":\"\",\"addressName\":\"ZV Capture Addr\",\"addressLine1\":\"\",\"addressLine2\":\"\",\"addressLine3\":\"\",\"city\":\"\",\"state\":\"\",\"postalCode\":\"\",\"addressType\":\"SUP\",\"clientId\":\"----\",\"countryName\":\"\",\"phoneNumber\":\"\",\"timeZone\":\"\",\"firstName\":\"\",\"lastName\":\"\",\"localeId\":\"\",\"customsSiteType\":\"\",\"globalLocationNumber\":\"\",\"customsTaxSite\":\"\",\"temporary\":false,\"residentialAddress\":false,\"receivingWebAddress\":\"\",\"contactName\":\"\",\"contactPhone\":\"\",\"attentionPhone\":\"\",\"faxNumber\":\"\",\"email\":\"\",\"contactTitle\":\"\",\"attentionName\":\"\",\"shippingPhone\":\"\",\"shippingWebAddress\":\"\",\"shippingContactName\":\"\",\"shippingContactPhone\":\"\",\"shippingAttentionPhone\":\"\",\"shippingFax\":\"\",\"shippingEmail\":\"\",\"shippingContactTitle\":\"\",\"shippingAttentionName\":\"\",\"honorific\":\"\",\"addressDistrict\":\"\",\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":\"\",\"region\":\"\",\"latitude\":\"\",\"longitude\":\"\"}"
+    },
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/suppliers",
+      "body": "{\"addressId\":\"A000365885\",\"addressLine1\":\"\",\"addressLine2\":\"\",\"addressLine3\":\"\",\"addressName\":\"ZV Capture Addr\",\"addressType\":\"\",\"assetType\":\"\",\"barCodeTemplateId\":\"\",\"city\":\"\",\"clientId\":\"----\",\"consignmentDays\":0,\"consignmentType\":\"\",\"countryName\":\"\",\"firstName\":\"\",\"lastName\":\"\",\"postalCode\":\"\",\"receiveStatus\":\"\",\"receivingFax\":\"\",\"receivingPhone\":\"\",\"region\":\"\",\"self_uri\":\"\",\"state\":\"\",\"supplierNumber\":\"ZVS1\",\"trackConsignment\":\"TRKNONE\",\"loadAttribute2\":\"\",\"loadAttribute3\":\"\",\"loadAttribute4\":\"\",\"loadAttribute5\":\"\",\"lotFormatId\":\"\",\"rcvstsDescription\":\"\",\"serialNumberTypeId\":\"\",\"trustedFlag\":false,\"wrapped\":\"\",\"autoReceiveFlag\":false,\"isTrackConsignmentsFlag\":false}"
+    }
+  ],
+  "reset": false,
+  "add": {
+    "id": "button-5571",
+    "count": 1
+  },
+  "applied": {
+    "supplierNumber": "ZVS1",
+    "addressName": "ZV Capture Addr",
+    "clientId": "----"
+  },
+  "invalid": [],
+  "save": {
+    "id": "button-5721",
+    "count": 1
+  },
+  "ok": true
+}

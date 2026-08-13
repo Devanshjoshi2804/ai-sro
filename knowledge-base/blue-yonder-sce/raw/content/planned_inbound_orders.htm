@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Receiving|Receiving concepts" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Planned inbound orders</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Plannedinboundorders">Planned inbound orders</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Plannedinboundorderusescenarios">Planned inbound order use scenarios</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Trackprogressofanexpectedinboundorder">Track progress of an expected inbound order</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Receiveadditionalorunexpectedinventory">Receive additional or unexpected inventory</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Receiveunexpectedtransportequipment">Receive unexpected transport equipment</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Receiveanunexpectedinboundshipment">Receive an unexpected inbound shipment</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Howplannedinboundorderlinesareupdatedduringreceiving">How planned inbound order lines are updated during receiving</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ExamplesPlannedinboundorderlineupdates">Examples: Planned inbound order line updates</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Receive1">Receive 1</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Receive2">Receive 2</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Receive3">Receive 3</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Plannedinboundorders" data-magellan-target="Plannedinboundorders"><a name="aanchor288"></a>
+                                                            <MadCap:concept term="WM" />Planned inbound orders</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Plannedinboundorders">Planned inbound orders</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Plannedinboundorderusescenarios">Planned inbound order use scenarios</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Howplannedinboundorderlinesareupdatedduringreceiving">How planned inbound order lines are updated during receiving</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ExamplesPlannedinboundorderlineupdates">Examples: Planned inbound order line updates</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A planned inbound order is an authorization to receive specific inventory and quantities from a supplier. It is used, but not required, to receive inventory into the warehouse. Planned inbound orders can be associated with an inbound shipment, which can be associated with inbound transport equipment. Planned inbound orders can include one or more order lines that contain the following information:</p>
+                                                        <ul>
+                                                            <li>Items to be received in a single shipment</li>
+                                                            <li>Quantity of the items to be received</li>
+                                                        </ul>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If you do not associate a planned inbound order with an inbound shipment, then during receiving, the application automatically generates an inbound shipment for the order and closes that shipment automatically when the inbound order is complete.
+        </p>
+                                                        <p>Planned inbound orders are typically sent from a host application as part of an inbound shipment; however, in the absence of downloads or to meet last minute needs, you can use the Inbound Shipments page to add a new order to an existing inbound shipment.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: When defining the inventory attributes for a planned inbound order line, remember that a date, such as manufactured date, represents a detail that can be very difficult to fill because the application would only match inbound inventory that has the same manufactured date. </p>
+                                                        <p>If a planned inbound order contains advanced shipment notification (ASN) information, it also displays the individual license plate numbers (LPNs) that will be sent on the transport equipment.</p>
+                                                        <h2 id="Plannedinboundorderusescenarios" data-magellan-target="Plannedinboundorderusescenarios"><a name="Planned_inbound_order_use_scenarios"></a>Planned inbound order use scenarios</h2>
+                                                        <p>The following scenarios provide examples of inbound order use.</p>
+                                                        <h3 id="Trackprogressofanexpectedinboundorder" data-magellan-target="Trackprogressofanexpectedinboundorder">Track progress of an expected inbound order</h3>
+                                                        <p>You can use planned inbound orders to track the receiving progress of expected inventory. Understanding how much inventory is expected, received, and stored can help you better manage your receiving operations for the receipt of that inventory.</p>
+                                                        <p>You can track the progress of inbound shipments on the Inbound Shipments page. From this page you can access inbound order and order line details that display the quantities expected, received, and stored. </p>
+                                                        <h3 id="Receiveadditionalorunexpectedinventory" data-magellan-target="Receiveadditionalorunexpectedinventory">Receive additional or unexpected inventory</h3>
+                                                        <p>When receiving additional or unexpected inventory, you can create a new planned inbound order that describes the inventory, and then optionally associate that order with an inbound shipment.</p>
+                                                        <p>For example, assume that a warehouse expects a shipment of 100 televisions from Supplier A and 50 laptop computers from Supplier B, and has prepared to receive this inventory by downloading information for an inbound shipment for that inventory. When the transport equipment arrives, the receiving operator discovers that it also contains an order of 75 keyboards from Supplier C. To reconcile this order, the receiving clerk can view the inbound shipment, which also contains the orders from Supplier A and B, from the Inbound Shipments page and add a new order and order line for the 75 keyboards.</p>
+                                                        <h3 id="Receiveunexpectedtransportequipment" data-magellan-target="Receiveunexpectedtransportequipment">Receive unexpected transport equipment</h3>
+                                                        <p>When unexpected transport equipment, such as a trailer, containing inventory that you want to receive arrives at your facility, and you want to use a planned inbound order to receive the inventory, you can do so by performing the following tasks:</p>
+                                                        <ul>
+                                                            <li>Create the transport equipment in the application.</li>
+                                                            <li>Create planned inbound orders and associated orders lines for the inventory to receive.</li>
+                                                            <li>Optionally, associate the new order with an inbound shipment. If you do not specify an inbound shipment, the application generates an one automatically during the receiving process.</li>
+                                                            <li>Check in the transport equipment and begin receiving from a dock door, or unload the inbound shipment and begin receiving from a staging location.</li>
+                                                        </ul>
+                                                        <h3 id="Receiveanunexpectedinboundshipment" data-magellan-target="Receiveanunexpectedinboundshipment">Receive an unexpected inbound shipment</h3>
+                                                        <p>If an inbound shipment arrives, regardless of whether it is on transport equipment, you can use information from the shipment's packing slip to create a planned inbound order prior to or during receiving. This process allows the received inventory to be tracked against an existing inbound order in Warehouse Management or the host application.</p>
+                                                        <h2 id="Howplannedinboundorderlinesareupdatedduringreceiving" data-magellan-target="Howplannedinboundorderlinesareupdatedduringreceiving"><a name="How_planned_inbound_order_lines_are_updated_during_receiving"></a>How planned inbound order lines are updated during receiving</h2>
+                                                        <p>During receiving, the application attempts to match actual received quantities with expected quantities listed on the order lines for planned inbound orders. You can use the Outbound Planner module to view planned inbound order lines and the details of the inventory that was actually received against each line.</p>
+                                                        <p>Planned inbound order line quantities are updated when inventory is received against a line, filling the line’s expected quantity. Each line is associated with a line number, such as 001 or 002, and a sequence number. The sequence number for expected inventory is 0 (zero). When inventory is received against a planned inbound order, another row is added to the order information that has the same line number, but a different sequence number (such as 1) to indicate it is a received quantity. You may have multiple sequence number rows associated with a single planned inbound order line if multiple LPNs of inventory, with differing attributes, were received against a single line. The sequence number record shows line information for the inventory that was applied to the planned inbound order line’s expected quantity. If sequence number records share the same inventory attribute values, they are grouped into one sequence number.</p>
+                                                        <p>When the application identifies incoming inventory to receive against a planned inbound order line, the attributes of the incoming inventory must match those on the line in order for the application to process the planned inbound order. For example, if the order line has an item with an origin code value of US, the application would only receive inventory against that line if its origin code was also US. However, if a planned inbound order line has an item with an attribute value that is null (blank) or ---- (four dashes), the application will receive inventory against the order line regardless of the incoming attribute value. The application will still look to match other defined attributes on the planned inbound order line, but any attribute having a value that is null or ----  can be filled with inventory having any value for that same attribute. </p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: If you are using a date field such as manufactured date as an inventory attribute, it is important to remember that date fields can contain a high level of detail which can cause problems in filling the order. For example, if the item on the planned inbound order line has a manufactured date that includes month/day/hours/minutes, the application would only match inventory that has the same manufactured date, down to the exact minute. Date attribute configurations should be monitored in order to prevent situations of matching dates that contain a high level of detail.</p>
+                                                        <h2 id="ExamplesPlannedinboundorderlineupdates" data-magellan-target="ExamplesPlannedinboundorderlineupdates"><a name="Examples:_Planned_inbound_order_line_updates"></a>Examples: Planned inbound order line updates</h2>
+                                                        <p>The following examples use a planned inbound order line for a quantity of 100 of ITEM01 and show how incoming inventory is matched and received against the line. Since the planned inbound order line is an expected quantity and does not represent an applied quantity, its sequence number is 0.</p>
+                                                        <h3 id="Receive1" data-magellan-target="Receive1">Receive 1</h3>
+                                                        <p>The first LPN identified matches the origin code attribute and is received against the planned inbound order line, as shown in the following table. Additionally, because the expected order line has the value of ---- as the lot number attribute, the application accepts inventory from any lot, in this case from LOT5. The following table is an example of a quantity of 50 of ITEM01 being received against the line and being assigned the sequence number of 1.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If the LPN had been identified with an origin code of CHINA instead of US, the inventory would not have been received against line 0001 because the attributes do not match.</p>
+                                                        <table style="width: 624;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">&#160;</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Line number</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Sequence number</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Item</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Expected quantity</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Received quantity</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Origin code</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Lot number</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="tableheading"><span style="color: #000000;">Expected</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0001</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>ITEM01</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>100</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>US</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>----</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p class="tableheading"><span style="color: #000000;">Actual</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">0001</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">1</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">ITEM01</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">0</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">50</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">US</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p><span class="specialbold">LOT5</span>
+                                                                        </p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h3 id="Receive2" data-magellan-target="Receive2">Receive 2</h3>
+                                                        <p>The application then receives an additional quantity of 40 with the expected origin code of US, but this time coming from LOT7. This inventory transaction against the planned inbound order line is given a sequence number record of 2 because it is the second quantity received against the line, and since the attributes differ from sequence number 1, the application creates a new record for the inventory.</p>
+                                                        <table style="width: 624;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">&#160;</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Line number</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Sequence number</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Item</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Expected quantity</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Received quantity</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Origin code</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Lot number</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" width="78">
+                                                                        <p class="tableheading"><span style="color: #000000;">Expected</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0001</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>A</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>100</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>US</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">&#160;</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" width="78">
+                                                                        <p class="tableheading"><span style="color: #000000;">Actual</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0001</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>1</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>A</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>50</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>US</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>LOT5</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow" width="78">
+                                                                        <p class="tableheading"><span style="color: #000000;">Actual</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">0001</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">2</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">A</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">0</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">40</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p><span class="specialbold">US</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p><span class="specialbold">LOT7</span>
+                                                                        </p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h3 id="Receive3" data-magellan-target="Receive3">Receive 3</h3>
+                                                        <p>When the application receives its final quantity for the planned inbound order line, the inventory happens to match the origin code and lot number values from sequence number 1. In this case, no new sequence record is created, but the additional quantity of 10 is added to sequence number 1, changing its quantity to 60, and fulfilling the total expected quantity of 100.</p>
+                                                        <table style="width: 624;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">&#160;</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Line number</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Sequence number</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Item</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Expected quantity</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Received quantity</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Origin code</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Lot number</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="tableheading"><span style="color: #000000;">Expected</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0001</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>A</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>100</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>0</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>US</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">&#160;</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="tableheading"><span style="color: #000000;">Actual</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">0001</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">1</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">A</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">0</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">60</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p><span class="specialbold">US</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p><span class="specialbold">LOT5</span>
+                                                                        </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p class="tableheading"><span style="color: #000000;">Actual</span>
+                                                                        </p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>0001</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>2</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>A</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>0</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>40</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>US</p>
+                                                                    </td>
+                                                                    <td width="78" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>LOT7</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

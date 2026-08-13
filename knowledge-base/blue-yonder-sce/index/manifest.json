@@ -1,0 +1,17 @@
+{
+ "base": "https://bf56-kms-wms-web-np2.jdadelivers.com/web/help",
+ "product": "Supply Chain Execution Web Applications",
+ "product_version": "2022.1.0.0",
+ "flare_build_version": "20.0.8886.22535",
+ "fetched_at": "2026-08-06T10:30:09.185Z",
+ "scope": "all",
+ "counts": {
+  "toc_nodes": 586,
+  "topics_in_scope": 586,
+  "pages": 586,
+  "fields": 7741,
+  "images": 128,
+  "edges": 2433
+ },
+ "failures": []
+}

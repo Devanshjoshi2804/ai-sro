@@ -1,0 +1,452 @@
+{
+  "readOnly": true,
+  "results": [
+    {
+      "area": "outboundPlanner",
+      "label": "Workstation",
+      "route": "#/wm.workstation",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "SG",
+      "route": "#/refs-Site",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Dashboard",
+      "route": "#wm.outboundplanner/wm.outbounddashboard////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Outbound",
+      "route": "#wm.outboundplanner/wm.outboundplanner.outbounddisplay////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200,
+          "rowCount": 0
+        },
+        {
+          "seq": 2,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Waves and Picks",
+      "route": "#wm.outboundplanner/wm.wavesandpicks////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMPicks",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMPicks",
+          "status": 200,
+          "rowCount": 81
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/waves/statusCount",
+          "status": 200,
+          "rowCount": 8
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/picks/statusCount",
+          "status": 200,
+          "rowCount": 9
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Inventory",
+      "route": "#wm.outboundplanner/wm.inventorydisplay////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200,
+          "rowCount": 7
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/loadAttributeConfigurations",
+          "status": 200,
+          "rowCount": 5
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/uDIAConfigs",
+          "status": 200,
+          "rowCount": 28
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 5,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+          "status": 200,
+          "rowCount": 3
+        },
+        {
+          "seq": 6,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 7,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 8,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/uDIAConfigs",
+          "status": 200,
+          "rowCount": 28
+        },
+        {
+          "seq": 9,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/reasonCodes",
+          "status": 200,
+          "rowCount": 22
+        },
+        {
+          "seq": 10,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200,
+          "rowCount": 72
+        },
+        {
+          "seq": 11,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200,
+          "rowCount": 72
+        },
+        {
+          "seq": 12,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Work Queue",
+      "route": "#wm.outboundplanner/wm.workqueue////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/directedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/undirectedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 4,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 5,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/consolidatedWork",
+          "status": 200,
+          "rowCount": 50
+        },
+        {
+          "seq": 6,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        },
+        {
+          "seq": 7,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/directedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 8,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/undirectedWork/count",
+          "status": 200,
+          "rowCount": 1
+        },
+        {
+          "seq": 9,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Send RF Message",
+      "route": "#wm.outboundplanner/wm.rfmessage////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Order Line Mass Update",
+      "route": "#wm.outboundplanner/wm.orderlinemassupdate////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations",
+          "status": 200,
+          "rowCount": 10
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/listInventoryRotationMethodsForWebDisplay",
+          "status": 200,
+          "rowCount": 9
+        },
+        {
+          "seq": 3,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes",
+          "status": 200,
+          "rowCount": 4
+        },
+        {
+          "seq": 4,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Log Indirect Work",
+      "route": "#wm.outboundplanner/wm.lmindirect////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/lmIndirectWorkTypes",
+          "status": 200,
+          "rowCount": 19
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices",
+          "status": 200,
+          "rowCount": 199
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Shipment Mass Update",
+      "route": "#wm.outboundplanner/wm.shipmentmassupdate////",
+      "calls": [
+        {
+          "seq": 0,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes",
+          "status": 200,
+          "rowCount": 4
+        },
+        {
+          "seq": 1,
+          "method": "GET",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "status": 200,
+          "rowCount": null
+        },
+        {
+          "seq": 2,
+          "method": "POST",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/persistence/",
+          "status": 201,
+          "rowCount": 1
+        }
+      ],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": [
+        "POST WM/rpux/persistence/"
+      ]
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "RF Display",
+      "route": "#wm.outboundplanner/RFT-Display////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "outboundPlanner",
+      "label": "Plannable Order Details",
+      "route": "#wm.outboundplanner/Plannable-Order-Details////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    }
+  ]
+}

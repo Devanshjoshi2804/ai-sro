@@ -1,0 +1,47 @@
+{
+  "screen": "shipping",
+  "route": "#wm.shipping/wm.shipping.dashboard////",
+  "readOnly": true,
+  "calls": [
+    {
+      "seq": 1,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/currencies",
+      "query": "siteId=SG&subsites=----&_dc=1786530167282",
+      "status": 200,
+      "bytes": 774,
+      "rowCount": 7,
+      "sampleKeys": [
+        "exchangeRates",
+        "currencyCode",
+        "enabled",
+        "longDescription"
+      ]
+    },
+    {
+      "seq": 2,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/mu",
+      "query": "siteId=SG&subsites=----&_dc=1786530167282",
+      "status": 200,
+      "bytes": 30808,
+      "rowCount": 34,
+      "sampleKeys": [
+        "description",
+        "unit",
+        "category",
+        "muSystem",
+        "numerator",
+        "denominator",
+        "enabled"
+      ]
+    }
+  ],
+  "screenState": {
+    "title": "Blue Yonder - Dashboard",
+    "grids": [],
+    "forms": [],
+    "buttons": []
+  },
+  "writesObservedOnLoad": []
+}

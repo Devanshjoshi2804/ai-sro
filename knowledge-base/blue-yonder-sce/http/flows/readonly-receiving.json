@@ -1,0 +1,59 @@
+{
+  "screen": "receiving",
+  "route": "#wm.receiving/wm.receiving.dashboard////",
+  "readOnly": true,
+  "calls": [
+    {
+      "seq": 0,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/hotItemsByLoc",
+      "query": "loadLevel=D&query=%5B%5D&siteId=SG&subsites=----&_dc=1786530145663",
+      "status": 200,
+      "bytes": 51983,
+      "rowCount": 57,
+      "sampleKeys": [
+        "appliedQuantity",
+        "arrivedDate",
+        "carrierCode",
+        "completedQuantity",
+        "displayItemNumber",
+        "effectivePriority",
+        "expectedDate",
+        "expectedQuantity",
+        "expectedReceiptsFlag",
+        "hotQuantity",
+        "inboundLoadNumber",
+        "itemClientId"
+      ]
+    },
+    {
+      "seq": 1,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inboundQualityIssues",
+      "query": "query=%5B%5D&startDate=2026-08-12T00%3A00%3A00-04%3A00&endDate=2026-08-13T00%3A00%3A00-04%3A00&offset=0&limit=25&siteId=SG&subsites=----&_dc=1786530145664",
+      "status": 200,
+      "bytes": 136,
+      "rowCount": 0,
+      "sampleKeys": null
+    },
+    {
+      "seq": 2,
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/refs/data/api/v1/rp/admin/sessionKeepAlive",
+      "query": null,
+      "status": 200,
+      "bytes": 33,
+      "rowCount": null,
+      "sampleKeys": null
+    }
+  ],
+  "screenState": {
+    "title": "Blue Yonder - Dashboard",
+    "grids": [],
+    "forms": [],
+    "buttons": []
+  },
+  "writesObservedOnLoad": [
+    "POST api/v1/rp/admin/sessionKeepAlive -> 200"
+  ]
+}

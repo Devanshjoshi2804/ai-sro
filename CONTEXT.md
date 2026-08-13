@@ -204,7 +204,7 @@ otherwise a double adjustment, and a Temporal activity retry is an ordinary even
 | Secrets | Labelled, never deleted; vault reference in skills | A real vault is required before production |
 | Write approval | Autonomous after N clean runs | The verifier is the only gate; it must be right |
 | Escalation | All rungs automatic, verifier gates the result | Vision may drive a live WMS unattended |
-| Knowledge base | Live sandbox + recorded traffic only | No spec to validate a generated call against |
+| Knowledge base | Live sandbox + recorded traffic only | No vendor spec — but a *recorded* one now exists, so a generated call can be checked before it is sent |
 | First slice | Full ladder on one task | Depth before breadth |
 | Target task | Blue Yonder inventory adjust | A write, with a natural read-back |
 | Secret storage | Env vars behind a port, real manager later | One adapter swap, not a migration |
@@ -283,7 +283,11 @@ real WMS login until this is fixed.
 
 - **Bitbucket Pipelines** cannot be enabled until 2FA is set up on the account;
   the config is committed and inert, and `main` has no branch protection.
-- **Blue Yonder sandbox** URL and credentials, to build Phase 1 against reality.
+- ~~Blue Yonder sandbox~~ — **arrived**. A live SCE instance was driven and recorded into
+  [`knowledge-base/`](knowledge-base/): 316 screens, 551 endpoints, 266 stored request/response
+  exchanges, 16 resources taken through a full create → read back → update → delete → confirm-gone
+  cycle. Consequences for the design are in
+  [`docs/13-blue-yonder-knowledge-base.md`](docs/13-blue-yonder-knowledge-base.md).
 - **Gemini API key** for Phases 3 and 4.
 
 ## 10. Getting it running

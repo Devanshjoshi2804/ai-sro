@@ -1,0 +1,315 @@
+{
+  "purpose": "Every prior claim about failure behaviour, and whether a scripted Playwright run with full request+response capture reproduced it. Claims from hand-driven Claude-in-Chrome sessions are 'asserted' until reproduced here. See ../../SCHEMA.md for evidence levels.",
+  "generated_by": "tools/cdp/trace.mjs, tools/cdp/modal-probe.mjs, tools/cdp/battery.mjs, tools/cdp/battery2.mjs \u2014 2026-08-12",
+  "headline": "9 claims re-tested. 6 reproduced, 3 falsified. All 3 failures share one root cause: a hand-driven session read the UI (a modal, a network panel) and inferred what the wire did, instead of recording the wire.",
+  "claims": [
+    {
+      "id": "clients-duplicate-orphans-address",
+      "source": "recipes/partners/clients.md",
+      "claim": "Clients create cascade is NOT atomic: POST /wm/addresses succeeds (201) before POST /wm/clients fails (422), leaving a real orphan address.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/flows/clientsDuplicate.json",
+      "observed": [
+        "POST /wm/addresses -> 201 (addressId A000365888)",
+        "POST /wm/clients -> 422",
+        "edge: addresses.data.addressId => clients.body.addressId"
+      ],
+      "cleanup": "A000365888 deleted, confirmed RECORD-MISSING",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "suppliers-duplicate-no-orphan",
+      "source": "recipes/partners/suppliers.md",
+      "claim": "Duplicate supplier number returns 409 and POST /wm/addresses NEVER FIRES, so no orphan address is left. Presented as the safe contrast to clients.",
+      "verdict": "FALSIFIED",
+      "evidence": "http/flows/suppliersDuplicate.json",
+      "observed": [
+        "POST /wm/addresses -> 201 (addressId A000365889) \u2014 it DOES fire and DOES succeed",
+        "POST /wm/suppliers -> 409"
+      ],
+      "why_the_original_was_wrong": "Read off the browser network panel by eye during a hand-driven session; the addresses POST was present but not noticed.",
+      "impact": "HIGH. The recipe told automation authors this screen was safe to retry. It leaks one address per failed attempt, exactly like clients. Recipe corrected.",
+      "cleanup": "A000365889 deleted, confirmed RECORD-MISSING",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "carriers-duplicate-is-server-side",
+      "source": "recipes/partners/carriers.md",
+      "claim": "Existing Carriers duplicate check is SERVER-side: the form accepts the click and only then shows an in-app 'Record already exists' modal.",
+      "verdict": "FALSIFIED",
+      "evidence": "tools/cdp/modal-probe.mjs carriersDuplicate",
+      "observed": [
+        "Form reports zero invalid fields, Save is clicked, modal appears: xtype=messagebox, title='Error', text='Record already exists'",
+        "requests before Save: 0. requests after Save: 0. NOTHING was sent."
+      ],
+      "why_the_original_was_wrong": "The modal was taken as proof of a server round-trip. It is generated entirely client-side. Seeing a server-style error message is not evidence that a request occurred.",
+      "impact": "The 'server-side vs client-side' split across the Partners screens was built partly on this. At the API layer a duplicate carrier does return 409 (http/exchanges/carriers.jsonl), but the UI never gets that far.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "transportEquipmentTypes-endpoint-exists",
+      "source": "index/write-endpoints.json entries 48/49",
+      "claim": "POST and DELETE /wm/transportEquipmentTypes are verified working.",
+      "verdict": "FALSIFIED",
+      "evidence": "http/exchanges/transportEquipmentTypes.jsonl",
+      "observed": [
+        "Every method and path returns 404 ROUTE-MISSING",
+        "GET /wm/transportEquipmentTypes/AIR (a real code) is also ROUTE-MISSING",
+        "Real resource is /wm/codes?columnName=trlr_typ"
+      ],
+      "why_the_original_was_wrong": "The delete proof was 'a later GET returned 404' \u2014 circular, since a nonexistent route 404s forever.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "existing-customers-duplicate-client-side",
+      "source": "recipes/partners/existing-customers.md",
+      "claim": "Duplicate Customer number is a client-side gate; zero requests fire.",
+      "verdict": "REPRODUCED",
+      "evidence": "tools/cdp/modal-probe.mjs customersDuplicate",
+      "observed": [
+        "Field error on customerNumber: 'This customer has already existed'",
+        "requests before Save: 2 (GETs). after Save: 2. No write was sent."
+      ],
+      "corollary": "This also settles the open question about the customers cascade orphaning an address on duplicate: it cannot, because the gate fires before any POST.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "transportModes-duplicate-client-side",
+      "source": "recipes/partners/carriers.md",
+      "claim": "Duplicate transport mode is blocked client-side with zero network calls.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/flows/transportModesDuplicate.json",
+      "observed": [
+        "Field error: 'The transport mode already exists'",
+        "zero write calls"
+      ],
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "ccr-duplicate-client-side-with-message",
+      "source": "recipes/partners/carriers.md",
+      "claim": "Duplicate carrier cross-reference composite key is blocked client-side with a readable message.",
+      "verdict": "REPRODUCED",
+      "evidence": "tools/cdp/modal-probe.mjs ccrDuplicate",
+      "observed": [
+        "All three key fields carry: 'The External System Cross References already exists.'",
+        "requests before Save: 0. after Save: 0."
+      ],
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "duplicate-key-five-architectures",
+      "source": "NOTES.md section 10",
+      "claim": "Five sibling Partners screens implement five genuinely different duplicate-key validation architectures.",
+      "verdict": "FALSIFIED AS FRAMED",
+      "evidence": "http/status-matrix.json (by_case.create-duplicate) plus the probes above",
+      "observed": [
+        "API layer, 19 resources: create-duplicate is 409 on 14 of them; 422 on clients, customerTypes and carrierProNumbers; 201 on addresses (server-assigned id, so no conflict exists)",
+        "UI layer: results are MIXED, not uniform. carriers, transportModes, carrierCrossReferences and existing-customers gate client-side and send nothing. clients and suppliers DO fire real POSTs and reach the server (flows/clientsDuplicate.json 201+422, flows/suppliersDuplicate.json 201+409)."
+      ],
+      "correction": "There are two independent facts, and the original conflated them. (1) The server contract is near-uniform 409, with three 422 outliers. (2) The UI gates client-side on every screen tested. An executor calling the API directly only ever sees (1) and never sees (2).",
+      "evidence_level": "reproduced",
+      "self_correction": "An earlier version of this entry asserted 'every Partners screen blocks CLIENT-side and sends nothing'. That was contradicted by this file's OWN stored flows for clients and suppliers, both of which fire POSTs. Corrected 2026-08-13 after a recipe audit caught it. Recorded rather than quietly edited, because a claims file that overreaches is the same failure it exists to prevent."
+    },
+    {
+      "id": "delete-is-idempotent",
+      "source": "derived from the first battery run, 2026-08-12",
+      "claim": "DELETE on an already-deleted record returns 200 everywhere.",
+      "verdict": "FALSIFIED BY WIDER SAMPLE",
+      "evidence": "http/status-matrix.json (by_case.delete-again)",
+      "observed": [
+        "200 on 16 resources",
+        "422 on clientWarehouse",
+        "404 RECORD-MISSING on clients"
+      ],
+      "correction": "Idempotency is per-resource, not a platform guarantee. An executor must not treat a non-200 second DELETE as a failure without checking the resource.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "nonadd-flows-copy-edit-delete",
+      "source": "Every recipe in this repo: 'Copy \u2014 not captured' and 'Delete \u2014 not captured via UI click; direct-API equivalent tested'.",
+      "claim": "The UI Copy and Delete buttons had never been captured; the direct-API DELETE was assumed equivalent.",
+      "verdict": "NOW CAPTURED",
+      "evidence": "http/flows/nonadd2-customerTypes.json",
+      "observed": [
+        "UI row-open + Save fires exactly: PUT /wm/customerTypes/{id} -> 200, then a grid refresh GET. Same single call an executor would make directly.",
+        "UI Delete fires exactly: DELETE /wm/customerTypes/{id} -> 200. Single call, no batch endpoint. The direct-API equivalence assumed by the recipes is CONFIRMED for this screen.",
+        "UI Copy fires ZERO requests, by design."
+      ],
+      "mechanics_that_took_six_attempts": [
+        "Grid rows contain NO anchors. The first column is an rpLinkColumn whose renderer emits <span class='rpux-link-grid-column-link'>; its cellclick only fires linkclick when the event target carries that class. Clicking the row, the cell, or searching for <a> all fail silently.",
+        "The FIRST cell is the row-checker: clicking it toggles selection and nothing else.",
+        "The grid itself has NO itemclick listeners, so firing itemclick does nothing.",
+        "Toolbar buttons carry no handler; their click listeners are scoped to a WM.plugins.grid.GridActions plugin. copyButton -> plugin.doCopy(owner, btn, sel); deleteButton -> RP.Msg.promptOkCancel then plugin.doDelete(owner, btn, sel).",
+        "doDelete is store.remove(records) + store.sync() - the DELETE is issued by the STORE, not by the button.",
+        "doCopy is records[0].copy(null,true,true) + fireEvent('copied', ...). It is a client-side clone handed to a listener and CANNOT produce a request.",
+        "The delete confirm is RP.Msg.promptOkCancel with ok/cancel buttons, not Ext's yes/no - searching for itemId 'yes' never matches, so an automated confirm silently never fires."
+      ],
+      "generalisation": "These mechanics are framework-level (RP.dataview.column.LinkColumn, WM.plugins.grid.GridActions) and therefore apply to EVERY grid screen in this app, not just customerTypes.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "grid-lifecycle-across-screens",
+      "source": "tools/cdp/flow-all.mjs, 2026-08-12",
+      "claim": "The grid interaction mechanics found on customerTypes are framework-level and generalise to every grid screen.",
+      "verdict": "MOSTLY CONFIRMED",
+      "evidence": "http/flows/lifecycle-*.json (10 screens)",
+      "observed": [
+        "CREATE captured on all 10 screens.",
+        "EDIT (open record via the rpLinkColumn span, then PUT) captured on 6: customerTypes, transportModes, businessUnits, levelTypes, equipmentTypes, clientGroups.",
+        "DELETE captured on 7, always a single DELETE issued by the store's sync.",
+        "COPY fired ZERO requests on all 10, consistent with doCopy being a client-side record.copy() plus a 'copied' event. This is the behaviour, not missing coverage.",
+        "EDIT not reachable on 4: carriers, printers, workstations, voiceDevices - the link span was not found in the row, so those grids either use a different first column type or render the link differently."
+      ],
+      "new_findings": [
+        "voiceDevices: POST /wm/devices returned 404 when driven from the UI, while the same endpoint returns 201 from workstations and from the API battery. Creating a voice device through its own screen fails. Not yet diagnosed.",
+        "Screens fire far more reads than the recipes recorded. workstations issues 8 GETs before its POST (movementZones/nonpaged, locations, codes, serialDeviceConfigurations, locations/productionStation). equipmentTypes reads warehouseEquipmentAccesses and workZoneVehicleTypes around its PUT. transportModes writes to /transportModes but reads back through /warehouseTransportModes - a DIFFERENT collection than it writes.",
+        "workstations DELETE is preceded by GET /wm/devices/{id}/consolidateAtPackStationZone, a sub-resource never catalogued."
+      ],
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "grid-edit-coverage-complete",
+      "source": "tools/cdp/flow-all.mjs, 2026-08-12",
+      "claim": "UI edit coverage across grid screens.",
+      "verdict": "9 of 10 SCREENS COVERED",
+      "evidence": "http/flows/lifecycle-*.json",
+      "observed": [
+        "create+edit+delete captured on: customerTypes, transportModes, businessUnits, levelTypes, equipmentTypes, clientGroups, printers, workstations, carriers.",
+        "copy fires ZERO requests on every screen - doCopy is a client-side record.copy() plus a 'copied' event and cannot emit a request.",
+        "voiceDevices create fails; see the separate claim."
+      ],
+      "three_distinct_blockers_found_and_fixed": [
+        "TWO link mechanisms exist, not one: rpLinkColumn renders <span class='rpux-link-grid-column-link'> with a grid cellclick handler, while templatecolumn renders class 'wm-grid-navigate-link-column' with NO grid listener. Searching only the first class is why printers/workstations/voiceDevices edit failed.",
+        "SERVER-SIDE PAGING: the carriers grid holds 25 of 1581 rows across 64 pages. A new record is never in the loaded page, and neither sorting nor filtering the loaded page surfaces it - both were tried and failed. Existing codes are numeric so a ZV code sorts last; loading the LAST page found it immediately. The grid's own pager showed this the whole time.",
+        "A blocking 'Exception Occurred' modal over 6 masks was never dismissed, so one screen's failure silently poisoned every screen after it in a batch run. dismissBlocking() now clears modals before each screen and records what it cleared."
+      ],
+      "new_sub_resources_observed": [
+        "carriers edit reads GET /wm/carrierServiceLevels",
+        "workstations delete is preceded by GET /wm/devices/{id}/consolidateAtPackStationZone",
+        "equipmentTypes edit reads warehouseEquipmentAccesses and workZoneVehicleTypes",
+        "transportModes writes /transportModes but reads back /warehouseTransportModes - a different collection"
+      ],
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "voicedevices-create-404",
+      "source": "tools/cdp/flow-all.mjs + tools/cdp/probe-voice.mjs, 2026-08-12",
+      "claim": "Voice device creation through its own screen fails.",
+      "verdict": "CONFIRMED, UNEXPLAINED",
+      "evidence": "http/exchanges/devices.jsonl (cases voice-create-len4..7, voice-create-noterm-*)",
+      "observed": [
+        "POST /wm/devices with deviceClass 'V' returns 404 with errorCode -1403, userMessage 'no rows affected'.",
+        "The SAME body succeeded with 201 earlier in the same session (index/captures/voiceDevices.json). A field-by-field diff shows identical keys and identical deviceClass/localeId; only the code value differs.",
+        "Reproduced at deviceCode lengths 4,5,6,7 and with voiceTerminalId both set and blank - all 404. So neither length nor that field is the cause.",
+        "The identical endpoint returns 201 for deviceClass 'W' (workstations) throughout.",
+        "The UI additionally sits on 'Saving...' far longer than other screens; a 30s wait did not change the outcome, so it is not a timeout artifact.",
+        "After the failed save the screen stays wedged: 3-4 .x-mask elements persist after the modal is closed, and the form remains on 'Saving...' indefinitely."
+      ],
+      "assessment": "Stateful app-side behaviour: the same request transitioned from working to failing within one session. 'no rows affected' on an INSERT suggests the backend performs a lookup/update that now matches nothing. Not resolvable without backend visibility; recorded rather than guessed at.",
+      "evidence_level": "reproduced",
+      "operational_rule": "DO NOT automate voice-device creation via this screen or via POST /wm/devices with deviceClass 'V'. Beyond the 404, a failed save WEDGES the screen permanently: the exception modal can be dismissed but its masks survive it, leaving the form unusable and poisoning any later step in the same session. Recovery requires removing .x-mask nodes from the DOM and changing route - see tools/cdp/recover.mjs. Treat this screen as manual-only until the backend behaviour is understood."
+    },
+    {
+      "id": "tier2-readonly-trace",
+      "source": "tools/cdp/trace-subroutes.mjs, 2026-08-12",
+      "claim": "Tier 2/3 operational areas had zero coverage.",
+      "verdict": "MAPPED READ-ONLY",
+      "evidence": "http/flows/readonly-subroutes-*.json",
+      "observed": [
+        "123 unique sub-routes discovered across 9 operational areas, versus 18 config screens previously mapped. The app is far larger than the config tier suggested.",
+        "139 operational screens traced. Zero errors, zero business writes performed.",
+        "Resource count in the graph went from 19 battery-tested to 87 known; 68 are newly discovered and completely untested.",
+        "Most widely depended-on resources are shared infrastructure, not per-area: policies (27 screens), codes (16), inventory (12), loadAttributeConfigurations (12), uDIAConfigs (9)."
+      ],
+      "method_note": "STRICTLY read-only by construction: the tool navigates and records, and cannot click Save or invoke a grid-action plugin. These screens release work and move real inventory in a shared environment and several actions have no clean revert, so writes were deliberately not attempted.",
+      "the_only_writes_seen": "POST /rpux/persistence/ and POST /api/v1/rp/admin/sessionKeepAlive, both fired by the app itself on load. The first persists UI layout state, the second keeps the session alive. Neither is a business write.",
+      "evidence_level": "observed"
+    },
+    {
+      "id": "view-layer-wedge-silent-corruption",
+      "source": "app-map run via Claude-in-Chrome, 2026-08-12",
+      "claim": "Screen mapping by navigation is reliable.",
+      "verdict": "FALSIFIED - a silent corruption mode exists",
+      "evidence": "index/app-map.json entries flagged unverified:true",
+      "observed": [
+        "After visiting Packing Settings the app's view layer wedged: the hash and document.title updated correctly on every subsequent navigation, but the RENDERED CONTENT stayed frozen on the previous screen.",
+        "Eleven consecutive picking screens were therefore recorded with an identical 7-field form (replenishmentRequest / parallelAllocation / threadCount) that belongs to none of them.",
+        "Confirmed by navigating to a known-good screen (Customer Types): title changed, body still showed Packing content.",
+        "Hash routing could not recover it. Downloads were also blocked while wedged. Only a hard reload cleared it - which dropped the OIDC session, as already documented."
+      ],
+      "why_this_matters": "This is the most dangerous failure seen so far, because nothing looks wrong: the route is right, the title is right, and the captured data is well-formed - it just belongs to a different screen. Any crawler trusting title-or-route as a load signal will silently produce a plausible, wrong map.",
+      "detection": "Fingerprint the rendered content (grid column dataIndexes + form field names) and require it to CHANGE between screens. Identical fingerprints across different routes mean the view did not re-render. Implemented as window.__storeReady; entries it could not confirm are marked unverified:true and must be re-mapped.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "iframe-accumulation-crashes-the-app",
+      "source": "app-map / map-forms crawl, 2026-08-12",
+      "claim": "A long crawl can navigate this SPA indefinitely.",
+      "verdict": "FALSIFIED - the app degrades and dies",
+      "evidence": "tools/cdp/frame-count.mjs measurement during the crawl",
+      "observed": [
+        "The portal attaches ONE IFRAME PER SCREEN VISITED and never releases them. After a ~300-screen crawl the page carried 333 attached frames, of which exactly ONE was visible (21 top-level iframes, 1 shown).",
+        "This is the common cause behind three separate failures blamed on other things: the view layer wedging (title updates, DOM frozen), frame-scanning helpers finding no visible buttons or forms, and an outright renderer crash.",
+        "Attempting a reload AT 333 frames crashed the renderer rather than recovering it.",
+        "After a renderer crash Chrome still answers CDP /json/version, but Playwright's connectOverCDP times out - the browser looks alive while being unusable."
+      ],
+      "operational_rule": "Any crawler over this app must reset the page periodically - reset at ~30 attached frames, not when symptoms appear. A soft in-page reload is enough and preserves the session. A full Chrome RESTART does NOT: the OIDC session lives in a session cookie and is lost, costing a manual login every time.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "form-model-capture-cross-verified",
+      "source": "scripted Playwright capture vs independent Claude-in-Chrome session, 2026-08-13",
+      "claim": "The scripted Add-form model capture records the real field model.",
+      "verdict": "CROSS-VERIFIED",
+      "method": "Two INDEPENDENT browser instances, different Chrome processes and profiles: the scripted capture (tools/cdp/map-forms.mjs over CDP) and a hand-driven Claude-in-Chrome session. Neither can see the other's state, so an instrument-specific bug would show as a mismatch.",
+      "observed": [
+        "Customer Types - scripted: 18 fields, 2 required (customerType textfield, longDescription textfield). Independent: identical, and adds maxLength customerType=4, longDescription=2000.",
+        "Suppliers - scripted: 25 fields, 3 required (supplierNumber textfield, clientId combo, addressName wmAddress). Independent: identical, with maxLength supplierNumber=32, addressName=40.",
+        "The independently observed maxLength customerType=4 CONFIRMS a constraint previously known only from a SQL truncation error (csttyp, error -2628). Two unrelated instruments agreeing on that value makes it solid."
+      ],
+      "caveat": "The Suppliers screen showed TWO visible forms at capture time, which is exactly the ambiguity that once made Clients return 28 fields on one run and 14 on another. Both instruments still selected the same form here, but form selection remains the fragile step and is why the capture now records candidate_forms and matched_route_frame per screen.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "codes-write-contract-proven",
+      "source": "tools/cdp/probe-resource.mjs write codes, 2026-08-13",
+      "claim": "The /wm/codes write behaviour was documented from hand observation only, with no stored exchange, while backing multiple screens.",
+      "verdict": "NOW PROVEN",
+      "evidence": "http/exchanges/codes.jsonl",
+      "observed": [
+        "Full lifecycle PASS: POST 201 -> GET 200 -> PUT 200 (field persisted, confirmed by separate read) -> DELETE 200 -> DELETE again 200 -> GET 404 RECORD-MISSING.",
+        "create-duplicate returns 409; create-empty returns 400 - matching the dominant contract across the other 19 resources.",
+        "Payload: {codeValue, columnName, longDescription, shortDescription, sortSequence, requiredFlag}. resourceId is the compound {codeValue}*!{columnName}.",
+        "GET /wm/codes/AIR*!trlr_typ returns 200 - confirming this is the REAL backing resource for the falsified /wm/transportEquipmentTypes path."
+      ],
+      "scale_correction": "columnName is NOT mandatory on the collection read. Omitting it returns the WHOLE table: 4350 rows across 583 distinct columnName partitions. The recipes described /wm/codes as backing two or three screens; it is the most shared resource in the application, and each partition is a separate code list.",
+      "evidence_level": "round-trip"
+    },
+    {
+      "id": "locations-read-contract-and-scale",
+      "source": "tools/cdp/probe-resource.mjs read locations, 2026-08-13",
+      "claim": "locations had zero stored exchanges despite being the highest-blast-radius resource documented.",
+      "verdict": "READS NOW RECORDED; WRITES STILL UNPROVEN",
+      "evidence": "http/exchanges/locations.jsonl",
+      "observed": [
+        "Collection reads 200. A record carries 176 fields. resourceId is the compound {code}*!{warehouseId}.",
+        "read-missing returns 400, not a 404 - consistent with the other compound-id resources, where a malformed id is a 400 and only a well-formed-but-absent id gives 404 RECORD-MISSING.",
+        "GET /wm/locations/count reports 61912 rows. The recipe says '25k+ storage locations' - the real total is roughly 2.5x that.",
+        "GET /wm/locations/batch returns 400, NOT 404 ROUTE-MISSING. The documented batch-create path therefore EXISTS; it does not fall to the failure that killed /wm/transportEquipmentTypes."
+      ],
+      "why_writes_are_still_open": "A location record has 176 fields and no captured create payload exists. Writing one would mean GUESSING the body - which is the exact anti-pattern that produced the falsified claims in this repo. The create payload must be captured from the real Add form first, the same way businessUnitDescription was recovered. Deliberately not guessed.",
+      "evidence_level": "observed"
+    }
+  ],
+  "still_asserted_not_reproduced": [],
+  "open_questions": [
+    "RESOLVED 2026-08-12: clients POST->GET round-trip works normally (getByResourceId=OK, resourceId==clientId). The battery's earlier RECORD-MISSING on read-created was an artifact of that run, not app behaviour. Re-observed clean via tools/cdp/diagnose.mjs.",
+    "NEW FINDING: a newly created client does NOT appear in GET /wm/clients?query=[]&limit=400 immediately after a 201, even though GET by id returns it. The collection listing is filtered by something the create does not satisfy (warehouse assignment is the likely candidate, since clientWarehouse is a separate resource). An executor must not use the collection listing to confirm a create.",
+    "NEW FINDING: POST /wm/packingConfigurations returns 201 with a COMPLETELY EMPTY body (no resourceId, no fields), and the created row is not retrievable from the collection listing either. Its update/delete path therefore remains unverified - there is no id to address it by. This is the only resource in the catalogue with no way to confirm what was written.",
+    "locations remains untested by policy (25k+ real rows, batch-create path).",
+    "Four screens (carriers, printers, workstations, voiceDevices) do not expose the rpLinkColumn span the other six use, so their UI edit flow is uncaptured. Their column config needs reading, the same way the link mechanism was originally found.",
+    "voiceDevices UI create returns 404 from POST /wm/devices although the identical endpoint accepts workstations creates. Unexplained.",
+    "68 of 87 known resources have never been probed. The battery covers 19. Extending it to the operational resources requires a per-resource safety judgement, since these hold live transactional data rather than throwaway config rows."
+  ]
+}

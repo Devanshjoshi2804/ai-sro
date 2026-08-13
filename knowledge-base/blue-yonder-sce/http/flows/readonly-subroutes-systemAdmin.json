@@ -1,0 +1,49 @@
+{
+  "readOnly": true,
+  "results": [
+    {
+      "area": "systemAdmin",
+      "label": "Workstation",
+      "route": "#/wm.workstation",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "systemAdmin",
+      "label": "SG",
+      "route": "#/refs-Site",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "systemAdmin",
+      "label": "Deferred Executions",
+      "route": "#mcs-SystemAdmin/Deferred-Executions-2019-1-0////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    },
+    {
+      "area": "systemAdmin",
+      "label": "Integration Errors",
+      "route": "#mcs-SystemAdmin/wm.config.integration.inboundissues////",
+      "calls": [],
+      "state": {
+        "grids": [],
+        "actions": []
+      },
+      "writesOnLoad": []
+    }
+  ]
+}

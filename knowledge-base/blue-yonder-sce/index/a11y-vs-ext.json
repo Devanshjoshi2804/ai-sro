@@ -1,0 +1,294 @@
+{
+  "screens": {
+    "#wm.config/wm.config.inbound.storage.locationpreferencerules////": {
+      "generated_by": "tools/cdp/a11y-vs-ext.mjs",
+      "screen": "#wm.config/wm.config.inbound.storage.locationpreferencerules////",
+      "question": "Would an accessibility snapshot serve this capture better than the ExtJS component model?",
+      "a11y": {
+        "nodes_total": 459,
+        "nodes_interesting": 459,
+        "nodes_with_accessible_name": 314,
+        "roles": {
+          "img": 1,
+          "combobox": 7,
+          "text": 19,
+          "link": 2,
+          "iframe": 1,
+          "table": 7,
+          "rowgroup": 7,
+          "row": 56,
+          "cell": 6,
+          "gridcell": 350,
+          "spinbutton": 2,
+          "checkbox": 1
+        },
+        "sample_names": [
+          "link: Workstation",
+          "link: SG",
+          "row: ",
+          "row: 1 GO-0001072000 GO-0001072000 Half LPN Item Number 0001072000",
+          "gridcell: 1",
+          "gridcell: GO-0001072000",
+          "gridcell: GO-0001072000",
+          "gridcell: Half LPN",
+          "gridcell: Item Number 0001072000",
+          "row: 1 GO-0001073000 GO-0001073000 Half LPN Item Number 0001073000",
+          "gridcell: 1",
+          "gridcell: GO-0001073000"
+        ],
+        "yaml_bytes": 15461
+      },
+      "ext": {
+        "fields": 14,
+        "with_json_key": 14,
+        "required": 10,
+        "with_maxlength": 1,
+        "sample": [
+          {
+            "field": "policyVariable",
+            "label": "Storage Options",
+            "required": true,
+            "type": "combo"
+          },
+          {
+            "field": "supplierNumber",
+            "label": "Supplier",
+            "required": true,
+            "type": "supplierlookup"
+          },
+          {
+            "field": "clientId",
+            "label": "Client",
+            "required": false,
+            "type": "textfield"
+          },
+          {
+            "field": "itemNumber",
+            "label": "Item",
+            "required": true,
+            "type": "itemLookup"
+          },
+          {
+            "field": "itemClientId",
+            "label": "Item Client",
+            "required": false,
+            "type": "textfield"
+          },
+          {
+            "field": "itemFamily",
+            "label": "Item Family",
+            "required": true,
+            "type": "itemFamilyLookup"
+          },
+          {
+            "field": "itemClass",
+            "label": "Item Class",
+            "required": true,
+            "type": "itemClassLookup"
+          },
+          {
+            "field": "clientId",
+            "label": "Client",
+            "required": true,
+            "type": "combo",
+            "maxLength": 32
+          }
+        ]
+      },
+      "payload_keys_present_in_a11y": []
+    },
+    "#wm.config/wm.config.partners.customers.types////": {
+      "generated_by": "tools/cdp/a11y-vs-ext.mjs",
+      "screen": "#wm.config/wm.config.partners.customers.types////",
+      "question": "Would an accessibility snapshot serve this capture better than the ExtJS component model?",
+      "a11y": {
+        "nodes_total": 73,
+        "nodes_interesting": 73,
+        "nodes_with_accessible_name": 24,
+        "roles": {
+          "img": 1,
+          "combobox": 6,
+          "text": 27,
+          "link": 4,
+          "iframe": 1,
+          "textbox": 8,
+          "alert": 1,
+          "list": 1,
+          "table": 5,
+          "rowgroup": 5,
+          "row": 5,
+          "cell": 5,
+          "button": 2,
+          "radio": 2
+        },
+        "sample_names": [
+          "link: Workstation",
+          "link: SG",
+          "link: Customer Type",
+          "link: Add Customer Type",
+          "textbox: Customer Type*",
+          "textbox: Customer Type Description*",
+          "textbox: Department",
+          "textbox: Manufacturer",
+          "row: ",
+          "combobox: Create Shipment By Select the attribute by which the system will group orders into shipments.",
+          "row: Inherit from transport mode ",
+          "cell: Inherit from transport mode"
+        ],
+        "yaml_bytes": 4246
+      },
+      "ext": {
+        "fields": 18,
+        "with_json_key": 18,
+        "required": 2,
+        "with_maxlength": 10,
+        "sample": [
+          {
+            "field": "customerType",
+            "label": "Customer Type",
+            "required": true,
+            "type": "textfield",
+            "maxLength": 4
+          },
+          {
+            "field": "longDescription",
+            "label": "Customer Type Description",
+            "required": true,
+            "type": "textfield",
+            "maxLength": 2000
+          },
+          {
+            "field": "departmentNumber",
+            "label": "Department",
+            "required": false,
+            "type": "textfield",
+            "maxLength": 10
+          },
+          {
+            "field": "manufacturerId",
+            "label": "Manufacturer",
+            "required": false,
+            "type": "textfield",
+            "maxLength": 10
+          },
+          {
+            "field": "createShipmentBy",
+            "label": "Create Shipment By",
+            "required": false,
+            "type": "combo",
+            "maxLength": 60
+          },
+          {
+            "field": "palletBuildingConsolidateBy",
+            "label": "Pallet Building",
+            "required": false,
+            "type": "combo",
+            "maxLength": 60
+          },
+          {
+            "field": "allocationSearchPath",
+            "label": "Allocation Search Path Group",
+            "required": false,
+            "type": "textfield",
+            "maxLength": 20
+          },
+          {
+            "field": "inventoryRotationMethod",
+            "label": "Inventory Rotation Method",
+            "required": false,
+            "type": "combo",
+            "maxLength": 60
+          }
+        ]
+      },
+      "payload_keys_present_in_a11y": []
+    },
+    "#wm.config/wm.config.warehouse.businessunits////": {
+      "generated_by": "tools/cdp/a11y-vs-ext.mjs",
+      "screen": "#wm.config/wm.config.warehouse.businessunits////",
+      "question": "Would an accessibility snapshot serve this capture better than the ExtJS component model?",
+      "a11y": {
+        "nodes_total": 18,
+        "nodes_interesting": 18,
+        "nodes_with_accessible_name": 6,
+        "roles": {
+          "img": 1,
+          "combobox": 1,
+          "text": 7,
+          "link": 4,
+          "iframe": 1,
+          "textbox": 2,
+          "alert": 1,
+          "list": 1
+        },
+        "sample_names": [
+          "link: Workstation",
+          "link: SG",
+          "link: Business Unit",
+          "link: Add Business Unit",
+          "textbox: Business Unit*",
+          "textbox: Description*"
+        ],
+        "yaml_bytes": 559
+      },
+      "ext": {
+        "fields": 2,
+        "with_json_key": 2,
+        "required": 2,
+        "with_maxlength": 2,
+        "sample": [
+          {
+            "field": "businessUnit",
+            "label": "Business Unit",
+            "required": true,
+            "type": "textfield",
+            "maxLength": 10
+          },
+          {
+            "field": "businessUnitDescription",
+            "label": "Description",
+            "required": true,
+            "type": "textarea",
+            "maxLength": 2000
+          }
+        ]
+      },
+      "payload_keys_present_in_a11y": []
+    },
+    "#wm.config/wm.config.partners.carriers.carriers////": {
+      "generated_by": "tools/cdp/a11y-vs-ext.mjs",
+      "screen": "#wm.config/wm.config.partners.carriers.carriers////",
+      "question": "Would an accessibility snapshot serve this capture better than the ExtJS component model?",
+      "a11y": {
+        "nodes_total": 9,
+        "nodes_interesting": 9,
+        "nodes_with_accessible_name": 3,
+        "roles": {
+          "img": 1,
+          "combobox": 1,
+          "text": 2,
+          "link": 2,
+          "iframe": 1,
+          "heading": 1,
+          "paragraph": 1
+        },
+        "sample_names": [
+          "link: Workstation",
+          "link: SG",
+          "heading: Page Not Found"
+        ],
+        "yaml_bytes": 502
+      },
+      "ext": {
+        "fields": 0,
+        "with_json_key": 0,
+        "required": 0,
+        "with_maxlength": 0,
+        "sample": []
+      },
+      "payload_keys_present_in_a11y": []
+    }
+  },
+  "generated_by": "tools/cdp/a11y-vs-ext.mjs",
+  "caution": "Role coverage VARIES BY SCREEN: Business Units exposed 2 textboxes and Customer Types 2 buttons, while Location Preference Rules exposed neither. The finding that holds across every sample is payload_keys_present_in_a11y = 0."
+}

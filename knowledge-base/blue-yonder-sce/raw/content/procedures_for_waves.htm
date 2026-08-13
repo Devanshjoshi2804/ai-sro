@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Shared functions|Waves and Picks" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Procedures for waves</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Proceduresforwaves">Procedures for waves</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Planawave">Plan a wave</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Allocateawave">Allocate a wave</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Changethepriorityofawave">Change the priority of a wave</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteawave">Delete a wave</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Releaseawave">Release a wave</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Unallocateawave">Unallocate a wave</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Removeashipmentorloadfromawave">Remove a shipment or load from a wave</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Removeanorderfromawave">Remove an order from a wave</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Resizeacarton">Resize a carton</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewwaves">View waves</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Viewdetailedwaveinformation">View detailed wave information</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#AllocateWavefields">Allocate Wave fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Wavedetailfields">Wave detail fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Proceduresforwaves" data-magellan-target="Proceduresforwaves"><a name="aanchor245"></a>
+                                                            <MadCap:concept term="WM" />Procedures for waves</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Proceduresforwaves">Procedures for waves</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Planawave">Plan a wave</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Allocateawave">Allocate a wave</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Changethepriorityofawave">Change the priority of a wave</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteawave">Delete a wave</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Releaseawave">Release a wave</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Unallocateawave">Unallocate a wave</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Removeashipmentorloadfromawave">Remove a shipment or load from a wave</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Removeanorderfromawave">Remove an order from a wave</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Resizeacarton">Resize a carton</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewwaves">View waves</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Viewdetailedwaveinformation">View detailed wave information</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#AllocateWavefields">Allocate Wave fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Wavedetailfields">Wave detail fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>You can perform these procedures using the Waves and Picks page, which is accessible from the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>.</p>
+                                                        <h2 id="Planawave" data-magellan-target="Planawave"><a name="Plan_a_wave"></a>Plan a wave</h2>
+                                                        <p>The first step in allocating inventory for outbound orders or shipments is planning them into a wave; all orders must be planned into a wave prior to allocation. See <a href="outbound_planning_concepts.htm#Manual_wave_processing">Manual wave processing</a>.</p>
+                                                        <p>You can enter criteria that is used to select the orders or shipments you want to plan into a wave. For each wave rule, you can save criteria values used for waves that are frequently planned.</p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+				<div style="display: none;" data-mc-target-name="ViewWP"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">Select <b>Waves</b>. </li>
+                                                            <li value="3">
+                                                                <p>From the <span class="specialbold">Actions </span>drop-down list, select <span class="specialbold">Plan Wave</span>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: To expand and pin open the Search Criteria fields, click <img src="resources/images/image1076719.png" width="21" height="20" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Expand" />. To temporarily expand the criteria fields, click <span class="specialbold">Search Criteria</span>. </p>
+                                                            </li>
+                                                            <li value="4">
+                                                                <p>Under <span class="specialbold">Search Criteria</span>, from the <span class="specialbold">Rule Name</span> drop-down list, select the rule that defines the parameters by which to search for orders or shipments.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: To manage the wave rules that are available for selection, see <a href="manual_allocation.htm#Wave_rules">Wave rules</a>.</p>
+                                                            </li>
+                                                            <li value="5">To limit the orders or shipments that the application selects for the wave, enter information for one or more parameters associated with the wave rule.</li>
+                                                            <li value="6">To select a pre-defined set of values for the selected rule criteria, from the <span class="specialbold">Saved Filter</span> drop-down list, select the filter.</li>
+                                                            <li value="7">
+                                                                <p>To save the values you entered for the parameters associated with the selected wave rule: </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If you modify the values for an existing filter, the updated values overwrite the previously saved values. </p>
+                                                                <ol>
+                                                                    <li value="1">Click <b>Save</b>.</li>
+                                                                    <li value="2">In the <span class="specialbold">Name </span>field, enter a name for the filter.</li>
+                                                                    <li value="3">Click <b>OK</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="8">Click <span class="specialbold">Search</span>. The orders or shipments that meet the search criteria are displayed. </li>
+                                                            <li value="9">
+                                                                <p>Select the orders or shipments to include in the wave. The wave estimates update with each order or shipment you select. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: To expand and pin open the Estimates fields, click <img src="resources/images/image1076720.png" width="20" height="20" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Expand" />. To temporarily expand the fields, click <span class="specialbold">Estimates</span>.</p>
+                                                            </li>
+                                                            <li value="10">Click <span class="specialbold">Plan Wave</span>.</li>
+                                                            <li value="11">
+                                                                <p>Enter information in the following fields: </p>
+                                                                <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                                    <thead>
+                                                                        <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                            <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                            <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Wave Name</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                                <p>Value that is assigned to the group of pick-type work requests (picks, replenishments, and cross docks) that are created when the wave is planned. The wave name distinguishes one group of pick-type work requests from another, which enables you to track the requests through the application. For example, if you allocate inventory for a single shipment, then all of the picks, replenishments, and cross docks generated for the shipment have the same wave name. </p>
+                                                                                <p>If you do not enter a value, the application automatically generates an identifier for the wave.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Destination Zone</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                                <p>Ship staging zone to which inventory for this wave will be sent.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Staging Lane</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                                <p>Ship staging lane in the selected destination zone to which inventory for this wave will be sent.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </li>
+                                                            <li value="12">Click <b>OK</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Allocateawave" data-magellan-target="Allocateawave"><a name="Allocate_a_wave"></a>Allocate a wave</h2>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP1" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP1"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+				<div style="display: none;" data-mc-target-name="ViewWP1"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">
+                                                                <p>Select <b>Waves</b>. </p>
+                                                            </li>
+                                                            <li value="3">In the grid, perform one of the following tasks:<ul><li>Select the row for the wave.</li><li>Click the wave. The wave details are displayed.</li></ul></li>
+                                                            <li value="4">From the <span class="specialbold">Actions </span>drop-down list, select <b>Allocate Wave</b>.</li>
+                                                            <li value="5">
+                                                                <p>Enter information in the <a href="#Allocate_Wave_fields">Allocate Wave fields</a>. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Picks in a specific LPN level are released whenever the check box for the LPN level is selected for immediate release or when all three LPN levels are deselected.</p>
+                                                            </li>
+                                                            <li value="6">
+                                                                <p>Click <b>OK</b>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the application cannot allocate enough inventory to satisfy the entire wave, the Short tag is displayed on the wave as well as on the associated order, shipment, and load that is short. </p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Changethepriorityofawave" data-magellan-target="Changethepriorityofawave"><a name="Change_the_priority_of_a_wave"></a>Change the priority of a wave</h2>
+                                                        <p>Wave priority determines how the work associated with the wave is ranked in the work queue in relation to other work queue entries. The application uses priority to determine the sequence in which directed work is assigned. The lower the number, the higher the priority, with 1 being the highest priority.</p>
+                                                        <p>To change the priority of individual pieces of work for the wave instead of all the work, use the <a href="work_queue.htm">Work Queue</a> page. You can also manage individual pieces of pick work while viewing the details for a wave, order, shipment, or load. See <a href="procedures_for_picks_and_work_assignments.htm#Perform_actions_on_picks">Perform actions on picks</a>.</p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP2" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP2"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+			
+                <div style="display: none;" data-mc-target-name="ViewWP2"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">
+                                                                <p>Select <b>Waves</b>. </p>
+                                                            </li>
+                                                            <li value="3">In the grid, perform one of the following tasks:<ul><li>Select the row for the wave.</li><li>Click the wave. The wave details are displayed.</li></ul></li>
+                                                            <li value="4">From the <span class="specialbold">Actions </span>drop-down list, select<span class="specialbold"> Change Priority</span>. </li>
+                                                            <li value="5">In the <span class="specialbold">Priority </span>field, enter the priority to assign to the work queue entries associated with the wave.</li>
+                                                            <li value="6">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Deleteawave" data-magellan-target="Deleteawave"><a name="Delete_a_wave"></a>Delete a wave</h2>
+                                                        <p>When you delete a wave, the application cancels all of the picks, replenishments, and cross docks for the wave. To cancel individual picks in a wave, see <a href="procedures_for_picks_and_work_assignments.htm#Perform_actions_on_picks">Perform actions on picks</a>. You cannot cancel pick work that has been completed. You can only delete a wave for which no picks or cross docks have been completed. </p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP3" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP3"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+				
+                <div style="display: none;" data-mc-target-name="ViewWP3"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">
+                                                                <p>Select <b>Waves</b>. </p>
+                                                            </li>
+                                                            <li value="3">In the grid, perform one of the following tasks:<ul><li>Select the row for the wave.</li><li>Click the wave. The wave details are displayed.</li></ul></li>
+                                                            <li value="4">From the <span class="specialbold">Actions </span>drop-down list, select<span class="specialbold"> Delete Wave</span>.</li>
+                                                            <li value="5">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Releaseawave" data-magellan-target="Releaseawave"><a name="Release_a_wave"></a>Release a wave</h2>
+                                                        <p>Releasing a wave generates pick work in the work queue so that an operator can pick the inventory needed to fill the orders in the wave. Before you can release a wave of picks, you must plan it and then allocate inventory for it. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: When allocating the wave, if you selected to immediately release all of the LPN levels and UOMs, then you do not need to perform this procedure.</p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP4" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP4"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+				
+                <div style="display: none;" data-mc-target-name="ViewWP4"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">
+                                                                <p>Select <b>Waves</b>. </p>
+                                                            </li>
+                                                            <li value="3">In the grid, perform one of the following tasks:<ul><li>Select the row for the wave.</li><li>Click the wave. The wave details are displayed.</li></ul></li>
+                                                            <li value="4">From the <span class="specialbold">Actions </span>drop-down list, select<span class="specialbold"> Release Wave</span>.</li>
+                                                            <li value="5">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Unallocateawave" data-magellan-target="Unallocateawave"><a name="Unallocate_a_wave"></a>Unallocate a wave</h2>
+                                                        <p>When you unallocate a wave, the application cancels any pending replenishments, cross-docks, and picks associated with the wave. A wave can be unallocated only if no picks or cross docks for the wave have been completed. </p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP5" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP5"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+			                <div style="display: none;" data-mc-target-name="ViewWP5"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">
+                                                                <p>Select <b>Waves</b>. </p>
+                                                            </li>
+                                                            <li value="3">In the grid, perform one of the following tasks:<ul><li>Select the row for the wave.</li><li>Click the wave. The wave details are displayed.</li></ul></li>
+                                                            <li value="4">From the <span class="specialbold">Actions </span>drop-down list, select <span class="specialbold">Unallocate Wave</span>.</li>
+                                                            <li value="5">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Removeashipmentorloadfromawave" data-magellan-target="Removeashipmentorloadfromawave"><a name="Remove_a_shipment_or_load_from_a_wave"></a>Remove a shipment or load from a wave</h2>
+                                                        <p>You can remove a shipment or load from a wave if there are no outstanding picks for the shipment or load. To cancel outstanding picks, see <a href="procedures_for_picks_and_work_assignments.htm#Perform_actions_on_picks">Perform actions on picks</a>.</p>
+                                                        <p>Removing a shipment or load removes the associated inventory from the wave, meaning it is not included in the pick work when the wave is released, but the shipment or load is retained in the application. </p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP6" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP6"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+				<div style="display: none;" data-mc-target-name="ViewWP6"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">
+                                                                <p>Select <b>Waves</b>. </p>
+                                                            </li>
+                                                            <li value="3">In the grid, click the wave. The wave details are displayed.</li>
+                                                            <li value="4">Perform one of the following tasks:<ul><li>To remove a shipment select <span class="specialbold">Shipments</span>.</li><li>To remove a load, select <span class="specialbold">Loads</span>.</li></ul></li>
+                                                            <li value="5">In the grid, select the shipment or load to remove.</li>
+                                                            <li value="6">From the <span class="specialbold">Actions </span>drop-down list, select <span class="specialbold">Remove from Wave</span>. </li>
+                                                            <li value="7">Click <b>OK</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Removeanorderfromawave" data-magellan-target="Removeanorderfromawave"><a name="Remove_an_order_from_a_wave"></a>Remove an order from a wave</h2>
+                                                        <p>You can remove an order from a wave if there are no outstanding picks. To cancel outstanding picks, see <a href="procedures_for_picks_and_work_assignments.htm#Perform_actions_on_picks">Perform actions on picks</a>.</p>
+                                                        <p>Removing an order  removes the associated inventory from the wave, meaning it is not included in the pick work when the wave is released, but the order and associated order lines are retained in the application. </p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP7" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP7"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+				<div style="display: none;" data-mc-target-name="ViewWP7"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">
+                                                                <p>Select <b>Waves</b>. </p>
+                                                            </li>
+                                                            <li value="3">In the grid, click the wave number. The wave details are displayed.</li>
+                                                            <li value="4">Select <span class="specialbold">Orders</span>.</li>
+                                                            <li value="5">In the grid, select the check box next to the order. </li>
+                                                            <li value="6">From the <span class="specialbold">Actions </span>drop-down list, select <span class="specialbold">Remove from Wave</span>.</li>
+                                                            <li value="7">Click <b>OK</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Resizeacarton" data-magellan-target="Resizeacarton"><a name="Resize_a_carton"></a>Resize a carton</h2>
+                                                        <p>If automatic cartonization is configured and the application selects a carton that is too small or too large for the picks, then after picking has started, you can resize the carton by selecting a new carton type with the appropriate dimensions. The existing carton number is retained and associated with the new carton type.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You can resize a carton only if at least one pick is complete and if no pick is in progress; you can also resize a carton for which all picks are complete.</p>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP8" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP8"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+				<div style="display: none;" data-mc-target-name="ViewWP8"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">
+                                                                <p>Select <b>Waves</b>. </p>
+                                                            </li>
+                                                            <li value="3">Select <b>Picks</b>. The pick details are displayed.</li>
+                                                            <li value="4">In the grid, select the check box next to the pick for which you want to reassign the carton size.</li>
+                                                            <li value="5">
+                From the <span class="specialbold">Actions</span> drop-down list, select <b>Resize Carton</b>. The Resize Carton window is displayed.</li>
+                                                            <li value="6"> From the <b>New Carton Type</b> drop-down list, select the carton type you want.</li>
+                                                            <li value="7">Click <b>Save</b>. The carton type is updated. </li>
+                                                        </ol>
+                                                        <h2 id="Viewwaves" data-magellan-target="Viewwaves"><a name="View_waves"></a>View waves</h2>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p><a targets="ViewWP10" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP10"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+			<div style="display: none;" data-mc-target-name="ViewWP10"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p>
+                                                                    <p>Select <b>Waves</b>. </p>
+                                                                </p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Viewdetailedwaveinformation" data-magellan-target="Viewdetailedwaveinformation"><a name="View_detailed_wave_information"></a>View detailed wave information</h2>
+                                                        <ol>
+                                                            <li value="1"><a targets="ViewWP9" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="ViewWP9"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />View the Waves and Picks page</a>.
+				<div style="display: none;" data-mc-target-name="ViewWP9"><ol data-mc-continue="true"><li value="1"><p>Select one of the following modules: <span class="specialbold">Outbound Planner</span>, <span class="specialbold">Picking</span>, or <span class="specialbold">Production</span>. </p></li><li value="2"><p>Select <span class="specialbold">Waves and Picks</span>.</p></li></ol></div></li>
+                                                            <li value="2">
+                                                                <p>Select <b>Waves</b>. </p>
+                                                            </li>
+                                                            <li value="3">In the grid, click the wave. </li>
+                                                            <li value="4">View  information in the <a href="#Wave_detail_fields">Wave detail fields</a>.</li>
+                                                            <li value="5">To view orders and order lines in the wave:<ol><li value="1">Select <span class="specialbold">Orders</span>, and then view  information in the <a href="procedures_for_orders.htm#Order_detail_fields">Order detail fields</a>. </li><li value="2">To view the order lines for an order, click <img src="resources/images/image429922.png" width="14" height="14" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Expand" />, and view  information in the <a href="procedures_for_orders.htm#Order_lines_detail_fields">Order Lines detail fields</a>.</li></ol></li>
+                                                            <li value="6">Select <span class="specialbold">Shipments</span> and view  information in the <a href="procedures_for_shipments.htm#Shipment_detail_fields">Shipment detail fields</a>.</li>
+                                                            <li value="7">Select <span class="specialbold">Loads</span> and view  information in the <a href="procedures_for_loads_outbound.htm#Loads_detail_fields">Loads detail fields</a>.</li>
+                                                            <li value="8">Select <span class="specialbold">Picks</span> and view  information in the <a href="procedures_for_picks_and_work_assignments.htm#Picks_detail_fields">Picks detail fields</a>.</li>
+                                                            <li value="9">Select <span class="specialbold">Shorts</span> and then view  information in the <a href="procedures_for_shorts_and_replenishments.htm#Shorts_detail_fields">Shorts detail fields</a>. </li>
+                                                            <li value="10">Select <span class="specialbold">Pending Replens</span>, and view  information in the <a href="procedures_for_shorts_and_replenishments.htm#Pending_Replenishments_detail_fields">Pending Replenishments detail fields</a>. </li>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>: Demand replenishments created as a result of pre-inventory allocation (PIA) processing are not displayed on the <b>Pending Replens</b> tab, because they are created as pick work and not replenishment work. You can view demand replenishments on the Picking and Outbound Planner Dashboards. </p>
+                                                            <li value="11">Select <span class="specialbold">Cross Dock</span>, and view  information in the <a href="procedures_for_shorts_and_replenishments.htm#Cross_Dock_detail_fields">Cross Dock detail fields</a>. </li>
+                                                        </ol>
+                                                        <h2 id="AllocateWavefields" data-magellan-target="AllocateWavefields"><a name="Allocate_Wave_fields"></a>Allocate Wave fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Destination Zone</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Ship staging zone to which inventory for this wave will be sent.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Staging Lane</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Ship staging lane in the selected destination zone to which inventory for this wave will be sent.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">LPN</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Indicates that LPN picks for the wave are immediately released for picking when the wave is allocated. If deselected, LPN picks that are not held may still be immediately released, but you must manually release any held picks. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;LPN level picks are held whenever the <b>LPN</b> check box is deselected for immediate release and one or both of the other LPN levels are selected. LPN level picks are released whenever the <b>LPN</b> check box is selected for immediate release or when all three LPN levels are deselected.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Sub-LPN</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Indicates that sub-LPN picks for the wave are immediately released for picking when the wave is allocated. If deselected, sub-LPN picks that are not held may still be immediately released, but you must manually release any held picks. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Sub-LPN level picks are held whenever the <b>Sub-LPN</b> check box is deselected for immediate release and one or both of the other LPN levels are selected. Sub-LPN level picks are released whenever the <b>Sub-LPN</b> check box is selected for immediate release or when all three LPN levels are deselected.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Detail LPN</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Indicates that detail picks for the wave are immediately released for picking when the wave is allocated. If deselected, then detail picks must be released manually.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Detail LPN level picks are held whenever the <b>Detail LPN</b> check box is deselected for immediate release and one or both of the other LPN levels are selected. Detail LPN level picks are released whenever the <b>Detail LPN</b> check box is selected for immediate release or when all three LPN levels are deselected.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Pick Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Type of allocation that is performed for a wave.</p>
+                                                                        <ul>
+                                                                            <li><b>Order Picks and Replenishments</b>: Commit inventory, create pick work entries, and create any needed replenishments.</li>
+                                                                            <li><b>Order Picks</b>: Commit inventory and create pick work entries. Replenishments are not created, even if inventory is missing.</li>
+                                                                            <li><b>Replenishments</b>: Create any needed replenishments.</li>
+                                                                            <li><b>Top-off replenishment</b>: Create any needed top-off replenishments.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">UOMs for release</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>For each unit of measure (UOM) listed, indicates that inventory in that UOM is immediately released for picking when the wave is allocated. If deselected, then picks in the UOM that are not held may still be immediately released, but you must manually release any held picks. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Consolidation</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Value that defines how the application groups picks for the wave.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Outbound Order Number</span>: Only picks for the same order can be grouped together.</li>
+                                                                            <li><span class="specialbold">Route-To Customer</span>: Only picks for the same route-to customer can be grouped together.</li>
+                                                                            <li><span class="specialbold">Ship-To Customer</span>: Only picks for the same ship-to customer can be grouped together.</li>
+                                                                            <li><span class="specialbold">Shipment</span>: Only picks for the same shipment can be grouped together.</li>
+                                                                            <li><span class="specialbold">Stop</span>: Only picks for the same stop can be grouped together.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Wave Priority</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Number that indicates the priority at which the released picks for the wave enter the work queue. Priority determines the sequence in which directed work is offered to operators. The lower the number, the higher the priority, with 1 being the highest priority. If a wave is unallocated, resulting in cancelled picks, then when it is reallocated, the application uses the priority that was established when the picks initially entered the work queue (before cancellation). </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Manually Sequence Work</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Indicates that the work release sequence type for all loads in the wave will be updated to Manual before wave allocation. If this check box is selected, the manual sequence overrides any other work release sequence type (except None) for the load. See <a href="procedures_for_work_queue.htm#Assign_a_manual_work_sequence">Assign a manual work sequence</a>.</p>
+                                                                        <p>If deselected, the work release sequence type for the load is not changed before wave allocation.</p>
+                                                                        <p>This field is enabled only when Enable Outbound Work Sequencing is set to Yes for the warehouse. See <a href="outbound_staging.htm#Outbound_work_sequencing">Outbound work sequencing</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Release Remaining Lines</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Used for cross docking purposes. </p>
+                                                                        <p>If Yes, then the pick work for the order or work order lines that are not marked for cross docking are released as usual.</p>
+                                                                        <p>If No, then the pick work created for order or work order lines that are not marked for cross docking is held until the inventory that is marked for cross docking is received and allocated. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Allow bulk pick processing</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the wave is allocated using bulk pick processing. Bulk pick processing allocates matching inventory for multiple order or shipment lines together into larger unit of measure (UOM) picks so as to reduce the number of smaller UOM picks required to satisfy the lines. If set to Yes, the application groups order or shipment line quantities in the wave into larger bulk pick UOM quantities. This field is automatically set to Yes if the warehouse for which the wave was created is enabled for bulk picking.</p>
+                                                                        <p>If No, the inventory required for each order or shipment line in the wave is picked separately. You can select No to disable bulk pick processing for the wave; however, to enable bulk pick processing here, the warehouse must first be enabled for bulk picking.</p>
+                                                                        <p> </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1" style="font-weight: bold;">Search Path Logging</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                        <p>Indicates that the application logs information for the list of allocation processes that took place during inventory allocation for the wave. The list can include allocation log files for picks, demand replenishments, and emergency replenishments. You can view the search path log file for a short order line in the wave by viewing the short order line details, and then selecting the Search Path Log tab.</p>
+                                                                        <p>If deselected, then allocation search path information is not logged by the application for this wave (unless configured to do so in the post allocation settings). The short allocation reason is still displayed, but the Search Path Log tab does not contain any information.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If the <b>Search Path Logging</b> field is set to Yes in the post allocation configuration settings, then logging always takes place during allocation, regardless of whether the check box for the wave is selected.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Wavedetailfields" data-magellan-target="Wavedetailfields"><a name="Wave_detail_fields"></a>Wave detail fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Total LPN&#160;picks</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Total number of LPN picks required to fulfill the wave. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Estimated LPN&#160;Picks</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Total number of estimated LPN picks required to fulfill the wave.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Completed LPN&#160;Picks</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Total number of LPN picks that have been completed for the wave.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Estimated Weight</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Estimated weight of the inventory that has been planned into the wave. The estimated weight is based on the item footprint UOMs for the inventory in the wave. This field is display only. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Estimated Volume</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Estimate volume of the inventory for the wave. The measurement unit (such as cubic inches) is also displayed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Estimated Goal Time</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Goal time estimated by Warehouse Labor Management to complete this wave in seconds. This is only applicable if Warehouse Labor Management is integrated with Warehouse Management. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Assigned Lanes</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Staging lane to which inventory for this wave has been assigned. If only one lane is assigned, the lane is displayed. If more than one is assigned, "Many (X)" is displayed, where X is the number of lanes. If there is many, you can click the value to display the lanes.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Customers</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number of customers to which inventory in the wave is to be sent. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Allocated</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Percentage of inventory that has been allocated. Additionally, an X of Y value displays the number of eaches that are allocated out of the total number of expected eaches; for example, (50 of 100). The values for this field represent the amount of allocated inventory for the displayed entity (order, shipment, load, or wave). </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Picked</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Percentage of inventory that has been picked. Additionally, an X of Y value displays the number of eaches that are picked out of the total number of expected eaches; for example, (50 of 100). The values for this field represent the amount of picked inventory for the displayed entity (order, shipment, stop, load, or wave).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Staged</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Percentage of inventory that has been staged. Additionally, an X of Y value displays the number of eaches that are staged out of the total number of expected eaches; for example, (50 of 100). The values for this field represent the amount of staged inventory for the displayed entity (order, shipment, stop, load, or wave).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Departure</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>End appointment date and time of the load associated with the wave; if multiple loads are associated with the wave, the earliest date is displayed.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

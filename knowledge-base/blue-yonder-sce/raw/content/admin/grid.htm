@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|[%=System.LinkedTitle%]" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Grid</title>
+        <link href="../../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="../resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="../resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link href="../resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../../Skins/Favicons/favicon-16x16.png" />
+        <script src="../../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="../home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Grid">Grid</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Gridcolumnsizeconfiguration">Grid column size configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Gridcolumnsummarytypes">Grid column summary types</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Gridandchartnavigationlinkconfiguration">Grid and chart navigation link configuration</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#ExampleNavigationlink">Example: Navigation link</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Adhocfiltersonthedestinationpage">Ad-hoc filters on the destination page</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ExampleColumnwithderivedvalues">Example: Column with derived values </a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Parentandchildgridconfiguration">Parent and child grid configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Batchactionsongridtypepages">Batch actions on grid type pages</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyagridtypepage">Add or modify a grid type page</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyagridtypepagelayoutconfiguration">Add or modify a grid type page layout configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyaparentandchildgridtypepagelayoutconfiguration">Add or modify a parent and child grid type page layout configuration</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Contextfields">Context fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Messagefields">Message fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#BulkCopyfields">Bulk Copy fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Grid" data-magellan-target="Grid"><a name="aanchor387"></a>
+                                                            <MadCap:concept term="Administration" />Grid</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Grid">Grid</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Gridcolumnsizeconfiguration">Grid column size configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Gridcolumnsummarytypes">Grid column summary types</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Gridandchartnavigationlinkconfiguration">Grid and chart navigation link configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ExampleColumnwithderivedvalues">Example: Column with derived values </a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Parentandchildgridconfiguration">Parent and child grid configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Batchactionsongridtypepages">Batch actions on grid type pages</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyagridtypepage">Add or modify a grid type page</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyagridtypepagelayoutconfiguration">Add or modify a grid type page layout configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyaparentandchildgridtypepagelayoutconfiguration">Add or modify a parent and child grid type page layout configuration</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Contextfields">Context fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Messagefields">Message fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#BulkCopyfields">Bulk Copy fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A grid type page displays information in a tabular format and optionally provides actions that can be performed on the information, such as adding, copying, editing, and deleting entities. A grid type page can display a single grid or two grids in a parent and child layout, and includes page elements. See <a href="../get_started/work_with_pages.htm">Work with pages</a> and <a href="../get_started/filters.htm" class="MCXref xref">Filters</a>.</p>
+                                                        <p>When you configure a grid type page, you define the following components:</p>
+                                                        <ul>
+                                                            <li>
+                                                                <p><span class="specialbold">Resource</span>: Web service end point that provides the data used on the page. A resource can be one of the distributed resources or a user-defined resource. Before creating a page, you must have a resource to associate with the page.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: A user-defined resource can be a Java-based web service written using the MOCA web service framework, or a Configurable Web Service that uses MOCA components, commands, and configuration files. See the information on web services and Configurable Web Services in the <span class="italics">MOCA Developer Guide</span>.</p>
+                                                            </li>
+                                                        </ul>
+                                                        <ul>
+                                                            <li>
+                                                                <p><span class="specialbold">Grid actions</span>: Optional actions, such as adding (and copying), editing, and deleting entities, that are handled automatically by the page; you do not need to provide additional configuration.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: When a grid type page is configured to provide Add or Edit actions, the application automatically creates a form type page for use in adding or editing rows in the grid.</p>
+                                                            </li>
+                                                            <li><b>Child Grid</b>: Optional configuration that enables a child grid on the grid type page. A child grid requires a title, a separate resource to support the child grid data and associated actions, and resource property mappings to  enable loading data in the child grid.</li>
+                                                            <li>
+                                                                <p class="bodytext"><span class="specialbold">Labeling</span>: Message text for the labels on the page to use instead of the distributed message name.</p>
+                                                            </li>
+                                                        </ul>
+                                                        <p>After you add a grid type page, you must add the page to a menu and assign roles that can access the page. You can then view the page and define page layout configuration attributes, such as columns, actions, and navigation links.</p>
+                                                        <p>If the page supports add and edit actions, you can also view the associated form type page and define additional page layout configurations. </p>
+                                                        <p>If the page supports a parent and child layout, you can also define and view a preview of parent and child page layout configuration attributes, such as grid alignment and ratio of parent to child grid size.</p>
+                                                        <h2 id="Gridcolumnsizeconfiguration" data-magellan-target="Gridcolumnsizeconfiguration"><a name="Grid_column_size_configuration"></a>Grid column size configuration</h2>
+                                                        <p>When you add a grid type page, each column in the grid is configured with a minimum width of 150 pixels. If a grid contains several columns, this minimum width may prevent all columns from being displayed, forcing the user to scroll in order to view the entire grid.</p>
+                                                        <p>You can configure the column size to fit the information that is displayed in the column and make best use of the horizontal page space. Each column can be configured with a minimum width in pixels or a flex percentage value. A flex percentage is a number that indicates a column's relative size in proportion to other columns in the grid and can be used to ensure the grid displays properly regardless of the window size or screen resolution.  A flex percentage can be expressed in any proportion, for example to express the ratio 2 to 1 you could also use 100 to 50, or 20 to 10. </p>
+                                                        <p>You can also use a combination of minimum width and flex percentage values when configuring column sizes. For example, a page includes four columns (A-D) and you configure each column with the following values:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Column A</span>: Minimum width value of 200 </li>
+                                                            <li><span class="specialbold">Column B</span>:  Minimum width value of 200 </li>
+                                                            <li><span class="specialbold">Column C</span>: Flex percentage value of 2</li>
+                                                            <li><span class="specialbold">Column D</span>: Flex percentage value of 1</li>
+                                                        </ul>
+                                                        <p>When displayed, Columns A and B use 400 pixels. The remaining pixels are divided between Columns C and D in the 2:1 ratio.</p>
+                                                        <h2 id="Gridcolumnsummarytypes" data-magellan-target="Gridcolumnsummarytypes"><a name="Grid_column_summary_types"></a>Grid column summary types</h2>
+                                                        <p>Grid type pages support a column summary value, which is displayed at the bottom of the grid. To display a summary value for a column, you select a summary type that corresponds to the data type of the column.    A summary type is supported for integer, float, long, double, number, and string data types. The summary value is calculated for the rows that are displayed on the current page. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You can adjust the number of rows that are displayed on the page, or use different filtering criteria so that all the data is displayed on one page and included in the summary value. </p>
+                                                        <p>In grid column configuration, the new <b>Summary Type</b> drop-down list field displays one or more of the following summary types, depending on the selected column's data type:</p>
+                                                        <ul>
+                                                            <li><b>Count</b>: A count of the results that are displayed in the column.</li>
+                                                            <li><b>Sum</b>: A total of the column values. For example, for a column that displays an each UOM quantity, the summary value displays the total number of eaches.</li>
+                                                            <li><b>Min</b> <b>and Max</b>: The lowest and highest values in the column. For example, the highest and lowest performance rating.</li>
+                                                            <li><b>Average</b>: The average of all column values. For example, for a column that displays the number of completed picks per hour, the summary value displays the average number of picks completed per hour.</li>
+                                                        </ul>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: A column with a string data type is limited to the Count summary type. In addition, the <b>Summary Type</b> field is not displayed for a column with an object, Boolean, or date data type.</p>
+                                                        <h2 id="Gridandchartnavigationlinkconfiguration" data-magellan-target="Gridandchartnavigationlinkconfiguration"><a name="Grid_and_chart_navigation_link_configuration"></a>Grid and chart navigation link configuration</h2>
+                                                        <p>As part of grid and chart type page layout configuration, you can configure navigation links from values displayed in the grid or chart to one or more pages in the application. When a grid or chart contains a navigation link, the user can click a value to display a page, or a list of pages from which to choose. </p>
+                                                        <h3 id="ExampleNavigationlink" data-magellan-target="ExampleNavigationlink">Example: Navigation link</h3>
+                                                        <p>You can link grid column values or chart values displayed on a page or dashboard to any page in the application. For example, if a grid type page included an <b>Item</b> column, you could select the Inventory page as the destination page for that column. When a user clicks a value in the <b>Item</b> column, the Inventory page is displayed.</p>
+                                                        <h3 id="Adhocfiltersonthedestinationpage" data-magellan-target="Adhocfiltersonthedestinationpage">Ad-hoc filters on the destination page</h3>
+                                                        <p>When available, you can configure ad-hoc filters to limit the data that is displayed on the destination page. For example, in Page Builder, you create two pages, Items Chart (the source page) and Items Grid (the destination page). You add a navigation link for the <b>Item</b> value on Items Chart, and to limit the data displayed on Items Grid, you add an item ad-hoc filter. When a user clicks the item, FLASHLIGHT, on Items Chart, the item=FLASHLIGHT ad-hoc filter is applied to the data that is displayed on Items Grid.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The resource that supports chart type pages may have summarized data that does not provide useable values for context navigation. If available, you can select a full data resource for the chart type page and map the summary chart and full data resource parameters to support ad-hoc filtering.  </p>
+                                                        <p>You can configure one or more ad-hoc filters for a destination page by mapping fields between the destination page and the source page. The available fields for the destination page are drop-down lists. The values in a drop-down list represent the available fields from the source page. Selecting a value from a list maps the field between the destination and the source pages. For example, to use an item ad-hoc filter, in the <b>Item</b> drop-down list, select <b>Item</b>.The field name and the value selected from the field drop-down list must match for the ad-hoc filter to work.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If ad-hoc filters are available for a destination page, additional fields are displayed during link configuration. To support ad-hoc filters, a destination page must expose APIs, such as a page created using Page Builder. If the destination page does not expose any APIs, no fields are displayed and you cannot configure ad-hoc filters. </p>
+                                                        <h2 id="ExampleColumnwithderivedvalues" data-magellan-target="ExampleColumnwithderivedvalues"><a name="Example:_Column_with_derived_values"></a>Example: Column with derived values </h2>
+                                                        <p>You can add a column with derived values to a grid type page by adding JavaScript code that calculates a value based on data for each row contained in the page resource. The following code shows an example of how to retrieve the data from a resource, calculate a value, and then display the value in the column.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>:&#160;You must have knowledge of JavaScript in order to use the derived values functionality. If the code that you enter in the field is invalid, no value is displayed in the grid. </p>
+                                                        <p><b>Example</b>: The following table shows customer order data displayed in a Page Builder grid type page. </p>
+                                                        <table style="width: 100%;mc-table-style: url('../resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 136px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 143px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 161px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 107px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 114px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 92px;" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Name</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Status</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Delivery</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Price</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Tax</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Discount</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Store01</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Picked</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Sat, Oct 10 2020 </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">1000</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">110</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">20</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Store02</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Shipped</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Thu Oct 10 2019 </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">5000</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">500</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">30</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Store03</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Complete</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Wed Oct 10 2018 </td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">8000</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">1200</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">10</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>Using column configuration, a column is added with JavaScript code that is used to calculate a final price for the order based on the price, tax, and discount values. The following code is added to the <b>JavaScript for derived column</b> field:</p>
+                                                        <p class="courier">var data=JSON.parse(getInput()), </p>
+                                                        <p class="courier">price=data.price, tax=data.tax, and discount=data.discount </p>
+                                                        <p class="courier">var finalPrice=(price + tax)-(((price + tax)*discount)/100); </p>
+                                                        <p class="courier">setResult(finalPrice); </p>
+                                                        <p>The JavaScript code that is provided in the field is run in a sandbox environment. The sandbox environment uses the following two functions to read grid row data from the page as input and pass back the derived output as the column value:</p>
+                                                        <ul>
+                                                            <li><b>getInput()</b>: Provides the JSON object with the column name as the key, and column value for that row as the value. The JSON&#160;string provided by this function can be parsed and used in JavaScript code as shown in the example. This function is used by the sandbox environment to read grid row data from the page.</li>
+                                                            <li><b>setResult()</b>: Sets the result back as a string. This function provides the derived value for display in the column. This function is used by the sandbox environment to pass the output of the JavaScript code to be displayed as the column value in the grid. </li>
+                                                        </ul>
+                                                        <p>The following table shows the derived values that are displayed in the Final Price column after you save the column configuration and refresh the browser.</p>
+                                                        <table style="width: 100%;mc-table-style: url('../resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 136px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 143px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 161px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 107px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 114px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 92px;" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" style="width: 92px;" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Name</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Status</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Delivery</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Price</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Tax</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">Discount</th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">Final Price</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Store01</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Picked</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Sat, Oct 10 2020</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">1000</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">110</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">20</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">888</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Store02</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Shipped</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">Thu Oct 10 2019</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">5000</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">500</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">30</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">3850</td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Store03</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Complete</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">Wed Oct 10 2018</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">8000</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">1200</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">10</td>
+                                                                    <td class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">8280</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="Parentandchildgridconfiguration" data-magellan-target="Parentandchildgridconfiguration"><a name="Parent_and_child_grid_configuration"></a>Parent and child grid configuration</h2>
+                                                        <p>As part of adding or modifying a grid type page, you can configure a child grid, which enables both a parent and child grid on the page.  You map the child grid resource properties to the parent resource properties so that when you select a row in the parent grid, the related child grid data is displayed. </p>
+                                                        <p>When you specify a child grid, you define the following components:</p>
+                                                        <ul>
+                                                            <li><b>Title</b>: Displayed at the top of the child grid</li>
+                                                            <li><b>Resource</b>: A web service endpoint that provides the data used in the child grid. A grid can be supported by one of the distributed resources or a user-defined resource. See the information on web services and Configurable Web Services in the <i>MOCA Developer Guide</i>. </li>
+                                                            <li>
+                                                                <p><b>Child property mappings</b>: A list of child resource properties that can be mapped to the parent resource properties. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: At least one property must be mapped in order for data to display in the child grid. </p>
+                                                            </li>
+                                                        </ul>
+                                                        <p>After a grid type page is added, you can access Parent-Child Grid Configuration to perform the following tasks:</p>
+                                                        <ul>
+                                                            <li>Set the page context</li>
+                                                            <li>Set the grid alignment</li>
+                                                            <li> Indicate the ratio of parent to child grid display</li>
+                                                            <li>Access the standard grid configuration attributes for either the parent or child page</li>
+                                                        </ul>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:  The auto load option, which you can use to control how data is loaded into a grid, is not available for a child grid. Data is displayed in a child grid when a parent row is selected, based on the mapping defined on the child grid configuration. Aside from the auto load option, the child and parent grid configuration attributes are the same.</p>
+                                                        <h2 id="Batchactionsongridtypepages" data-magellan-target="Batchactionsongridtypepages"><a name="Batch_actions_on_grid_type_pages"></a>Batch actions on grid type pages</h2>
+                                                        <p>A batch action is a task that a user can perform on multiple rows in a grid type page simultaneously, rather than having a separate action performed for each record. You select multiple rows, and then select the action from the <b>Actions</b> drop-down list to display a page on which you perform the action in batch.</p>
+                                                        <p>The action  can be whatever task is needed for the information that is displayed on the page. For example, if a page displays item information, the action may be batch editing field values. If a page displays order information, the action might be batch printing shipping paperwork. Batch actions are defined within a resource that is associated to the grid type page as part of the Configurable Web Services framework, and must be configured in the page attributes to display on the grid type page. </p>
+                                                        <p>The name of the batch action displayed in the <b>Actions</b> drop-down list and the name of the batch action page is based on the definition in the page resource. The batch action page  provides the fields needed to complete the action, and standard functions including the ability to display selected records within a batch and the ability to update a single record within the batch.        </p>
+                                                        <p>For example, a grid type page displays customer contact information that is updated frequently. A batch action called Bulk update, is available within the resource that supports the page and is configured to be displayed in the <b>Actions</b> drop-down list. You receive notice that a new centralized telephone number has to be updated on multiple contact records. On the page, you select the affected rows, and from the <b>Actions</b> drop-down list select the <b>Bulk update</b> option. The Bulk Update page is displayed that lists the fields for which values can be changed. Since the telephone number is the same for each record, you enter the number and click <b>Execute</b> to change the value for all selected records. </p>
+                                                        <p>A batch action also supports separately modifying each record within a batch. Consider the previous example. Instead of a centralized number, you receive notice that unique telephone numbers are required for all customer contacts. You select the 10 contacts, select the Bulk update option, and indicate that you do not want to use the same values for each record. For each record, you enter the unique telephone  number and execute the batch action. All customer contacts are updated at once.</p>
+                                                        <p>If one or more actions fails to execute, the Batch Actions Summary Report window displays a list of all actions or the actions that failed (optionally). When you highlight an action in the list, information relating to the selected action is displayed that describes either the completed successful action or attributes of the failed action.</p>
+                                                        <p>The Batch Action Summary Report window is not displayed if all records in the batch are completed successfully.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: Batch actions  must be defined within  the resource that is associated to the page. For information on batch actions, see Configurable Web Services in the <i>MOCA Developer Guide</i>.  </p>
+                                                        <p>If the grid type page resource supports batch actions, you can configure batch actions using the Grid Configuration page. See <a href="#Add_or_modify_a_grid_type_page_layout_configuration">Add or modify a grid type page layout configuration</a>.</p>
+                                                        <h2 id="Addormodifyagridtypepage" data-magellan-target="Addormodifyagridtypepage"><a name="Add_or_modify_a_grid_type_page"></a>Add or modify a grid type page</h2>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="1">
+                                                                <p>Select <span class="specialbold">Extensions &gt; Page Builder</span>. </p>
+                                                            </li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="2">Perform one of the following tasks:<ul data-mc-continue="true"><li>To add a grid, from the <span class="specialbold">Actions</span> drop-down list, select <span class="specialbold">Add Grid</span>.</li><li>To modify a grid, in the grid, click the title.</li><li>To copy a grid, in the grid, select the page row (without clicking the title), and then from the <span class="specialbold">Actions </span>drop-down list, select <b>Copy</b>.</li></ul></li>
+                                                            <li value="3">
+                                                                <p>Enter information in the following fields:</p>
+                                                                <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('../resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                                    <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1">
+                                                                    </col>
+                                                                    <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2">
+                                                                    </col>
+                                                                    <thead>
+                                                                        <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                            <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1">Field</th>
+                                                                            <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1"><b>Title</b>
+                                                                            </td>
+                                                                            <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                                <p>Text to display at the top of the page.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                            <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2"><b>Description</b>
+                                                                            </td>
+                                                                            <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                                <p>Text that provides additional information about the page, such as its purpose, and why and how it is used. The description is not displayed on the page.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1"><b>Select Resource</b>
+                                                                            </td>
+                                                                            <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                                <p>Web service end point to use to support the information that is displayed and the automatic actions that are performed on the page. After selecting a resource, the automatic actions are available and selected.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                                <div class="Note">
+                                                                    <p><b class="NoteHeadingBold">Notes</b>: </p>
+                                                                    <ul>
+                                                                        <li>Only web service-specific actions supported by the resource are available for selection.
+</li>
+                                                                        <li>When a grid type page is configured to provide Add or Edit actions, the application automatically creates a form page for use in adding or editing rows in the grid. </li>
+                                                                    </ul>
+                                                                </div>
+                                                            </li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="4">To configure a child grid:<ol data-mc-continue="true"><li value="1">Click <b>Child Grid</b>.</li><li value="2">In the <b>Title</b> field, enter the text to display at the top of the child grid.</li><li value="3"><p>In the <b>Select Resource</b> field, click <img src="../resources/images/image632381.png" alt="Lookup"></img>, and then select the web service end point to use to support the child grid. The  child resource properties are displayed as field drop-down lists. The parent resource properties are listed as values in each list. </p></li><li value="4"><p>From a field drop-down list, select a corresponding parent resource property. </p><p class="Note"><b class="NoteHeadingBold">Note</b>: To load data in the child grid, you must select at least one parent resource property on which you want to filter the data.</p></li><li value="5">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="5">If the page is new or you have selected a different resource for an existing page, then click <b>Save</b>. The Edit Labels page is displayed.</li>
+                                                            <li value="6">To define labels:<ol data-mc-continue="true"><li value="1">If the Edit Labels page is not displayed, click <b>Labeling</b>.</li><li value="2">To copy a label:<ol data-mc-continue="true"><li value="1">In the grid, select the check box next to the name to copy, and then click <b>Copy</b>.</li><li value="2">Enter information in the <a href="#Message_fields">Message fields</a>.</li><li value="3">Click&#160;<b>Save</b>.</li></ol></li><li value="3">To copy multiple labels:<ol data-mc-continue="true"><li value="1">In the grid, select the check box next to the names to copy, and then click <b>Copy</b>.</li><li value="2">Enter information in the <a href="#Bulk_copy_fields">Bulk copy fields</a>.</li><li value="3">Click <b>Save</b>.</li></ol></li><li value="4">To delete a label, in the grid, select the check box next to the names to delete, and then click <b>Delete</b>. A confirmation message is displayed. </li><li value="5">To edit message text for a label, in the grid, click <img src="../resources/images/image1140974_11x10.png" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Edit" style="width: 11;height: 10;"></img>, enter the message text, and click <b>Save</b>, or  to edit the next label, click <span class="specialbold">Save &amp; Next</span>.</li></ol></li>
+                                                            <li value="7">Click <img src="../resources/images/image524298.png" alt="Close"></img> to close.</li>
+                                                            <li value="8">To test the page:<ol data-mc-continue="true"><li value="1">If the Edit Grid page is not displayed, in the grid, click the grid title.</li><li value="2">Click <span class="specialbold">Preview</span>.</li><li value="3"><p>Review the information on the page.</p><p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: The data that is displayed on the preview page is real data from the database and any actions that you take affect the database. Make sure that you are working in an environment in which it is safe to add, modify, copy, or delete data (such as a test or development environment).</p></li><li value="4">Perform the available actions, such as adding a new entity.</li><li value="5">Click <span class="specialbold">Back</span>.</li></ol></li>
+                                                            <li value="9">Click <b>Save</b>.</li>
+                                                            <li value="10">To continue with additional page layout configuration:<ul data-mc-continue="true"><li>To add the page to a menu, see <a href="menu_editor.htm#Add_or_modify_a_menu">Add or modify a menu</a>.</li><li>To configure a grid type page, see <a href="#Add_or_modify_a_grid_type_page_layout_configuration">Add or modify a grid type page layout configuration</a>.</li><li>To configure a form type page, see <a href="form.htm#Add_or_modify_a_form_type_page_layout_configuration">Add or modify a form type page layout configuration</a>.</li><li>To configure a parent and child grid type page, see <a href="#Add_or_modify_a_parent_and_child_grid_type_page_layout_configuration">Add or modify a parent and child grid type page layout configuration</a>.</li></ul></li>
+                                                        </ol>
+                                                        <h2 id="Addormodifyagridtypepagelayoutconfiguration" data-magellan-target="Addormodifyagridtypepagelayoutconfiguration"><a name="Add_or_modify_a_grid_type_page_layout_configuration"></a>Add or modify a grid type page layout configuration</h2>
+                                                        <p>You can configure a page that was created using Page Builder and added to a menu. See <a href="menu_editor.htm#Add_or_modify_a_menu">Add or modify a menu</a>. </p>
+                                                        <ol data-mc-continue="false">
+                                                            <li value="1">Open the page.</li>
+                                                            <li value="2">In the page title bar, click <img src="../resources/images/image1098457.png" width="14" height="14" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Extensions settings" />. The Grid Configuration page is displayed.</li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="3">Under <span class="specialbold">Configurations</span>, perform one of the following tasks:<ul><li>To add a configuration, click <span class="specialbold">Add</span>. </li><li>To copy a configuration, select a configuration, and then click <span class="specialbold">Copy</span>.</li><li>To modify a configuration, select the configuration.</li></ul></li>
+                                                            <li value="4">
+                                                                <p>Under <span class="specialbold">CONTEXT</span>, enter information in the <a href="#Context_fields">Context fields</a>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Only one unique combination of warehouse, menu, and client can exist per configuration. </p>
+                                                            </li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="5">To define which columns are displayed in the grid and configure the column properties:<ol data-mc-continue="true"><li value="1">Click <span class="specialbold">Configure Columns</span>.</li><li value="2">To include an existing column in the grid, select the check box next to the column.</li><li value="3">&#160;To add a column with derived values to the grid:<ol data-mc-continue="true"><li value="1">From the <b>Actions</b> drop-down list, click <b>Add</b>.</li><li value="2"><p>Enter a name for the column, and click <b>Apply</b>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: Spaces and periods are not allowed; however, if you use a capital letter, a space is added when the column name is displayed on the grid. For example, if you want the grid column title to be "Final Price", enter the column name as FinalPrice. </p></li><li value="3">In the <b>JavaScript for derived column</b> field, enter code to calculate the value. See <a href="#Example:_Column_with_derived_values">Example: Column with derived values</a>.</li></ol></li><li value="4"><p>To reorder the selected columns, drag each column to the  position you want.</p></li><li value="5"><p>To display a summary value for a column, select the column and then from the <b>Summary Type</b> drop-down list, select a type. &#160;See <a href="#Grid_column_summary_types">Grid column summary types</a>. </p><p class="Note"><b class="NoteHeadingBold">Note</b>: You cannot display a summary value for a column with derived values. </p></li><li value="6"><p>To configure column properties, select the column and enter information in the following fields:</p><table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('../resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0"><col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" /><col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" /><thead><tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1"><th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1">Field</th><th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th></tr></thead><tbody><tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1"><td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1"><b>Minimum Width</b></td><td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">Number that defines the minimum width of the column in pixels. If left blank, the minimum width is 150 pixels by default.</td></tr><tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2"><td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2"><b>Flex Percentage</b></td><td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">Number that indicates a column's relative size in proportion to the other columns in the grid. See <a href="#Grid_column_size_configuration">Grid column size configuration</a>.</td></tr><tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1"><td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1"><b>Visible by Default</b></td><td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">If On, the column is displayed on the grid. If Off, the column is hidden but is available from the column's shortcut menu. A user can opt to display the column in the grid. See <a href="../get_started/grids.htm#Adjust_columns_in_a_grid">Adjust columns in a grid</a>. </td></tr></tbody></table></li><li value="7"><p>To configure navigation links for a column: </p><p class="Note"><b class="NoteHeadingBold">Note</b>: You cannot configure a navigation link for a column with derived values.  </p><ol data-mc-continue="true"><li value="1">Select the column, and then click <span class="specialbold">Configure Link Navigation</span>. </li><li value="2">Select the check box next to the pages to which the values in the column are linked.</li><li value="3">To reorder the selected pages, drag each page to the position you want.</li><li value="4"><p>To configure ad-hoc filters to limit the data that is displayed on the destination page, from a field drop-down list, select the field from the source page that matches the field on the destination page. For example, if the destination page has an <span class="specialbold">order </span>field, then from the <span class="specialbold">order </span>drop-down list, select <span class="specialbold">order </span>(if it is available from the source page) to filter the results displayed on the destination page by a specific order number. See <a href="#Grid_and_chart_navigation_link_configuration">Grid and chart navigation link configuration</a>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: The value selected from the drop-down list must match the label of the drop-down list for an ad-hoc filter to work.</p></li><li value="5">Click <span class="specialbold">Apply</span>.</li></ol></li><li value="8">To remove a column from the grid, either clear the check box for the column under Select Columns, or click <img src="../resources/images/image524298.png" alt="Close" /> next to the column name. </li><li value="9">Click <span class="specialbold">Apply</span>.</li></ol></li>
+                                                            <li value="6">To define which actions are displayed in the drop-down list and configure action properties:<ol data-mc-continue="true"><li value="1">Click <span class="specialbold">Grid Actions</span>. </li><li value="2">Select the check box next to the action to include in the grid.  </li><li value="3">To reorder the selected actions, drag each action to the  position you want.</li><li value="4"><p>To assign permissions for an action, select the action, and then from the <span class="specialbold">Assigned Permissions</span> drop-down list, select the roles, privileges, and user-defined permissions for which the action is available.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: Assigning permissions makes the action visible on the <span class="specialbold">Actions </span>drop-down list and allows any role, privilege, and user-defined permission that is selected to perform the action.</p></li><li value="5">To configure actions, select the action, and enter information for the configuration options. </li><li value="6">Click <span class="specialbold">Apply</span>.</li></ol></li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="7">To define labels:<ol data-mc-continue="true"><li value="1">Click <b>Labeling</b>.</li><li value="2">To copy a label:<ol data-mc-continue="true"><li value="1">In the grid, select the check box next to the name to copy, and then click <span class="specialbold">Copy</span>.</li><li value="2">Enter information in the <a href="#Message_fields">Message fields</a>.</li><li value="3">Click <span class="specialbold">Save</span>.</li></ol></li><li value="3">To copy multiple labels:<ol data-mc-continue="true"><li value="1">In the grid, select the check box next to the names to copy, and then click <span class="specialbold">Copy</span>.</li><li value="2">Enter information in the <a href="#Bulk_copy_fields">Bulk copy fields</a>. </li><li value="3">Click <span class="specialbold">Save</span>.</li></ol></li><li value="4">To delete a label, in the grid, select the check box next to the names to delete, and then click <span class="specialbold">Delete</span>. A confirmation message is displayed. </li><li value="5">To edit message text for a label, in the grid, click <img src="../resources/images/image1140974.png" width="12" height="11" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Edit"></img>, enter the message text and click <span class="specialbold">Save</span>, or  to edit the next label, click <span class="specialbold">Save &amp; Next</span>.</li><li value="6">When finished, click <img src="../resources/images/image524298.png" alt="Close" /> to close.</li></ol></li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="8">
+                                                                <p>To select the columns to be used as required search criteria in the grid: </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: You cannot use a column with derived values in search criteria.  </p>
+                                                                <ol data-mc-continue="true">
+                                                                    <li value="1">Click <b>Filter Field</b>.</li>
+                                                                    <li value="2">Select the check box next to the column. </li>
+                                                                    <li value="3">
+                                                                        <p>Click <b>Select</b>.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The <b>Auto Load Grid Data</b> field is automatically set to <b>No </b>when one or more columns are selected.</p>
+                                                                    </li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="9">
+                                                                <p>To define the number of rows that are displayed per page in the grid:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If you do not specify default and maximum page sizes, the page is configured with 50, 100, and 150 displayed rows per page, which provides the user with three display options.  </p>
+                                                                <ul data-mc-continue="true">
+                                                                    <li>In the <span class="specialbold">Default Page Size</span> field, enter or select the number of rows per page to display by default on the grid.</li>
+                                                                    <li>In the <span class="specialbold">Maximum Page Size</span> field, enter or select the maximum number of rows per page to display on the grid.</li>
+                                                                </ul>
+                                                            </li>
+                                                            <li value="10">
+                                                                <p>To  configure the page to open without displaying information in the grid, in the <b>Auto Load Grid Data</b> field, select <b>No</b>.</p>
+                                                            </li>
+                                                            <li value="11">Click <b>Save</b>. </li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="12">
+                                                                <p>To view the changes, reload (refresh) the page using the web browser. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: A reload downloads the webpage with the most current information and updates the cached data.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Addormodifyaparentandchildgridtypepagelayoutconfiguration" data-magellan-target="Addormodifyaparentandchildgridtypepagelayoutconfiguration"><a name="Add_or_modify_a_parent_and_child_grid_type_page_layout_configuration"></a>Add or modify a parent and child grid type page layout configuration</h2>
+                                                        <p>You can configure a page that was created using Page Builder and added to a menu. See <a href="menu_editor.htm#Add_or_modify_a_menu">Add or modify a menu</a>. </p>
+                                                        <ol data-mc-continue="false">
+                                                            <li value="1">Open the page. </li>
+                                                            <li value="2">In the page title bar, click <img src="../resources/images/image1098457.png" width="14" height="14" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Extensions settings" />. The Parent-Child Grid Configuration page is displayed.</li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="3">Under <span class="specialbold">Configurations</span>, perform one of the following tasks:<ul><li>To add a configuration, click <span class="specialbold">Add</span>. </li><li>To copy a configuration, select a configuration, and then click <span class="specialbold">Copy</span>.</li><li>To modify a configuration, select the configuration.</li></ul></li>
+                                                            <li value="4">
+                                                                <p>Under <span class="specialbold">CONTEXT</span>, enter information in the <a href="#Context_fields">Context fields</a>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Only one unique combination of warehouse, menu, and client can exist per configuration. </p>
+                                                            </li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="5">
+                                                                <p>Under <span class="specialbold">LAYOUT CONFIGURATION + PREVIEW</span>, to set the parent-child grid alignment, select one of the following options:</p>
+                                                                <ul data-mc-continue="true">
+                                                                    <li><b>Stacked</b>: Displays the parent grid above the child grid in a vertical layout.</li>
+                                                                    <li><b>Side by Side</b>:&#160;Displays the parent grid to the left of the child grid in a horizontal layout.</li>
+                                                                </ul>
+                                                            </li>
+                                                            <li value="6">To set the grid size ratio of parent grid to the child grid, select one of the following options:<ul data-mc-continue="true"><li><b>1:2</b>: The parent grid is half the size of the child grid.</li><li><b>1:1</b>: The parent and child grids are the same size.</li><li><b>2:1</b>: The parent grid is twice the size of the child grid.</li></ul></li>
+                                                            <li value="7">To configure the parent or child grid:<ol style="list-style-type: lower-alpha;" data-mc-continue="true"><li value="1">Perform one of the following tasks:<ul style="list-style-type: circle;" data-mc-continue="true"><li>To modify a parent grid configuration, click <b>Parent Grid</b>. </li><li>To modify a child grid configuration, click <b>Child Grid</b>.</li></ul></li><li value="2">Continue with <a href="#Add_or_modify_a_grid_type_page_layout_configuration">Add or modify a grid type page layout configuration</a>.</li></ol></li>
+                                                            <li value="8">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <ol data-mc-continue="true">
+                                                            <li value="9">
+                                                                <p>To view the changes, reload (refresh) the page using the web browser. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: A reload downloads the webpage with the most current information and updates the cached data.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <p><a name="Context_fields"></a>
+                                                        </p>
+                                                        <h2 id="Contextfields" data-magellan-target="Contextfields">Context fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('../resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1"><b>Extension ID</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Unique internal identifier for an entity (such as a field, action, or page) that is enabled for extensibility. The extension ID identifies the entity, configurations, and if the entity is used within a variety of functions within the application, specific use of the entity in the application. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2"><b>Site</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Warehouse to which the configuration applies. The combination of site (warehouse), menu, and subsite (client) defines the context in which the configuration takes effect.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1"><b>Menu</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Application module to which the configuration applies. The combination of site (warehouse), menu, and subsite (client) defines the context in which the configuration takes effect.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2"><b>Subsite</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Client to which the configuration applies. The combination of site (warehouse), menu, and subsite (client) defines the context in which the configuration takes effect.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p><a name="Message_fields"></a>
+                                                        </p>
+                                                        <h2 id="Messagefields" data-magellan-target="Messagefields">Message fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('../resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;"><b>Locale</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Locale associated with the message. The message is displayed to users whose locale matches the message's locale. A locale defines a set of culture-specific components, such as language, time and date formats, currency formats, and a measurement unit system.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;"><b>Message Text</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Text to be displayed in the application. You can include HTML tags, except script-based tags, in this field to format your message. For example, entering "Add &lt;b&gt;Role&lt;/b&gt;" in this field displays "Add <span class="specialbold">Role</span>". A preview of the message text as it will be displayed is provided in the <span class="specialbold">Message Preview</span> field.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;"><b>Menu</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Application menu associated with the message. The message is only displayed when working in the specified menu.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;"><b>Site</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Warehouse associated with the message. The message is only displayed when working with the specified warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Subsite</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Client associated with the message. The message is only displayed when working with the specified client.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">Message Preview</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>A preview of the message entered in the <span class="specialbold">Message Text</span> field as it will be displayed in the application. The preview field is especially useful to validate whether any HTML tags that you entered in the <span class="specialbold">Message Text</span> field are displayed as expected. This field is display only.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p><a name="Bulk_copy_fields"></a>
+                                                        </p>
+                                                        <h2 id="BulkCopyfields" data-magellan-target="BulkCopyfields">Bulk Copy fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('../resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1"><b>Menu</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Application menu associated with the message. The message is only displayed when working in the specified menu.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2"><b>Locale</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Locale associated with the message. The message is displayed to users whose locale matches the message's locale. A locale defines a set of culture-specific components, such as language, time and date formats, currency formats, and a measurement unit system.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1"><b>Site</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Warehouse associated with the message. The message is only displayed when working with the specified warehouse.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2"><b>Subsite</b>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Client associated with the message. The message is only displayed when working with the specified client.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="../legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

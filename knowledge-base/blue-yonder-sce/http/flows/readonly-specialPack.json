@@ -1,0 +1,26 @@
+{
+  "screen": "specialPack",
+  "route": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/Special-Pack-Operations////",
+  "readOnly": true,
+  "calls": [
+    {
+      "seq": 0,
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/refs/data/api/v1/rp/admin/sessionKeepAlive",
+      "query": null,
+      "status": 200,
+      "bytes": 33,
+      "rowCount": null,
+      "sampleKeys": null
+    }
+  ],
+  "screenState": {
+    "title": "Blue Yonder - 404",
+    "grids": [],
+    "forms": [],
+    "buttons": []
+  },
+  "writesObservedOnLoad": [
+    "POST api/v1/rp/admin/sessionKeepAlive -> 200"
+  ]
+}

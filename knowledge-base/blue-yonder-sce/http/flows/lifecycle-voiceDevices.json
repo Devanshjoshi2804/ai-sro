@@ -1,0 +1,151 @@
+{
+  "screen": "voiceDevices",
+  "phases": {
+    "create": [
+      "GET deviceWorkAreas -> 200",
+      "POST devices -> 404"
+    ],
+    "edit": [],
+    "copy": [],
+    "delete": []
+  },
+  "code": "ZV3933",
+  "rowKey": "ZV3933",
+  "createApplied": {
+    "deviceCode": "ZV3933",
+    "deviceName": "ZV FLOW",
+    "localeId": "DUTCH_HOLLAND"
+  },
+  "createBlocked": [
+    {
+      "xtype": "messagebox",
+      "title": "Exception Occurred",
+      "text": "Exception Occurred An exception occurred while processing your request. Unknown Request no rows affected (Status: 404) OK"
+    }
+  ],
+  "linkFound": false,
+  "linkVia": null,
+  "editFormFound": true,
+  "copySelect": null,
+  "copyInvoke": {
+    "error": "button missing or disabled"
+  },
+  "deleteSelect": null,
+  "deleteInvoke": {
+    "error": "button missing or disabled"
+  },
+  "allCalls": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "printers",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "devices",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "devices",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "devices",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "policies",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "policies",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locales",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "rfVendors",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "codes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "workAreas",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "locales/userLocale",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "codes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "codes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "codes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "deviceWorkAreas",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "devices",
+      "status": 404,
+      "body": "{\"activityDate\":\"\",\"consolidateAtPackStationFlag\":false,\"manifestCartonFlag\":false,\"consolidateAtPackStationZone_uri\":\"\",\"consolidateAtPackStationZoneUri\":\"\",\"currentStorageLocation\":\"\",\"currentWorkArea\":\"\",\"currentWorkZone\":\"\",\"currentWorkZoneId\":null,\"dateLastModified\":\"\",\"deviceClass\":\"V\",\"deviceCode\":\"ZV3933\",\"deviceName\":\"ZV FLOW\",\"displayHeight\":0,\"displayWidth\":0,\"homeWorkArea\":\"\",\"labelPrinterAddress\":\"\",\"lastModifiedBy\":\"\",\"lastUser\":\"\",\"localeId\":\"DUTCH_HOLLAND\",\"movementZoneId\":0,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":0,\"printerAddress\":\"\",\"productionStation\":\"\",\"productionStationFlag\":false,\"reader\":\"\",\"rftMode\":\"\",\"rfVendorName\":\"\",\"scaleCommAddr\":\"\",\"scaleCommCmd\":\"\",\"scaleCommPort\":\"\",\"scaleSerialConfiguration\":\"\",\"scaleWeightUri\":\"\",\"scannerSerialConfiguration\":\"\",\"shipmentsPendingUri\":\"\",\"specialHandlingLocation\":\"\",\"storageLocation\":\"\",\"suppressCartonTypeChangeFlag\":false,\"terminalID\":\"\",\"terminalType\":\"\",\"terminalTypeDescription\":\"\",\"touchscreenDeviceFlag\":false,\"version\":0,\"voiceTerminalId\":\"ZV3933\",\"warehouseId\":\"SG\",\"nextFocus\":\"\"}"
+    }
+  ]
+}

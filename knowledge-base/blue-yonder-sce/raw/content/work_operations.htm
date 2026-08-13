@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Work|[%=System.LinkedTitle%]" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Work Operations</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#WorkOperations">Work Operations</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Workmanagementpriorities">Work management priorities</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Priorityescalationprocesses">Priority escalation processes</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Directedworkbyproximity">Directed work by proximity</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyaworkoperation">Add or modify a work operation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteaworkoperation">Delete a work operation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addaworkoperationformflow">Add a work operation form flow</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#WorkOperationsfields">Work Operations fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="WorkOperations" data-magellan-target="WorkOperations"><a name="aanchor202"></a>
+                                                            <MadCap:concept term="WM" />Work Operations</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#WorkOperations">Work Operations</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Workmanagementpriorities">Work management priorities</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Priorityescalationprocesses">Priority escalation processes</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Directedworkbyproximity">Directed work by proximity</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyaworkoperation">Add or modify a work operation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteaworkoperation">Delete a work operation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addaworkoperationformflow">Add a work operation form flow</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#WorkOperationsfields">Work Operations fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A work operation is a defined activity within the facility usually performed by an operator using a device such as an RF terminal or voice headset. A standard set of work operations is provided with the application, and these define activities such as receiving, counting, picking, distribution, and loading and unloading transport equipment.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: When you add a new work operation, the new operation and associated RF form flow must also be added to the RDTALLOPR/DEFAULT-FORM-FLOW group policy. This policy controls the sequence in which RF screens are displayed for each type of operation. Without a default RF form flow defined for the operation, the application will not display any RF screens to an operator that attempts to perform the operation. Default form flows are maintained in <a href="policies/policy_maintenance.htm">Policy Maintenance</a>. See <a href="#Add_a_work_operation_form_flow">Add a work operation form flow</a>.</p>
+                                                        <p>To each work operation, you assign the users and equipment that you want to authorize to perform it. For example, you may want to authorize certain users and only handheld terminals to perform counts. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Equipment authorizations for a work operation only apply to directed work. You cannot limit the undirected work that can be performed with a piece of equipment. For example, if a piece of equipment is not authorized for Receiving, it can still be used to receive inventory through undirected work. </p>
+                                                        <p>To each work operation, you also assign a base priority, which determines the priority of a piece of work when it enters the work queue. For example, if the work operation for Case Pick has a priority of 35, then a piece of work created for case picks is initially assigned a priority of 35. You can also define the increments at which priorities are escalated. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The lower the number, the higher the priority. For example, 1 is the highest priority; 10 is a higher priority than 20.</p>
+                                                        <p>For facilities that use voice terminals, you can associate a work operation such as CPK (Case Pick) or PCK (Pallet Pick) to a generic voice function, such as Picking. This association is defined so that when the voice operator selects a function, such as Picking, the application can attempt to find directed work for any of the operations associated with that function. If no work operation is assigned to a voice function, then directed work cannot be retrieved for that function.</p>
+                                                        <h2 id="Workmanagementpriorities" data-magellan-target="Workmanagementpriorities"><a name="Work_management_priorities"></a>Work management priorities</h2>
+                                                        <p>Work management functionality presents directed work to operators who use devices such as radio frequency (RF) and voice terminals to request directed work. Each work request is based on a work operation; examples of operations include Identify, Piece Pick, Case Transfer, and Trailer Unload.</p>
+                                                        <p>You can use the work management functionality to define priorities for operations, which determine the sequence in which directed work is displayed, so that more important work is displayed sooner than less important work. You can also define priorities for work areas and work zones, to determine when work is of a sufficient priority to move an operator from the current work area or work zone to another one to perform the work. These priorities are designed to ensure that operators are working efficiently, but they do not override user and vehicle authorizations. That is, operators are not moved if they or their vehicles are not authorized to perform the higher priority work.</p>
+                                                        <p>With priority, the lower the number, the higher priority. For example, 1 is the highest priority; 10 is a higher priority than 20.</p>
+                                                        <ul>
+                                                            <li><b>Base priority</b>: Base priority is assigned to a work operation and determines the priority at which the work initially enters the work queue. It is the priority at which a work request is created. This can be used, for example, to assign a higher priority to pick work than to count work, to ensure that pick work is completed before count work.</li>
+                                                            <li><b>Maximum escalation priority</b>: Maximum escalation priority is assigned to a work operation and determines the maximum priority to which the base priority for an operation can be escalated. You use it to limit the effective priority of an operation. For example, you may want to escalate the priority of count work based on how long it remains in the work queue, but you may not want the priority of count work to exceed that of pick work; therefore, if your pick work has a base priority of 20, you may want to assign a maximum escalation priority of 25 to your count work.</li>
+                                                            <li><b>Effective priority</b>: Effective priority is the current priority of a work request in the work queue. This value represents the base priority defined for the operation plus any escalation increments that have been applied over time to the work request. For example, if the base priority of pick work is 20 and it is defined to escalate by 5 every hour, then after 2 hours it has an effective (current) priority of 10.</li>
+                                                            <li><b>Absolute priority</b>: Absolute priority is assigned to work areas and work zones.<ul><li>For work areas, it defines the priority at which the application should display work in another work area, rather than the operator's current work area.  </li><li><p>For work zones, it defines the priority at which the application should display work in another work zone in the same work area, rather than the operator's current work zone.</p></li></ul><p>For example, if there is work with a priority higher than the absolute priority in another work zone in the same work area, the operator is offered the work in the other work zone. </p><p>As another example, consider that an operator is working in Zone A, and the highest priority work in Zone A is 50. If the absolute priority defined for Zone A is 30, and there is work in another work zone in the work area that has a priority of less than 30 (such as 29), the application displays the work in another zone.</p></li>
+                                                            <li><b>Delta priority</b>: Delta priority is assigned to work areas and work zones.<ul><li>For work areas, it defines the difference that must exist between the highest effective priority work in the current work area, and the highest effective priority work in another work area in order for the application to display work in another work area. </li><li><p>For work zones, it defines the difference that must exist between the highest effective priority work in the current work zone, and the highest effective priority work in another work zone in the same work area in order for the application to display the work in another work zone. </p></li></ul><p>For example, if you define a delta priority of 20 for a work zone, you are indicating that the application should display work in another zone in the same work area only if there is a work request with a priority that is 20 higher than the highest effective priority work in the current zone. </p><p>As another example, consider that an operator is working in Zone A, the highest effective priority work request in this zone is 50, and the delta priority defined for Zone A is 20. If a work request exists in another zone in the work area that has a priority value of less than 30 (such as 29), the application displays the work in other work zone.</p></li>
+                                                            <li><b>Home work area absolute priority</b>: Home work area absolute priority is assigned to a work area. It defines the priority at which an operator, who has the area as a home work area but is currently working in another work area, is given work in the operator's home work area. This value is used to keep operators in their current work area until work of sufficient priority exists to warrant their return to the home work area.</li>
+                                                        </ul>
+                                                        <div style="display: none;" data-mc-target-name="Location"><a name="Escalation_based_on_a_location"></a>
+                                                        </div>
+                                                        <h2 id="Priorityescalationprocesses" data-magellan-target="Priorityescalationprocesses"><a name="Priority_escalation_processes"></a>Priority escalation processes</h2>
+                                                        <p><b><a targets="Time" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Time"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Escalation based on time</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Time">
+                                                            <p>A work operation can be configured with an escalation value and time, so that the priority of the directed work is escalated by a specific amount depending on how long it remains unacknowledged in the work queue. Escalating the priority increases the probability that the piece of work is acknowledged. </p>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Timer-based escalations can be used with ship date escalations because each process uses a different escalation increment.</p>
+                                                            <p>For example, if a request for a case pick is sent to the work queue with a priority of 35, it can be automatically escalated by 10 every 60 minutes until it reaches a pre-configured maximum priority, such as 5. </p>
+                                                            <p>The following table shows an example of how work escalation takes place. A piece of work for a case pick enters the work queue with a priority of 35 at 9:00 A.M., and every 60 minutes the priority of the work escalates by 10, until it reaches a maximum priority of 5. Thereafter, it remains at 5 until it is acknowledged by an operator.</p>
+                                                            <table style="width: 268.8;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                <thead>
+                                                                    <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                        <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                            <p class="tableheading">Time</p>
+                                                                        </th>
+                                                                        <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                            <p class="tableheading">Priority</p>
+                                                                        </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="128" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>9:00 A.M.</p>
+                                                                        </td>
+                                                                        <td width="140.8" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>35</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="128" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>10:00 A.M.</p>
+                                                                        </td>
+                                                                        <td width="140.8" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>25</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="128" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>11:00 A.M.</p>
+                                                                        </td>
+                                                                        <td width="140.8" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>15</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="128" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                            <p>12 noon</p>
+                                                                        </td>
+                                                                        <td width="140.8" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                            <p>5 (maximum)</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                        <td width="128" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                            <p>1:00 P.M.</p>
+                                                                        </td>
+                                                                        <td width="140.8" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                            <p>5</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <p><b><a targets="Command" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Command"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Escalation based on a server command</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Command">
+                                                            <p>To define rules for escalation that are specific to an operation code, you can specify and enable a command that will run after timed work escalation has occurred. </p>
+                                                            <p>You can use this command, for example, to escalate replenishment work to a higher priority if the fill percentage at the location is less than a specific value; that is, the location is close to being empty. The specific command for escalating replenishment work for locations that are at 10% of capacity is "process work escalation for replenishments where thrpct = 10"; after this command runs, if the destination location for a replenishment is less than 10% full, then the application sets the priority of the replenishment to the maximum escalation priority defined for the operation.</p>
+                                                        </div>
+                                                        <p><b><a targets="Location" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Location"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Escalation based on a location</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Location">
+                                                            <p>You can configure a location to escalate work based on a threshold defined for a specific number of pallets or a percentage of pallets in that location. Once the location reaches the threshold, the application continues to escalate work with the highest priority until the inventory amount in the location is below the threshold. For more information on configuring a location, see <a href="locations.htm">Locations</a>. The application uses the existing configurations in the operation code to determine the escalation time and increment. </p>
+                                                            <p>This is beneficial, for example, for configuring a pickup and deposit (P&amp;D) location so that it doesn't become full and stall the receiving process.</p>
+                                                        </div>
+                                                        <p><b><a targets="Date" href="#" class="MCToggler MCTogglerHead MCTogglerHotSpot MCToggler_Open toggler MCTogglerHotSpot_ MCHotSpotImage" data-mc-targets="Date"><img class="MCToggler_Image_Icon" src="../Skins/Default/Stylesheets/Images/transparent.gif" height="16" width="24" alt="Closed" data-mc-alt2="Open" />Escalation based on ship date and order type</a></b>
+                                                        </p>
+                                                        <div style="display: none;" data-mc-target-name="Date">
+                                                            <p>You can configure an operation to escalate work to a specific priority (not incremental) based on the amount of time remaining before the shipment date or delivery date defined on the shipment for which the work was created. You can also override this setting by order type; for example, to increase the priority for orders that take more time to pick or require post-pick processing.</p>
+                                                            <p>Escalation based on shipment or delivery date is used to escalate the following types of operations:</p>
+                                                            <ul>
+                                                                <li>Pick work for an outbound shipment</li>
+                                                                <li>Inventory transfers, such as from a pickup and deposit (P&amp;D) location to a staging location, to satisfy an outbound shipment</li>
+                                                            </ul>
+                                                            <p>If a pick is cancelled and reallocated, the priority of the cancelled pick is automatically assigned to the reallocated pick, so that the escalation process does not need to be restarted.</p>
+                                                            <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Ship date escalations can be used with timer-based escalations because each process uses a different escalation increment.</p>
+                                                            <p>For outbound work, if the source location contains more than one LPN, the application continues to escalate work until the required LPN is moved. The application escalates the work with the highest priority first.</p>
+                                                            <p><b>Example</b>
+                                                            </p>
+                                                            <p>The following example shows how the application escalates work based on ship date and order type: </p>
+                                                            <ol>
+                                                                <li value="1">Pallet Pick is a work operation that is configured with the following attributes:<ul><li>Base priority = 30</li><li>Ship date escalation time and priority = 60 minutes from late ship date escalate to priority of 10.</li><li>Override by order type:<ul><li>Cartonization order type = 60 minutes from late ship date escalate to priority of 5.</li></ul></li></ul></li>
+                                                                <li value="2">Two orders are allocated with a late shipment date of 4:00 P.M.<ul><li>Customer order = 1 pallet pick</li><li>Cartonization order = 1 pallet pick </li></ul></li>
+                                                                <li value="3">A background job runs on a regularly scheduled basis to process ship date escalation.</li>
+                                                                <li value="4">When the job runs and finds the time is within an hour of the late ship date (such as 3:00 P.M.), the following changes occur:<ul><li>Escalates the pallet pick for the customer order to a priority of 10.</li><li>Escalates the pallet pick for the cartonization order to a priority of 5.</li></ul></li>
+                                                            </ol>
+                                                        </div>
+                                                        <h2 id="Directedworkbyproximity" data-magellan-target="Directedworkbyproximity"><a name="Directed_work_by_proximity"></a>Directed work by proximity</h2>
+                                                        <p>Warehouse Management distributes directed work based on priority, work zone changes, and travel sequence. If  Warehouse Labor Management is integrated with Warehouse Management, you can take advantage of the Warehouse Labor Management travel distance calculations to give an operator the piece of work that is physically closer rather than the next piece of work identified by travel sequence. This is known as the directed work by proximity functionality.</p>
+                                                        <p>To accomplish directed work by proximity, Warehouse Management first sends Warehouse Labor Management an ordered list that includes the starting location for each piece of work. Warehouse Labor Management then uses this information to calculate the travel distance from the operator's current location to each piece of work's starting location. Warehouse Management retrieves the calculations, and then orders the list of locations from lowest travel distance to highest travel distance. Warehouse Management can then assign the piece of work closest to the operator's current location (piece of work with the lowest travel distance).</p>
+                                                        <p>The application provides a policy to determine how many milliseconds Warehouse Management waits to receive the travel distance calculations from Warehouse Labor Management. Setting this value too high could result in a long wait for the closest starting work location to be assigned. Setting this value too low could mean that not all of the locations get analyzed and Warehouse Labor Management sends back a partial list, which also means that the closest piece of work may not be assigned to the operator (there was not enough time to analyze the location). To help offset this issue, the directed work by proximity functionality includes a policy to randomize the list of locations so that the list is not sent to Warehouse Labor Management in travel sequence order, which does not always indicate the physically closest location. For example, if you have set up your travel sequence in a serpentine pick pattern, then travel sequence is a very poor indicator of physical closeness of locations.</p>
+                                                        <p>To take advantage of the directed work by proximity functionality, you must complete the following tasks:</p>
+                                                        <ol>
+                                                            <li value="1">Make sure that Warehouse Labor Management is integrated with your instance of Warehouse Management.</li>
+                                                            <li value="2">
+                                                                <p>Configure the following policies: </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: You use Policy Maintenance to configure policies.</p>
+                                                                <ul>
+                                                                    <li><b>Acceptable Delay</b>: Number of milliseconds to allow for external calls to Warehouse Labor Management for determining travel distances. Warehouse Management will request travel distances from Warehouse Labor Management and then wait this number of milliseconds for as many travel distances as Warehouse Labor Management can generate in that time.</li>
+                                                                    <li><b>Directed Work by Proximity Enabled</b>: If enabled, the application displays the piece of work that has a starting location closest to the operator's current location; that is, based on proximity rather than travel sequence.</li>
+                                                                    <li><b>Subset Behavior</b>: If enabled, the list of locations for the directed work by proximity will be ordered randomly before Warehouse Management sends the list to Warehouse Labor Management for analysis. If disabled, the locations will be sent in travel sequence order.</li>
+                                                                </ul>
+                                                            </li>
+                                                            <li value="3">If you are also integrated with Event Management, then configure the <b>Error During Warehouse Labor Management Communications</b> field and set up the appropriate users in Event Management to receive and respond to the alerts. See <a href="event_management.htm#Configure_Event_Management_integration">Configure Event Management integration</a>.</li>
+                                                        </ol>
+                                                        <h2 id="Addormodifyaworkoperation" data-magellan-target="Addormodifyaworkoperation"><a name="Add_or_modify_a_work_operation"></a>Add or modify a work operation</h2>
+                                                        <ol>
+                                                            <li value="1">Select<b> Configuration &gt; Work &gt; Work &gt; Work Operations</b>.</li>
+                                                            <li value="2">Perform one of the following tasks: <ul><li>To add a work operation, click <b>Add</b>.</li><li>To modify a work operation, in the grid, click the operation.</li><li>To copy a work operation, in the grid, select the check box next to the operation, and then click <b>Copy</b>.</li></ul></li>
+                                                            <li value="3">Enter information in the <a href="#Work_Operations_fields">Work Operations fields</a>.</li>
+                                                            <li value="4">
+                                                                <p>To define ship date escalation settings:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Ship date escalation settings are only available if <b>Ship Date Escalation </b>is set to Yes.</p>
+                                                                <ol>
+                                                                    <li value="1">Under <b>ESCALATION BASED ON SHIP DATE</b>, click <b>Escalation Settings</b>. </li>
+                                                                    <li value="2">Perform one of the following tasks:<ul><li>To add an escalation setting, click <b>Add</b>.</li><li>To modify an escalation setting, in the grid, click the value to change. </li></ul></li>
+                                                                    <li value="3">
+                                                                        <p>Enter information in the following fields:</p>
+                                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                                            <thead>
+                                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Ship Date Escalation Time (Min)</td>
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                                        <p>Amount of time, in minutes, before the shipment or delivery date (as defined in the <span class="specialbold">Shipping Date Option</span> field) that you want the application to update the work priority. </p>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">Ship Date Escalated Priority</td>
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                                        <p>Priority to which the work should be updated when the application evaluates the work for ship date escalation. </p>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </li>
+                                                                    <li value="4">Click <b>Apply</b>. </li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="5">
+                                                                <p>To specify overrides to ship date escalation based on order type:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: <span class="specialbold">Override Escalation Settings by Order Type</span> is only available if <span class="specialbold">Ship Date Escalation </span>is set to Yes.</p>
+                                                                <ol>
+                                                                    <li value="1">Under <b>ESCALATION BASED ON SHIP DATE</b>, click <b>Override Escalation Settings by Order Type</b>.</li>
+                                                                    <li value="2">Perform one of the following tasks:<ul><li>To add an order type, click <b>Add</b>.</li><li><p>To modify an order type, in the grid, click the value to change. </p><p class="Note"><b class="NoteHeadingBold">Note</b>: You can add overrides for multiple order types and multiple overrides for a single order type.</p></li></ul></li>
+                                                                    <li value="3">
+                                                                        <p>Enter information in the following fields:</p>
+                                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                                            <thead>
+                                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Order Type</td>
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                                        <p>Name of an order type. An order type is a category that is used to group orders based on the warehouse processing necessary to fulfill the order. For example, customer orders and distribution orders require different processing by the application, and so an order type can be assigned to categorize each order separately. The application uses order types, for example, to identify orders that are eligible for bulk picking, or to direct orders to specific destination locations.</p>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Ship Date Escalation Time (Min)</td>
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                                        <p>Amount of time, in minutes, before the shipment or delivery date (as defined in the <span class="specialbold">Shipping Date Option</span> field) that you want the application to update the work priority. </p>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Ship Date Escalated Priority</td>
+                                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                                        <p>Priority to which the work should be updated when the application evaluates the work for ship date escalation. </p>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </li>
+                                                                    <li value="4">Click <b>Apply</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="6">To assign the work operation to users:<ol><li value="1">Under <span class="specialbold">AUTHORIZATION</span>, click <b>Users</b>. </li><li value="2">In the <b>Available</b> column, select the check box next to the users that are authorized for the operation.</li><li value="3">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="7">
+                                                                <p>To assign the work operation to equipment:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Equipment authorizations for the work operation only apply to directed work. You cannot limit the undirected work that can be performed with a piece of equipment. For example, if a piece of equipment is not authorized for Receiving, it can still be used to receive inventory through undirected work. </p>
+                                                                <ol>
+                                                                    <li value="1">Under <b>AUTHORIZATION</b>, click <b>Equipment</b>. </li>
+                                                                    <li value="2">In the <b>Available</b> column, select the check box next to the equipment that is authorized for the work operation. </li>
+                                                                    <li value="3">Click <b>Apply</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="8">Click <b>Save</b>. </li>
+                                                        </ol>
+                                                        <h2 id="Deleteaworkoperation" data-magellan-target="Deleteaworkoperation"><a name="Delete_a_work_operation"></a>Delete a work operation</h2>
+                                                        <ol>
+                                                            <li value="1">
+                Select <b>Configuration &gt; Work &gt; Work &gt; Work Operations</b>.</li>
+                                                            <li value="2">In the grid, select the check box next to the work operation to delete. </li>
+                                                            <li value="3">Click <b>Delete</b>. A confirmation message is displayed.</li>
+                                                            <li value="4">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Addaworkoperationformflow" data-magellan-target="Addaworkoperationformflow"><a name="Add_a_work_operation_form_flow"></a>Add a work operation form flow</h2>
+                                                        <p>When you add a new work operation, the new operation and associated RF form flow must also be added to the RDTALLOPR/DEFAULT-FORM-FLOW group policy. This policy controls the sequence in which RF screens are displayed for each type of operation. Without a default RF form flow defined for the operation, the application will not display any RF screens to an operator that attempts to perform the operation. Default form flows are maintained in <a href="policies/policy_maintenance.htm">Policy Maintenance</a>. </p>
+                                                        <ol>
+                                                            <li value="1">
+                Select <b>System Administrator &gt; Configuration &gt; Policy &gt; Policy Maintenance</b>.
+                </li>
+                                                            <li value="2">Add a work operation form flow policy:<ol><li value="1">From the <b>Actions</b> drop-down list, select <b>Add</b>.
+         </li><li value="2"><p>Enter information in the Policy Maintenance fields.</p><ul><li>	In the <b>Policy Code</b> field, enter <span class="courier">RDTALLOPR</span>.</li><li>In the <b>Policy Variable</b> field, enter <span class="courier">DEFAULT-FORM-FLOW</span>.</li><li>In the <b>Policy Value</b> field, enter the new work operation code.</li><li>	In the <b>Comments</b> field, enter a description of the purpose of the policy or functional area to which the policy is related, and information about how the policy is used.</li></ul></li><li value="3"><p>Click <b>Save</b>.
+</p></li></ol></li>
+                                                            <li value="3">	Add the default form flow policy details: <br /><p class="Note"><span class="notebold">Note</span>: Repeat this process for each RF screen that should be included in the operational flow. </p><ol data-mc-continue="true"><li value="1">Under <b>DETAILS</b>, from the <b>Actions</b> drop-down list, select <b>Add</b>.</li><li value="2">Enter information in the following fields. <br /><table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0"><col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" style="width: 125px;" /><col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" /><thead><tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1"><th style="font-weight: bold;" class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1">Field</th><th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th></tr></thead><tbody><tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1"><td style="font-weight: bold;" class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1">Sort Sequence</td><td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1"><p>Order in which the RF screens display during a work operation.  If you do not enter a value, the sort sequence is application-generated starting with a value of 0. Use the sort sequence when you define more than one RF screen and you want to specify the order of their appearance.</p></td></tr><tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2"><td style="font-weight: bold;" class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2">Return String 1</td><td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2"><p>Name of the  RF form displayed on the RF screen (such as <span class="courier">LOOK_WORK</span>). </p></td></tr><tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1"><td style="font-weight: bold;" class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1"><p style="font-weight: bold;">Comments </p></td><td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1"><p>Description of the policy value and information about how the policy value is used.</p></td></tr></tbody></table></li></ol></li>
+                                                            <li value="4">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="WorkOperationsfields" data-magellan-target="WorkOperationsfields"><a name="Work_Operations_fields"></a>Work Operations fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Operation</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Work operation that identifies the type of work that is created, such as piece pick, case pick, kit pick, list pick, pallet pick, or replenishment pick.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Base Priority</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number representing the priority of this type of work operation when it is first sent to the work queue. The lower the number, the higher the initial priority of this type of work operation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Use Source Work Area</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, priorities associated with the source work area are used to determine the attributes of a work request for this type of work operation.</p>
+                                                                        <p>If No, priorities associated with the destination work area are used to determine the attributes of a work request for this type of work operation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Description</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Text that further describes the work operation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Initial Creation Status</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Status of the work at the time of creation. </p>
+                                                                        <ul>
+                                                                            <li><b>Pending</b>: The work is allocated and released.</li>
+                                                                            <li><b>Suspended</b>: The work is suspended and is not released.</li>
+                                                                            <li><b>Locked</b>: The work is locked and does not release until the application finds an available pickface location. This status is used with the demand replenishment operation (PIARPL) to prevent work from being released until there is room in the location for the replenishment inventory. If you select the Locked status, then in the Release Work Command field, enter the server command that is used to release work when there is room in the location. </li>
+                                                                            <li>
+                                                                                <p><b>Luminate&#160;Pending</b>:&#160;The work is allocated, released, and sent to Warehouse Execution System and Robotics Hub. This status (abbreviated as LUMI) is used to ensure that the tasks are not consumed immediately by RF, mobile app, or voice users. Tasks in this status are processed by Warehouse Execution System, and as a result, the work status and role information in the Work Management work queue are updated based on bot event messages received from Warehouse Execution System. The Luminate Pending status is used when Warehouse Management is integrated with Warehouse Execution System and Robotics Hub. See the <i>Warhouse&#160;Execution System and Robotics Hub User Guide</i>. </p>
+                                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If a task is created in Luminate Pending status but needs to be performed by an RF, mobile app, or voice user, then you can suspend and resume the task in the work queue. When you resume a suspended task, the task status changes to Pending, and a user can perform the work. However, if the status is changed to Pending, then the task status cannot be reverted to Luminate&#160;Pending.</p>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Release Work Command</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Server command that helps determine whether there is available capacity at the pick location and, if there is, changes the status of the work from Locked to Pending. This allows the release of any work that currently fits into the location. Specify a command if you defined this work operation to be created in the Locked status. The application uses the release work command to change the status of the work from Locked to Pending so that it can be released.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Force Scan of Acknowledged Location</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then operators that perform this work operation are required to scan the source location after acknowledging the directed work. </p>
+                                                                        <p>If No, then operators are not required to scan the source location after acknowledging the directed work. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: This field is only available for directed work operations that require the user to acknowledge the source location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Use Escalation Command</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the priority of a work operation is escalated based on the <b>Escalation Command</b> selection.</p>
+                                                                        <p>If No, the priority of a work operation is not escalated based on a selected command.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Escalation Command</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Server command that tells the application how to escalate the priority of an operation based on the parameters of the command.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Begin</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Day and time on which the priority for this type of directed work begins escalating.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">End</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Day and time on which the priority for this type of directed work stops escalating.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Escalation Time</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number of minutes that this type of work operation can exist in the work queue before its priority is automatically escalated. Each time this number of minutes elapses, the number representing the effective (current) priority of this type of work decreases by the escalation increment defined for the operation, thus escalating the priority of the work.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Escalation Increment</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Amount the priority of this type of work operation increases each time the expiration time elapses. This number is subtracted from the number representing the effective (current) priority of the work each time the specified expiration time elapses, thus escalating the priority of the work.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Maximum Priority</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Number representing the maximum priority to which this type of work operation can be escalated. The lower the number, the higher the priority that this type of work operation can reach.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Shipping Date Escalation</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application uses the shipping escalation settings to determine whether the priority of directed work should be escalated based on the ship date escalation settings. This process is typically used with picking and inventory transfer operations associated with an outbound shipment. Select Yes if you want the priority of work to be escalated as the ship date approaches. If you set this field to Yes, then you must select a shipping date and configure the settings that determine when and to what priority the work is escalated.</p>
+                                                                        <p>If No, the application does not escalate priority based on a shipping date associated with the work.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Shipping Date Option</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body2">
+                                                                        <p>Type of date, as specified on a shipment, that determines when the priority of the work operation is escalated. This value is only effective if <b>Shipping Date Escalation </b>is set to Yes, and values for time and priority are defined by the <b>Escalation Settings</b>. Ship date escalation can be used for picking and inventory transfer operations associated with an outbound shipment.</p>
+                                                                        <ul>
+                                                                            <li><b>Early Delivery Date</b>: Earliest date that the shipment may be delivered to the customer. </li>
+                                                                            <li><b>Early Ship Date</b>: Earliest date that the shipment may be shipped to the customer. </li>
+                                                                            <li><b>Late Delivery Date</b>: Latest date that the shipment may be delivered to the customer.</li>
+                                                                            <li><b>Late Ship Date</b>: Latest date that the shipment may be shipped to the customer. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

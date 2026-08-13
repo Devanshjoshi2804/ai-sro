@@ -1,0 +1,67 @@
+{
+  "spec": "transportModesDuplicate",
+  "resource": "transportModes",
+  "applied": {
+    "transportMode": "AF",
+    "transportModeDescription": "ZV dup probe"
+  },
+  "invalid": [
+    {
+      "field": "transportMode",
+      "label": "Transport Mode",
+      "errors": [
+        "The transport mode already exists"
+      ]
+    }
+  ],
+  "note": "invalid before Save; not saving",
+  "calls": [
+    {
+      "endpoint": "wm/warehouseTransportModeUoms",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouseTransportModeUoms?transportMode=%20&siteId=SG&subsites=----&_dc=1786523051667",
+        "query": {
+          "transportMode": " ",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786523051667"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29e1511b9c6ecbd-DEL",
+          "authenticated": "true",
+          "content-length": "61",
+          "date": "Wed, 12 Aug 2026 08:24:12 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[]}"
+      }
+    }
+  ],
+  "writes": [],
+  "edges": []
+}

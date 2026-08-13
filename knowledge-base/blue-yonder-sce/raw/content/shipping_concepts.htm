@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|Shipping" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Shipping concepts</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#Shippingconcepts">Shipping concepts</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Shippingfunctionality">Shipping functionality</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Shippingprocess">Shipping process</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Loads">Loads </a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Shipments">Shipments</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Manualshipmentcreation">Manual shipment creation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Shipmentadjustments">Shipment adjustments</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Adjustmentprocessflow">Adjustment process flow</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Shipmenttostaginglaneassignments">Shipment to staging lane assignments</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#ExampleMultiplestaginglanesinmultiplebuildings">Example: Multiple staging lanes in multiple buildings</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#ExampleMultiplestaginglanesinonebuilding">Example: Multiple staging lanes in one building</a>
+                                                                </li>
+                                                                <li class="tree-node"><a href="#Howitworks">How it works</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Handlingunitshipping">Handling unit shipping</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="Shippingconcepts" data-magellan-target="Shippingconcepts"><a name="aanchor227"></a>
+                                                            <MadCap:concept term="WM" />Shipping concepts</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#Shippingconcepts">Shipping concepts</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Shippingfunctionality">Shipping functionality</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Shippingprocess">Shipping process</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Loads">Loads </a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Shipments">Shipments</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Manualshipmentcreation">Manual shipment creation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Shipmentadjustments">Shipment adjustments</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Adjustmentprocessflow">Adjustment process flow</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Shipmenttostaginglaneassignments">Shipment to staging lane assignments</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Handlingunitshipping">Handling unit shipping</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>You use the Shipping module to  manage the people, equipment, inventory, and processes that ship inventory from the warehouse to your customers. You can make adjustments to inventory, work, shipments, loads, equipment, and other factors that can improve the productivity and efficiency of the warehouse shipping activities.</p>
+                                                        <p><a name="Shipping_functionality"></a>
+                                                        </p>
+                                                        <h2 id="Shippingfunctionality" data-magellan-target="Shippingfunctionality">Shipping functionality</h2>
+                                                        <p>Shipping is the act of transporting inventory from the warehouse with all the required paperwork and transactions. The following events must take place before you can begin the process of shipping inventory from your facility:</p>
+                                                        <ul>
+                                                            <li>An order must be created manually or downloaded from the host system.</li>
+                                                            <li>The order must be planned into a wave.</li>
+                                                            <li>The wave must be allocated.</li>
+                                                            <li>Inventory for the wave must be picked and delivered to a ship staging location. When using RF fluid loading, you can deliver picked inventory directly to the transport equipment without staging it.</li>
+                                                        </ul>
+                                                        <h2 id="Shippingprocess" data-magellan-target="Shippingprocess"><a name="Shipping_process"></a>Shipping process</h2>
+                                                        <p>The shipping process consists of the following tasks:</p>
+                                                        <ol>
+                                                            <li value="1"><span class="specialbold">Stage the shipment</span>. A shipment is staged, either manually or automatically, when all the inventory for the shipment has been delivered to a staging lane. When a shipment is staged, the inventory is available for directed loading. To ensure that a shipment is ready to stage, you can verify that the arrived quantity, applied quantity, and pick quantity for a selected shipment are equal. After you stage a shipment, you no longer have the ability to reallocate any inventory that is missing due to cancelled picks or shipment adjustments.</li>
+                                                            <li value="2"><span class="specialbold">Change the carrier</span>. After a shipment is staged, you may change the carrier if the order allows it and the order processing configuration allows it.</li>
+                                                            <li value="3"><span class="specialbold">Create an outbound load</span>. Before staged shipments can be loaded onto the transportation equipment, they must be assigned to an outbound load. A load defines the stops that the transportation equipment makes to deliver shipments. Typically, load information is sent from a host or transportation application; however, you can create and modify loads manually or have the application generate one for you.</li>
+                                                            <li value="4"><span class="specialbold">Print the paperwork</span>. Paperwork can be a simple packing list, the bill of lading, or custom paperwork. You can print paperwork at either the stop, shipment, or load level.</li>
+                                                            <li value="5">
+                                                                <p><span class="specialbold">Load the stop</span>. When you load a stop, the inventory is moved from the staging lane to the transport equipment. You can determine a move method, and then you determine how you want to close and dispatch the transportation equipment. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: When single scan loading is enabled in the outbound loading configuration, the operator can scan the dock door (location) to load all of the LPNs at once. </p>
+                                                                <p>When inventory is loaded onto transport equipment, it is tracked in a logical location type. This can be designed as four-wall inventory, so that the inventory in this area can be included in inventory summaries sent to the host. When the shipping transport equipment is dispatched, the inventory is automatically moved to a logical dispatch location type, where it is not considered four-wall inventory. </p>
+                                                                <p>When loading a stop, an operator may be prompted to perform workflows. After loading all of the stops, if any of the shipments on the transportation equipment contain inventory for which you captured the average catch quantity that are out of tolerance, a <b>Tolerance</b> tag is displayed. LPNs on the transportation equipment can be out of tolerance if they were consolidated and the newer catch quantity for the LPN caused older pieces of inventory on the LPN to go out of tolerance. See <a href="tags.htm">Tags</a>.</p>
+                                                            </li>
+                                                            <li value="6">
+                                                                <p><span class="specialbold">Split a less-than-truckload (LTL) shipment (optional)</span>. As you load an LTL shipment, you may find that the entire shipment will not fit on the transportation equipment. When this occurs, if the application is configured to allow it (<b>LTL&#160;Loads</b> field set to Yes), you can split the existing LTL shipment. When you split a shipment, you move the remaining inventory to a new shipment or to a different, existing shipment. When you split inventory to a new shipment, you can specify a document number and PRO number. See <a href="outbound_loading.htm#Configure_outbound_loading">Configure outbound loading</a>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the <span class="specialbold">Partial </span>field is set to No on an order line, then the application does not allow inventory associated with the order line to be split onto a new shipment. </p>
+                                                            </li>
+                                                            <li value="7"><span class="specialbold">Close the transport equipment</span>. After the transportation equipment is closed, you can choose to dispatch the equipment immediately or hold it in the yard. When you hold transportation equipment in the yard, you specify a dispatch date. </li>
+                                                            <li value="8"><span class="specialbold">Dispatch the transport equipment</span>. The transport equipment must be closed before it can be dispatched. When you dispatch shipping transport equipment, inventory on the equipment is automatically moved to a logical dispatch location type, where it is no longer considered four-wall inventory. </li>
+                                                        </ol>
+                                                        <h2 id="Loads" data-magellan-target="Loads"><a name="Loads"></a>Loads </h2>
+                                                        <p>A load is a collection of stops that are shipped together on a single piece of transport equipment. Before you can load staged shipments onto transport equipment, they must be assigned to a stop that is part of an outbound load. Each stop is assigned a stop sequence that determines the order in which the stops must be loaded into the transport equipment. The application does not allow stops to be loaded out of sequence unless one of the following configurations is set:</p>
+                                                        <ul>
+                                                            <li>The load is configured to ignore the stop sequence order. </li>
+                                                            <li>An item on the shipment is part of an item family to which a break stop sequence code is applied. If a load is configured to ignore the stop sequence order, it overrides the break stop sequence code. </li>
+                                                        </ul>
+                                                        <p>Load information is typically downloaded from the host; however, you can add and modify loads manually, when needed.</p>
+                                                        <p><a name="Shipments"></a>
+                                                        </p>
+                                                        <h2 id="Shipments" data-magellan-target="Shipments">Shipments</h2>
+                                                        <p>A shipment is a group of orders or order lines that are allocated together and shipped to the same location. Within the application, shipments can be created manually or automatically based on a series of pre-defined rules.</p>
+                                                        <p><a name="Manual_shipment_creation"></a>
+                                                        </p>
+                                                        <h2 id="Manualshipmentcreation" data-magellan-target="Manualshipmentcreation">Manual shipment creation</h2>
+                                                        <p>When you manually create shipments, you are responsible for ensuring the validity of the shipment. That is, you must be sure that the orders you select to ship together have the same route-to customer, destination zone, carrier, carrier service, payment terms, shipping date, and delivery date. You must also verify acceptable shipment weights.</p>
+                                                        <h2 id="Shipmentadjustments" data-magellan-target="Shipmentadjustments"><a name="Shipment_adjustments"></a>Shipment adjustments</h2>
+                                                        <p>A shipment adjustment is a procedure in which picked inventory is adjusted off of a shipment. The inventory is typically directed to a problem location where it can be evaluated for further processing or returned to storage. Shipment adjustments are made for a number of reasons, some of which include the following examples:</p>
+                                                        <ul>
+                                                            <li>Inventory is damaged</li>
+                                                            <li>Inventory has aged past its expiration date</li>
+                                                            <li>The order line for which the inventory was picked is cancelled</li>
+                                                        </ul>
+                                                        <p>If the order line is not cancelled, the removed inventory causes the shipment to be short. Therefore, the inventory can be reallocated and picked so that the shipment is complete; otherwise, the shipment remains short of the original pick quantity.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: You cannot adjust inventory off of a shipment until the inventory for the shipment has been staged. </p>
+                                                        <h2 id="Adjustmentprocessflow" data-magellan-target="Adjustmentprocessflow">Adjustment process flow</h2>
+                                                        <p>A shipment adjustment consists of a multi-step process that removes inventory from a shipment and determines how the application handles the adjusted inventory. The following process outlines the basic steps for adjusting inventory off of a shipment:</p>
+                                                        <ol>
+                                                            <li value="1"><span class="specialbold">Move the inventory</span>. When a shipment adjustment is performed, the inventory is logically moved to a temporary adjustment location, and is removed from the shipment. The pick quantity for the original shipment is reduced by the adjusted amount, and then added to the pick quantity for the order. The shipment is no longer staged and its status reverts to In Process. If desired, the picks are then reallocated and the operator completes the pick work for the adjusted quantity. If you do not want to reallocate for the adjusted inventory, you must cancel the remaining quantity required for the shipment line.</li>
+                                                            <li value="2"><span class="specialbold">If necessary, build a new LPN</span>. If a partial quantity of inventory (such as a portion of a pallet or separate cartons) is adjusted off of the shipment, then the operator can build a new LPN from the adjusted inventory. The new LPN is used to split mixed pallets or cartons into separate LPNs, or to combine inventory into a single LPN. For example, a pallet is adjusted off of a shipment, but the pallet contains cases of four different items. If your facility does not allow these different items to be stored together, the operator must build four separate LPNs, one for each item.</li>
+                                                            <li value="3"><span class="specialbold">Complete the LPN</span>. To complete the LPN, the operator must finish any necessary sorting, re-labeling, or consolidating to prepare the inventory for storage. After completing an LPN, it is ready for putaway.</li>
+                                                            <li value="4"><span class="specialbold">Put away the LPN</span>. During the adjustment putaway process, the operator selects a storage location manually or lets the application select the optimal location. After confirmation that the adjusted inventory was placed in a storage location, the operator has the option to print and apply pallet labels.</li>
+                                                        </ol>
+                                                        <h2 id="Shipmenttostaginglaneassignments" data-magellan-target="Shipmenttostaginglaneassignments">Shipment to staging lane assignments</h2>
+                                                        <p>When you have large outbound shipments that will fill more than one staging lane, or contain product from more than one building requiring a staging lane in each building, you can manually assign as many staging lanes as you need for a shipment. You can also stage from multiple buildings to the same destination building.</p>
+                                                        <h3 id="ExampleMultiplestaginglanesinmultiplebuildings" data-magellan-target="ExampleMultiplestaginglanesinmultiplebuildings">Example: Multiple staging lanes in multiple buildings</h3>
+                                                        <p>If you are in the grocery industry, you might store your dry inventory in one building (B1) and your frozen inventory in another building (B2). Therefore, you need two staging lanes, one in B1 to which to pick your dry inventory and one in B2 to which to pick your frozen inventory.</p>
+                                                        <h3 id="ExampleMultiplestaginglanesinonebuilding" data-magellan-target="ExampleMultiplestaginglanesinonebuilding">Example: Multiple staging lanes in one building</h3>
+                                                        <p>You may want to assign multiple staging lanes in the same building for a particular outbound load so that shipments for specific customers are staged in predefined staging lanes, or so that large shipments that require more space than is available in one staging lane can be staged to multiple staging lanes.</p>
+                                                        <h3 id="Howitworks" data-magellan-target="Howitworks">How it works</h3>
+                                                        <p>The following steps describe how to assign multiple staging lanes to a shipment:</p>
+                                                        <ol>
+                                                            <li value="1">Assign a shipment or load to a staging lane.</li>
+                                                            <li value="2">
+                                                                <p>When allocating inventory, the application will assign a destination location to the picks based on the source building of the inventory and the assigned staging lane.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If the inventory exceeds the capacity of a staging lane and multiple staging lanes were assigned in the same destination building, the application routes the picks that would exceed the capacity of a staging lane to the next staging lane in order by priority.</p>
+                                                            </li>
+                                                            <li value="3">An operator picks inventory to the staging lanes that were assigned by allocation.</li>
+                                                        </ol>
+                                                        <h2 id="Handlingunitshipping" data-magellan-target="Handlingunitshipping"><a name="Handling_unit_shipping"></a>Handling unit shipping</h2>
+                                                        <p>If your application is configured for inventory handling unit tracking, then you can load and ship empty serialized and non-serialized handling units on shipping transport equipment. You may want to ship empty handling units to maintain a distributed quantity between customers or warehouses.</p>
+                                                        <p>Non-serialized handling units are tracked by the total quantity of a specific handling unit type. Serialized handling units are tracked individually, by handling unit LPN. When you load empty non-serialized handling units, the application updates the on-hand quantity for the handling unit type, and adds the handling unit type quantity information to the shipment. When you load serialized handling units, the application tracks the unique handling unit LPN and any associated attributes. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: To load empty serialized handling units, you must use an RF device.</p>
+                                                        <p>To load empty non-serialized handling units, see <a href="procedures_for_shipments.htm#Load_or_unload_empty_handling_units">Load or unload empty handling units</a>.</p>
+                                                        <p>You can view a summary of loaded and shipped empty serialized and non-serialized handling units on a shipment. See <a href="procedures_for_shipments.htm#View_detailed_shipment_information">View detailed shipment information</a>.</p>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly"> In this section</p>
+                                                        <div class="MCMiniTocBox_0 miniToc nocontent" data-mc-depth="1" data-mc-toc="True">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

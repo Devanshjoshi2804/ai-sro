@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Picking " data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Pick Verification</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#PickVerification">Pick Verification</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Pickverificationdefaults">Pick verification defaults</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deductionsequencing">Deduction sequencing</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurepickverification">Configure pick verification</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Overridefields">Override fields</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#DeductionSequencefields">Deduction Sequence fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="PickVerification" data-magellan-target="PickVerification"><a name="aanchor316"></a>
+                                                            <MadCap:concept term="WM" />Pick Verification</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#PickVerification">Pick Verification</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Pickverificationdefaults">Pick verification defaults</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deductionsequencing">Deduction sequencing</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurepickverification">Configure pick verification</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Overridefields">Override fields</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#DeductionSequencefields">Deduction Sequence fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Pick verification is the process by which the application prompts the operator, during picking, to confirm the attributes of picked inventory. The application requires certain attributes to be verified by default. See <a href="#Pick_verification_defaults">Pick verification defaults</a>.</p>
+                                                        <p>However, you can define overrides to the pick verification defaults by LPN level and work type for the following entities:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Pick zones</span>: The overrides apply to picks performed in the selected pick zone.</li>
+                                                            <li><span class="specialbold">Order types</span>: The overrides apply to picks for the selected order type.</li>
+                                                            <li><span class="specialbold">User roles</span>: The overrides apply to picks performed by a user assigned to the selected role.</li>
+                                                        </ul>
+                                                        <p>When a pick is performed, the application first considers the pick zone configuration; then, if an order type or role configuration applies, the application combines the configurations to determine if verification is needed. If an attribute is set to Always in any of the configurations that apply, it takes priority and verification for that attribute is required. If Always is not selected, the option to Never verify an attribute overrides the pick verification defaults. </p>
+                                                        <p>If pick verification is not configured for an order type, zone, or role, then when an operator completes a pick, the application updates the inventory in the location based on the default or configured deduction sequence and not necessarily on the inventory that was physically picked. See <a href="#Deduction_sequencing">Deduction sequencing</a>.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Pick verification configurations also apply to voice picking. However, you can configure whether the application uses full verification or only the pick zone verification configuration. See <a href="voice_picking.htm#Configure_voice_picking">Configure voice picking</a>.</p>
+                                                        <h2 id="Pickverificationdefaults" data-magellan-target="Pickverificationdefaults"><a name="Pick_verification_defaults"></a>Pick verification defaults</h2>
+                                                        <p>By default, the application requires an operator to confirm the following inventory attributes when performing a pick:</p>
+                                                        <ul>
+                                                            <li>LPN, for full LPN picks</li>
+                                                            <li>Quantity, for sub-LPN and detail picks</li>
+                                                            <li>Item, for sub-LPN and detail picks</li>
+                                                            <li>Lot, for lot-tracked items</li>
+                                                            <li>Origin, for items tracked by origin</li>
+                                                            <li>Revision level, for items tracked by revision level</li>
+                                                            <li>Catch quantity, when picking a full LPN of an item configured for Catch on Receiving or Catch on Shipping</li>
+                                                            <li>Catch quantity, when picking a partial LPN of an item configured for Catch on Shipping</li>
+                                                            <li>User-defined inventory attribute, for items tracked by the user-defined inventory attribute</li>
+                                                            <li>Rotation, for bonded inventory tracked by a rotation identifier. Only available if Customs is enabled for the warehouse.</li>
+                                                        </ul>
+                                                        <p>If the pick verification flag for an application-required (default) attribute is set to Never and an operator picks inventory from a location that has mixed attribute values, the application selects the first value in alphanumeric order to decrement inventory. For example, if pick verification is not enabled for lot and you have Lot 100, Lot 200, and Lot 300 of Item A in a location, then if the operator is directed to pick Item A, the operator is not prompted to verify which lot was selected. The application would decrement the inventory details for Lot 100, then Lot 200, and Lot 300 as inventory is depleted (even though the operator may have actually picked from Lot 300 at the location).</p>
+                                                        <h2 id="Deductionsequencing" data-magellan-target="Deductionsequencing"><a name="Deduction_sequencing"></a>Deduction sequencing</h2>
+                                                        <p>A deduction sequence is used to identify the order in which inventory is deducted from a location as the result of a pick (order or replenishment) that does not require pick verification. If pick verification is not configured for an order type, zone, or role, then when an operator completes a pick, the application updates the inventory in the location based on the deduction sequence and not necessarily on the inventory that was physically picked. </p>
+                                                        <p>The deduction sequence for an order type overrides the sequence for a zone, which overrides the sequence for a role. If a user is assigned to multiple roles with conflicting deduction sequences, then the application sorts the roles alphanumerically and uses the deduction sequence of the first role. If a pick is associated with multiple order types, then the application sorts the order types alphanumerically and uses the sequence of the first order type.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: Pick deduction sequencing should not be used in conjunction with the following areas of functionality: catch quantity capture, inventory serialization, inventory rotation allocation, allocation profiles, and allocation rules (defined in Allocation Rule Maintenance). If your warehouse uses any of this functionality, it is highly recommended that you enable and configure pick verification to avoid unexpected processing behavior.</p>
+                                                        <p>For example, assume that pick verification is not required for an order type, pick zone, or role. Also assume that a location contains ITEM1 from Lot 1 and Lot 2, and that the deduction sequence for the order type is prioritized by lot with an ascending sort order. When an operator completes a pick for ITEM1 from the location, the application removes the item quantity from Lot 1 first, followed by Lot 2. However, without pick verification, the inventory that is physically picked may differ from the inventory that is deducted in the application. This means that while the application deducted a quantity of ITEM1 Lot 1, the operator could have picked ITEM 1 Lot 2 with no validation.</p>
+                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: Using a deduction sequence configuration in place of pick verification may result in inventory inaccuracies that can span counting, outbound transactions, recalls, reports, and labels. Additional efforts may be required to rectify inaccuracies, such as an increase in inventory adjustments. It is recommended to use pick verification; only use deduction sequencing when all of the risks have been assessed.</p>
+                                                        <p>If pick verification is not required and there is no deduction sequence configuration, then the application deducts inventory from the pick location using the following default sequence (in ascending order):</p>
+                                                        <ol>
+                                                            <li value="1">Item Client</li>
+                                                            <li value="2">Revision Level</li>
+                                                            <li value="3">Supplier</li>
+                                                            <li value="4">Lot Number</li>
+                                                            <li value="5">Supplier Lot Number</li>
+                                                            <li value="6">Origin Code</li>
+                                                            <li value="7">Inventory Status</li>
+                                                            <li value="8">Units Per Case</li>
+                                                            <li value="9">Units Per Pack</li>
+                                                            <li value="10">Shipment Line ID</li>
+                                                            <li value="11">Physical Piece</li>
+                                                            <li value="12">Distribution ID</li>
+                                                            <li value="13">Manufactured Date</li>
+                                                            <li value="14">Expiration Date</li>
+                                                            <li value="15">Return ID</li>
+                                                            <li value="16">Under Bond</li>
+                                                        </ol>
+                                                        <p>For example, using the default sequence, if all inventory in the location has the same item client, revision level, and supplier, but different lot numbers, then picked inventory quantities are deducted by lot number in ascending order of the lot numbers in the location.</p>
+                                                        <h2 id="Configurepickverification" data-magellan-target="Configurepickverification"><a name="Configure_pick_verification"></a>Configure pick verification</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Outbound &gt; Picking &gt; Pick Verification</span>.</li>
+                                                            <li value="2">
+                                                                <p>Enter information in the following fields:</p>
+                                                                <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                                    <thead>
+                                                                        <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                            <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                            <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Confirmation for Threshold Pick</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                                <p>If Yes, the operator is directed to confirm the quantity that was actually picked for a threshold pick. A threshold pick is an overpick performed by picking a higher UOM (such as a pallet) instead of multiple lower UOMs (such as cases) when the quantity required is slightly less than the higher UOM. (The threshold percentage that defines when a threshold pick can be performed is specified on the item footprint UOM.) For example, when an order line requires slightly less than a full pallet, the operator is directed to pick a full pallet rather than multiple cases; the quantity not needed for the order line is removed from the full pallet to be returned to storage.</p>
+                                                                                <p>If No, the operator is not prompted to confirm actual picked quantities for a threshold pick.</p>
+                                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: It is recommended that the <b>Confirmation for Threshold Pick</b> field be set to Yes so that the application is notified that a quantity different from the required quantity was picked.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Display Inventory Attributes</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                                <p>If Yes, then the application displays to the operator the item attributes (such as lot, revision level, and origin) in the location, if they are known and if the inventory is tracked by these attributes. When this field is set to Yes, the application populates attribute values that must be verified so the operator does not have to enter the information. The following pick verification configurations can affect whether and how attributes are displayed:</p>
+                                                                                <ul>
+                                                                                    <li>If pick verification for the attribute is required (either by default or when the pick verification override is set to Always), then the item attribute value is displayed prior to verifying the pick. If the pick location contains inventory with multiple values for an attribute, the application displays "Many"&#160;as the field value. The operator then verifies the specific attribute value of the picked inventory in a second field for the attribute, separate from the display field that is populated with the value (Many). </li>
+                                                                                    <li>If pick verification for the attribute is not required, then the item attribute field is displayed without a value. </li>
+                                                                                </ul>
+                                                                                <p>If No, then if the item is tracked by certain attributes and pick verification is required, the operator must enter the attribute values in the pick fields. If verification is not required, then the item attribute fields are not displayed. </p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Destination LPN</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                                <p>If Yes, the operator can enter the pick information and the destination LPN or location on a single RF screen. Selecting Yes may increase the speed at which the task is performed but may also increase the risk of an inaccurate entry for the destination because the operator must enter it during pickup.</p>
+                                                                                <p>If No, the operator is prompted for the destination LPN or location on a second RF screen. Selecting No may reduce the speed at which the task is performed but may also increase the accuracy of the destination entry because the operator receives a separate prompt after completing the pickup.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </li>
+                                                            <li value="3">To configure a pick verification override:<ol><li value="1">Perform one of the following tasks:<ul><li>To configure overrides by pick zone, click<span class="specialbold"> RF Pick Validation by Zone</span>.</li><li>To configure overrides by outbound order type, click <span class="specialbold">RF Pick Validation by Order Type</span>.</li><li>To configure overrides by user role, click <span class="specialbold">RF Pick Validation by Role</span>.</li></ul></li><li value="2">Perform one of the following tasks:<ul><li>To add an override, click <b>Add.</b></li><li>To modify an override, in the grid, click the pick zone, order type, or role.</li><li>To copy an override, in the grid, select the check box next to the pick zone, order type, or role, and then click <b>Copy</b>.</li></ul></li><li value="3">Enter information in the <a href="#Override_fields">Override fields</a>.</li><li value="4"> For each inventory attribute, perform one of the following tasks:<ul><li>To always prompt the operator to confirm the attribute if inventory is tracked by it, select <span class="specialbold">Always</span>.</li><li>To never prompt the operator to confirm the attribute, even if inventory is tracked by it, select <span class="specialbold">Never</span>.</li><li>To prompt the operator to confirm the attribute based on the default settings, select <span class="specialbold">Default</span>. For the default values, see <a href="#Pick_verification_defaults">Pick verification defaults</a>.</li></ul></li><li value="5">Click <b>Apply</b>.</li></ol></li>
+                                                            <li value="4">
+                                                                <p>To configure a deduction sequence:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: A deduction sequence is used to identify the order in which inventory is deducted from a location as the result of a pick that does not require pick verification. See <a href="#Deduction_sequencing">Deduction sequencing</a>.</p>
+                                                                <ol>
+                                                                    <li value="1">Perform one of the following tasks:<ul><li>To configure deduction sequencing by pick zone, click <span class="specialbold">RF&#160;Pick Deduction Sequence by Zone</span>.</li><li>To configure deduction sequencing by order type, click <span class="specialbold">Deduction Sequence by Order Type</span>.</li><li>To configure deduction sequencing by role, click <span class="specialbold">Deduction Sequence by Role</span>. </li></ul></li>
+                                                                    <li value="2">Perform one of the following tasks:<ul><li>To add a sequence, click <b>Add</b>.</li><li>To modify a sequence, in the grid, click the zone, order type, or role.</li><li>To copy a sequence, in the grid, select the check box next to the pick zone, order type, or role, and then click <b>Copy</b>.</li></ul></li>
+                                                                    <li value="3">Enter information in the <a href="#Deduction_Sequence_fields">Deduction Sequence fields</a>.</li>
+                                                                    <li value="4">In the <b>Available </b>column, select the check box next to each attribute by which inventory in the location is deducted for a pick. If available entities are not displayed, click <b>Show Available</b>.</li>
+                                                                    <li value="5">To change the sequence in which an attribute is considered for deduction, in the <b>Selected </b>column, select a row and drag it to the preferred position.</li>
+                                                                    <li value="6">To change the sort order of a selected attribute, from the <span class="specialbold">Sort Order</span> drop-down list, select <span class="specialbold">Ascending </span>or <span class="specialbold">Descending</span>. </li>
+                                                                    <li value="7">Click <b>Apply</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="5">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="Overridefields" data-magellan-target="Overridefields"><a name="Override_fields"></a>Override fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Pick Zone</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Name of a pick zone. A pick zone represents a group of locations that share the same attributes for picking, such as the LPN level at which picks can be allocated, the cartonization group to which it belongs, and whether the location supports replacement picks and pre-inventory allocation. The search path searches pick zones when attempting to find inventory for allocation.  </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Role</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Category used to group menu options for the purpose of maintaining user authorizations. Roles are assigned to the appropriate user accounts to control the tasks users are authorized to perform.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Order Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Name of an order type. An order type is a category that is used to group orders based on the warehouse processing necessary to fulfill the order. For example, customer orders and distribution orders require different processing by the application, and so an order type can be assigned to categorize each order separately. The application uses order types, for example, to identify orders that are eligible for bulk picking, or to direct orders to specific destination locations.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Work Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Type of pick work to which the verification override applies.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Bulk Pick</span>: Work type used to perform bulk picks.</li>
+                                                                            <li><span class="specialbold">Demand Replenishment</span>: Replenishment work type generated when pre-inventory allocation is enabled and a pick location does not have inventory to complete an order. The application generates demand-based replenishments from reserve storage locations to the pick locations, and then generates picks based on the inventory pending to the pick locations.</li>
+                                                                            <li><span class="specialbold">Emergency Replenishment</span>: Replenishment work type generated automatically when there is insufficient inventory in a pick zone to satisfy a shipment line.</li>
+                                                                            <li><span class="specialbold">Kit</span>: Work type used to pick component items to fill a work order.</li>
+                                                                            <li><span class="specialbold">Manual Replenishment</span>: Replenishment work type initiated by an operator for a specific location.</li>
+                                                                            <li><span class="specialbold">Pick</span>: Work type used to pick inventory to fill an order.</li>
+                                                                            <li><span class="specialbold">Replenishment</span>: Work type used to fill a pickface location with inventory from a storage location.</li>
+                                                                            <li><span class="specialbold">Stage Transfer</span>: Pick work generated to transfer inventory typically from a cross docking location to a staging lane.</li>
+                                                                            <li><span class="specialbold">Top-off Replenishment</span>: Replenishment work type generated automatically at timed intervals.</li>
+                                                                            <li><span class="specialbold">Triggered Replenishment</span>: Replenishment work type generated automatically when an item in a zone or a location has dropped below a user-defined level. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1" style="font-weight: bold;">LPN Level</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                        <p>Packaging level to which the override applies:</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Detail LPN</span>: Applies to each (piece) picks.  </li>
+                                                                            <li><span class="specialbold">LPN</span>: Applies to pallet picks.</li>
+                                                                            <li><span class="specialbold">Sub-LPN</span>: Applies to case picks.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <h2 id="DeductionSequencefields" data-magellan-target="DeductionSequencefields"><a name="Deduction_Sequence_fields"></a>Deduction Sequence fields</h2>
+                                                        <table style="width: 100%;margin-left: 0;margin-right: auto;mc-table-style: url('resources/tablestyles/field_descriptions_avoidrowbreak.css');" class="TableStyle-Field_Descriptions_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions_AvoidRowBreak-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions_AvoidRowBreak-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Pick Zone</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Name of a pick zone. A pick zone represents a group of locations that share the same attributes for picking, such as the LPN level at which picks can be allocated, the cartonization group to which it belongs, and whether the location supports replacement picks and pre-inventory allocation. The search path searches pick zones when attempting to find inventory for allocation.  </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Role</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Category used to group menu options for the purpose of maintaining user authorizations. Roles are assigned to the appropriate user accounts to control the tasks users are authorized to perform.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body1" style="font-weight: bold;">Order Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body1">
+                                                                        <p>Name of an order type. An order type is a category that is used to group orders based on the warehouse processing necessary to fulfill the order. For example, customer orders and distribution orders require different processing by the application, and so an order type can be assigned to categorize each order separately. The application uses order types, for example, to identify orders that are eligible for bulk picking, or to direct orders to specific destination locations.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyE-Column1-Body2" style="font-weight: bold;">Work Type</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyD-Column2-Body2">
+                                                                        <p>Type of pick work to which the deduction sequence applies.</p>
+                                                                        <ul>
+                                                                            <li><b>Bulk Pick</b>: Work type used to perform bulk picks.</li>
+                                                                            <li><b>Demand Replenishment</b>: Replenishment work type generated when pre-inventory allocation is enabled and a pick location does not have inventory to complete an order. The application generates demand-based replenishments from reserve storage locations to the pick locations, and then generates picks based on the inventory pending to the pick locations.</li>
+                                                                            <li><b>Emergency Replenishment</b>: Replenishment work type generated automatically when there is insufficient inventory in a pick zone to satisfy a shipment line.</li>
+                                                                            <li><b>Kit</b>: Work type used to pick component items to fill a work order.</li>
+                                                                            <li><b>Manual Replenishment</b>: Replenishment work type initiated by an operator for a specific location.</li>
+                                                                            <li><b>Pick</b>: Work type used to pick inventory to fill an order.</li>
+                                                                            <li><b>Replenishment</b>: Work type used to fill a pickface location with inventory from a storage location.</li>
+                                                                            <li><b>Stage Transfer</b>: Pick work generated to transfer inventory typically from a cross docking location to a staging lane.</li>
+                                                                            <li><b>Top Off Replenishment</b>: Replenishment work type generated automatically at timed intervals.</li>
+                                                                            <li><b>Triggered Replenishment</b>: Replenishment work type generated automatically when an item in a zone or a location has dropped below a user-defined level.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions_AvoidRowBreak-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyB-Column1-Body1" style="font-weight: bold;">LPN&#160;Level</td>
+                                                                    <td class="TableStyle-Field_Descriptions_AvoidRowBreak-BodyA-Column2-Body1">
+                                                                        <p>Packaging level to which the deduction sequence applies:</p>
+                                                                        <ul>
+                                                                            <li><b>Detail LPN: </b>Applies to each (piece) picks.</li>
+                                                                            <li><b>LPN</b>: Applies to pallet picks.</li>
+                                                                            <li><b>Sub-LPN</b>: Applies to case picks.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

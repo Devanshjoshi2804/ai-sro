@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Allocation" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Pick Zones</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#PickZones">Pick Zones</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Allocatetoemptyprocess">Allocate to empty process</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Allocatetoemptyexamples">Allocate to empty examples</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Zoneconsolidation">Zone consolidation</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Addormodifyapickzone">Add or modify a pick zone</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Deleteapickzone">Delete a pick zone</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Consolidatezones">Consolidate zones</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PickZonefields">Pick Zone fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="PickZones" data-magellan-target="PickZones"><a name="aanchor301"></a>
+                                                            <MadCap:concept term="WM" />Pick Zones</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#PickZones">Pick Zones</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Allocatetoemptyprocess">Allocate to empty process</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Allocatetoemptyexamples">Allocate to empty examples</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Zoneconsolidation">Zone consolidation</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Addormodifyapickzone">Add or modify a pick zone</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Deleteapickzone">Delete a pick zone</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Consolidatezones">Consolidate zones</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PickZonefields">Pick Zone fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A pick zone represents a group of locations that share the same attributes for picking, such as the LPN level at which picks can be allocated, the cartonization group to which it belongs, and whether the location supports replacement picks, starter pallets, and pre-inventory allocation. For a location to be considered pickable, it must be assigned to a pick zone. </p>
+                                                        <p>Each pick zone can represent a different picking configuration. For example, you can define multiple pick zones for a series of bays (shelving units). If the bay is three levels high, each level could be defined as a different pick zone based on the inventory being stored there (such as pallets on one level, cases on another level, and heavy cases on another level).</p>
+                                                        <p>Pick zones are assigned to allocation search paths to represent the source from which inventory is allocated to fulfill orders. The allocation search path determines the units of measure (UOMs) that can be allocated from a particular zone.</p>
+                                                        <p>When you configure a pick zone, you define the attributes of the pick zone, the layout of the pick zone (as drawn on a warehouse or building map), and the locations that belong to the pick zone. A location can belong to only one pick zone.</p>
+                                                        <h2 id="Allocatetoemptyprocess" data-magellan-target="Allocatetoemptyprocess"><a name="Allocate_to_empty_process"></a>Allocate to empty process</h2>
+                                                        <p>The allocate to empty process is intended to be used in pick zones that have single-item locations, not pickface locations. This process can be used to override FEFO, FIFO, LEFO, and LIFO allocation of date-tracked inventory, but does not override absolute FEFO, FIFO, LEFO, and LIFO allocation of date-tracked inventory. The allocate to empty options apply to the allocation of an item only, not allocation by other item attributes such as lot and origin code.</p>
+                                                        <p>Processing takes place according to the following options in the <b>Allocate to Empty Action</b> field:</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Allocation</span>: The application automatically sets and maintains a location's allocate to empty sequence, and users cannot change it. When the application sets a location's allocate to empty sequence, the location that is the primary source of allocation for an item will only be reset once the location is empty, even if the allocation that set it is canceled. Using the <span class="specialbold">Allocation </span>option also eliminates the possibility of having multiple primary locations. For example, if a location becomes the primary source of allocation for an item, it is the only primary source for the item in the pick zone; but once the location is empty and its allocate to empty sequence is reset, the application will allocate from another location. If you want to be able to designate which location should be second or third in line for allocating a specific item, you should select the <span class="specialbold">Manual </span>or <span class="specialbold">Manual and Allocation</span> option.</li>
+                                                            <li><span class="specialbold">Manual</span>: The application does not automatically set the allocate to empty sequence, but a user can manually set it for locations in the pick zone. Typically, you would allow manual updates to the allocate to empty sequence for locations in a pick zone if you want to select a specific location that needs to be emptied, or if you want to specify that certain inventory for an item needs to be allocated before other existing inventory. For example, if a specific location needs to be available for storing incoming inventory, you can set its sequence so that the application allocates from that location until it is empty. Similarly, if you want to ensure that a specific lot of an item is allocated immediately, you can set the storage location's allocate to empty sequence so that the application identifies it as the primary source of allocation.</li>
+                                                            <li>
+                                                                <p><span class="specialbold">Manual</span> or <span class="specialbold">Manual and Allocation</span>: Both of these options allow you to manually set the allocate to empty sequence for a single location from which you want inventory to be allocated, or you can set the allocate to empty sequence for multiple locations containing the same item. Setting the allocate to empty sequence for multiple locations ensures that the locations are emptied in the order you want.</p>
+                                                                <p>For example, if there are three locations storing the same item that you want to allocate from until they are empty, you can set each location's allocate to empty sequence. In this scenario, the location with the lowest allocate to empty sequence would be the primary allocation source for the item until the location is empty. Then the application selects the next location for which you set sequence and allocates from the location with the lower (higher priority) sequence.</p>
+                                                            </li>
+                                                        </ul>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: If two or more locations have identical allocate to empty sequence numbers, the application evaluates the allocate to empty dates and uses the location that had its allocate to empty sequence set first as the primary allocation source.</p>
+                                                        <h2 id="Allocatetoemptyexamples" data-magellan-target="Allocatetoemptyexamples"><a name="Allocate_to_empty_examples"></a>Allocate to empty examples</h2>
+                                                        <p>The following table is an example of three locations containing the same item in a pick zone that allows only manual updates to the allocate to empty sequence, meaning that each allocate to empty sequence is manually set by a user. When the application allocates the item from this pick zone, it begins with LOC-C because it has the lowest sequence. When LOC-C is empty and its sequence is cleared, the application allocates the item from LOC-B until it is empty, and then from LOC-A. After a location’s sequence is cleared and new inventory is stored there, you must manually set its allocate to empty sequence again if you want the location to hold allocation priority over other locations storing the same item in the pick zone.</p>
+                                                        <table style="width: 360;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Location</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Allocate to empty sequence</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="150" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">LOC-A</p>
+                                                                    </td>
+                                                                    <td width="210" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">800</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="150" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">LOC-B</p>
+                                                                    </td>
+                                                                    <td width="210" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">700</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="150" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">LOC-C</p>
+                                                                    </td>
+                                                                    <td width="210" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">600</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>If the locations are in a pick zone where only automatic updates are made to the allocate to empty sequence, you would not be able to specify which locations follow the initial location for allocation. The following table is an example of the application allocating from LOC-C first and setting its allocate to empty sequence to 1000. The sequence is not set for other locations storing the same item so that LOC-C remains the primary source for allocation. However, once LOC-C is empty, the application clears its allocate to empty sequence and determines the next location to allocate from using the allocation search path configurations.</p>
+                                                        <table style="width: 360;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Location</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Allocate to empty sequence</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="150" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">LOC-A</p>
+                                                                    </td>
+                                                                    <td width="210" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">&#8209;</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="150" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">LOC-B</p>
+                                                                    </td>
+                                                                    <td width="210" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">&#8209;</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="150" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">LOC-C</p>
+                                                                    </td>
+                                                                    <td width="210" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p class="tablebodytextcenter">1000</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p><a name="Zone_consolidation"></a>
+                                                        </p>
+                                                        <h2 id="Zoneconsolidation" data-magellan-target="Zoneconsolidation">Zone consolidation</h2>
+                                                        <p>You can use the Consolidate action, available from any zone configuration grid, to consolidate zones that share a common configuration into a single (original) zone. You can consolidate the following types of zones: count zones, movement zones, pick zones, storage zones, and work zones. See <a href="#Consolidate_zones">Consolidate zones</a>.</p>
+                                                        <p>When you select a zone and use the Consolidate action, the application presents a list of zones that have a configuration that matches the selected (original) zone. You can then select one or more of the matching zones to consolidate to the original zone. </p>
+                                                        <p>During consolidation, the application performs the following tasks:</p>
+                                                        <ul>
+                                                            <li>Updates all the configurations and references for the zones that are being consolidated to now use the original zone. For example, if PickZone2 and PickZone3 are consolidated into PickZone1, then the locations assigned to PickZone2 and PickZone3 are reassigned to PickZone1. </li>
+                                                            <li>Removes the consolidated zones and retains the original zone.</li>
+                                                            <li>Displays a progress bar that shows the processing status of the consolidation. </li>
+                                                            <li>When consolidation is complete, displays the list of any remaining consolidation candidates that match the original zone. This allows you to continue consolidating to the original zone.</li>
+                                                        </ul>
+                                                        <p>The same process is available for location types using the location type configuration. See <a href="location_types.htm#Location_type_consolidation">Location type consolidation</a>.</p>
+                                                        <h2 id="Addormodifyapickzone" data-magellan-target="Addormodifyapickzone"><a name="Add_or_modify_a_pick_zone"></a>Add or modify a pick zone</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Outbound &gt; Allocation &gt; Pick Zones</span>.</li>
+                                                            <li value="2">Perform one of the following tasks:<ul><li>To add a pick zone, from the <b>Actions</b> drop-down list, select <b>Add</b>. </li><li>To modify a pick zone, in the grid, click the pick zone.</li><li>To copy a pick zone, in the grid, select the check box next to the pick zone, and then from the <b>Actions</b> drop-down list, select <b>Copy</b>.</li></ul></li>
+                                                            <li value="3">Enter information in the <a href="#Pick_Zone_fields">Pick Zone fields</a>.</li>
+                                                            <li value="4">Click <b>Layout</b> or <b>Next</b>. </li>
+                                                            <li value="5">To draw the zone on the warehouse map for the selected building:<ol><li value="1">Click <b>View</b>, and then select the check box for each option that you want to display on the map. </li><li value="2">Click <b>Draw</b>, and then move and size the shape on the page.</li></ol></li>
+                                                            <li value="6">
+                                                                <p>Click <b>Finish</b>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: To assign locations to a pick zone, see the information on modifying multiple locations in <a href="locations.htm#Location_configuration_process">Location configuration process</a>.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Deleteapickzone" data-magellan-target="Deleteapickzone"><a name="Delete_a_pick_zone"></a>Delete a pick zone</h2>
+                                                        <ol>
+                                                            <li value="1">Select <b>Configuration &gt; Outbound &gt; Allocation &gt; Pick Zones</b>.</li>
+                                                            <li value="2">In the grid, select the check box next to the pick zone to delete. </li>
+                                                            <li value="3">From the <b>Actions</b> drop-down list, select <b>Delete</b>. A confirmation message is displayed.</li>
+                                                            <li value="4">Click <b>OK</b>.</li>
+                                                        </ol>
+                                                        <p><a name="Consolidate_zones"></a>
+                                                        </p>
+                                                        <h2 id="Consolidatezones" data-magellan-target="Consolidatezones">Consolidate zones</h2>
+                                                        <p>You use the following procedure to consolidate zones that have the same configurations into a single (original) zone. See <a href="#Zone_consolidation">Zone consolidation</a>. </p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: Zones cannot be consolidated if outstanding work references the selected zone.</p>
+                                                        <ol>
+                                                            <li value="1">Perform one of the following tasks:<ul><li>For count zones, select <b>Configuration &gt; Inventory &gt; Counting &gt; Count Zones.</b></li><li>For movement zones, select <b>Configuration &gt; Inventory &gt; Movement &gt; Movement Zones.</b></li><li>For pick zones, select <b>Configuration &gt; Outbound &gt; Allocation &gt; Pick Zones.</b></li><li>For storage zones, select <b>Configuration &gt; Inbound &gt; Storage &gt; Storage Zones.</b></li><li>For work zones, select <b>Configuration &gt; Work &gt; Work &gt; Work Zones.</b></li></ul></li>
+                                                            <li value="2">In the grid, select the zone to which duplicate zones will be consolidated. This becomes the original zone that remains after the duplicate zones have been removed. This is also the zone to which references and configurations are reassigned.</li>
+                                                            <li value="3">From the <b>Actions</b> drop-down list, select <b>Consolidate</b>. A list of zones that have the same configuration as the original zone are displayed.</li>
+                                                            <li value="4">In the grid, select the check box next to the zones to consolidate. The selected zones will be removed after consolidation takes place.</li>
+                                                            <li value="5">Click <b>Save</b>. The selected zones are removed, and the Consolidation page displays the remaining zones, if any, that match the original zone.</li>
+                                                        </ol>
+                                                        <h2 id="PickZonefields" data-magellan-target="PickZonefields"><a name="Pick_Zone_fields"></a>Pick Zone fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Zone Name</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Name for a group of locations that share the same attributes for picking. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Description</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Text that further describes the zone.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Building</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Name of the building in which the zone resides.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Pre-Inventory Allocation (PIA)</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, locations in the zone are enabled for pre-inventory allocation. Pre-inventory allocation (PIA) is a process in which picks are allocated from a pickface location before the necessary inventory physically exists at that location. With PIA enabled, if a pick location does not have inventory to complete an order, then the application generates demand-based replenishments from reserve storage locations to the pick location, and then generates picks based on the inventory pending to the pick location.</p>
+                                                                        <p>If No, then if there is insufficient inventory in the pick location, allocation will be shorted (fail) until the locations are replenished.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Allocate to Empty</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when the application allocates an item from a location, that location is the primary source for allocating the item until the location is empty.  For example, when allocate to empty is enabled, if five pallets of ITEM01 are stored in LOC-A and the application allocates four of them, then when the application needs to allocate ITEM01 again, it will first allocate the one remaining pallet from LOC-A before allocating ITEM01 from another location. If this field is set to Yes, then you define how the allocate to empty sequence is set in the <b>Allocate to Empty Action</b> field.</p>
+                                                                        <p>If No, the application does not allocate from the location until it is empty. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Allocate to Empty Action</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Value that determines the method by which the allocate to empty sequence is set for the pick zone. Only available if the <b>Allocate to Empty</b> field is set to Yes.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Allocation: </span>Allocate to empty is enabled and the application automatically sets the allocate to empty sequence for a location. If selected, then when the application allocates an item from a location, that location's allocate to empty sequence is set to 1000 and it becomes the primary location for allocating that item until the location is empty. You cannot manually change the location's allocate to empty sequence but once the location is empty, its allocate to empty sequence is reset until the location is again selected for allocation<span class="specialbold" style="font-weight: normal;">.</span></li>
+                                                                            <li><span class="specialbold">Disabled: </span>Allocate to empty is not used, and the application allocates inventory based on the allocation search path.</li>
+                                                                            <li><span class="specialbold">Manual: </span>Allocate to empty is enabled but you must manually modify the allocate to empty sequence for a location. If selected, and you want the application to allocate from one location until it is empty before allocating from another location, you must manually modify the location's allocate to empty sequence so that it is earlier sequentially than the other location. Once the location is empty, the allocate to empty sequence is reset.</li>
+                                                                            <li><span class="specialbold">Manual and Allocation: </span>Allocate to empty is enabled and the application automatically sets the allocate to empty sequence for a location. If selected, then when the application allocates an item from a location, that location's allocate to empty sequence is set to 1000 and it becomes the primary location for allocating that item until the location is empty. However, with this option selected, you can also manually change the location's allocate to empty sequence to better suit operational needs. Once the location is empty, its allocate to empty sequence is reset until the location is again selected for allocation.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">LPN&#160;Level Picks</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>LPN level at which operators must scan picks in the pick zone.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If the item being picked is tracked at an LPN&#160;level that is not selected in this field, operators may still be required to scan an identifier for that LPN&#160;level when performing a pick. </p>
+                                                                        <ul>
+                                                                            <li>
+                                                                                <p><span class="specialbold">LPN Level</span>: Operators are required to scan or enter an LPN when removing inventory from the pick zone.  Typically, an LPN refers to a pallet.  </p>
+                                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If <span class="notebold">LPN Level</span> is selected, then automatic consolidation will not take place even if the storage zone is configured for automatic LPN consolidation.</p>
+                                                                            </li>
+                                                                            <li><span class="specialbold">Sub-LPN Level</span>: Operators are required to scan or enter a sub-LPN&#160;when removing inventory from the pick zone. Typically, a sub-LPN refers to a case. </li>
+                                                                            <li><span class="specialbold">Detail LPN Level</span>: Operators are required to scan or enter a sub-LPN when removing inventory from the pick zone. Typically, a detail LPN&#160;refers to an each or piece. </li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Replace Picks</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the pick zone supports replacing the source location of an outstanding pick with a source location in receiving to fulfill the pick. This process eliminates the intermediate step for storage by fulfilling a pick with inventory in a receiving location. For example, selecting Yes allows the application to automatically change the source location (typically in a storage area) of an outstanding pick or replenishment to a location in receiving (such as a receiving dock door or production location). This occurs when received inventory can be used to satisfy a pick. By sourcing the pick from receiving, the inventory can be moved directly from receiving to the customer order's destination location. </p>
+                                                                        <p>If No, the application does not attempt to automatically change the source location of an outstanding pick with a different source location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Starter Pallet</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, a pick from a location in the pick zone is eligible to be a starter pallet. A starter pallet is the first pallet in a picking tour, and is typically a large quantity base pick (such as a less than full pallet pick) upon which subsequent picks can be placed. See <a href="work_assignments.htm#Starter_pallets">Starter pallets</a>.</p>
+                                                                        <p>If No, picks from the zone are not eligible to be used as starter pallets.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Visibility to Work Assignment Picks</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then when an operator begins a work assignment in the pick zone, the list of picks is displayed to the operator. This allows the operator to perform the picks out of sequence if necessary. This is useful, for example, to support equipment that can pick several layers at a time to build a pallet, because the picks can be completed in reverse order until the equipment is full. This process results in fewer deposits and still builds the pallet in the correct sequence. </p>
+                                                                        <p>If No, work assignment picks are displayed one at time for the operator to complete the picks in sequence.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Batch Limit</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Maximum number of picks sent to the voice device in a single batch. A lower value (minimum of 10) means the device needs to request new batches from the application more often; however, this configuration allows the operator to be informed of picking errors more frequently and address them immediately. A higher value means the device needs to stop picking less often to request a new batch from the application; however, if the application is using one-way messaging, the operator is not informed of picking errors until the current batch is complete.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You can define this field value in the general voice picking configurations and for a specific pick zone. The pick zone batch limit overrides the value defined in the voice picking configurations. </p>
+                                                                        <p>When the number of picks on a device falls to 50% of the configured value, the application sends another batch limit of picks to the device. Therefore, the number of picks currently on a voice device can fluctuate between 50% and 150% of the defined batch limit. For example, if the defined limit is 10, then when there are 5 picks remaining on a device, the application sends 10 more picks so the device has a total of 15 picks. </p>
+                                                                        <p>When the application creates a batch and adheres to the configured batch limit, it also considers the next pick in sequence (which would exceed the batch limit) to determine if it can be consolidated with the last pick in the previous batch based on item, location, and pick UOM. For example, assume the batch limit for voice picking is 10. If 11 separate picks exist for Item A from the same location and in the same picking UOM, then instead of sending separate batches to the voice device (one for the first 10 picks and another for the eleventh pick because it exceeds the limit), the application consolidates the quantity of the eleventh pick into the batch with the first 10 picks. The voice operator is then prompted with a single pick quantity to fulfill all 11 picks. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The application continues to evaluate and consolidate the next pick in sequence until it no longer matches the last pick in the original batch, or until 25 additional picks have been added to the original batch. 
+        </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick Validation Batch Size</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Number of subsequent picks in a work assignment that the application pre-validates. Pick pre-validation is a process that determines whether inventory is available in a location prior to presenting the pick to an operator.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: You can define this field value in the general voice picking configurations and for a specific pick zone. The pick zone validation batch size overrides the value defined in the voice picking configurations. </p>
+                                                                        <p>For example, assume the <b>Pick Validation Batch Size</b> is 5. When a voice operator acknowledges a work assignment and is directed to the first pick location, the application pre-validates the first 5 picks. After the operator completes 4 of the picks, there is one pre-validated pick remaining, and the operator is directed to the fifth pick. At the same time, the application pre-validates the next 5 picks in the work assignment.</p>
+                                                                        <p>Set this field to a higher number in fast-moving or high-density picking environments to ensure the operator has a higher number of validated picks to complete over a short period of time. Alternatively, set this field to a lower number in slower moving picking environments or to reduce the need to skip or cancel picks that would fail validation. For example, if this field is set to 1 (default value) and the fourth pick requires a replenishment, then there is time for the replenishment to be completed before the application attempts to validate that pick. However, if the field was set to 4, then the fourth pick would fail validation without the replenishment completed, and the pick is subject to the fail action defined on the pick pre-validation scheme associated with the pick method. As another example, pick zones in which a voice device's connection to the application may be inhibited (such as a freezer) could be configured with a higher validation batch to reduce the number of transaction messages that are exchanged.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: This field has no effect if the picked message format between the voice device and application is ODR (outbound data record). The application only pre-validates the <b>Pick Validation Batch Size</b> if the message format is LUT (look-up table). If the ODR format is used, the application pre-validates all of the picks issued to the device.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick Multiple LPNs at Once</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when there are multiple LPN-level (pallet) order picks or replenishment picks from the same location, the application groups the pick quantities based on selected criteria, if the equipment limit allows. When the operator is presented with the pick work, prior to acknowledging it, the grouped quantity is displayed on the RF Pickup Product At screen. Upon acknowledging the work, the operator is directed to pick a quantity of 1; however, the operator can continue picking pallets (scanning each one separately) until the grouped quantity has been picked. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;This configuration does not apply to LPN&#160;picks in a work assignment.  </p>
+                                                                        <p>When this field is set to Yes, operators performing full pallet picks in the zone, such as with a fork truck, can perform multiple pallet picks at the same time, without acknowledging each pick separately. The application groups pallet picks with the highest priority first, and the grouped quantity will not exceed the equipment LPN limit.</p>
+                                                                        <p>For example, assume there are 4 single-pallet picks from a location that have matching values for the selected grouping criteria, and that the operator's fork truck has a limit of 3 LPNs. When the operator looks for directed work, the application groups 3 LPN picks to reach the equipment limit. That quantity (3) is displayed on the RF device with the source location prior to acknowledging the work. After acknowledgment, the operator can scan 3 LPNs (one by one), rather than picking 1 LPN&#160;at a time and requiring the application to look for additional work after each pick. However, the operator is not required to pick the entire grouped quantity, and the picked quantity can be deposited at any time.</p>
+                                                                        <p>If you set this field to Yes, then in the  column that is displayed, select the check box next to the available criteria that must match for picks for be grouped together. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If a pallet pick is manually assigned to an operator, the application can still group additional pallet picks that meet the grouping criteria with the initial pick. The operator can then pick the grouped quantity or can pick a lesser quantity. </p>
+                                                                        <p>If No, the application does not provide operators with the quantity on the acknowledgment screen; there is no visibility to multiple LPN picks from the same location. Therefore, operators must complete pallet picks individually, even when there are similar picks from the same location. Using the previous example, if this field is set to No, the operator would need to separately pick 3 LPNs (acknowledging each piece of pick work individually)&#160;from the same location.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Cartonization Group</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Name of the cartonization group to which the pick zone belongs. A cartonization group is used to group pick zones from which inventory can be cartonized together. For example, your warehouse may have 10 pick zones in which you want to perform cartonization, but 5 of the pick zones are located close together on the north side of the building while the other 5 pick zones are located close together on the south side of the building. You can define 2 cartonization groups and assign one to the north pick zone and one to the south pick zones, so that product from the north 5 pick zones is cartonized together and product from the south 5 pick zones is cartonized together, separately from the north 5 pick zones.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Summary Count Back</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when an operator performs a count back task in the pick zone, the system allows the inventory to be counted in summary (without tracking the lot, origin, revision level, or other inventory attributes). For example, if an operator picks less than a full pallet of inventory from a mixed-lot LPN, then when performing the count back, the operator can enter the total quantity of the remaining inventory once instead of counting each lot separately.</p>
+                                                                        <p>If No, then the operator must count the inventory for each lot, origin, and revision level separately. For example, if an operator picks less than a full pallet of inventory from a mixed-lot LPN, then when performing the count back, the operator must count and enter the quantity for each lot individually. When the inventory for one lot is confirmed, the operator can count and confirm inventory for the next lot, and so on.</p>
+                                                                        <div class="Note">
+                                                                            <p><b class="NoteHeadingBold">Notes</b>: </p>
+                                                                            <ul>
+                                                                                <li>Setting this field to No may increase the time it takes an operator to perform the count, because the inventory may need to be physically separated by lot, origin, or revision level prior to performing the count.</li>
+                                                                                <li>If a user is configured to never perform a count back, then this field has no effect for that user, since the counts are never required.</li>
+                                                                                <li>If a user is configured to always perform count back, then this field determines how that user performs the count.</li>
+                                                                                <li>If a user is configured to perform a count back only if the item or location requires it, then this field determines how the count is performed. If neither the location nor item requires count back, then this field has no effect, since a count is not performed.</li>
+                                                                            </ul>
+                                                                            <p>For more information on user configurations, see <a href="admin/users.htm#Define_the_Warehouse_Management_settings_for_a_user">Define the Warehouse Management Settings for a user</a>.
+			</p>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Count Back Location Quantity </p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body2">
+                                                                        <p>If Yes, then when an operator completes a pick, the application requires the operator to count back the remaining quantity of the picked item in the entire location. Count back counts are performed only for the locations and items that require it, based on the count settings, and only by authorized users. For example, assume a location contains Item1 on LPN1 and LPN2, and Item2 on LPN3. If an operator picks Item1 from LPN1, then the operator is required to count back the remaining quantity of Item1 on LPN1 and LPN2. The operator does not count back Item2 on LPN3. </p>
+                                                                        <p>If No, then the operator is required to count back the remaining quantity of the picked item on the LPN from which it was picked. For example, assume a location contains Item1 on LPN1 and LPN2. If an operator picks Item1 from LPN1, then the operator is required to count back the remaining quantity of Item1 on LPN1. The operator does not count back Item1 on LPN2. </p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;This field only affects count back quantity if manual and automatic consolidation are disabled for the storage zone. If manual or automatic consolidation are enabled for the storage zone, then the operator is required to count back the entire picked item quantity for the location regardless of this field. See <a href="count_settings.htm#Count_back_counts">Count back counts</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Configuration" data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Variable Configuration</title>
+        <link href="../../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="../resources/tablestyles/table_plain_avoidrowbreak.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="../resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../../Skins/Favicons/favicon-16x16.png" />
+        <script src="../../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="../home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#VariableConfiguration">Variable Configuration</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Variablenames">Variable names</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#AddonIDs">
+         Addon IDs</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Customdateformats">Custom date formats</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Variableconfigurationsetuptasks">Variable configuration setup tasks</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="VariableConfiguration" data-magellan-target="VariableConfiguration"><a name="aanchor429"></a>
+                                                            <MadCap:concept term="Administration" />Variable Configuration</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#VariableConfiguration">Variable Configuration</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Variablenames">Variable names</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#AddonIDs">
+         Addon IDs</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Customdateformats">Custom date formats</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Variableconfigurationsetuptasks">Variable configuration setup tasks</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A variable configuration is the configuration of a field (such as a text box, list, or check box) that implements a variable name. The configuration defines the field label and other properties, as well as the context in which the configuration takes effect (such as on a specific SCE&#160;client window, on all SCE&#160;client windows, or on RF or mobile device screens). </p>
+                                                        <p>You can use the  following pages to maintain variable configurations:</p>
+                                                        <ul>
+                                                            <li>
+                                                                <p><b>Catalog</b>: Define one or more message catalog entries for a new or existing variable name. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: Variable names are also maintained on the Message Catalog page. See <a href="message_catalog.htm">Message Catalog</a>. </p>
+                                                            </li>
+                                                            <li><b>Config</b>: Define the basic properties of a variable configuration, such as whether the variable configuration is enabled and visible, field type, and display settings.</li>
+                                                            <li><b>Defaults</b>: Define a default value for a field.</li>
+                                                            <li><b>Inputs</b>: Define the properties of a valid input value, such as maximum number of characters allowed.</li>
+                                                            <li><b>Validate</b>: Define how the data entered into a field is validated, including how often validation occurs and which command is used for validation.</li>
+                                                            <li><b>Valid Possibility</b>: Define a field as a drop-down list with values.</li>
+                                                            <li><b>Lookup</b>: Define a field as a lookup field, in which a user can access a lookup window or menu.</li>
+                                                        </ul>
+                                                        <h2 id="Variablenames" data-magellan-target="Variablenames"><a name="Variable_names"></a>Variable names</h2>
+                                                        <p>A variable name, as defined on the Catalog page or on Message Catalog, is a code that is used to represent a piece of fixed text (such as an SCE&#160;client window title, field label, or button label) that is displayed in the user interface. </p>
+                                                        <p>Variable names are used to provide multi-language support (MLS). The implementation of a variable name, such as prtnum, can be configured in multiple ways to support translations or customizations, or to accommodate a specific user interface, such as an RF or mobile device screen.</p>
+                                                        <p>For example, the standard product display text for the variable name prtnum is Item. If your facility refers to items as stock keeping units (SKUs), you can change the display text for prtnum to SKU.</p>
+                                                        <p>The configuration associated with a variable name defines its properties, such as its appearance, data type, default values, input parameters, validation, valid possibilities, and whether a variable lookup is provided with the control. For example, you may want the reacod (reason code) field to use a different list of valid possibilities depending on the application in which it is displayed. To do this, you would create separate variable configurations for reacod, and select a different lookup ID (list of valid possibilities) for each. The configuration also defines the context (such as on SCE&#160;client windows or RF and mobile device screens) in which the variable configuration takes effect. Context is defined by addon ID variables. See <a href="#Addon_IDs">Addon IDs</a>.</p>
+                                                        <h2 id="AddonIDs" data-magellan-target="AddonIDs"><![CDATA[
+         ]]><a name="Addon_IDs"></a>Addon IDs</h2>
+                                                        <p>An addon ID is a code that is used to identify a Blue Yonder  component (such as a Blue Yonder  application) or group of components (all Blue Yonder  applications). An addon ID, when associated with a variable name or user-defined inventory attribute, provides a method for specifying the context in which the variable or attribute configuration takes effect.</p>
+                                                        <p>For example, if you want the prtnum variable name to be displayed as Item on all SCE&#160;client windows in the application, you associate that value with the LES addon ID. If you want it to be displayed as Itm: on RF or mobile device screens, you associate that value with the RF addon ID.</p>
+                                                        <p>The following table describes the base addon IDs and the context that each represents.</p>
+                                                        <table style="border-collapse: separate;margin-left: 0;margin-right: auto;mc-table-style: url('../resources/tablestyles/table_plain_avoidrowbreak.css');" class="TableStyle-Table_Plain_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1" width="96">
+                                                                        <p class="tableheading">Addon ID</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadD-Column1-Header1" width="402">
+                                                                        <p class="tableheading">Component</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak" width="96">
+                                                                        <p>3PL</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak" width="402">
+                                                                        <p>Environments in which third-party logistics functionality is enabled</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak" width="96">
+                                                                        <p>Customs</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak" width="402">
+                                                                        <p>Environments in which customs functionality is enabled</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak" width="96">
+                                                                        <p>LES</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak" width="402">
+                                                                        <p>Global to all Blue Yonder  components </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak" width="96">
+                                                                        <p>LM</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak" width="402">
+                                                                        <p>Warehouse Labor Management</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak" width="96">
+                                                                        <p>RF</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak" width="402">
+                                                                        <p>RF and mobile device screens</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak" width="96">
+                                                                        <p>SEAMLES</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak" width="402">
+                                                                        <p>Integrator</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak" width="96">
+                                                                        <p>WM</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyA-Column1-AvoidRowBreak" width="402">
+                                                                        <p>Warehouse Management</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>In addition to addon IDs, the following addon ID hook variables may be used, depending on the application policies (SYSTEM- INFORMATION/MISCELLANEOUS/ADDON_ID_HOOKS) that are enabled:</p>
+                                                        <ul>
+                                                            <li><b class="SpecialBold">Clients</b>: In a 3PL environment, if the CLIENT_ID addon ID hook variable is enabled, then you can configure a variable configuration to take effect only with data related to a specific client.</li>
+                                                            <li><b class="SpecialBold">Client Groups</b>: In a 3PL environment, if the CLIENT_GRP addon ID hook variable is enabled, then you can configure a variable configuration to take effect only with data related to a specific client group.</li>
+                                                            <li>
+                                                                <p><b class="SpecialBold">Warehouses</b>: In a multi-warehouse environment, if the Warehouse ID addon ID hook variable is enabled, then you can configure a variable configuration to take effect only in a specific warehouse.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: If you have Warehouse Management installed, you can use Policy Maintenance to enable addon IDs and addon ID hook variables. </p>
+                                                            </li>
+                                                        </ul>
+                                                        <p>Precedence defines which variable configuration is used when multiple variable configurations have been defined for a variable name, each with different addon IDs. Precedence is based on the addon IDs that are enabled in the application using the SYSTEM-INFORMATION/MISCELLANEOUS/ADDON_ID policy, and the value for Sort Sequence that is defined for each return string (addon ID) in the policy.</p>
+                                                        <p>For example, variable configurations for client ID fields are enabled and visible but are associated with the 3PL addon ID; therefore, in a standard non-3PL application, the client ID fields are hidden because the 3PL addon ID is not enabled. In a 3PL environment with the 3PL addon ID enabled, the client ID fields are visible (based on user authorization).</p>
+                                                        <p>When an addon ID is enabled, the variable configuration takes effect, except when multiple addon IDs are enabled, and precedence is given to one variable configuration over another.</p>
+                                                        <p>The following table provides an example of how the application determines which configuration to use when multiple addon IDs (A, B, and C) are enabled sequentially, and there are conflicting configurations for the same variable name.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: A weight is given to each addon ID in the application configuration from left to right. The first addon ID is given the highest weight and the last addon ID is given the lowest weight. The weight is a bitwise weight: (2^(n-1), 2^(n-2), ... 2^0, where <span class="italics">n</span> is the number of addon IDs. So, since A is the first of 3 addon IDs, the weight is 2^(3-1), or 2^2, which equals 4.</p>
+                                                        <table style="border-collapse: separate;margin-left: 0;margin-right: auto;mc-table-style: url('../resources/tablestyles/table_plain_avoidrowbreak.css');" class="TableStyle-Table_Plain_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" style="width: 120px;" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" style="width: 84px;" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" style="width: 80%;" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1">
+                                                                        <p class="tableheading"> Addon ID Enabled </p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">  Weight  </p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Explanation</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">LES</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">0</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Matches any configuration, but is only used if no other matches occur.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">A</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">4</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Matches the first addon ID, therefore, has more weight than the other two.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">B</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">2</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Matches the second ID.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">C</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">1</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Matches the last ID.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">A,B</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">6</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Weighs more than A alone.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">A,C</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">5</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Would only be used if B did not match.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">A,B,C</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">7</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Would always be used if defined because all the IDs match.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">B,C</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">3</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Would only be used if A did not match.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">C</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">1</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Would only be used if A and B did not match.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">A,B,C,D</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p class="tablebodytextcenter">-1</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyA-Column1-AvoidRowBreak">
+                                                                        <p>Would not be used because D does not exist in the application configuration.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>Based on this example, a variable configuration for a specific variable name that is enabled for A, B, and C is used over another configuration for the same variable name that is enabled for A, B, or C individually. In addition, variable configuration C, the lowest weighted configuration, is only used over another configuration for the same variable name if there are no other configurations defined for A or B, and variable configuration A and D is not used because D does not exist in the application.</p>
+                                                        <h2 id="Customdateformats" data-magellan-target="Customdateformats"><a name="Custom_date_formats"></a>Custom date formats</h2>
+                                                        <p>A custom date format is a configuration that controls how date and time information is displayed for a field (variable name) that uses a date control; these include fields that capture a start date, end date, shipped date, completion date, and so on.</p>
+                                                        <p>When you configure the display properties of a variable configuration or a user-defined inventory attribute that uses a date control, you can use date format codes to define the format in which the date and time information is displayed. For example, you would use FRMT=yymmdd to specify a two-digit year, a two-digit month, and a two-digit day.</p>
+                                                        <p>For information on configuring a date format for variable configuration, see <a href="config.htm#Add_or_modify_a_variable_configuration">Add or modify a variable configuration</a>.</p>
+                                                        <p>The following table shows how the same date can be displayed in different formats.</p>
+                                                        <table style="mc-table-style: url('../resources/tablestyles/table_plain_avoidrowbreak.css');" class="TableStyle-Table_Plain_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1" width="138">
+                                                                        <p class="tableheading">Code</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadD-Column1-Header1" width="174">
+                                                                        <p class="tableheading">Format</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak" width="138">
+                                                                        <p>ddddMMMMddyyy</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak" width="174">
+                                                                        <p>Friday January 15 2021</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak" width="138">
+                                                                        <p>yyMMdd</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak" width="174">
+                                                                        <p>210115</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak" width="138">
+                                                                        <p>yyddd</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak" width="174">
+                                                                        <p>21FRI</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak" width="138">
+                                                                        <p>MMddyyy</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyA-Column1-AvoidRowBreak" width="174">
+                                                                        <p>01152021</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>The following table lists the codes that control the format in which date and time is displayed.</p>
+                                                        <table style="mc-table-style: url('../resources/tablestyles/table_plain_avoidrowbreak.css');" class="TableStyle-Table_Plain_AvoidRowBreak" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain_AvoidRowBreak-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadE-Column1-Header1" width="60">
+                                                                        <p class="tableheading">Codes</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain_AvoidRowBreak-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Description</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>d</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit day. One-digit values are not preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>dd</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Two-digit day. One-digit values are preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>ddd</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Three-character day-of-week abbreviation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>dddd</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Full day-of-week name.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>h</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit hour in 12-hour format. One-digit values are not preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>hh</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Two-digit hour in 12-hour format. One-digit values are preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>H</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit hour in 24-hour format. One-digit values are not preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>HH</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Two-digit hour in 24-hour format. One-digit values are preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>m</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit minute. One-digit values are not preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>mm</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Two-digit minute. One-digit values are preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>M</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit month number. One-digit values are not preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>MM</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit month number. One-digit values are preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>MMM</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Three-character month abbreviation.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>MMMM</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Full month name.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>s</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit seconds. One-digit values are not preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>ss</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit seconds. One-digit values are preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>t</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One-letter a.m./p.m. abbreviation (a.m. is displayed as A, p.m. is displayed as P).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>tt</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Two-letter a.m./p.m. abbreviation (a.m. is displayed as AM, p.m. is displayed as PM).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>w</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit week number. One-digit values are not preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>ww</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One or two-digit week number. One-digit day values are preceded by 0.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>y</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>One-digit year (2021 is displayed as "1").</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyE-Column1-AvoidRowBreak">
+                                                                        <p>yy</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyD-Column1-AvoidRowBreak">
+                                                                        <p>Last two digits of the year (2021 is displayed as 21).</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain_AvoidRowBreak-Body-AvoidRowBreak">
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyB-Column1-AvoidRowBreak">
+                                                                        <p>yyy</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Table_Plain_AvoidRowBreak-BodyA-Column1-AvoidRowBreak">
+                                                                        <p>Full year (2021 is displayed as 2021).</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>: The application calculates the decade for the single-year date code (y) using plus or minus 5 years, depending on whether looking back to arrive at a manufactured date or ahead to arrive at an expiration date.</p>
+                                                        <h2 id="Variableconfigurationsetuptasks" data-magellan-target="Variableconfigurationsetuptasks"><a name="Variable_configuration_setup_tasks"></a>Variable configuration setup tasks</h2>
+                                                        <p>A variable configuration can be defined to implement a control, or changes to a control, in the SCE client, and RF and mobile device user interfaces. For example, a variable configuration is used to change the label that is displayed next to a control, or to prevent the control from being displayed. When you define a variable configuration, you can specify the context in which the configuration takes effect; that is, for a specific warehouse, client, client group, user, or role. </p>
+                                                        <p>You must complete the following tasks to set up and implement a variable configuration:</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p><b class="SpecialBold">Enable the addon IDs that can be used to control the context in which the variable configuration takes effect.</b>
+                                                                </p>
+                                                                <p>You use Policy Maintenance to configure the SYSTEM-INFORMATION/MISCELLANEOUS/ADDON_ID and SYSTEM-INFORMATION/MISCELLANEOUS/ADDON_ID_HOOKS policies.</p>
+                                                            </li>
+                                                            <li value="2">
+                                                                <p><b class="SpecialBold">Verify user assignments.</b>
+                                                                </p>
+                                                                <p>You use the web client to assign users to roles, warehouses (in a multi-warehouse environment), and clients and client groups (in a 3PL environment). If the user is assigned to multiple warehouses, or is set as an Enterprise user, then the warehouse selected when the user logs in is the one that the application uses to determine the variable configurations. See <a href="users.htm">Users</a>.</p>
+                                                            </li>
+                                                            <li value="3">
+                                                                <p><b class="SpecialBold">Define the custom variable configurations that you want to implement.</b>
+                                                                </p>
+                                                                <p>You use the pages under Variable Configuration to create custom variable configurations.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly"> In this section</p>
+                                                        <div class="MCMiniTocBox_0 miniToc nocontent" data-mc-depth="1" data-mc-toc="True">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="../legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

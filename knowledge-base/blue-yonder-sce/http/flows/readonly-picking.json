@@ -1,0 +1,242 @@
+{
+  "screen": "picking",
+  "route": "#wm.picking/wm.outbounddashboard////",
+  "readOnly": true,
+  "calls": [
+    {
+      "seq": 0,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/movementZones/nonpaged",
+      "query": "showLocationCount=1&siteId=SG&subsites=----&_dc=1786530168470",
+      "status": 200,
+      "bytes": 159405,
+      "rowCount": 92,
+      "sampleKeys": [
+        "RDTFlag",
+        "allocMaxUomRplFlag",
+        "allowDynamicPickFaceReplenishment",
+        "allowOverpickingOfReplenishmentQuantity",
+        "autoCancelPick",
+        "autoCloseShipmentFlag",
+        "buildingId",
+        "clearDestinationLocationOnDeposit",
+        "consolidations_uri",
+        "defaultReplConfigInvSts",
+        "defaultReplConfigMaxUnit",
+        "defaultReplConfigMinUnit"
+      ]
+    },
+    {
+      "seq": 1,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inboundOrderTypes",
+      "query": "receivingTypesOnly=true&siteId=SG&subsites=----&_dc=1786530168646",
+      "status": 200,
+      "bytes": 5272,
+      "rowCount": 18,
+      "sampleKeys": [
+        "deliveryFlag",
+        "gs1InboundOrderType",
+        "inboundOrderType",
+        "longDescription",
+        "resourceId",
+        "returnFlag",
+        "self_uri",
+        "standardPutawayFlag",
+        "wmDefaultFlag"
+      ]
+    },
+    {
+      "seq": 2,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/movementZones/nonpaged",
+      "query": "showLocationCount=0&warehouseId=SG&siteId=SG&subsites=----&_dc=1786530168646",
+      "status": 200,
+      "bytes": 159405,
+      "rowCount": 92,
+      "sampleKeys": [
+        "RDTFlag",
+        "allocMaxUomRplFlag",
+        "allowDynamicPickFaceReplenishment",
+        "allowOverpickingOfReplenishmentQuantity",
+        "autoCancelPick",
+        "autoCloseShipmentFlag",
+        "buildingId",
+        "clearDestinationLocationOnDeposit",
+        "consolidations_uri",
+        "defaultReplConfigInvSts",
+        "defaultReplConfigMaxUnit",
+        "defaultReplConfigMinUnit"
+      ]
+    },
+    {
+      "seq": 3,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMShippingProgress3PL",
+      "query": "_dc=1786530168811&siteId=SG&subsites=----",
+      "status": 200,
+      "bytes": 38,
+      "rowCount": null,
+      "sampleKeys": null
+    },
+    {
+      "seq": 4,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shippingDashboard/listShippedTodayInformation",
+      "query": "endDate=2026-08-13T00%3A00%3A00-04%3A00&startDate=2026-08-12T00%3A00%3A00-04%3A00&startDateTime=2026-08-12T04%3A00%3A00.000Z&endDateTime=2026-08-13T03%3A59%3A00.000Z&siteId=SG&subsites=----&_dc=1786530169025",
+      "status": 200,
+      "bytes": 280,
+      "rowCount": 1,
+      "sampleKeys": [
+        "actual_customers",
+        "actual_loads",
+        "actual_lpns",
+        "actual_shipment_lines",
+        "actual_shipments",
+        "expected_customers",
+        "expected_loads",
+        "expected_shipment_lines",
+        "expected_shipments",
+        "parcel_packs",
+        "shorted_shipment_lines"
+      ]
+    },
+    {
+      "seq": 5,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shippingDashboard/stagingLanesIssues",
+      "query": "query=%5B%5D&siteId=SG&subsites=----&_dc=1786530169026",
+      "status": 200,
+      "bytes": 114,
+      "rowCount": 1,
+      "sampleKeys": [
+        "picksHeld",
+        "reservedLanes",
+        "stagingInUse",
+        "stagingLanes"
+      ]
+    },
+    {
+      "seq": 6,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shippingDashboard/shippingdoors",
+      "query": "query=%5B%5D&siteId=SG&subsites=----&_dc=1786530169026",
+      "status": 200,
+      "bytes": 162,
+      "rowCount": 1,
+      "sampleKeys": [
+        "averageTurnTime",
+        "dockDoors",
+        "doorsInUse",
+        "failedSafetyChecks",
+        "liveLoads",
+        "readyToDispatch"
+      ]
+    },
+    {
+      "seq": 7,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shippingDashboard/shippingappointments",
+      "query": "query=%5B%5D&siteId=SG&subsites=----&_dc=1786530169027",
+      "status": 200,
+      "bytes": 136,
+      "rowCount": 1,
+      "sampleKeys": [
+        "appointments",
+        "departedAppointments",
+        "lateToArrive",
+        "lateToDepart",
+        "waitingAppt"
+      ]
+    },
+    {
+      "seq": 8,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shippingDashboard/shippingissues",
+      "query": "query=%5B%5D&siteId=SG&subsites=----&_dc=1786530169028",
+      "status": 200,
+      "bytes": 147,
+      "rowCount": 1,
+      "sampleKeys": [
+        "problemInventory",
+        "shipmentsUnassigned",
+        "shortItems",
+        "shortLoads",
+        "unshippableInventory"
+      ]
+    },
+    {
+      "seq": 9,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shippingProgressEach",
+      "query": "startDateTime=2026-08-12T04%3A00%3A00.000Z&endDateTime=2026-08-13T04%3A00%3A00.000Z&query=&threeplStatus=true&siteId=SG&subsites=----&_dc=1786530169033",
+      "status": 200,
+      "bytes": 15496,
+      "rowCount": 24,
+      "sampleKeys": [
+        "allocatedEachQuantity",
+        "clientIdList",
+        "endDateTime",
+        "loadedEachQuantity",
+        "pickingEachQuantity",
+        "pickingEachTotal",
+        "planningEachTotal",
+        "postPickEachQuantity",
+        "resourceId",
+        "self_uri",
+        "shippedEachQuantity",
+        "shippingEachTotal"
+      ]
+    },
+    {
+      "seq": 10,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shippingProgressEach",
+      "query": "startDateTime=2026-08-12T04%3A00%3A00.000Z&endDateTime=2026-08-13T04%3A00%3A00.000Z&query=&threeplStatus=true&siteId=SG&subsites=----&_dc=1786530169034",
+      "status": 200,
+      "bytes": 15496,
+      "rowCount": 24,
+      "sampleKeys": [
+        "allocatedEachQuantity",
+        "clientIdList",
+        "endDateTime",
+        "loadedEachQuantity",
+        "pickingEachQuantity",
+        "pickingEachTotal",
+        "planningEachTotal",
+        "postPickEachQuantity",
+        "resourceId",
+        "self_uri",
+        "shippedEachQuantity",
+        "shippingEachTotal"
+      ]
+    },
+    {
+      "seq": 11,
+      "method": "GET",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMShippingProgress3PL",
+      "query": "siteId=SG&subsites=----&_dc=1786530169036",
+      "status": 200,
+      "bytes": 772,
+      "rowCount": 2,
+      "sampleKeys": [
+        "discriminator",
+        "insertDate",
+        "modifiedDate",
+        "insertUserId",
+        "modifiedUserId",
+        "dataType",
+        "funcGroup",
+        "sortSequence",
+        "filterType",
+        "columnName",
+        "id",
+        "resourceId"
+      ]
+    }
+  ],
+  "screenState": {
+    "error": "Ext not available"
+  },
+  "writesObservedOnLoad": []
+}

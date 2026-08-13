@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Picking " data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Pick Release</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#PickRelease">Pick Release</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Resourcelocations">Resource locations</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Staginglocationreservationbyresourcecode">Staging location reservation by resource code</a>
+                                                        </li>
+                                                        <li>
+                                                            <ul>
+                                                                <li class="tree-node"><a href="#Setup">Setup</a>
+                                                                </li>
+                                                            </ul>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurepickreleaseattributes">Configure pick release attributes</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#PickReleasefields">Pick Release fields</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="PickRelease" data-magellan-target="PickRelease"><a name="aanchor106"></a>
+                                                            <MadCap:concept term="WM" />Pick Release</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#PickRelease">Pick Release</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Resourcelocations">Resource locations</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Staginglocationreservationbyresourcecode">Staging location reservation by resource code</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurepickreleaseattributes">Configure pick release attributes</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#PickReleasefields">Pick Release fields</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>Pick release is the process of allocating the locations in the movement path for picked inventory to its final destination, and releasing those picks so that operators can perform the work. </p>
+                                                        <p>Pick release can be executed manually or set up for automatic processing based on specific pick release configurations. </p>
+                                                        <p>During pick release, the application considers a group of picks in a wave, determines which picks are for work assignments and which are single picks, builds the work assignments, and then attempts to reserve locations for the entire group of picks (if the pick method is configured to reserve locations in a movement path). If there are one or more locations with capacity for the group, the picks are released; if there is not enough capacity for the group, the picks are not released. </p>
+                                                        <p class="Note"><span><b class="NoteHeadingBold">Note</b>:&#160;</span>If a pick method is configured to reserve all locations, then during the location reservation phase of pick release, the application searches for staging lanes based on the release group defined on the pick method and by matching resource codes, if enabled.<span> See <a href="movement_paths.htm#Location_reservation">Location reservation</a> and <a href="#Staging_location_reservation_by_resource_code">Staging location reservation by resource code</a>. </span></p>
+                                                        <p>When you configure pick release you specify the following settings:</p>
+                                                        <ul>
+                                                            <li>Restrictions that limit the amount of pick work that is released at one time</li>
+                                                            <li>Pick consolidation that determines whether pick work is consolidated (to reduce the number of picks, if possible) and how pick work is grouped for release at the same time</li>
+                                                            <li>Release specifications that are used to enable automatic pick release and related actions, to specify the days on which picks are performed, and to allocate locations in the movement path for the picked inventory</li>
+                                                            <li>Whether the application groups picks for release and staging lane reservation</li>
+                                                            <li>If staging lane reservation by resource code is enabled, a utilization percentage that determines the percentage of a lane's capacity that a group of picks must reach before it can be staged in the location</li>
+                                                        </ul>
+                                                        <h2 id="Resourcelocations" data-magellan-target="Resourcelocations"><a name="Resource_locations"></a>Resource locations</h2>
+                                                        <p>A resource location is a location in a movement path that is reserved for picked inventory at the time the inventory is allocated. The movement path for picked inventory consists of movement zones that include processing locations (such as for overpack, consolidation, and staging). If there is no location available in a given movement zone that already has the same resource code (such as item family) as that required for picked inventory, the application allocates an empty location in the zone.</p>
+                                                        <p>The application searches for a valid location using the location attributes and sequence specified for resource location sequences. Location attributes can include, for example, ABC code, maximum capacity, work zone, or travel sequence. If multiple attributes are selected, the application sorts the valid locations according to the order in which the attributes are listed in the grid. For example, if attributes are listed as Maximum Capacity and then Travel Sequence, then locations are sorted first by capacity and then by travel sequence. If resource location sequences are left blank, then the list of valid locations is not sorted prior to the application reserving a location for the picked inventory.</p>
+                                                        <h2 id="Staginglocationreservationbyresourcecode" data-magellan-target="Staginglocationreservationbyresourcecode"><a name="Staging_location_reservation_by_resource_code"></a>Staging location reservation by resource code</h2>
+                                                        <p>You can configure the application to reserve staging lane locations by grouping picks within a wave based on the resource variable assigned to the destination movement zone of each pick. The application searches for staging capacity based on the entire group of picks and will only release the picks if one or more staging lanes have the capacity to completely stage the group. When you configure the application to reserve staging lanes by resource code, the resource variable defined on the destination movement zone of the picks determines which value is used to group picks for release and location reservation. For example, if the resource variable for zone MOVE1 is Load, then during pick release, the application reserves staging lanes in zone MOVE1 for each separate load within a wave. </p>
+                                                        <p>The staging lane utilization determines the percentage of a lane's capacity that a group of picks must reach before it can be staged in the location. The utilization percentage is only used when ship staging lane reservation by resource code is enabled. The application may reserve more than one lane  if a single lane does not have capacity for an entire group of picks.</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;The location capacity code is used to determine if a group of picks satisfies the utilization percentage, not the number of picks included in the group. For example, if the capacity code is Pallet and a work assignment includes 10 sub-LPN picks that can fit on 1 pallet, the application uses the count of 1 pallet to determine capacity utilization. Additionally, if the capacity code is Pallet, then any handling unit type used for the picks is considered a pallet for capacity calculations. </p>
+                                                        <p>When a dock set or dock door is defined on an appointment, the application determines the priority of the lanes associated with the dock set or door in the following sequence:</p>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If a destination zone and destination lane are defined during wave planning or allocation, the application does not evaluate any other staging lanes associated with the dock set or door. Additionally, if an appointment does not have a dock set or door, or if there is no appointment associated with the group of picks, then priority is not evaluated and location sort rules are used instead. For the application to process ship staging lane reservation by resource code properly, it is recommended that you do not define a destination zone or lane during wave planning or allocation, and that picks are associated with an appointment that specifies a dock set or door. </p>
+                                                        <ol>
+                                                            <li value="1">A staging lane with inventory that matches the grouped picks (utilization is ignored) based on the resource variable assigned to the destination movement zone</li>
+                                                            <li value="2">
+                                                                <p>Highest priority lane associated to the appointment dock set or door for which the grouped picks satisfy the utilization percentage</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If multiple lanes are required and the utilization percentage is not met for all of the lanes needed in a dock set, the application can reserve lanes across multiple dock sets as long as the lane is in the same movement zone as the original dock set and is assigned a priority.</p>
+                                                            </li>
+                                                            <li value="3">Highest priority lane associated to the appointment dock set or door  but for which the picks do not satisfy the utilization percentage</li>
+                                                            <li value="4">Location sort rules, such as travel sequence, defined in the outbound staging configurations. Location sort rules are also used to break priority ties between lanes identified earlier in the reservation sequence.</li>
+                                                        </ol>
+                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If a lane is associated to multiple doors in a set, then the application uses the average priority of all lane-to-door associations defined in the dock lane assignment configuration. For example, if the dock set defined on an appointment has 3 doors, and a lane is assigned to each door in the set with priorities of 1, 2, and 3, then the lane priority is 2 for the dock set [(1 + 2 + 3 = 6) / 3 = 2]. If another lane is associated to the same doors with the priorities of 1, 1, and 2, then that lane would be evaluated first since its average priority is higher than 2. </p>
+                                                        <p> If the application cannot find one or more lanes with capacity in which to stage the entire group of picks for the resource code, then the picks are not released. </p>
+                                                        <h3 id="Setup" data-magellan-target="Setup">Setup</h3>
+                                                        <p>You must perform the following tasks to set up and configure staging lane reservation by resource code:&#160;</p>
+                                                        <ol>
+                                                            <li value="1">
+                                                                <p>Associate each shipping dock door with each staging lane until each door is associated with every staging lane. Typically, the lane closest in proximity to the dock door has the highest priority (1), and that priority decreases as the lanes increase in distance from the door. However, other factors may dictate how you set priority, such as smaller lanes closer to the door  being assigned a lower priority to ensure larger lanes farther away are used first. See <a href="dock_lane_assignment.htm#Associate_staging_lanes_and_aisles_with_shipping_dock_doors">Associate staging lanes and aisles with shipping dock doors</a>.</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If you configure low capacity lanes with a high priority, the application will fill smaller staging lanes first, resulting in a higher number of lanes reserved for a single group of picks.  </p>
+                                                            </li>
+                                                            <li value="2">For ship staging lane reservation by resource code, it is recommended to configure the application to not release groups of picks based on shipment or scheduled batch (<b>Release Grouping</b> = No Grouping). This allows for any pick that is successfully allocated to be released, regardless of short inventory. If you release by shipment or scheduled batch, not only will shorts prevent the entire shipment or batch from being released, but staging lanes in the movement zone must have the capacity for both the release grouping and the group of picks (grouped based on the movement zone's resource variable). For example, if the release grouping is set to Shipment and the resource variable is Load, then if there is not enough capacity for an entire load, the picks are not released, even if the lanes have capacity for one or more shipments on the load. See <a href="#Configure_pick_release_attributes">Configure pick release attributes</a>.</li>
+                                                            <li value="3">
+                                                                <p>Configure all work assignment&#160;pick methods  (that you want to be staged together)&#160;to reserve all locations at the time of pick release (<b>Reserve During Pick Release</b> = All). See <a href="pick_methods.htm#Add_or_modify_a_pick_method">Add or modify a pick method</a>.</p>
+                                                                <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>:&#160;Do not change the setting of this field if there are work assignments that are already allocated or released. If you are upgrading an existing system in which you cannot ensure there are no work assignments allocate or released for a pick method, then it is recommended that you create new pick methods with the <b>Reserve During Pick Release</b> field set to All, and then update the existing allocation search path rules with the new pick methods. Operators can then complete existing work assignments with ship staging reservation taking place during deposit, and the application allocates new work assignments using the new pick methods on the allocation search paths. </p>
+                                                            </li>
+                                                            <li value="4">
+                                                                <p>Set the <b>Ship Staging Lane Reservation by Resource Code</b> field to Yes and define the <b>Staging Lane Utilization</b> in the pick release configurations. See <a href="#Configure_pick_release_attributes">Configure pick release attributes</a>. </p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;The <b>Resource Variable</b> on a movement zone determines the resource code used to reserve locations. For example, if the resource variable for zone MOVE1 is Load, then during pick release, the application reserves staging lanes in zone MOVE1 for each separate load within a wave.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="Configurepickreleaseattributes" data-magellan-target="Configurepickreleaseattributes"><a name="Configure_pick_release_attributes"></a>Configure pick release attributes</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Outbound &gt; Picking</span> &gt; <span class="specialbold">Pick Release</span>.</li>
+                                                            <li value="2">Enter information in the <a href="#Pick_Release_fields">Pick Release fields</a>.</li>
+                                                            <li value="3">
+                                                                <p>To specify the dates on which the pick day is reversed:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: An exception reverses the pick day selection. For example, if Monday is selected as a pick day, an exception for a date that falls on a Monday indicates picking is not performed on that date. If Monday is not selected as a pick day, an exception for a date that falls on a Monday indicates picking is performed on that date. The application does not allow you to configure exceptions until changes to pick days are saved.</p>
+                                                                <ol>
+                                                                    <li value="1">If Pick Days have been edited, click <b>Save</b>. </li>
+                                                                    <li value="2">Under <b>RELEASE&#160;SPECIFICATIONS</b>, click <span class="specialbold">Exceptions</span>.</li>
+                                                                    <li value="3">To add an exception, on the calendar, select the dates on which the pick day configuration is reversed. The selected dates are highlighted in red.</li>
+                                                                    <li value="4">To remove an exception, on the calendar, click the exception.</li>
+                                                                    <li value="5">Click <img src="resources/images/image942307.png" width="18" height="18" vspace="0px" hspace="0px" align="Bottom" border="0px" alt="Close" />.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="4">
+                                                                <p>To define the criteria that determines the order in which the application assigns an available resource location:</p>
+                                                                <p class="Note"><b class="NoteHeadingBold">Note</b>: A resource location is a processing location in a movement zone to which the pick will be directed. The resource location sequence determines how the application sorts resource locations before selecting one. The sequence is based on location attributes (such as travel sequence) and the arrangement (sequence) of those attributes in the grid.</p>
+                                                                <ol>
+                                                                    <li value="1">Click <span class="specialbold">Resource Location Sequence</span>.</li>
+                                                                    <li value="2">In the <b>Available </b>grid, select the check box next to the attributes to use.</li>
+                                                                    <li value="3">In the <b>Selected </b>grid, click and drag the selected attribute to the preferred position.</li>
+                                                                    <li value="4">Click <b>Apply</b>.</li>
+                                                                </ol>
+                                                            </li>
+                                                            <li value="5">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <h2 id="PickReleasefields" data-magellan-target="PickReleasefields"><a name="Pick_Release_fields"></a>Pick Release fields</h2>
+                                                        <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                            <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                    <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                    <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Maximum Stops</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Maximum number of stops that are released at one time for a given outbound load when picks are allocated to a Held status. For example, if you set this value to 2, then the picks for 2 stops for a held load are released. No more picks are released for the load until picking for one of the stops is complete. If this value is blank or zero, the application will not release any picks automatically for a shipments in the Held status; they would have to be released manually.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Limit by Availability</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application checks the locations in the movement path (such as a packing or consolidation location) before releasing the picks to ensure that another process did not already reserve the location that is needed. This is useful when more than one process in the application handles the release of picks; that is, when you are using more than one Pick Release Manager.</p>
+                                                                        <p>If No, the application does not check the availability of the locations in the movement path.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Maximum Batches</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Maximum number of batches that the pick release command should process ahead in the queue of outstanding batches. A batch is a collection of picks that are allocated at the same time (not necessarily released at the same time). More batches are released after the number of current batches falls below this value. This value must be less than or equal to 250.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Maximum Pallets for Small Shipping Lane</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Maximum number of pallets allowed at a shipment staging lane for it to be considered a small staging lane. If you define a value, then the pick release process requires that a small shipping lane is only used when it can contain at least 50% of the pallets required by the shipment. This prevents many small lanes from being occupied by one large shipment, and keeps them available for smaller shipments. </p>
+                                                                        <p>For example, if you want to define small shipping lanes as those that have a capacity for 4 pallets, then set this value to 4. For this configuration, if a shipment requires 8 or fewer pallets, then shipping lanes that have a maximum capacity of 4 pallets would be candidates for use. However, if a shipment requires 10 pallets or more, then those shipping lanes would not be candidates for use because one of them cannot hold 50% of the shipment.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Consolidation</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application attempts to consolidate, into a single pick, any pending picks that have the same schedule batch, shipment line, LPN level, origin, lot, revision level, source location, destination location, and UCC. If selected, then during pick release, picks for the sub-LPN and detail LPN that share these properties are combined into one pick.</p>
+                                                                        <p>If No, matching picks are not be combined automatically and must be picked separately.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Release Grouping</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Value that determines the grouping by which picks are released after the group is entirely allocated. When releasing picks, the application waits until all allocations in the selected structure (Shipment or Schedule Batch) are complete and then releases the picks for that group.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">Release By Shipment</span>: Picks for a shipment or work order are released when all picks for the shipment or work order are allocated.  If one or more order lines is short, the remaining picks are not released.</li>
+                                                                            <li><span class="specialbold">Release By Scheduled Batch</span>: Picks for a scheduled batch are released when all picks for the scheduled batch are allocated. If one or more order lines is short, the remaining picks are not released.</li>
+                                                                            <li><b>No Grouping</b>: Picks are not grouped. If one or more order lines is short, the remaining picks are released.</li>
+                                                                        </ul>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Case Picking Footprint Code Enforcement</td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, then when performing a case (sub-LPN) pick, an operator is not required to select a case with the same footprint as the one that was allocated. If this field is set to Yes, then for case picks, the application allows a different case footprint for the same item to be picked. </p>
+                                                                        <p>
+                                                                            <p class="bodytext">The configuration only applies to case (sub-LPN) picks for orders, not to replenishment picks. If the configuration is enabled, the application performs the following operations:</p>
+                                                                            <ul>
+                                                                                <li>Consolidates pick work for the same item with different footprint codes on the same shipment line, as long as the picks are sourced from the same location. For a work assignment, picks are consolidated first and then assigned to the same work assignment. So the picks on the work assignment already consider any footprint. </li>
+                                                                                <li>Allows the operator to pick a footprint code different from that specified for the pick.</li>
+                                                                                <li>If the quantity in the selected case is not enough to fulfill the pick quantity, the remaining quantity is allocated as an each pick.</li>
+                                                                            </ul>
+                                                                        </p>
+                                                                        <p>If No, then when performing a case pick, the operator is required to select a case with the same footprint as the one that was allocated.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Ship Staging Lane Reservation by Resource Code</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, then during pick release, the application reserves staging lane locations by grouping picks within a wave based on the resource variable assigned to the destination movement zone. The application searches for staging capacity based on the entire group of picks and will only release the picks if one or more staging lanes have the capacity to completely stage the group. When you configure the application to reserve ship staging lanes by resource code, the resource variable defined on the destination movement zone of the picks determines which value is used to group picks for  location reservation. For example, if the resource variable for zone MOVE1 is Load, then during pick release, the application reserves staging lanes in zone MOVE1 for each separate load within a wave. See <a href="#Staging_location_reservation_by_resource_code">Staging lane reservation by resource code</a>.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;If this field is set to Yes, it is recommended that the <b>Reserve During Pick Release</b> field is set to All for any pick methods you want to be able to stage together. For example, work assignments and full pallet picks may need to be staged together but require different pick methods, so each method should be configured to reserve all locations. </p>
+                                                                        <p>If No, then during pick release,  the application does not reserve ship staging lanes based on the capacity needed for the entire group of picks. If you set this field to No and configure the application to reserve all locations during pick release, then this could result in some picks in a resource code group being staged while other picks in the same group remain unreleased because there was not enough staging capacity. </p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Staging Lane Utilization Percentage</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p> Determines the percentage of a lane's capacity that a group of picks must reach before it can be staged in the location. The utilization percentage is only used when <b>Ship Staging Lane Reservation by Resource Code</b> field is set to Yes. The location capacity code is used to determine if a group of picks satisfies the utilization percentage, not the number of picks included in the group. For example, if the capacity code is Pallet and a work assignment includes 10 sub-LPN picks that can fit on 1 pallet, the application uses the count of 1 pallet to determine capacity utilization. Additionally, if the capacity code is Pallet, then any handling unit type used for the picks is considered a pallet for capacity calculations.</p>
+                                                                        <p class="Note"><b class="NoteHeadingBold">Note</b>:&#160;Set the utilization percentage higher if staging lane space is limited so a high percentage of a location's capacity is required to be filled. Set the utilization percentage lower if you want to keep resource code groups within the appointment's assigned dock set or grouped closely together. If you do not enter a utilization percentage value, the application considers the value to be 0%, and the utilization percentage is not used during location reservation by resource code.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Automatic Release</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the pick release manager is enabled to release batches of picks after allocation.</p>
+                                                                        <p>If No, the picks must be released manually.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Pick Days</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Days of the week that you allow picks to be released. This configuration prevents pick release from taking place on days that picks are not performed; for example, on weekends. </p>
+                                                                        <p>You use the <span class="specialbold">Exceptions </span>field to select the dates on which exceptions to the pick days occur. For example, you can select as an exception a holiday that falls on a day of the week that is set as a pick day. An exception reverses the pick day configuration.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Post Release</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>If Yes, the application processes the command specified in the <span class="specialbold">Command </span>field after the release of each schedule batch or combination code (as defined by the <span class="specialbold">Timing </span>field). For example, if the application is integrated with Warehouse Labor Management planning functionality, and you are sending pick information immediately, then your Blue Yonder project team may set the command to "register picks released" and the execution point to "After Combination Code Release." </p>
+                                                                        <p>When the Post Release field is set to Yes, the <span class="specialbold">Command </span>and <span class="specialbold">Timing </span>fields become available for configuration.</p>
+                                                                        <p class="Important"><b class="ImportantHeadingBold">IMPORTANT</b>: To avoid unexpected results, consult your Blue Yonder project team before changing the command.</p>
+                                                                        <p>If No, the application does not process a post-release command.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Command</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Server command that is executed after pick release. A post-release command can be configured to perform special processing after the release of each schedule batch or combination code. For example, if this instance of Warehouse Management is integrated with Warehouse Labor Management planning functionality and you are sending pick information immediately, then your project team may set the command to "Register Picks Released" and the execution timing to "After Combination Code Release".</p>
+                                                                        <p>Register Picks Released is the only valid command distributed with Warehouse Management and should only be selected when the instance is integrated with Warehouse Labor Management planning functionality and you are sending pick information immediately.</p>
+                                                                        <p>Contact your Blue Yonder project team before changing this value.</p>
+                                                                        <p>Only available when the <span class="specialbold">Command </span>field is set to Yes.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Timing</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>The point at which the application executes the post release command.</p>
+                                                                        <ul>
+                                                                            <li><span class="specialbold">After Combination Code Release</span>: The command is executed after picks that have the same combination code are released. The command is initiated only once for each combination code. A combination code indicates that separate identical picks (such as for separate order lines) have been combined into one single pick, so that the user does not have to perform separate picks from the same location.</li>
+                                                                            <li><span class="specialbold">After Scheduled Batch Release</span>: The command is executed after the picks associated with a scheduled batch are released. Since batches of picks may be released over time, the post release command may be executed multiple times.</li>
+                                                                        </ul>
+                                                                        <p>Only available when the <span class="specialbold">Command </span>field is set to Yes.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Log File</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>Name of the log file, such as PckRelMgr.Sts, that you want to be created in the LESDIR log directory, and to which status (.sts) files will be added during each pick release cycle.</p>
+                                                                        <p>A log status file contains detailed information about each pick release allocation attempt. Log files are often useful for debugging, but generating these files can slow down performance; therefore, it is recommended that you provide a log file name only if you are having problems with pick release processing and want to use the log files to troubleshoot the issues. If you do not want to generate log files, then do not provide a value in this field.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Threshold Pick Operation</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Work operation that identifies the type of directed work that is created for a threshold pick. See <a href="work_operations.htm">Work Operations</a>.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Reload Locations for Each Pick</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                        <p>If Yes, the application reloads the available staging locations during each pick release session in a schedule batch, so that the application can select the best staging location for the pick. Select Yes if you have dock door and staging lane associations defined, and you want to use these preferred locations for the following situations:</p>
+                                                                        <ul>
+                                                                            <li>You have picks that are not associated with a load at the time of pick release; for example, the picks are for less than truckload (LTL), parcel, or unplanned truckload (TL) transport modes. </li>
+                                                                            <li>Staging locations are assigned at the shipment, stop, order, or another level other than by carrier or by load ID.</li>
+                                                                        </ul>
+                                                                        <p>Selecting Yes requires additional processing to take place and may slow down the pick release process.</p>
+                                                                        <p>If No, then during pick release, the application loads available staging locations only once per destination (staging) zone and uses the cached list during further pick release processing. Select No if you have not defined staging and dock door associations, or if these associations are defined but staging locations are only assigned by carrier or by load ID.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Resource Location Pallet Volume</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                        <p>Value that represents the cubic volume of a full pallet. The application uses this default value when determining a resource location to use in a processing area (such as overpack, consolidation, or staging). For example, a value of 120960 cubic inches represents the volume of a full pallet that measures 42 x 48 x 60 inches. To change a measurement unit, click the unit next to the field, and select a different unit.</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                    <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">
+                                                                        <p style="font-weight: bold;">Empty Pallet Weight</p>
+                                                                    </td>
+                                                                    <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                        <p>Value that represents the weight of an empty standard pallet. To change a measurement unit, click the unit next to the field, and select a different unit.</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul> </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

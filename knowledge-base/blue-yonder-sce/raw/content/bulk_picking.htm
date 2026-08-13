@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html xmlns:MadCap="http://www.madcapsoftware.com/Schemas/MadCap.xsd" lang="en-us" xml:lang="en-us" class="_Skins_SideNav" data-mc-search-type="Stem" data-mc-help-system-file-name="index.xml" data-mc-path-to-help-system="../" data-mc-has-content-body="True" data-mc-toc-path="[%=System.LinkedTitle%]|[%=System.LinkedTitle%]|Outbound|Picking " data-mc-target-type="WebHelp2" data-mc-runtime-file-type="Topic;Default" data-mc-preload-images="false" data-mc-in-preview-mode="false">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="category" content="Warehouse Management" />
+        <meta name="document" content="Help" />
+        <meta name="version" content="2022.1.0.0" />
+        <meta name="product" content="Supply Chain Execution Web Applications" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="msapplication-config" content="../Skins/Favicons/browserconfig.xml" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <meta charset="utf-8" />
+        <meta http-equiv="Cache-control" content="no-store" /><title>Bulk Picking</title>
+        <link href="../Skins/Default/Stylesheets/Slideshow.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/TextEffects.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Topic.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Default/Stylesheets/Components/Print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/foundation.6.2.3.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/styles.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/tablet.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/mobile.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <link href="../Skins/Fluid/stylesheets/print.css" rel="stylesheet" type="text/css" data-mc-generated="True" />
+        <style>/*&lt;meta /&gt;*/
+
+.button.print-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.remove-highlight-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.separator-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <style>/*&lt;meta /&gt;*/
+
+.button.previous-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.button.next-topic-button
+{
+	-pie-background: linear-gradient(#ffffff, #ffffff);
+}
+
+.needs-pie
+{
+	behavior: url('../Resources/Scripts/PIE-no-motw.htc');
+}
+
+</style>
+        <link href="resources/tablestyles/field_descriptions.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/tablestyles/table_plain.css" rel="stylesheet" data-mc-stylesheet-type="table" />
+        <link href="resources/stylesheets/by_styles.css" rel="stylesheet" type="text/css" />
+        <link rel="apple-touch-icon" sizes="180x180" href="../Skins/Favicons/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="96x96" href="../Skins/Favicons/favicon-96x96.png" />
+        <link rel="icon" sizes="32x32" href="../Skins/Favicons/favicon-32x32.png" />
+        <link rel="icon" sizes="16x16" href="../Skins/Favicons/favicon-16x16.png" />
+        <script src="../Resources/Scripts/jquery.min.js" type="text/javascript">
+        </script>
+        <script src="../Resources/Scripts/purify.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/require.config.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/foundation.6.2.3_custom.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/plugins.min.js" type="text/javascript" defer="defer">
+        </script>
+        <script src="../Resources/Scripts/MadCapAll.js" type="text/javascript" defer="defer">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar.js">
+        </script>
+        <script type="text/javascript" src="../Skins/Default/Scripts/TopicToolBar_Bottom.js">
+        </script>
+    </head>
+    <body>
+        <div class="foundation-wrap off-canvas-wrapper">
+            <div class="off-canvas-wrapper-inner" data-off-canvas-wrapper="">
+                <aside class="off-canvas position-left" role="navigation" id="offCanvas" data-off-canvas="" data-position="left" data-mc-ignore="true">
+                    <ul class="off-canvas-accordion vertical menu off-canvas-list" data-accordion-menu="" data-mc-back-link="Back" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="True" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True">
+                    </ul>
+                </aside>
+                <div class="off-canvas-content inner-wrap" data-off-canvas-content="">
+                    <div data-sticky-container="" class="title-bar-container">
+                        <nav class="title-bar tab-bar sticky" role="banner" data-sticky="" data-options="marginTop:0" style="width:100%" data-sticky-on="only screen and (max-width: 1279px)" data-mc-ignore="true"><a class="skip-to-content fluid-skip showOnFocus" href="#">Skip To Main Content</a>
+                            <div class="middle title-bar-section outer-row clearfix">
+                                <div class="menu-icon-container relative clearfix">
+                                    <div class="central-account-wrapper">
+                                        <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                            <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                                <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="menu-icon" aria-label="Show Navigation Panel" data-toggle="offCanvas"><span></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="title-bar-layout outer-row">
+                                <div class="logo-wrapper"><a class="logo" href="home_all.htm" title="Blue Yonder logo" alt="Blue Yonder logo"></a>
+                                </div>
+                                <div class="navigation-wrapper nocontent">
+                                    <ul class="navigation clearfix" role="navigation" data-mc-css-tree-node-has-children="has-children" data-mc-css-sub-menu="sub-menu" data-mc-expand-event="mouseenter" data-mc-top-nav-menu="True" data-mc-max-depth="3" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="True" data-mc-include-siblings="True" data-mc-include-parent="True" data-mc-toc="True">
+                                        <li class="placeholder" style="visibility:hidden"><a>placeholder</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="central-account-wrapper">
+                                    <div class="central-dropdown"><a class="central-account-drop"><span class="central-account-image"></span><span class="central-account-text">Account</span></a>
+                                        <div class="central-dropdown-content"><a class="MCCentralLink central-dropdown-content-settings">Settings</a>
+                                            <hr class="central-separator" /><a class="MCCentralLink central-dropdown-content-logout">Logout</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="nav-search-wrapper">
+                                    <div class="nav-search row">
+                                        <form class="search" action="#">
+                                            <div class="search-bar search-bar-container needs-pie">
+                                                <input class="search-field needs-pie" type="search" aria-label="Search Field" placeholder="Search this document" />
+                                                <div class="search-filter-wrapper"><span class="invisible-label" id="search-filters-label">Filter: </span>
+                                                    <div class="search-filter" aria-haspopup="true" aria-controls="sf-content" aria-expanded="false" aria-label="Search Filter" title="Search all topics" role="button" tabindex="0">
+                                                    </div>
+                                                    <div class="search-filter-content" id="sf-content">
+                                                        <ul>
+                                                            <li>
+                                                                <button class="mc-dropdown-item" aria-labelledby="search-filters-label filterSelectorLabel-00001"><span id="filterSelectorLabel-00001">Search all topics</span>
+                                                                </button>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="search-submit-wrapper" dir="ltr">
+                                                    <div class="search-submit" title="Search" role="button" tabindex="0"><span class="invisible-label">Submit Search</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="main-section">
+                        <div class="row outer-row sidenav-layout">
+                            <nav class="sidenav-wrapper">
+                                <div class="sidenav-container">
+                                    <ul class="off-canvas-accordion vertical menu sidenav" data-accordion-menu="" data-mc-css-tree-node-expanded="is-accordion-submenu-parent" data-mc-css-tree-node-collapsed="is-accordion-submenu-parent" data-mc-css-sub-menu="vertical menu accordion-menu is-accordion-submenu nested" data-mc-include-indicator="False" data-mc-include-icon="False" data-mc-include-parent-link="False" data-mc-include-back="False" data-mc-defer-expand-event="True" data-mc-expand-event="click.zf.accordionMenu" data-mc-toc="True" data-mc-side-nav-menu="True">
+                                    </ul>
+                                </div>
+                            </nav>
+                            <div class="body-container">
+                                <div data-mc-content-body="True">
+                                    <script type="text/javascript">/*<![CDATA[*/(function () {
+			if ($(".body-container").length === 1) {
+			var bodyContainer = $('.body-container')[0];
+			var mybutton = document.createElement("button");          // Create a <button> node
+			var textnode = document.createTextNode('\u21E7');          // Create a text node
+			mybutton.appendChild(textnode);                            // Append the text
+			mybutton.setAttribute("id", "myBtn");                    // Set id
+			mybutton.addEventListener("click", topFunction);        // Set onclick event handler
+        
+			bodyContainer.appendChild(mybutton);    // Append button element to main element
+
+			// When the user scrolls down 20px from the top of the document, show the button
+			//Both functions are used based on the responsive portion of the output
+			bodyContainer.onscroll = function() {scrollFunction()};
+			window.onscroll = function() {scrollFunctionx()};
+
+			function scrollFunction() {
+			if (bodyContainer.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+    
+			function scrollFunctionx() {
+			if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+			mybutton.style.display = "block";
+			} else {
+			mybutton.style.display = "none";
+			}
+			}
+
+			// When the user clicks on the button, scroll to the top of the document
+			function topFunction() {
+			$('html, body').animate({ scrollTop: 0 }, "smooth");
+			$('html, documentElement').animate({ scrollTop: 0 }, "smooth");
+			$('.body-container').animate({ scrollTop: 0 }, "smooth");
+			}
+			}
+		})();/*]]>*/</script>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie print-button" title="Print">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Print">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie remove-highlight-button" title="Remove highlights">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Remove highlights">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <div class="button-separator">
+                                            </div>
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p>
+                                        <div class="nocontent">
+                                            <div class="MCBreadcrumbsBox_0 breadcrumbs" role="navigation" aria-label="Breadcrumbs" data-mc-breadcrumbs-divider=" &gt; " data-mc-breadcrumbs-count="4" data-mc-toc="True"><span class="MCBreadcrumbsPrefix">Supply Chain Execution Web Applications  2022.1.0.0 Help &gt;</span>
+                                            </div>
+                                        </div>
+                                    </p>
+                                    <div class="side-content" role="Navigation" data-mc-conditions="Tags.ScreenOnly">
+                                        <div class="side-menu" role="Navigation" aria-label="Subtopic Menu">
+                                            <table style="width: 100%;">
+                                                <col />
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_SideMenu mc-component" role="Navigation">
+                                                <li class="tree-node"><a href="#BulkPicking">Bulk Picking</a>
+                                                </li>
+                                                <li>
+                                                    <ul>
+                                                        <li class="tree-node"><a href="#Bulkpickingsetup">Bulk picking setup</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#ExampleBulkpicking">Example:&#160;Bulk picking</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Bulkpickingusescenarios">Bulk picking use scenarios</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Bulkpickingdeposit">Bulk picking deposit</a>
+                                                        </li>
+                                                        <li class="tree-node"><a href="#Configurebulkpicking">Configure bulk picking</a>
+                                                        </li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="content">
+                                        <div id="contentBody">
+                                            <div class="row collapse">
+                                                <div class="TopicBody">
+                                                    <div role="main" id="mc-main-content">
+                                                        <h1 id="BulkPicking" data-magellan-target="BulkPicking"><a name="aanchor441"></a>
+                                                            <MadCap:concept term="WM" />Bulk Picking</h1>
+                                                        <div class="top-menu">
+                                                            <table style="width: 100%;">
+                                                                <col />
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <p style="border-bottom: 1px solid #b8b8b8; padding-bottom: 0px;">In this topic</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                            <ul data-magellan="" data-animation-duration="250" data-active-class="selected" data-scroll-container=".body-container" data-scroll-container-on="only screen and (min-width: 1280px)" class="nocontent menu _Skins_TopMenu mc-component">
+                                                                <li class="tree-node"><a href="#BulkPicking">Bulk Picking</a>
+                                                                </li>
+                                                                <li>
+                                                                    <ul>
+                                                                        <li class="tree-node"><a href="#Bulkpickingsetup">Bulk picking setup</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#ExampleBulkpicking">Example:&#160;Bulk picking</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Bulkpickingusescenarios">Bulk picking use scenarios</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Bulkpickingdeposit">Bulk picking deposit</a>
+                                                                        </li>
+                                                                        <li class="tree-node"><a href="#Configurebulkpicking">Configure bulk picking</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <p>A bulk pick is a single pick that satisfies multiple order or work order lines for which the inventory would otherwise have been picked separately. Bulk pick processing allocates matching inventory for multiple order or work order lines together into larger unit of measure (UOM) picks so as to reduce the number of smaller UOM picks required to satisfy the orders. For the application to allocate bulk picks, the order or work order lines must have the same item and item footprint, as well as identical values for any other order, work order, shipment, or customer attributes that you specify.</p>
+                                                        <p>For example, assume that three different orders are planned into multiple shipments, but the inventory needed to satisfy those orders is identical. If each order required 5 cases and 15 cases made up a pallet, then instead of allocating the shipments separately and creating multiple case picks, using bulk picking, the application would allocate the shipment lines together to create a single pallet pick. Once the pallet pick is complete, an operator breaks down the pallet and deposits each shipment quantity to a specified location.</p>
+                                                        <p>When a warehouse, customer, and order type or work order type are configured to allow bulk picking, the application combines the line quantities of eligible orders or work orders for bulk pick opportunities at the time of allocation. However, if necessary, you can disable bulk pick processing at the time of allocation.</p>
+                                                        <p>For example, assume that 20 cases from multiple shipments are eligible to be combined into a single pallet bulk pick, which the application would process upon allocating the shipments. However, prior to completing allocation, you identify an excess amount of pick work is scheduled to be performed in the pallet pick location, but the case pick location has the capacity for more pick work. Instead of allocating the inventory as a bulk pick and waiting for the work to be completed in the pallet location, you can disable bulk picking during shipping allocation or during work order processing, so the order or work order lines are allocated separately and can be immediately picked as cases in the case pick area.</p>
+                                                        <h2 id="Bulkpickingsetup" data-magellan-target="Bulkpickingsetup"><a name="Bulk_picking_setup"></a>Bulk picking setup</h2>
+                                                        <p>You must perform the following tasks to enable bulk pick processing:</p>
+                                                        <ol>
+                                                            <li value="1">Configure bulk picking for the warehouse. Enable bulk picking for the warehouse and, for a 3PL environment, for individual clients. You also select the bulk pick unit of measure, the order and work attributes that must match for lines to be combined in a bulk pick, the sequence in which the application processes the lines, and how residual inventory is returned to storage. See <a href="#Configure_bulk_picking">Configure bulk picking</a>.</li>
+                                                            <li value="2">Enable bulk picking for specific customers, orders, and work orders. Enable bulk picking for customers, orders, and work orders. For bulk pick processing to take place, the customer and either the order or work order must be enabled for bulk picking.<ol><li value="1">Enable bulk pick processing for customer types. Customers created with these customer types, by default, are enabled for bulk pick processing; however, you can disable bulk pick processing for specific customers created with this customer type. See <a href="customer_types.htm">Customer Types</a>.</li><li value="2">Enable bulk pick processing for specific customers. Orders for these customers, by default, are eligible for bulk pick processing at the time of allocation. See <a href="existing_customers.htm">Existing Customers</a>.</li><li value="3">Enable bulk pick processing for order types. Orders that are created using these order types are eligible for bulk pick processing, if the warehouse and customer are also enabled for bulk picking. Eligibility is determined at allocation. See <a href="outbound_order_types.htm">Outbound Order Types</a>. </li><li value="4">Enable bulk pick processing for work order types. Work orders created using these work order type are eligible for bulk pick processing if the warehouse and customer are also enabled for bulk picking. Eligibility is determined at allocation. See <a href="work_order_types.htm">Work Order Types</a>.</li></ol></li>
+                                                            <li value="3">
+                                                                <p>Enable bulk picking for each unit of measure (UOM), at the warehouse level, in which you want bulk picks allocated. The UOMs enabled are the highest level at which a bulk pick can be performed. For example, if you enable Pallet as a bulk picking UOM and if Case is enabled as the bulk picking UOM on the default item footprint, then during bulk pick processing the application can combine order lines for case quantities of the item into larger bulk picking UOM quantities, such as pallets. See <a href="units_of_measure.htm">Units of Measure</a>.</p>
+                                                                <p>UOMs configured at the warehouse level automatically update the UOMs selected for bulk pick processing. However, any changes make on the bulk pick processing configuration do not affect the warehouse level configuration.</p>
+                                                            </li>
+                                                            <li value="4">Enable bulk picking for an item footprint UOM that you want to allow to be combined into bulk picks. Enable the item footprint UOMs that you want to allow to be combined into bulk picks. For example, if you enable the Case UOM on an item footprint,  indicates that the UOM can be aggregated (combined) for bulk picking. See <a href="items_page.htm">Items</a>.</li>
+                                                            <li value="5">Define a bulk picking release rule. The release rule is defined for individual pick methods and can be configured so that the application creates and releases work for bulk picks. See <a href="pick_methods.htm">Pick Methods</a>. After you define the bulk pick release rule for the pick method, the pick method can be added to an allocation search path. See <a href="replenishment_search_paths.htm">Replenishment Search Paths</a>.</li>
+                                                            <li value="6">Configure a consolidation area and locations to which bulk picks are deposited. Bulk picked inventory is directed to separate deposit locations, one for each shipment or work order associated with the bulk pick. The deposited inventory is eventually consolidated with the remaining picks for the shipment or work order. See <a href="areas.htm">Areas</a> and <a href="locations.htm#Location_configuration_process">Location configuration process</a>.</li>
+                                                            <li value="7">Configure a movement zone that contains locations configured for consolidation. Create a movement zone that contains locations to which bulk picks are deposited and consolidated into complete shipments or work orders. This movement zone can be configured as a hop to zone in an outbound movement path. See <a href="movement_zones.htm">Movement Zones</a>.</li>
+                                                            <li value="8">
+                                                                <p>Configure an outbound movement path for bulk picks. The source zone is the movement zone that contains the locations at which bulk picks take place. The hop is the movement zone that contains the consolidation locations at which bulk picks are deposited and sorted into shipments. The destination movement zone contains the destination locations for the inventory (such as ship staging or production staging).</p>
+                                                                <p>If you want the application to create directed work to move the inventory out of the hop zone, you need to configure an RF directed move for the hop zone. The work is created immediately when an LPN is deposited to a location in the hop zone. If a directed move is not configured for the hop zone, then operators use undirected work to move the inventory out of the hope zone. See <a href="movement_paths.htm">Movement Paths</a>.</p>
+                                                            </li>
+                                                        </ol>
+                                                        <h2 id="ExampleBulkpicking" data-magellan-target="ExampleBulkpicking"><a name="Example:_Bulk_picking"></a>Example:&#160;Bulk picking</h2>
+                                                        <p>The following is an example of how the application processes a bulk picking opportunity when combining the shipments for three separate orders.</p>
+                                                        <p><b>Assumptions</b>:</p>
+                                                        <ul>
+                                                            <li>Pallet is the only bulk picking UOM configured for the warehouse. The bulk picking UOM is the UOM to which smaller eligible item footprint UOMs can be combined for a bulk pick.</li>
+                                                            <li>Each order type and customer associated with the orders is enabled for bulk picking.</li>
+                                                            <li>
+                                                                <p>Item footprint configuration</p>
+                                                                <p>The following table displays the item footprint information for item SHIRT. Since bulk picking is enabled for the Each and Case UOM, the application can combine both UOM quantities on the shipment lines and attempt to reach the Pallet quantity.</p>
+                                                                <table style="width: 402;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                                    <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                    <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                    <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                    <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                                    <thead>
+                                                                        <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                            <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                                <p class="tableheading">Item</p>
+                                                                            </th>
+                                                                            <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                                <p class="tableheading">UOM</p>
+                                                                            </th>
+                                                                            <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                                <p class="tableheading">Unit quantity</p>
+                                                                            </th>
+                                                                            <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                                <p class="tableheading">Allow bulk picking</p>
+                                                                            </th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                            <td width="60" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow" rowspan="3">
+                                                                                <p>SHIRT</p>
+                                                                            </td>
+                                                                            <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                                <p>Each</p>
+                                                                            </td>
+                                                                            <td width="108" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                                <p>1</p>
+                                                                            </td>
+                                                                            <td width="150" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                                <p>Yes</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                            <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                                <p>Case</p>
+                                                                            </td>
+                                                                            <td width="108" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                                <p>2</p>
+                                                                            </td>
+                                                                            <td width="150" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                                <p>Yes</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                            <td width="84" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                                <p>Pallet</p>
+                                                                            </td>
+                                                                            <td width="108" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                                <p>100</p>
+                                                                            </td>
+                                                                            <td width="150" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                                <p>No</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </li>
+                                                        </ul>
+                                                        <p><b>Orders in shipment batch</b>:</p>
+                                                        <p>The following table displays order information for three separate orders being allocated as a part of the same shipment batch. Each order is part of an order type that is enabled for bulk picking.</p>
+                                                        <table style="width: 282.0667;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Order</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Item</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Quantity</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="92.2" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Ord1</p>
+                                                                    </td>
+                                                                    <td width="92.2" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>SHIRT</p>
+                                                                    </td>
+                                                                    <td width="97.66666666666667" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>80</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="92.2" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>Ord2</p>
+                                                                    </td>
+                                                                    <td width="92.2" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>SHIRT</p>
+                                                                    </td>
+                                                                    <td width="97.66666666666667" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>80</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="92.2" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>Ord3</p>
+                                                                    </td>
+                                                                    <td width="92.2" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>SHIRT</p>
+                                                                    </td>
+                                                                    <td width="97.66666666666667" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>46</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p><b>Results</b>:</p>
+                                                        <p>The application combines the quantities of the orders for a total of 206 units. After considering the bulk picking configurations, the application creates 2 bulk pallet picks to satisfy 200 units and 3 case picks to satisfy the remaining 6 units.</p>
+                                                        <h2 id="Bulkpickingusescenarios" data-magellan-target="Bulkpickingusescenarios"><a name="Bulk_picking_use_scenarios"></a>Bulk picking use scenarios</h2>
+                                                        <p><span class="specialbold">Quantity sort</span>
+                                                        </p>
+                                                        <p>When the application processes bulk picks, it uses the quantity sort configuration to determine which line quantities are added together first to form bulk picks. The application assigns order or work order line quantities to bulk picks starting with either the smallest or largest quantities first, depending on the configuration.</p>
+                                                        <p>For example, the application is processing the order lines in the following table using bulk picking. The bulk pick UOM is Pallet and there are 20 cases to a pallet.</p>
+                                                        <table style="width: 186;mc-table-style: url('resources/tablestyles/table_plain.css');" class="TableStyle-Table_Plain" cellspacing="0">
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <col class="TableStyle-Table_Plain-Column-Column1" />
+                                                            <thead>
+                                                                <tr class="TableStyle-Table_Plain-Head-Header1">
+                                                                    <th class="TableStyle-Table_Plain-HeadE-Column1-Header1">
+                                                                        <p class="tableheading">Order line</p>
+                                                                    </th>
+                                                                    <th class="TableStyle-Table_Plain-HeadD-Column1-Header1">
+                                                                        <p class="tableheading">Case quantity</p>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>ORD1</p>
+                                                                    </td>
+                                                                    <td width="102" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>10</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>ORD2</p>
+                                                                    </td>
+                                                                    <td width="102" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>5</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>ORD3</p>
+                                                                    </td>
+                                                                    <td width="102" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>5</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>ORD4</p>
+                                                                    </td>
+                                                                    <td width="102" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>5</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>ORD5</p>
+                                                                    </td>
+                                                                    <td width="102" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>5</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyE-Column1-StandardRow">
+                                                                        <p>ORD6</p>
+                                                                    </td>
+                                                                    <td width="102" class="TableStyle-Table_Plain-BodyD-Column1-StandardRow">
+                                                                        <p>3</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr class="TableStyle-Table_Plain-Body-StandardRow">
+                                                                    <td width="84" class="TableStyle-Table_Plain-BodyB-Column1-StandardRow">
+                                                                        <p>ORD7</p>
+                                                                    </td>
+                                                                    <td width="102" class="TableStyle-Table_Plain-BodyA-Column1-StandardRow">
+                                                                        <p>2</p>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                        <p>If you configure the application to sort by the largest quantities first, then the application groups ORD1, ORD2, and ORD3 (because their total quantity equals one pallet) into a bulk pallet pick. The remaining four order line quantities would be picked separately, and the bulk pick breakdown would include three deposits (one for ORD1, ORD2, and ORD3).</p>
+                                                        <p>If you configure the application to sort by the smallest quantities first, then the application groups ORD7, ORD6, ORD5, ORD4, and ORD3 (because their total quantity equals one pallet) into a bulk pallet pick. The remaining two order line quantities would be picked separately, and the bulk pick breakdown would include five deposits (one for  ORD7, ORD6, ORD5, ORD4, and ORD3).</p>
+                                                        <p><span class="specialbold">Return to storage</span>
+                                                        </p>
+                                                        <p>When the application allocates inventory and creates a pick work assignment, it is possible that a threshold pick is generated depending on the quantity needed for an order and the threshold percentage in the item footprint configurations. For bulk picking, the application utilizes the threshold configuration and may generate a full pallet pick when the entire full pallet quantity is not needed. When this occurs, the residual inventory must be returned to a case storage location. The application directs the operator to return excess inventory from a threshold bulk pick to storage either immediately following the threshold pick or after the rest of the picks have been deposited.</p>
+                                                        <ul>
+                                                            <li><span class="specialbold">Immediately following picking</span>: Residual inventory is returned to storage before the operator deposits the rest of the picks. For example, if this option is selected, for a pallet bulk pick in which one case is excess due to a threshold pick, the operator is directed to deposit the single case in an appropriate storage location before being directed to deposit the rest of the picks in the breakdown location.</li>
+                                                            <li><span class="specialbold">After breakdown</span>: Residual inventory is returned to storage after the operator deposits the rest of the picks in the breakdown location. For example, if this option is selected, then for a pallet bulk pick in which one case is excess due to a threshold pick, the operator is directed to deposit each of the picks to its appropriate breakdown location and then deposit the excess case to an appropriate storage location.</li>
+                                                        </ul>
+                                                        <h2 id="Bulkpickingdeposit" data-magellan-target="Bulkpickingdeposit"><a name="Bulk_picking_deposit"></a>Bulk picking deposit</h2>
+                                                        <p>Bulk picking deposit is a process in which bulk picked inventory is directed to separate deposit locations, one for each shipment associated with the bulk pick, and then consolidated with the rest of picks for the shipment according to application configurations. All of the inventory in a bulk picking deposit location is shipped together. Because distribution deposit and bulk picking deposit are the same process, a location that is set up for cross-dock distribution deposit can also be used for bulk picking deposit.</p>
+                                                        <p>During the bulk picking deposit process, the application directs the operator to the deposit locations in a logical order, based on travel sequence, until all the inventory planned for a shipment has been placed in the deposit location. The bulk picked LPNs remain in the deposit locations until they are closed and directed to a staging area or to be loaded directed on transport equipment. LPNs are considered closed when no additional inventory can be added to the existing LPN. Closing an LPN is completed on the RF device by the operator working in the location.</p>
+                                                        <p>If configured to do so, when the operator is directed to a deposit location, the application directs the operator to an existing, uncompleted LPN on which to deposit the inventory. At this point, the operator has the following options:</p>
+                                                        <ul>
+                                                            <li>Deposit the entire quantity to an existing LPN.</li>
+                                                            <li>Deposit a partial quantity to the existing LPN and close it. The remaining quantity is either deposited to another existing LPN or a new partial LPN is created.</li>
+                                                            <li>Choose not to deposit any quantity to the existing LPN, and instead create a new partial LPN from the deposited inventory.</li>
+                                                            <li>Skip the location and return to it later.</li>
+                                                            <li>Stage the LPN in a pickup and deposit location for another operator to resume the process later.</li>
+                                                        </ul>
+                                                        <p>A bulk pick can contain inventory with mixed attributes. During the deposit process, if a bulk pick contains mixed attributes, the application prompts the operator for the attribute values. This is done for mixed LPNs so that the application can track exactly which inventory is being included on each shipment. Similarly, if the inventory is serial number tracked or requires the operator to enter a catch weight, the application prompts the operator for that information before completing a deposit.</p>
+                                                        <p>After the operator completes the deposits for a bulk pick, an audit is performed to determine if there is any residual inventory. During the application-generated audit, the operator is required to enter whether there is residual inventory on the LPN when the deposit work is completed. If there is residual inventory, the operator enters the quantity and the application compares the entered residual quantity against the expected residual quantity. If the quantities match, the audit passes and the operator is directed to place the residual inventory in a storage location determined by putaway. If the residual inventory does not match the quantity expected by the application, the audit fails and the inventory is directed to an exception location where it can be determined what caused the discrepancy in the residual inventory.</p>
+                                                        <h2 id="Configurebulkpicking" data-magellan-target="Configurebulkpicking"><a name="Configure_bulk_picking"></a>Configure bulk picking</h2>
+                                                        <ol>
+                                                            <li value="1">Select <span class="specialbold">Configuration &gt; Outbound &gt; Picking &gt; Bulk Picking</span>.</li>
+                                                            <li value="2">
+                                                                <p>Enter information in the following fields:</p>
+                                                                <table style="width: 100%;mc-table-style: url('resources/tablestyles/field_descriptions.css');" class="TableStyle-Field_Descriptions" cellspacing="0">
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column1" />
+                                                                    <col class="TableStyle-Field_Descriptions-Column-Column2" />
+                                                                    <thead>
+                                                                        <tr class="TableStyle-Field_Descriptions-Head-Header1">
+                                                                            <th class="TableStyle-Field_Descriptions-HeadE-Column1-Header1" style="font-weight: bold;">Field</th>
+                                                                            <th class="TableStyle-Field_Descriptions-HeadD-Column2-Header1">Description</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body1" style="font-weight: bold;">Enable Bulk Picking</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body1">
+                                                                                <p>If Enabled, bulk pick processing is enabled for the warehouse. Bulk picking is a process in which the application attempts to group multiple order or work order lines of the same item and allocate them together as a larger UOM pick. If enabled, the application evaluates bulk picking configurations for eligible order and work order lines before allocating the inventory.</p>
+                                                                                <p>If Disabled, the application does not attempt allocate order or work order lines together for bulk picks.</p>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body2">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyE-Column1-Body2" style="font-weight: bold;">Quantity Sort</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyD-Column2-Body2">
+                                                                                <p>The sequence in which eligible order or work order lines are assigned to bulk picks is based on line quantities, so that the application assigns lines to bulk picks in sequential order starting with either the smallest quantities or the largest quantities. See <a href="#Bulk_picking_use_scenarios">Bulk picking use scenarios</a>.</p>
+                                                                                <ul>
+                                                                                    <li><b>Largest quantity first</b>: Assigning the largest quantities first may result in a smaller number of lines being included in a bulk pick, but results in fewer breakdown deposits.</li>
+                                                                                    <li><b>Smallest quantity first</b>: Assigning the smallest quantities first may result in fewer trips to pickfaces, but results in more breakdown deposits since a larger number of lines are included.</li>
+                                                                                </ul>
+                                                                            </td>
+                                                                        </tr>
+                                                                        <tr class="TableStyle-Field_Descriptions-Body-Body1">
+                                                                            <td class="TableStyle-Field_Descriptions-BodyB-Column1-Body1" style="font-weight: bold;">Return to Storage</td>
+                                                                            <td class="TableStyle-Field_Descriptions-BodyA-Column2-Body1">
+                                                                                <p>Determines when the application returns threshold bulk picked inventory to storage. See <a href="#Bulk_picking_use_scenarios">Bulk picking use scenarios</a>.</p>
+                                                                                <ul>
+                                                                                    <li><b>Immediately following picking</b>: Excess inventory is returned to storage before the operator deposits the rest of the picks. Select this option if the residual inventory is stored in a location that is close to the bulk pick zone and your breakdown location is farther away; in this instance, this option may reduce travel time.</li>
+                                                                                    <li><b>After breakdown</b>: Excess inventory is returned to storage after the operator deposits the rest of the picks. Select this option if you want to ensure that each shipment receives the required quantity so that in the event of a discrepancy the residual inventory would be affected instead of the distributed inventory. Additionally, select this option if the warehouse equipment used for bulk picking is not allowed in the zone in which the residual inventory is stored.</li>
+                                                                                </ul>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </li>
+                                                            <li value="3">To select the clients that allow bulk picking:<ol><li value="1">Under <span class="specialbold">ENABLEMENT</span>, click <span class="specialbold">Clients</span>.</li><li value="2">In the <span class="specialbold">Available Clients</span> column, select the check box next to the clients that apply.</li><li value="3">Click <b>Save</b>.</li></ol></li>
+                                                            <li value="4">To select the UOMs in which bulk picks can be allocated:<ol><li value="1"><p>Under <span class="specialbold">BUILDING THE PICK</span>, click <span class="specialbold">Units of Measure</span>.</p><p class="Note"><b class="NoteHeadingBold">Note</b>: Available units of measure are those that have been configured and enabled for the warehouse. See <a href="units_of_measure.htm">Units of Measure</a>.</p></li><li value="2">In the <span class="specialbold">Available Unit of Measure</span> column, select the check box next to the UOMs that apply.</li><li value="3">Click <b>Save</b>.</li></ol></li>
+                                                            <li value="5">To define the criteria on an order or work order that is required to match for picks to be combined into a bulk pick:<ol><li value="1">Under <span class="specialbold">BUILDING THE PICK, </span>click one of the following buttons:<ul><li><span class="specialbold">Order Attributes</span>.</li><li><span class="specialbold">Work Order Attributes</span>.</li></ul></li><li value="2">To select criteria from displayed entities:<ol><li value="1">If the advanced query<b> </b>is displayed, click <span class="specialbold">Simple</span>.</li><li value="2">If the available entities are not displayed, click <span class="specialbold">Show Available</span>.</li><li value="3">In the <span class="specialbold">Available </span>grid, select the entities that you want to use as criteria.</li><li value="4">Click <span class="specialbold">Add selected</span>. The entities are added to the <span class="specialbold">Selected </span>grid.</li><li value="5">To remove criteria, in the <span class="specialbold">Selected </span>grid, select the criteria to remove, and click <span class="specialbold">Remove selected</span>.</li><li value="6">To reorder the criteria, in the<span class="specialbold"> Selected </span>grid, click a row, and then click the up or down arrow to move the selected criteria. The application applies the criteria in sequential order according to how it is displayed in the grid.</li></ol></li><li value="3"><p>To enter criteria using database entities, click <span class="specialbold">Advanced</span>, and then enter the column and field name, using a period to separate the column and field. Multiple column and field entries must be separated by a comma and space.</p><p>You can use operators like IS NULL or IS NOT NULL to build an advanced query. For example, <span class="var">&lt;column name&gt;</span>.<span class="var">&lt;field name&gt;</span> IS NOT NULL, <span class="var">&lt;column name&gt;</span>.<span class="var">&lt; field name&gt;</span>.</p></li><li value="4">Click <b>Save</b>.</li></ol></li>
+                                                            <li value="6">Click <b>Save</b>.</li>
+                                                        </ol>
+                                                        <p class="InThisSectionHeader" data-mc-conditions="Tags.HTML5Only,Tags.CHMOnly">See also</p>
+                                                        <ul class="nocontent menu _Skins_Sibling_List mc-component" data-mc-is-context-sensitive="True" data-mc-linked-toc="Data/Tocs/rpwebhelp__REFS_.js" data-mc-side-menu="True" data-mc-max-depth="1" data-mc-include-icon="False" data-mc-include-indicator="False" data-mc-include-children="False" data-mc-include-siblings="True" data-mc-include-parent="False" data-mc-toc="True">
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="buttons popup-container clearfix topicToolbarProxy _Skins_TopicToolBar_Bottom mc-component nocontent" style="text-align: right; mc-topic-toolbar-items: ;">
+                                        <div class="button-group-container-left">
+                                            <button class="button needs-pie previous-topic-button" title="Previous topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Previous topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                            <button class="button needs-pie next-topic-button" title="Next topic" disabled="true">
+                                                <div>
+                                                    <div role="img" class="button-icon-wrapper" aria-label="Next topic">
+                                                        <div class="button-icon"> </div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <footer role="contentinfo">
+                                        <p style="line-height: 100%;"><span class="mc-variable Variables.PROD_SHORT variable">Supply Chain Execution Web Applications</span> <span class="mc-variable Variables.PROD_VERSION variable">2022.1.0.0</span> <span class="mc-variable Variables.TECH_DOC_TYPE variable">Help</span> <MadCap:conditionalText data-mc-conditions="Tags.LastUpdatedNeeded">| Last updated: <span class="mc-variable Variables.LAST_UPDATED variable">31 May 2024</span></MadCap:conditionalText></p>
+                                        <p style="line-height: 100%;">© <span class="mc-variable Variables.COPYRIGHT_START variable">2014-</span>2024 Blue Yonder Group, Inc. All rights reserved. <a href="legal_notice.htm">Legal notice</a></p>
+                                        <p style="line-height: 100%;">Contact: <a href="https://success.blueyonder.com/" target="_blank" title="Blue Yonder Customer Support" alt="Blue Yonder Customer Support">Customer Support</a> | <a href="https://blueyonder.com/services" target="_blank" title="Blue Yonder Services" alt="Blue Yonder Services">Services</a></p>
+                                    </footer>
+                                </div>
+                            </div>
+                        </div>
+                    </div><a data-close="true"></a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

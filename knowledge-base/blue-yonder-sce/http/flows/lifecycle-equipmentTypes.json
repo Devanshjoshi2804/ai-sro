@@ -1,0 +1,175 @@
+{
+  "screen": "equipmentTypes",
+  "phases": {
+    "create": [
+      "POST equipmentTypes -> 201",
+      "GET warehouseEquipmentAccesses -> 200",
+      "GET equipmentTypes -> 200"
+    ],
+    "edit": [
+      "GET warehouseEquipmentAccesses -> 200",
+      "GET warehouseEquipmentAccesses -> 200",
+      "GET workZoneVehicleTypes -> 200",
+      "GET workZoneVehicleTypes -> 200",
+      "PUT equipmentTypes/ZV9749 -> 200",
+      "GET warehouseEquipmentAccesses -> 200",
+      "GET equipmentTypes -> 200"
+    ],
+    "copy": [],
+    "delete": [
+      "DELETE equipmentTypes/ZV9749 -> 200"
+    ]
+  },
+  "code": "ZV9749",
+  "rowKey": "ZV9749",
+  "createApplied": {
+    "vehicleTypeId": "ZV9749",
+    "longDescription": "ZV flow",
+    "voiceCode": 11,
+    "vehicleLimit": 1
+  },
+  "linkFound": true,
+  "editFormFound": true,
+  "copySelect": {
+    "idx": 77,
+    "selected": 1
+  },
+  "copyInvoke": {
+    "invoked": "doCopy"
+  },
+  "deleteSelect": {
+    "idx": 77,
+    "selected": 1
+  },
+  "deleteInvoke": {
+    "invoked": "doDelete"
+  },
+  "allCalls": [
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "workZones/nonpaged",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "workAreas",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "warehouseEquipmentAccesses",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "equipmentTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "codes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "codes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "setup",
+      "method": "GET",
+      "url": "equipmentTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "POST",
+      "url": "equipmentTypes",
+      "status": 201,
+      "body": "{\"voiceCode\":\"11\",\"vehicleLimit\":\"1\",\"longDescription\":\"ZV flow\",\"vehicleTypeId\":\"ZV9749\",\"location\":0,\"captureEquipment\":false,\"useWorkAreaMove\":false}"
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "warehouseEquipmentAccesses",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "create",
+      "method": "GET",
+      "url": "equipmentTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "warehouseEquipmentAccesses",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "warehouseEquipmentAccesses",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "workZoneVehicleTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "workZoneVehicleTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "PUT",
+      "url": "equipmentTypes/ZV9749",
+      "status": 200,
+      "body": "{\"resourceId\":\"ZV9749\",\"voiceCode\":\"11\",\"vehicleLimit\":\"1\",\"longDescription\":\"ZV edited\",\"vehicleTypeId\":\"ZV9749\",\"location\":0,\"captureEquipment\":false,\"useWorkAreaMove\":false}"
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "warehouseEquipmentAccesses",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "edit",
+      "method": "GET",
+      "url": "equipmentTypes",
+      "status": 200,
+      "body": null
+    },
+    {
+      "phase": "delete",
+      "method": "DELETE",
+      "url": "equipmentTypes/ZV9749",
+      "status": 200,
+      "body": "{\"resourceId\":\"ZV9749\",\"voiceCode\":\"11\",\"vehicleLimit\":\"1\",\"longDescription\":\"ZV edited\",\"vehicleTypeId\":\"ZV9749\",\"location\":0,\"captureEquipment\":false,\"useWorkAreaMove\":false}"
+    }
+  ]
+}

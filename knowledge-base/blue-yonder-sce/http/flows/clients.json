@@ -1,0 +1,758 @@
+{
+  "spec": "clients",
+  "resource": "clients",
+  "applied": {
+    "clientId": "ZVCL1",
+    "addressName": "ZV Capture Addr"
+  },
+  "invalid": [],
+  "calls": [
+    {
+      "endpoint": "wm/warehouses",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses?query=%5B%7B%22AND%22%3A%5B%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22NE%22%2C%22value%22%3A%22----%22%7D%5D%7D%5D&_dc=1786521776280",
+        "query": {
+          "query": "[{\"AND\":[{\"column\":\"warehouseId\",\"operator\":\"NE\",\"value\":\"----\"}]}]",
+          "_dc": "1786521776280"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "startedAt": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df5ef690ff4fe-DEL",
+          "authenticated": "true",
+          "content-length": "1059",
+          "date": "Wed, 12 Aug 2026 08:02:56 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"active\":false,\"addressId\":\"A000022452\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000022452\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":1,\"aisleMax\":0,\"autoPlayCostThreshold\":0.0,\"bayMax\":0,\"concatenationOrder\":0,\"consignmentCode\":null,\"consignmentPeriod\":0,\"countingThresholdCost\":0.0,\"countingThresholdUnit\":0,\"currencyCode\":null,\"defaultHoldPrefix\":null,\"defaultWarehouseFlag\":false,\"lastRegenTime\":null,\"lastRotationId\":null,\"lensCustomerClientId\":null,\"lensCustomerId\":null,\"lensEnabledFlag\":false,\"lensSiteName\":null,\"longDescription\":\"BP Lubricants USA Inc.\",\"originCode\":null,\"permanentAdjustLoad\":\"PERM-ADJ-LOD-AZ01\",\"permanentAdjustSubLoad\":\"PERM-ADJ-SUB-AZ01\",\"permanentCreateLoad\":\"PERM-CRE-LOD-AZ01\",\"permanentCreateSubLoad\":\"PERM-CRE-SUB-AZ01\",\"recalcDate\":null,\"recalcDistributionFlag\":false,\"resourceId\":\"AZ01\",\"rotationIdMaxValue\":null,\"rotationIdMinValue\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses/AZ01\",\"serializedGlobalLocationNumber\":null,\"slotMax\":0,\"translatedWarehouseId\":null,\"warehouseId\":\"AZ01\",\"warehouseMapLeftX\":0,\"warehouseMapLowerY\":0,\"warehouseMapRightX\":0,\"warehouseMapUpperY\":0,\"warehouseTypeCode\":\"EMPTY\"},{\"active\":false,\"addressId\":\"A000083551\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000083551\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":1,\"aisleMax\":0,\"autoPlayCostThreshold\":0.0,\"bayMax\":0,\"concatenationOrder\":0,\"consignmentCode\":null,\"consignmentPeriod\":0,\"countingThresholdCost\":0.0,\"countingThresholdUnit\":0,\"currencyCode\":null,\"defaultHoldPrefix\":null,\"defaultWarehouseFlag\":false,\"lastRegenTime\":null,\"lastRotationId\":null,\"lensCustomerClientId\":null,\"lensCustomerId\":null,\"lensEnabledFlag\":false,\"lensSiteName\":null,\"longDescription\":\"CD01 Warehouse\",\"originCode\":null,\"permanentAdjustLoad\":\"PERM-ADJ-LOD-CD01\",\"permanentAdjustSubLoad\":\"PERM-ADJ-SUB-CD01\",\"permanentCreateLoad\":\"PERM-CRE-LOD-CD01\",\"permanentCreateSubLoad\":\"PERM-CRE-SUB-CD01\",\"recalcDate\":null,\"recalcDistributionFlag\":false,\"resourceId\":\"CD01\",\"rotationIdMaxValue\":null,\"rotationIdMinValue\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses/CD01\",\"serializedGlobalLocationNumber\":null,\"slotMax\":0,\"translatedWarehouseId\":null,\"warehouseId\":\"CD01\",\"warehouseMapLeftX\":0,\"warehouseMapLowerY\":0,\"warehouseMapRightX\":0,\"warehouseMapUpperY\":0,\"warehouseTypeCode\":\"EMPTY\"},{\"active\":false,\"addressId\":\"A000023768\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000023768\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"aisleMax\":0,\"autoPlayCostThreshold\":0.0,\"bayMax\":0,\"concatenationOrder\":0,\"consignmentCode\":null,\"consignmentPeriod\":0,\"countingThresholdCost\":0.0,\"countingThresholdUnit\":0,\"currencyCode\":null,\"defaultHoldPrefix\":null,\"defaultWarehouseFlag\":false,\"lastRegenTime\":null,\"lastRotationId\":null,\"lensCustomerClientId\":null,\"lensCustomerId\":null,\"lensEnabledFlag\":false,\"lensSiteName\":null,\"longDescription\":\"MCS - Perris\",\"originCode\":null,\"permanentAdjustLoad\":\"PERM-ADJ-LOD-CA01\",\"permanentAdjustSubLoad\":\"PERM-ADJ-SUB-CA01\",\"permanentCreateLoad\":\"PERM-CRE-LOD-CA01\",\"permanentCreateSubLoad\":\"PERM-CRE-SUB-CA01\",\"recalcDate\":null,\"recalcDistributionFlag\":false,\"resourceId\":\"CA01\",\"rotationIdMaxValue\":null,\"rotationIdMinValue\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses/CA01\",\"serializedGlobalLocationNumber\":null,\"slotMax\":0,\"translatedWarehouseId\":null,\"warehouseId\":\"CA01\",\"warehouseMapLeftX\":0,\"warehouseMapLowerY\":0,\"warehouseMapRightX\":0,\"warehouseMapUpperY\":0,\"warehouseTypeCode\":\"EMPTY\"},{\"active\":false,\"addressId\":\"A000285429\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285429\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":1,\"aisleMax\":0,\"autoPlayCostThreshold\":0.0,\"bayMax\":0,\"concatenationOrder\":0,\"consignmentCode\":null,\"consignmentPeriod\":0,\"countingThresholdCost\":0.0,\"countingThresholdUnit\":0,\"currencyCode\":null,\"defaultHoldPrefix\":null,\"defaultWarehouseFlag\":false,\"lastRegenTime\":null,\"lastRotationId\":null,\"lensCustomerClientId\":null,\"lensCustomerId\":null,\"lensEnabledFlag\":false,\"lensSiteName\":null,\"longDescription\":\"NH01 Warehouse\",\"originCode\":null,\"permanentAdjustLoad\":\"PERM-ADJ-LOD-NH01\",\"permanentAdjustSubLoad\":\"PERM-ADJ-SUB-NH01\",\"permanentCreateLoad\":\"PERM-CRE-LOD-NH01\",\"permanentCreateSubLoad\":\"PERM-CRE-SUB-NH01\",\"recalcDate\":null,\"recalcDistributionFlag\":false,\"resourceId\":\"NH01\",\"rotationIdMaxValue\":null,\"rotationIdMinValue\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses/NH01\",\"serializedGlobalLocationNumber\":null,\"slotMax\":0,\"translatedWarehouseId\":null,\"warehouseId\":\"NH01\",\"warehouseMapLeftX\":0,\"warehouseMapLowerY\":0,\"warehouseMapRightX\":0,\"warehouseMapUpperY\":0,\"warehouseTypeCode\":\"EMPTY\"},{\"active\":false,\"addressId\":\"A000022216\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000022216\",\"adjustmentThresholdCost\":1.0,\"adjustmentThresholdUnit\":1,\"aisleMax\":0,\"autoPlayCostThreshold\":0.0,\"bayMax\":0,\"concatenationOrder\":0,\"consignmentCode\":null,\"consignmentPeriod\":0,\"countingThresholdCost\":0.0,\"countingThresholdUnit\":0,\"currencyCode\":null,\"defaultHoldPrefix\":null,\"defaultWarehouseFlag\":false,\"lastRegenTime\":null,\"lastRotationId\":null,\"lensCustomerClientId\":null,\"lensCustomerId\":null,\"lensEnabledFlag\":false,\"lensSiteName\":null,\"longDescription\":\"Peets Coffee\",\"originCode\":null,\"permanentAdjustLoad\":\"PERM-ADJ-LOD-GA01\",\"permanentAdjustSubLoad\":\"PERM-ADJ-SUB-GA01\",\"permanentCreateLoad\":\"PERM-CRE-LOD-GA01\",\"permanentCreateSubLoad\":\"PERM-CRE-SUB-GA01\",\"recalcDate\":null,\"recalcDistributionFlag\":false,\"resourceId\":\"GA01\",\"rotationIdMaxValue\":null,\"rotationIdMinValue\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses/GA01\",\"serializedGlobalLocationNumber\":null,\"slotMax\":0,\"translatedWarehouseId\":null,\"warehouseId\":\"GA01\",\"warehouseMapLeftX\":0,\"warehouseMapLowerY\":0,\"warehouseMapRightX\":0,\"warehouseMapUpperY\":0,\"warehouseTypeCode\":\"EMPTY\"},{\"active\":false,\"addressId\":\"A000000021\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000000021\",\"adjustmentThresholdCost\":0.01,\"adjustmentThresholdUnit\":1,\"aisleMax\":0,\"autoPlayCostThreshold\":0.0,\"bayMax\":0,\"concatenationOrder\":0,\"consignmentCode\":null,\"consignmentPeriod\":0,\"countingThresholdCost\":0.0,\"countingThresholdUnit\":0,\"currencyCode\":null,\"defaultHoldPrefix\":null,\"defaultWarehouseFlag\":false,\"lastRegenTime\":null,\"lastRotationId\":null,\"lensCustomerClientId\":null,\"lensCustomerId\":null,\"lensEnabledFlag\":false,\"lensSiteName\":null,\"longDescription\":\"Social Circle General Mills\",\"originCode\":null,\"permanentAdjustLoad\":\"PERM-ADJ-LOD-SG\",\"permanentAdjustSubLoad\":\"PERM-ADJ-SUB-SG\",\"permanentCreateLoad\":\"PERM-CRE-LOD-SG\",\"permanentCreateSubLoad\":\"PERM-CRE-SUB-SG\",\"recalcDate\":null,\"recalcDistributionFlag\":false,\"resourceId\":\"SG\",\"rotationIdMaxValue\":null,\"rotationIdMinValue\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses/SG\",\"serializedGlobalLocationNumber\":null,\"slotMax\":0,\"translatedWarehouseId\":null,\"warehouseId\":\"SG\",\"warehouseMapLeftX\":0,\"warehouseMapLowerY\":0,\"warehouseMapRightX\":0,\"warehouseMapUpperY\":0,\"warehouseTypeCode\":\"EMPTY\"},{\"active\":false,\"addressId\":\"A000023898\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000023898\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":1,\"aisleMax\":0,\"autoPlayCostThreshold\":0.0,\"bayMax\":0,\"concatenationOrder\":0,\"consignmentCode\":null,\"consignmentPeriod\":0,\"countingThresholdCost\":0.0,\"countingThresholdUnit\":0,\"currencyCode\":null,\"defaultHoldPrefix\":null,\"defaultWarehouseFlag\":false,\"lastRegenTime\":null,\"lastRotationId\":null,\"lensCustomerClientId\":null,\"lensCustomerId\":null,\"lensEnabledFlag\":false,\"lensSiteName\":null,\"longDescription\":\"TN03 Warehouse\",\"originCode\":\"US\",\"permanentAdjustLoad\":\"PERM-ADJ-LOD-TN03\",\"permanentAdjustSubLoad\":\"PERM-ADJ-SUB-TN03\",\"permanentCreateLoad\":\"PERM-CRE-LOD-TN03\",\"permanentCreateSubLoad\":\"PERM-CRE-SUB-TN03\",\"recalcDate\":null,\"recalcDistributionFlag\":false,\"resourceId\":\"TN03\",\"rotationIdMaxValue\":null,\"rotationIdMinValue\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses/TN03\",\"serializedGlobalLocationNumber\":null,\"slotMax\":0,\"translatedWarehouseId\":null,\"warehouseId\":\"TN03\",\"warehouseMapLeftX\":0,\"warehouseMapLowerY\":0,\"warehouseMapRightX\":0,\"warehouseMapUpperY\":0,\"warehouseTypeCode\":\"EMPTY\"},{\"active\":null,\"addressId\":\"ADR001\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/ADR001\",\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"aisleMax\":0,\"autoPlayCostThreshold\":null,\"bayMax\":0,\"concatenationOrder\":null,\"consignmentCode\":null,\"consignmentPeriod\":null,\"countingThresholdCost\":null,\"countingThresholdUnit\":null,\"currencyCode\":null,\"defaultHoldPrefix\":null,\"defaultWarehouseFlag\":null,\"lastRegenTime\":null,\"lastRotationId\":null,\"lensCustomerClientId\":null,\"lensCustomerId\":null,\"lensEnabledFlag\":false,\"lensSiteName\":null,\"longDescription\":\"WMD1 Warehouse\",\"originCode\":null,\"permanentAdjustLoad\":\"WMD1-PERM-ADJ-LOD\",\"permanentAdjustSubLoad\":\"WMD1-PERM-ADJ-SUB\",\"permanentCreateLoad\":\"WMD1-PERM-CRE-LOD\",\"permanentCreateSubLoad\":\"WMD1-PERM-CRE-SUB\",\"recalcDate\":null,\"recalcDistributionFlag\":null,\"resourceId\":\"WMD1\",\"rotationIdMaxValue\":null,\"rotationIdMinValue\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/warehouses/WMD1\",\"serializedGlobalLocationNumber\":null,\"slotMax\":0,\"translatedWarehouseId\":null,\"warehouseId\":\"WMD1\",\"warehouseMapLeftX\":0,\"warehouseMapLowerY\":0,\"warehouseMapRightX\":0,\"warehouseMapUpperY\":0,\"warehouseTypeCode\":\"EMPTY\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/packingConfigurations",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/packingConfigurations?clientId=&warehouseId=SG&siteId=SG&subsites=----&_dc=1786521776251",
+        "query": {
+          "clientId": "",
+          "warehouseId": "SG",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521776251"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "startedAt": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df5ef690cf4fe-DEL",
+          "authenticated": "true",
+          "content-length": "286",
+          "date": "Wed, 12 Aug 2026 08:02:56 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"captureItemPerSerialNumber\":false,\"clientId\":\"----\",\"packAtInventoryArrivalFlag\":false,\"resourceId\":\"----*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/packingConfigurations/----%2A%21SG\",\"warehouseId\":\"SG\",\"weightCaptureAutomatic\":null,\"weightCaptureNoClose\":null,\"weightCaptureRequired\":null,\"weightCaptureToleranceAbove\":null,\"weightCaptureToleranceBelow\":null}]}"
+      }
+    },
+    {
+      "endpoint": "wm/addresses",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses?allAddressFlag=1&addressType=CLI&siteId=SG&subsites=----&_dc=1786521776256",
+        "query": {
+          "allAddressFlag": "1",
+          "addressType": "CLI",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521776256"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "startedAt": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df5ef6911f4fe-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Wed, 12 Aug 2026 08:02:56 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000023770\",\"addressLine1\":\"3900 INDIAN AVENUE\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"3900\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Perris\",\"clientId\":\"WLKE\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000023770\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"92571\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000023770\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000023770\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"CA\",\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000083553\",\"addressLine1\":\"15000 W. Eight Mile Road\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"A000022086\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Oak Park\",\"clientId\":\"BP\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000083553\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"48237\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000083553\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000083553\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"MI\",\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285434\",\"addressLine1\":\"BAUSCH & LOMB AMERICAS INC.\",\"addressLine2\":\"400 SOMERSET CORPORATE BLVD, 8th Flr\",\"addressLine3\":null,\"addressName\":\"Bausch and Lomb Americas Inc Pharma\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"BRIDGEWATER\",\"clientId\":\"BLMB\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285434\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"08807\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285434\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285434\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"NJ\",\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285447\",\"addressLine1\":\"BAUSCH & LOMB AMERICAS INC.\",\"addressLine2\":\"400 SOMERSET CORPORATE BLVD, 8th Flr\",\"addressLine3\":null,\"addressName\":\"Bausch and Lomb Americas Inc Surgical\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"BRIDGEWATER\",\"clientId\":\"SURG\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285447\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"08807\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285447\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285447\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"NJ\",\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285448\",\"addressLine1\":\"400 SOMERSET CORPORATE BLVD\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Bausch Health Company\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"BRIDGEWATER\",\"clientId\":\"VPNA\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285448\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"08807\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285448\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285448\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"NJ\",\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000022454\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"BP Client\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"BP\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000022153\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000022454\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000022454\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285442\",\"addressLine1\":\"600 Wauhatchie Pike\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Carrier Chattanooga\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Chattanooga\",\"clientId\":\"KEN\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000022172\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"37419\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285442\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285442\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"TN\",\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285436\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 01\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL01\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285436\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285436\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285436\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285437\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 02\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL02\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285437\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285437\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285437\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285438\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 03 FG\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL03FG\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285438\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285438\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285438\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285439\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 03 Raw Material\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL03RW\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285439\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285439\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285439\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000000156\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"CLIENT 1\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"----\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000000038\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000000156\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000000156\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285440\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Fresenius Medical Care\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"FME\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285440\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285440\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285440\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285441\",\"addressLine1\":\"9 NORTHEASTERN BLVD\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Interface Flooring \",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Salem\",\"clientId\":\"INTF\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":\"Interface\",\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285441\",\"lastName\":\"Flooring \",\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"03079\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285441\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285441\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"NH\",\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000083558\",\"addressLine1\":\"865 Gibraltar Rd\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Miele\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Vaughn\",\"clientId\":\"MIELE\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"CAN\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000083558\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"L4H3N5\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000083558\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000083558\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"ON\",\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285443\",\"addressLine1\":\"4-865 Gibraltar Road \",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Miele \",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Vaughan\",\"clientId\":\"MIELE\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"CAN\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285443\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"L4K 4V8\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285443\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285443\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"ON\",\"temporary\":false,\"timeZone\":null,\"user\":null},{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000000163\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Not Applicaple\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"NA\",\"contactName\":null,\""
+      }
+    },
+    {
+      "endpoint": "wm/addresses",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses?siteId=SG&subsites=----&_dc=1786521780784",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521780784"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"addressId\":\"\",\"hostExternalId\":\"\",\"addressName\":\"ZV Capture Addr\",\"addressLine1\":\"\",\"addressLine2\":\"\",\"addressLine3\":\"\",\"city\":\"\",\"state\":\"\",\"postalCode\":\"\",\"addressType\":\"CLI\",\"clientId\":\"ZVCL1\",\"countryName\":\"\",\"phoneNumber\":\"\",\"timeZone\":\"\",\"firstName\":\"\",\"lastName\":\"\",\"localeId\":\"\",\"customsSiteType\":\"\",\"globalLocationNumber\":\"\",\"customsTaxSite\":\"\",\"temporary\":false,\"residentialAddress\":false,\"receivingWebAddress\":\"\",\"contactName\":\"\",\"contactPhone\":\"\",\"attentionPhone\":\"\",\"faxNumber\":\"\",\"email\":\"\",\"contactTitle\":\"\",\"attentionName\":\"\",\"shippingPhone\":\"\",\"shippingWebAddress\":\"\",\"shippingContactName\":\"\",\"shippingContactPhone\":\"\",\"shippingAttentionPhone\":\"\",\"shippingFax\":\"\",\"shippingEmail\":\"\",\"shippingContactTitle\":\"\",\"shippingAttentionName\":\"\",\"honorific\":\"\",\"addressDistrict\":\"\",\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":\"\",\"region\":\"\",\"latitude\":\"\",\"longitude\":\"\"}"
+      },
+      "startedAt": 3,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000365887",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60a6a97f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "1245",
+          "date": "Wed, 12 Aug 2026 08:03:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000365887\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"ZV Capture Addr\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"ZVCL1\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000365887\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000365887\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000365887\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null}}"
+      }
+    },
+    {
+      "endpoint": "wm/clients",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients?siteId=SG&subsites=----&_dc=1786521781096",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781096"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"addressId\":\"A000365887\",\"address_uri\":\"\",\"adjustmentThresholdCost\":0,\"adjustmentThresholdUnit\":0,\"assigned\":true,\"billToLocaleId\":\"\",\"clientGroups_uri\":\"\",\"clientId\":\"ZVCL1\",\"groupName\":\"\",\"isoCurrencyFlag\":false,\"lotFormatId\":\"\",\"receiptConfirmationLvl\":\"\",\"receiptConfirmationLvlDescription\":\"\",\"allClientFlg\":0,\"self_uri\":\"\",\"warehouseId\":\"SG\",\"deliverySequenceLoadingOrder\":\"\",\"displayClientId\":\"Default\"}"
+      },
+      "startedAt": 3,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60c2833f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "864",
+          "date": "Wed, 12 Aug 2026 08:03:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"addressId\":\"A000365887\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":null,\"assigned\":null,\"billToLocaleId\":\"\",\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1/groups\",\"clientId\":\"ZVCL1\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1/warehouse\",\"filterClientFlag\":null,\"groupName\":\"\",\"isoCurrencyFlag\":false,\"lotFormatId\":\"\",\"receiptConfirmationLvl\":\"\",\"receiptConfirmationLvlDescription\":\"\",\"resourceId\":\"ZVCL1\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1\",\"warehouseId\":null}}"
+      }
+    },
+    {
+      "endpoint": "wm/clientWarehouse",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse?siteId=SG&subsites=----&_dc=1786521781421",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781421"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "startedAt": 4,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60e2f03f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "399",
+          "date": "Wed, 12 Aug 2026 08:03:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"allowSupplierLotChange\":false,\"autoPackSublineFlg\":false,\"autoPopulateSupplierLotNum\":true,\"bulkPickingEnabled\":false,\"clientId\":\"----\",\"dateWindow\":0,\"deliverySequenceLoadingOrder\":\"D\",\"inboundTransFullValidationFlag\":false,\"inventoryRotationMethod\":null,\"preventAllocationOnErrorFlag\":false,\"printVisibilityEnabled\":false,\"printVisibilityMessage\":null,\"resourceId\":\"----*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse/----%2A%21SG\",\"shipmentCartonRouteFlag\":false,\"timeCode\":null,\"timeCodeDescription\":null,\"translatedWarehouseId\":null,\"warehouseId\":\"SG\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/packingConfigurations",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/packingConfigurations?siteId=SG&subsites=----&_dc=1786521781420",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781420"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"warehouseId\":\"SG\",\"clientId\":\"ZVCL1\",\"weightCaptureRequired\":null,\"weightCaptureAutomatic\":null,\"weightCaptureToleranceBelow\":null,\"weightCaptureToleranceAbove\":null,\"weightCaptureNoClose\":null,\"captureItemPerSerialNumber\":false,\"packAtInventoryArrivalFlag\":false}"
+      },
+      "startedAt": 4,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60e2ef8f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "2",
+          "date": "Wed, 12 Aug 2026 08:03:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "\"\""
+      }
+    },
+    {
+      "endpoint": "wm/clientWarehouse",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse?siteId=SG&subsites=----&_dc=1786521781418",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781418"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"clientId\":\"ZVCL1\",\"translatedWarehouseId\":\"\",\"allowSupplierLotChange\":false,\"autoPopulateSupplierLotNum\":false,\"bulkPickingEnabled\":false,\"warehouseId\":\"SG\",\"printVisibilityEnabled\":false,\"printVisibilityMessage\":\"\",\"dateWindow\":0,\"timeCode\":\"\",\"inventoryRotationMethod\":\"\",\"autoPackSublineFlg\":false,\"inboundTransFullValidationFlag\":true,\"deliverySequenceLoadingOrder\":\"\",\"preventAllocationOnErrorFlag\":false,\"shipmentCartonRouteFlag\":false,\"displayClientId\":\"ZVCL1\"}"
+      },
+      "startedAt": 4,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse/ZVCL1%2A%21SG",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60e2ef5f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "643",
+          "date": "Wed, 12 Aug 2026 08:03:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"allowSupplierLotChange\":false,\"autoPackSublineFlg\":false,\"autoPopulateSupplierLotNum\":false,\"bulkPickingEnabled\":false,\"clientId\":\"ZVCL1\",\"dateWindow\":0,\"deliverySequenceLoadingOrder\":\"D\",\"inboundTransFullValidationFlag\":true,\"inventoryRotationMethod\":null,\"preventAllocationOnErrorFlag\":false,\"printVisibilityEnabled\":false,\"printVisibilityMessage\":null,\"resourceId\":\"ZVCL1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse/ZVCL1%2A%21SG\",\"shipmentCartonRouteFlag\":false,\"timeCode\":null,\"timeCodeDescription\":null,\"translatedWarehouseId\":null,\"warehouseId\":\"SG\"}}"
+      }
+    },
+    {
+      "endpoint": "wm/clientWarehouse",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse?warehouseId=SG&siteId=SG&subsites=----&_dc=1786521781789",
+        "query": {
+          "warehouseId": "SG",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781789"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "startedAt": 7,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df6107ea0f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "436",
+          "date": "Wed, 12 Aug 2026 08:03:02 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"allowSupplierLotChange\":false,\"autoPackSublineFlg\":false,\"autoPopulateSupplierLotNum\":true,\"bulkPickingEnabled\":false,\"clientId\":\"----\",\"dateWindow\":0,\"deliverySequenceLoadingOrder\":\"D\",\"inboundTransFullValidationFlag\":false,\"inventoryRotationMethod\":null,\"preventAllocationOnErrorFlag\":false,\"printVisibilityEnabled\":false,\"printVisibilityMessage\":null,\"resourceId\":\"----*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse/----%2A%21SG\",\"shipmentCartonRouteFlag\":false,\"timeCode\":null,\"timeCodeDescription\":null,\"translatedWarehouseId\":null,\"warehouseId\":\"SG\"},{\"allowSupplierLotChange\":false,\"autoPackSublineFlg\":false,\"autoPopulateSupplierLotNum\":false,\"bulkPickingEnabled\":false,\"clientId\":\"ZVCL1\",\"dateWindow\":0,\"deliverySequenceLoadingOrder\":\"D\",\"inboundTransFullValidationFlag\":true,\"inventoryRotationMethod\":null,\"preventAllocationOnErrorFlag\":false,\"printVisibilityEnabled\":false,\"printVisibilityMessage\":null,\"resourceId\":\"ZVCL1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse/ZVCL1%2A%21SG\",\"shipmentCartonRouteFlag\":false,\"timeCode\":null,\"timeCodeDescription\":null,\"translatedWarehouseId\":null,\"warehouseId\":\"SG\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/clients",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients?expand=%7BclientGroups%2Caddress%7D&filterClientFlag=1&empty_wh_id=true&siteId=SG&subsites=----&_dc=1786521781694",
+        "query": {
+          "expand": "{clientGroups,address}",
+          "filterClientFlag": "1",
+          "empty_wh_id": "true",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781694"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "startedAt": 5,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60fecc6f4fe-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Wed, 12 Aug 2026 08:03:05 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000000156\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"CLIENT 1\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"----\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000000038\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000000156\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000000156\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000000156\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":true,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"GMI\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/GMI/clients\",\"resourceId\":\"GMI\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/GMI\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----/groups\",\"clientId\":\"----\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"----\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285433\",\"addressLine1\":\"900 WAUHATCHIE PIKE \",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"SWM Warehouse\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Chattanooga \",\"clientId\":\"PBB\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000116965\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"37419\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285433\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285433\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"TN\",\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285433\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BCW/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"BCW\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BCW/clients\",\"resourceId\":\"BCW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BCW\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BCW/groups\",\"clientId\":\"BCW\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BCW/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"BCW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BCW\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285434\",\"addressLine1\":\"BAUSCH & LOMB AMERICAS INC.\",\"addressLine2\":\"400 SOMERSET CORPORATE BLVD, 8th Flr\",\"addressLine3\":null,\"addressName\":\"Bausch and Lomb Americas Inc Pharma\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"BRIDGEWATER\",\"clientId\":\"BLMB\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285434\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"08807\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285434\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285434\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"NJ\",\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285434\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BLMB/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"BL\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BL/clients\",\"resourceId\":\"BL\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BL\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BLMB/groups\",\"clientId\":\"BLMB\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BLMB/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":\"MR\",\"receiptConfirmationLvlDescription\":\"Inbound Shipment\",\"resourceId\":\"BLMB\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BLMB\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000083553\",\"addressLine1\":\"15000 W. Eight Mile Road\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"A000022086\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Oak Park\",\"clientId\":\"BP\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000083553\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"48237\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000083553\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000083553\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"MI\",\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000083553\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BP/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":1,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"BP\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BP/clients\",\"resourceId\":\"BP\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BP\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BP/groups\",\"clientId\":\"BP\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BP/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"BP\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BP\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285435\",\"addressLine1\":\"8768 E 9th St\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Stryker Chino\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Rancho Cucamonga\",\"clientId\":\"CHO\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":\"Stryker\",\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285435\",\"lastName\":\"Chino\",\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"91730\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285435\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285435\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"CA\",\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285435\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CHO/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CHO/groups\",\"clientId\":\"CHO\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CHO/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"CHO\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CHO\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285436\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 01\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL01\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285436\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285436\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285436\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285436\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL01/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"CL01\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL01/clients\",\"resourceId\":\"CL01\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL01\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL01/groups\",\"clientId\":\"CL01\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL01/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"CL01\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL01\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285437\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 02\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL02\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285437\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285437\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285437\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285437\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL02/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"CL02\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL02/clients\",\"resourceId\":\"CL02\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL02\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL02/groups\",\"clientId\":\"CL02\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL02/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"CL02\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL02\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285438\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 03 FG\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL03FG\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285438\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285438\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285438\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285438\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL03FG/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"CL03\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL03/clients\",\"resourceId\":\"CL03\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL03\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL03FG/groups\",\"clientId\":\"CL03FG\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL03FG/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"CL03FG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL03FG\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285439\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 03 Raw Material\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL03RW\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285439\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285439\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285439\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":n"
+      }
+    },
+    {
+      "endpoint": "wm/clients",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients?expand=%7BclientGroups%2Caddress%7D&filterClientFlag=1&empty_wh_id=true&siteId=SG&subsites=----&_dc=1786521781720",
+        "query": {
+          "expand": "{clientGroups,address}",
+          "filterClientFlag": "1",
+          "empty_wh_id": "true",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781720"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "startedAt": 5,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df6100d4bf4fe-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Wed, 12 Aug 2026 08:03:05 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000000156\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"CLIENT 1\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"----\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000000038\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000000156\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000000156\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000000156\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":true,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"GMI\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/GMI/clients\",\"resourceId\":\"GMI\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/GMI\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----/groups\",\"clientId\":\"----\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"----\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/----\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285433\",\"addressLine1\":\"900 WAUHATCHIE PIKE \",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"SWM Warehouse\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Chattanooga \",\"clientId\":\"PBB\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000116965\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"37419\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285433\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285433\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"TN\",\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285433\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BCW/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"BCW\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BCW/clients\",\"resourceId\":\"BCW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BCW\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BCW/groups\",\"clientId\":\"BCW\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BCW/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"BCW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BCW\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285434\",\"addressLine1\":\"BAUSCH & LOMB AMERICAS INC.\",\"addressLine2\":\"400 SOMERSET CORPORATE BLVD, 8th Flr\",\"addressLine3\":null,\"addressName\":\"Bausch and Lomb Americas Inc Pharma\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"BRIDGEWATER\",\"clientId\":\"BLMB\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285434\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"08807\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285434\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285434\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"NJ\",\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285434\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BLMB/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"BL\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BL/clients\",\"resourceId\":\"BL\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BL\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BLMB/groups\",\"clientId\":\"BLMB\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BLMB/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":\"MR\",\"receiptConfirmationLvlDescription\":\"Inbound Shipment\",\"resourceId\":\"BLMB\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BLMB\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000083553\",\"addressLine1\":\"15000 W. Eight Mile Road\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"A000022086\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Oak Park\",\"clientId\":\"BP\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000083553\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"48237\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000083553\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000083553\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"MI\",\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000083553\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BP/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":1,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"BP\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BP/clients\",\"resourceId\":\"BP\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/BP\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BP/groups\",\"clientId\":\"BP\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BP/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"BP\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/BP\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285435\",\"addressLine1\":\"8768 E 9th St\",\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Stryker Chino\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":\"Rancho Cucamonga\",\"clientId\":\"CHO\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":\"USA\",\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":\"Stryker\",\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285435\",\"lastName\":\"Chino\",\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":\"91730\",\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285435\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285435\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":\"CA\",\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285435\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CHO/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CHO/groups\",\"clientId\":\"CHO\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CHO/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"CHO\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CHO\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285436\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 01\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL01\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285436\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285436\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285436\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285436\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL01/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"CL01\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL01/clients\",\"resourceId\":\"CL01\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL01\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL01/groups\",\"clientId\":\"CL01\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL01/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"CL01\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL01\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285437\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 02\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL02\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285437\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285437\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285437\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285437\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL02/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"CL02\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL02/clients\",\"resourceId\":\"CL02\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL02\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL02/groups\",\"clientId\":\"CL02\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL02/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"CL02\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL02\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285438\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 03 FG\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL03FG\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285438\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285438\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285438\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null},\"addressId\":\"A000285438\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL03FG/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":1,\"assigned\":false,\"billToLocaleId\":null,\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups\":[{\"adjustmentThresholdCost\":null,\"adjustmentThresholdUnit\":null,\"clientGroup\":\"CL03\",\"clientGroupDescription\":null,\"clients_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL03/clients\",\"resourceId\":\"CL03\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientGroups/CL03\"}],\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL03FG/groups\",\"clientId\":\"CL03FG\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL03FG/warehouse\",\"filterClientFlag\":null,\"groupName\":null,\"isoCurrencyFlag\":false,\"lotFormatId\":null,\"receiptConfirmationLvl\":null,\"receiptConfirmationLvlDescription\":null,\"resourceId\":\"CL03FG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/CL03FG\",\"warehouseId\":\"SG\"},{\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000285439\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"Client 03 Raw Material\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"CL03RW\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000285439\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000285439\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000285439\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":n"
+      }
+    }
+  ],
+  "writes": [
+    {
+      "endpoint": "wm/addresses",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses?siteId=SG&subsites=----&_dc=1786521780784",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521780784"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"addressId\":\"\",\"hostExternalId\":\"\",\"addressName\":\"ZV Capture Addr\",\"addressLine1\":\"\",\"addressLine2\":\"\",\"addressLine3\":\"\",\"city\":\"\",\"state\":\"\",\"postalCode\":\"\",\"addressType\":\"CLI\",\"clientId\":\"ZVCL1\",\"countryName\":\"\",\"phoneNumber\":\"\",\"timeZone\":\"\",\"firstName\":\"\",\"lastName\":\"\",\"localeId\":\"\",\"customsSiteType\":\"\",\"globalLocationNumber\":\"\",\"customsTaxSite\":\"\",\"temporary\":false,\"residentialAddress\":false,\"receivingWebAddress\":\"\",\"contactName\":\"\",\"contactPhone\":\"\",\"attentionPhone\":\"\",\"faxNumber\":\"\",\"email\":\"\",\"contactTitle\":\"\",\"attentionName\":\"\",\"shippingPhone\":\"\",\"shippingWebAddress\":\"\",\"shippingContactName\":\"\",\"shippingContactPhone\":\"\",\"shippingAttentionPhone\":\"\",\"shippingFax\":\"\",\"shippingEmail\":\"\",\"shippingContactTitle\":\"\",\"shippingAttentionName\":\"\",\"honorific\":\"\",\"addressDistrict\":\"\",\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":\"\",\"region\":\"\",\"latitude\":\"\",\"longitude\":\"\"}"
+      },
+      "startedAt": 3,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000365887",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60a6a97f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "1245",
+          "date": "Wed, 12 Aug 2026 08:03:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000365887\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"ZV Capture Addr\",\"addressType\":\"CLI\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"ZVCL1\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000365887\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000365887\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000365887\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null}}"
+      }
+    },
+    {
+      "endpoint": "wm/clients",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients?siteId=SG&subsites=----&_dc=1786521781096",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781096"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"addressId\":\"A000365887\",\"address_uri\":\"\",\"adjustmentThresholdCost\":0,\"adjustmentThresholdUnit\":0,\"assigned\":true,\"billToLocaleId\":\"\",\"clientGroups_uri\":\"\",\"clientId\":\"ZVCL1\",\"groupName\":\"\",\"isoCurrencyFlag\":false,\"lotFormatId\":\"\",\"receiptConfirmationLvl\":\"\",\"receiptConfirmationLvlDescription\":\"\",\"allClientFlg\":0,\"self_uri\":\"\",\"warehouseId\":\"SG\",\"deliverySequenceLoadingOrder\":\"\",\"displayClientId\":\"Default\"}"
+      },
+      "startedAt": 3,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60c2833f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "864",
+          "date": "Wed, 12 Aug 2026 08:03:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"addressId\":\"A000365887\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1/addresses\",\"adjustmentThresholdCost\":0.0,\"adjustmentThresholdUnit\":0,\"allClientFlg\":null,\"assigned\":null,\"billToLocaleId\":\"\",\"bolaFromRange\":null,\"bolaNextNumber\":null,\"bolaPrefix\":null,\"bolaSuffix\":null,\"bolaToRange\":null,\"clientGroups_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1/groups\",\"clientId\":\"ZVCL1\",\"clientWarehouse_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1/warehouse\",\"filterClientFlag\":null,\"groupName\":\"\",\"isoCurrencyFlag\":false,\"lotFormatId\":\"\",\"receiptConfirmationLvl\":\"\",\"receiptConfirmationLvlDescription\":\"\",\"resourceId\":\"ZVCL1\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clients/ZVCL1\",\"warehouseId\":null}}"
+      }
+    },
+    {
+      "endpoint": "wm/packingConfigurations",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/packingConfigurations?siteId=SG&subsites=----&_dc=1786521781420",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781420"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"warehouseId\":\"SG\",\"clientId\":\"ZVCL1\",\"weightCaptureRequired\":null,\"weightCaptureAutomatic\":null,\"weightCaptureToleranceBelow\":null,\"weightCaptureToleranceAbove\":null,\"weightCaptureNoClose\":null,\"captureItemPerSerialNumber\":false,\"packAtInventoryArrivalFlag\":false}"
+      },
+      "startedAt": 4,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60e2ef8f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "2",
+          "date": "Wed, 12 Aug 2026 08:03:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "\"\""
+      }
+    },
+    {
+      "endpoint": "wm/clientWarehouse",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse?siteId=SG&subsites=----&_dc=1786521781418",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1786521781418"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"clientId\":\"ZVCL1\",\"translatedWarehouseId\":\"\",\"allowSupplierLotChange\":false,\"autoPopulateSupplierLotNum\":false,\"bulkPickingEnabled\":false,\"warehouseId\":\"SG\",\"printVisibilityEnabled\":false,\"printVisibilityMessage\":\"\",\"dateWindow\":0,\"timeCode\":\"\",\"inventoryRotationMethod\":\"\",\"autoPackSublineFlg\":false,\"inboundTransFullValidationFlag\":true,\"deliverySequenceLoadingOrder\":\"\",\"preventAllocationOnErrorFlag\":false,\"shipmentCartonRouteFlag\":false,\"displayClientId\":\"ZVCL1\"}"
+      },
+      "startedAt": 4,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse/ZVCL1%2A%21SG",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a29df60e2ef5f4fe-DEL",
+          "authenticated": "true",
+          "content-length": "643",
+          "date": "Wed, 12 Aug 2026 08:03:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"allowSupplierLotChange\":false,\"autoPackSublineFlg\":false,\"autoPopulateSupplierLotNum\":false,\"bulkPickingEnabled\":false,\"clientId\":\"ZVCL1\",\"dateWindow\":0,\"deliverySequenceLoadingOrder\":\"D\",\"inboundTransFullValidationFlag\":true,\"inventoryRotationMethod\":null,\"preventAllocationOnErrorFlag\":false,\"printVisibilityEnabled\":false,\"printVisibilityMessage\":null,\"resourceId\":\"ZVCL1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/clientWarehouse/ZVCL1%2A%21SG\",\"shipmentCartonRouteFlag\":false,\"timeCode\":null,\"timeCodeDescription\":null,\"translatedWarehouseId\":null,\"warehouseId\":\"SG\"}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "call": 3,
+        "endpoint": "wm/addresses",
+        "field": "data.addressId"
+      },
+      "to": {
+        "call": 4,
+        "endpoint": "wm/clients",
+        "field": "body:addressId"
+      },
+      "value": "A000365887"
+    },
+    {
+      "from": {
+        "call": 3,
+        "endpoint": "wm/addresses",
+        "field": "data.clientId"
+      },
+      "to": {
+        "call": 4,
+        "endpoint": "wm/clients",
+        "field": "body:clientId"
+      },
+      "value": "ZVCL1"
+    },
+    {
+      "from": {
+        "call": 3,
+        "endpoint": "wm/addresses",
+        "field": "data.clientId"
+      },
+      "to": {
+        "call": 6,
+        "endpoint": "wm/packingConfigurations",
+        "field": "body:clientId"
+      },
+      "value": "ZVCL1"
+    },
+    {
+      "from": {
+        "call": 4,
+        "endpoint": "wm/clients",
+        "field": "data.clientId"
+      },
+      "to": {
+        "call": 6,
+        "endpoint": "wm/packingConfigurations",
+        "field": "body:clientId"
+      },
+      "value": "ZVCL1"
+    },
+    {
+      "from": {
+        "call": 3,
+        "endpoint": "wm/addresses",
+        "field": "data.clientId"
+      },
+      "to": {
+        "call": 7,
+        "endpoint": "wm/clientWarehouse",
+        "field": "body:clientId"
+      },
+      "value": "ZVCL1"
+    },
+    {
+      "from": {
+        "call": 4,
+        "endpoint": "wm/clients",
+        "field": "data.clientId"
+      },
+      "to": {
+        "call": 7,
+        "endpoint": "wm/clientWarehouse",
+        "field": "body:clientId"
+      },
+      "value": "ZVCL1"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "spec": "carrierCrossReferences",
+  "resource": "carrierCrossReferences",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierCrossReferences",
+      "body": "{\"carrier\":\"0000\",\"serviceLevel\":\"LT\",\"destinationName\":\"TANDATA\",\"destinationLevel\":\"\",\"destinationCarrier\":\"\",\"serverPrintsLabelFlag\":false,\"serviceTitle\":\"\",\"parcelCarrierCode\":\"\",\"codAddressId\":\"\",\"crossReference\":\"0000|LT - TANDATA\"}"
+    }
+  ],
+  "reset": true,
+  "add": {
+    "id": "button-3113",
+    "count": 1
+  },
+  "applied": {
+    "carrier": "0000"
+  },
+  "invalid": [],
+  "phase_serviceLevel": {
+    "applied": {
+      "serviceLevel": "LT"
+    },
+    "invalid": [
+      {
+        "field": "destinationName",
+        "label": "External System Name",
+        "errors": [
+          "This field is required"
+        ]
+      }
+    ]
+  },
+  "phase_destinationName": {
+    "applied": {
+      "destinationName": "TANDATA"
+    },
+    "invalid": []
+  },
+  "save": {
+    "id": "button-6480",
+    "count": 1
+  },
+  "ok": true
+}

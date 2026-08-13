@@ -153,6 +153,6 @@ def build_container(settings: Settings | None = None) -> Container:
         inline_body_limit_bytes=settings.inline_body_limit_bytes,
         screenshot_per_gesture=settings.capture_screenshot_per_frame,
         video=settings.capture_video,
-        video_max_width=settings.capture_video_max_width,
+        video_fps=settings.capture_video_fps,
     )
     return container

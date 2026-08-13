@@ -230,8 +230,13 @@ Two details are load-bearing:
 - `stream.codec_context.time_base` must be set, not just `stream.time_base`.
   Without it libx264 has no timebase, buffers everything, and fails the final
   flush with a bare `EINVAL` -- losing every frame still inside the encoder.
-- Screencast frames must be acked (`Page.screencastFrameAck`) or the browser
-  stops sending them.
+- Video frames are *taken*, not streamed. `Page.startScreencast` is the obvious
+  API and the wrong one: Chrome allows a single screencast consumer per page and
+  the newest wins, so subscribing steals the stream from Steel's live view and
+  freezes the browser the operator is driving — capture keeps working, the human
+  goes blind. `Page.captureScreenshot` is request/response and takes nothing
+  from anyone. The cost is sampling rather than repaint-accurate frames, which
+  for reviewing a demonstration is not worth the breakage.
 
 Video is the least important capture channel and the only skippable one: an
 encoding failure disables video for the session and is logged, never raised,

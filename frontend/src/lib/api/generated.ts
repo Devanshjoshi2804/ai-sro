@@ -300,8 +300,12 @@ export interface components {
             request_count: number;
             /** Primary Request */
             primary_request: string | null;
+            /** Primary Status */
+            primary_status: number | null;
             /** Error Count */
             error_count: number;
+            /** Applied */
+            applied: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

@@ -106,13 +106,13 @@ class CaptureSession:
         inline_body_limit_bytes: int = 256 * 1024,
         screenshot_per_gesture: bool = True,
         video: bool = True,
-        video_max_width: int = 1280,
+        video_fps: int = 2,
     ) -> None:
         self._blobs = blob_store
         self._prefix = key_prefix.rstrip("/")
         self._inline_limit = inline_body_limit_bytes
         self._screenshot = screenshot_per_gesture
-        self._video_max_width = video_max_width
+        self._video_fps = video_fps
         self._recorder = ScreencastRecorder() if video else None
 
         self._events: list[CaptureEvent] = []
@@ -187,18 +187,7 @@ class CaptureSession:
         cdp.on("Network.loadingFailed", self._on_failed)
         cdp.on("Runtime.consoleAPICalled", self._on_console)
         if self._recorder is not None:
-            cdp.on("Page.screencastFrame", self._on_screencast_frame)
-            await cdp.send(
-                "Page.startScreencast",
-                {
-                    "format": "jpeg",
-                    "quality": 60,
-                    "maxWidth": self._video_max_width,
-                    # Every frame: a screencast only emits when the page changes,
-                    # so skipping frames drops the change, not the idle time.
-                    "everyNthFrame": 1,
-                },
-            )
+            self._spawn(self._video_loop())
         for method in (
             "Page.frameNavigated",
             "Page.loadEventFired",
@@ -506,30 +495,41 @@ class CaptureSession:
             )
         )
 
-    def _on_screencast_frame(self, payload: CdpPayload) -> None:
-        """One repaint. Acked immediately or the browser stops sending them."""
-        recorder = self._recorder
-        metadata = payload.get("metadata") or {}
-        session_id = payload.get("sessionId")
+    async def _video_loop(self) -> None:
+        """Frames for the video, taken rather than streamed.
 
-        if recorder is not None and payload.get("data"):
-            timestamp = metadata.get("timestamp")
-            at_ms = (
-                float(timestamp) * 1000
-                if timestamp is not None
-                else (datetime.now(UTC).timestamp() * 1000)
-            )
-            recorder.add_frame(base64.b64decode(str(payload["data"])), at_ms=at_ms)
+        ``Page.startScreencast`` is the obvious way to do this and it is the
+        wrong one: Chrome allows a single screencast consumer per page and the
+        newest one wins. Steel's live view is a screencast consumer, so
+        subscribing here silently freezes the browser the operator is driving --
+        proved by attaching two clients and watching the first receive nothing.
 
-        if session_id is not None and self._cdp is not None:
-            self._spawn(self._ack_screencast(int(session_id)))
-
-    async def _ack_screencast(self, session_id: int) -> None:
-        cdp = self._cdp
-        if cdp is None:
-            return
-        with contextlib.suppress(Exception):
-            await cdp.send("Page.screencastFrameAck", {"sessionId": session_id})
+        ``Page.captureScreenshot`` is request/response, so it takes nothing away
+        from anyone. The cost is sampling rather than repaint-accurate frames,
+        which for reviewing a demonstration is not a cost worth the breakage.
+        """
+        interval = 1 / max(self._video_fps, 1)
+        while True:
+            await asyncio.sleep(interval)
+            recorder, cdp = self._recorder, self._cdp
+            if recorder is None or cdp is None:
+                return
+            try:
+                shot = await cdp.send(
+                    "Page.captureScreenshot",
+                    {"format": "jpeg", "quality": 55, "optimizeForSpeed": True},
+                )
+            except Exception:
+                # A navigating or closing page cannot be photographed. Logged at
+                # debug because it is expected on every navigation; the next tick
+                # finds the page again, and video is never worth failing over.
+                logger.debug("skipped a video frame", exc_info=True)
+                continue
+            data = shot.get("data")
+            if data:
+                recorder.add_frame(
+                    base64.b64decode(str(data)), at_ms=datetime.now(UTC).timestamp() * 1000
+                )
 
     def stop_video(self) -> Recorded | None:
         """Finish the recording and hand over the file, if there is one."""

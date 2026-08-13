@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest
+from playwright.async_api import async_playwright
 
 from sro.application.capture.assemble import assemble_frames
 from sro.application.capture.events import InputEvent, RequestEvent, SnapshotEvent
@@ -138,6 +139,53 @@ async def test_a_screenshot_is_written_for_each_gesture(steel: SteelClient) -> N
     assert batch.artifacts
     assert blobs.objects
     assert all(artifact.size_bytes > 0 for artifact in batch.artifacts)
+
+
+async def test_capture_does_not_starve_the_operator_s_live_view(steel: SteelClient) -> None:
+    """Chrome allows one screencast consumer per page, and the newest one wins.
+
+    Steel's live view is a screencast consumer, so a capture session that starts
+    its own screencast silently freezes the browser the operator is driving --
+    the teaching session still records, and the human can no longer see what
+    they are doing. Video is therefore sampled with screenshots instead.
+    """
+    session = await steel.open()
+    capture = CaptureSession(
+        blob_store=FakeBlobStore(), key_prefix="acme/rec-live-view", video=True
+    )
+
+    async with async_playwright() as pw:
+        viewer_browser = await pw.chromium.connect_over_cdp(session.debugger_url)
+        page = viewer_browser.contexts[0].pages[0]
+        viewer = await viewer_browser.contexts[0].new_cdp_session(page)
+        frames: list[object] = []
+        viewer.on("Page.screencastFrame", lambda _: frames.append(1))
+        await viewer.send("Page.enable")
+        await viewer.send("Page.startScreencast", {"format": "jpeg", "quality": 40})
+
+        await page.route(
+            "https://wms.test/",
+            lambda route: route.fulfill(status=200, content_type="text/html", body=PAGE),
+        )
+        await page.goto("https://wms.test/")
+        await page.wait_for_timeout(600)
+        before = len(frames)
+
+        try:
+            await capture.attach(session.debugger_url)
+            await capture.page.wait_for_timeout(400)
+            await page.click("#release")
+            await page.wait_for_timeout(1500)
+            recorded = capture.stop_video()
+        finally:
+            await capture.detach()
+            await viewer_browser.close()
+            await steel.close(session.id)
+
+    assert before > 0, "the stand-in live view never worked, so the test proves nothing"
+    assert len(frames) > before, "capture starved the live view of screencast frames"
+    assert recorded is not None and recorded.frame_count > 0, "no video was recorded"
+    recorded.path.unlink(missing_ok=True)
 
 
 async def test_a_request_in_flight_when_capture_ends_is_still_recorded(

@@ -47,7 +47,12 @@ class Settings(BaseSettings):
     """Screencast the demonstration. Encoded as it arrives, so a long session
     costs disk rather than memory."""
 
-    capture_video_max_width: int = 1280
+    capture_video_fps: int = 2
+    """Frames per second for the session video.
+
+    Sampled with screenshots rather than a screencast: a screencast would take
+    the live view away from the operator (Chrome allows one consumer per page).
+    """
 
     transcription_enabled: bool = False
     """Narration transcription is optional. Default binding is NullTranscriber."""

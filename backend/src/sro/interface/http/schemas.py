@@ -97,7 +97,16 @@ class FrameSummary(BaseModel):
     target: str | None
     request_count: int
     primary_request: str | None
+    primary_status: int | None
     error_count: int
+
+    applied: bool
+    """The action caused a mutating call the system accepted.
+
+    How a teaching session knows the task actually happened rather than asking
+    the operator to say so. It means something was applied, not that the task is
+    finished -- a task can apply several things.
+    """
 
 
 class RecordingDetail(RecordingSummary):
@@ -120,6 +129,14 @@ class RecordingDetail(RecordingSummary):
                         f"{frame.primary_request.method} {frame.primary_request.url}"
                         if frame.primary_request
                         else None
+                    ),
+                    primary_status=(
+                        frame.primary_request.status if frame.primary_request else None
+                    ),
+                    applied=(
+                        frame.primary_request is not None
+                        and frame.primary_request.is_mutation
+                        and frame.primary_request.succeeded
                     ),
                     error_count=len(frame.errors),
                 )

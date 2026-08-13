@@ -52,5 +52,8 @@ is itself a test of the foundation.
 
 ## Where to read next
 
+[CONTEXT.md](CONTEXT.md) — the whole picture in one file: the idea, what exists,
+every decision and its consequence, what is next, and what is knowingly unfinished.
+
 [docs/00-overview.md](docs/00-overview.md) — what this is, what v0 covers, and
 what it deliberately does not.

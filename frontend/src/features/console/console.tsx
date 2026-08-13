@@ -1,0 +1,829 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  listRecordings,
+  recordingKeys,
+  startRecording,
+  type StartRecordingRequest,
+} from "@/features/recording/api";
+import { induceSkill, listSkills, skillKeys } from "@/features/skill/api";
+import { ApiError } from "@/lib/api/client";
+import { ink, mono } from "@/features/console/theme";
+import { SkillCard } from "@/features/console/skill-card";
+import { TeachPanel } from "@/features/console/teach-panel";
+import { useThread } from "@/features/console/thread-store";
+
+type Objective = {
+  objective_type: string;
+  target_system: string;
+  entity_type: string;
+  facility: string;
+  direction: "outbound" | "inbound" | "internal";
+  start_url: string;
+};
+
+const EMPTY: Objective = {
+  objective_type: "",
+  target_system: "",
+  entity_type: "",
+  facility: "",
+  direction: "internal",
+  start_url: "",
+};
+
+export function Console() {
+  const queryClient = useQueryClient();
+  const thread = useThread();
+
+  const [tab, setTab] = useState<"chat" | "teach">("chat");
+  const [plusOpen, setPlusOpen] = useState(false);
+  const [objective, setObjective] = useState<Objective | null>(null);
+  const [active, setActive] = useState<{ recordingId: string; run: number } | null>(null);
+
+  const skills = useQuery({ queryKey: skillKeys.all, queryFn: listSkills });
+  const recordings = useQuery({ queryKey: recordingKeys.all, queryFn: listRecordings });
+
+  const start = useMutation({
+    mutationFn: ({ form, run }: { form: Objective; run: number }) => {
+      const body: StartRecordingRequest = {
+        objective_key: {
+          objective_type: form.objective_type.trim(),
+          target_system: form.target_system.trim(),
+          entity_type: form.entity_type.trim(),
+          facility: form.facility.trim(),
+          direction: form.direction,
+        },
+        start_url: form.start_url.trim() || null,
+        label: `run ${run}`,
+      };
+      return startRecording(body);
+    },
+    onSuccess: (started, variables) => {
+      thread.add({
+        kind: "session",
+        recordingId: started.recording_id,
+        run: variables.run,
+        label: variables.form.objective_type,
+      });
+      setActive({ recordingId: started.recording_id, run: variables.run });
+      setTab("teach");
+      void queryClient.invalidateQueries({ queryKey: recordingKeys.all });
+    },
+    onError: (error) => {
+      const detail = error instanceof ApiError ? error.problem.detail : String(error);
+      thread.add({
+        kind: "system",
+        text: `Could not open a browser session: ${detail}. The browser may already be in use — a self-hosted Steel runs one session at a time.`,
+      });
+      toast.error("Could not open a browser session", { description: detail });
+    },
+  });
+
+  const induce = useMutation({
+    mutationFn: ([first, second]: [string, string]) => induceSkill(first, second),
+    onSuccess: (result) => {
+      thread.add({ kind: "skill", skillId: result.skill_id, version: result.version });
+      void queryClient.invalidateQueries({ queryKey: skillKeys.all });
+    },
+    onError: (error) => {
+      const detail = error instanceof ApiError ? error.problem.detail : String(error);
+      thread.add({ kind: "system", text: `Induction refused: ${detail}` });
+      toast.error("Induction refused", { description: detail });
+    },
+  });
+
+  const beginTeaching = (form: Objective) => {
+    setObjective(form);
+    thread.add({ kind: "operator", text: `Teach a workflow — ${form.objective_type}` });
+    start.mutate({ form, run: 1 });
+  };
+
+  const onSealed = (frames: number) => {
+    if (!active) return;
+    thread.add({ kind: "sealed", recordingId: active.recordingId, run: active.run, frames });
+    setActive(null);
+    setTab("chat");
+
+    const sealed = [...thread.sealedRecordings, active.recordingId];
+    if (sealed.length >= 2 && objective) {
+      const pair = sealed.slice(-2) as [string, string];
+      induce.mutate(pair);
+    }
+  };
+
+  const runsSoFar = thread.sealedRecordings.length;
+  const teaching = active !== null;
+
+  return (
+    <div
+      style={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        fontFamily: "Manrope, var(--font-geist-sans), sans-serif",
+        color: ink.text,
+        background: ink.page,
+        overflow: "hidden",
+      }}
+    >
+      <nav
+        style={{
+          display: "flex",
+          alignItems: "stretch",
+          background: ink.bar,
+          padding: "0 14px",
+          height: 46,
+          flex: "0 0 auto",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 9, paddingRight: 18 }}>
+          <span
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: "50%",
+              background: ink.accent,
+              color: "#fff",
+              fontWeight: 800,
+              fontSize: 13,
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
+            g
+          </span>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: ink.barText }}>
+            Grey<span style={{ color: ink.accent }}>Orange</span>{" "}
+            <span style={{ color: ink.barMuted, fontWeight: 600 }}>AI-SRO</span>
+          </span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
+          <Tab active={tab === "chat"} onClick={() => setTab("chat")} dot="#5A5C60">
+            Threads
+          </Tab>
+          {teaching && (
+            <Tab active={tab === "teach"} onClick={() => setTab("teach")} dot={ink.danger} pulse>
+              Teaching session
+            </Tab>
+          )}
+        </div>
+
+        <span style={{ flex: 1 }} />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            fontSize: 11.5,
+            color: "#7A7C7F",
+            fontWeight: 600,
+          }}
+        >
+          <span>
+            tenant <span style={{ color: ink.barText }}>acme</span>
+          </span>
+          <span
+            style={{
+              padding: "3px 8px",
+              border: "1px solid #3A3C3F",
+              borderRadius: 5,
+              color: ink.barText,
+            }}
+          >
+            HIGHEST STAGE · SHADOW
+          </span>
+        </div>
+      </nav>
+
+      {tab === "teach" && active ? (
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <TeachPanel
+            recordingId={active.recordingId}
+            run={active.run}
+            onSealed={onSealed}
+            onDiscarded={() => {
+              setActive(null);
+              setTab("chat");
+              thread.add({ kind: "system", text: "Run discarded. Nothing was learned from it." });
+            }}
+          />
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+          <aside
+            style={{
+              width: 236,
+              flex: "0 0 236px",
+              borderRight: `1px solid ${ink.line}`,
+              background: ink.panel,
+              padding: "16px 12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 22,
+              overflow: "auto",
+            }}
+          >
+            <Section title="SKILLS">
+              {(skills.data ?? []).map((skill) => (
+                <Link
+                  key={skill.id}
+                  href={`/skills/${skill.id}`}
+                  style={{
+                    padding: "9px 10px",
+                    border: `1px solid ${ink.line}`,
+                    borderRadius: 8,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    color: ink.text,
+                  }}
+                >
+                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>
+                    {skill.name}{" "}
+                    <span style={{ color: ink.textMuted, fontWeight: 500 }}>
+                      v{skill.latest_version}
+                    </span>
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      letterSpacing: ".05em",
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      background: ink.infoWash,
+                      color: ink.info,
+                      alignSelf: "flex-start",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {skill.latest_stage}
+                  </span>
+                </Link>
+              ))}
+              {(skills.data ?? []).length === 0 && (
+                <span style={{ padding: "9px 10px", fontSize: 12.5, color: ink.textMuted }}>
+                  None yet — teach one from the + menu
+                </span>
+              )}
+            </Section>
+
+            <Section title="RECENT SESSIONS">
+              {(recordings.data ?? []).slice(0, 6).map((recording) => (
+                <Link
+                  key={recording.id}
+                  href={`/recordings/${recording.id}`}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    color: ink.textSoft,
+                    display: "flex",
+                    gap: 7,
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background:
+                        recording.status === "sealed"
+                          ? ink.goodDot
+                          : recording.status === "capturing"
+                            ? ink.accent
+                            : ink.textMuted,
+                    }}
+                  />
+                  {recording.objective_key.objective_type}
+                  <span style={{ color: ink.textMuted, fontSize: 11 }}>
+                    {recording.frame_count}
+                  </span>
+                </Link>
+              ))}
+            </Section>
+
+            <span style={{ flex: 1 }} />
+            <div
+              style={{
+                borderTop: `1px solid ${ink.lineSoft}`,
+                padding: "12px 8px 0",
+                fontSize: 11,
+                lineHeight: 1.6,
+                color: ink.textMuted,
+              }}
+            >
+              Capture stays inside your infrastructure. Secrets are stored as vault references only.
+            </div>
+          </aside>
+
+          <main
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              minWidth: 0,
+              minHeight: 0,
+            }}
+          >
+            <div style={{ flex: 1, overflow: "auto", padding: "34px 0 20px" }}>
+              <div
+                style={{
+                  maxWidth: 772,
+                  margin: "0 auto",
+                  padding: "0 28px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 20,
+                }}
+              >
+                <Assistant>
+                  Nothing runs against a live system yet — skills stop at shadow. Teach me a task by
+                  doing it twice and I will work out what changes between the runs.
+                </Assistant>
+
+                {thread.entries.map((entry) => {
+                  switch (entry.kind) {
+                    case "operator":
+                      return <Operator key={entry.id}>{entry.text}</Operator>;
+                    case "system":
+                      return <Assistant key={entry.id}>{entry.text}</Assistant>;
+                    case "session":
+                      return (
+                        <Assistant key={entry.id}>
+                          Run {entry.run} open. Do the task exactly as you normally would — every
+                          gesture, call and accessibility tree is being captured.
+                        </Assistant>
+                      );
+                    case "sealed":
+                      return (
+                        <Assistant key={entry.id}>
+                          Run {entry.run} sealed with {entry.frames} step
+                          {entry.frames === 1 ? "" : "s"}.{" "}
+                          {entry.run === 1
+                            ? "Do it once more with different values so the diff can find the parameters."
+                            : "Both runs captured."}
+                        </Assistant>
+                      );
+                    case "skill":
+                      return (
+                        <div key={entry.id} style={{ display: "flex", gap: 12 }}>
+                          <Avatar />
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 12,
+                            }}
+                          >
+                            <div style={{ fontSize: 15, lineHeight: 1.6 }}>
+                              Two demonstrations aligned and diffed. What changed became a
+                              parameter, what held stayed literal. No model was asked what the
+                              parameters are.
+                            </div>
+                            <SkillCard skillId={entry.skillId} />
+                          </div>
+                        </div>
+                      );
+                  }
+                })}
+
+                {induce.isPending && (
+                  <Assistant>Aligning the two runs and diffing the replayable values…</Assistant>
+                )}
+
+                {objective && !teaching && runsSoFar !== 2 && (
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <Avatar />
+                    <button
+                      onClick={() =>
+                        start.mutate({ form: objective, run: runsSoFar === 1 ? 2 : 1 })
+                      }
+                      disabled={start.isPending}
+                      style={{
+                        padding: "10px 16px",
+                        borderRadius: 8,
+                        background: ink.accent,
+                        color: "#fff",
+                        border: "none",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        alignSelf: "flex-start",
+                      }}
+                    >
+                      {start.isPending
+                        ? "Opening…"
+                        : runsSoFar === 1
+                          ? "Start run 2"
+                          : "Try opening a session again"}
+                    </button>
+                  </div>
+                )}
+
+                {objective === null && (
+                  <TeachForm onStart={beginTeaching} pending={start.isPending} />
+                )}
+              </div>
+            </div>
+
+            <div style={{ flex: "0 0 auto", padding: "0 28px 24px" }}>
+              <div style={{ maxWidth: 772, margin: "0 auto", position: "relative" }}>
+                {plusOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 74,
+                      left: 0,
+                      width: 288,
+                      background: ink.panel,
+                      border: `1px solid ${ink.line}`,
+                      borderRadius: 12,
+                      boxShadow: "0 12px 32px rgba(20,20,20,.13)",
+                      padding: 6,
+                      zIndex: 5,
+                    }}
+                  >
+                    <PlusItem
+                      icon="◉"
+                      title="Teach a workflow"
+                      subtitle="Opens a recorded browser session"
+                      onClick={() => {
+                        setPlusOpen(false);
+                        setObjective(null);
+                        document
+                          .getElementById("teach-form")
+                          ?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                    />
+                    <PlusItem
+                      icon="▤"
+                      title="Attach knowledge base"
+                      subtitle="Not built yet — phase 4"
+                      disabled
+                    />
+                    <PlusItem
+                      icon="⌗"
+                      title="Connect a system"
+                      subtitle="Not built yet — credentials go to the vault"
+                      disabled
+                    />
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    background: ink.panel,
+                    border: `1px solid ${ink.line}`,
+                    borderRadius: 14,
+                    padding: "9px 12px 9px 10px",
+                  }}
+                >
+                  <button
+                    onClick={() => setPlusOpen((value) => !value)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      flex: "0 0 32px",
+                      borderRadius: 9,
+                      background: ink.page,
+                      border: "none",
+                      display: "grid",
+                      placeItems: "center",
+                      fontSize: 19,
+                      color: ink.textSoft,
+                      cursor: "pointer",
+                    }}
+                  >
+                    +
+                  </button>
+                  <input
+                    disabled
+                    placeholder="Asking for a task lands in phase 4 — teach one with + for now"
+                    style={{
+                      flex: 1,
+                      border: "none",
+                      outline: "none",
+                      fontSize: 14.5,
+                      background: "transparent",
+                      color: ink.text,
+                    }}
+                  />
+                </div>
+                <div style={{ padding: "9px 4px 0", fontSize: 11, color: ink.textMuted }}>
+                  Skills will run at the highest rung that works: network replay, then UI replay,
+                  then vision. Execution is not built yet.
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeachForm({
+  onStart,
+  pending,
+}: {
+  onStart: (objective: Objective) => void;
+  pending: boolean;
+}) {
+  const [form, setForm] = useState<Objective>(EMPTY);
+  const required: (keyof Objective)[] = [
+    "objective_type",
+    "target_system",
+    "entity_type",
+    "facility",
+  ];
+  const complete = required.every((key) => String(form[key]).trim().length > 0);
+
+  return (
+    <div id="teach-form" style={{ display: "flex", gap: 12 }}>
+      <Avatar />
+      <div
+        style={{
+          flex: 1,
+          border: `1px solid ${ink.line}`,
+          borderRadius: 12,
+          background: ink.panel,
+          padding: 16,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 700 }}>What are you teaching?</div>
+        <div style={{ fontSize: 12.5, color: ink.textSoft, lineHeight: 1.6 }}>
+          Two runs only pair into a skill when all five match exactly, so this is asked once rather
+          than guessed.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <Field
+            label="Task"
+            placeholder="inventory_adjust"
+            value={form.objective_type}
+            onChange={(value) => setForm({ ...form, objective_type: value })}
+          />
+          <Field
+            label="System"
+            placeholder="blue_yonder"
+            value={form.target_system}
+            onChange={(value) => setForm({ ...form, target_system: value })}
+          />
+          <Field
+            label="Entity"
+            placeholder="sku"
+            value={form.entity_type}
+            onChange={(value) => setForm({ ...form, entity_type: value })}
+          />
+          <Field
+            label="Facility"
+            placeholder="DC07"
+            value={form.facility}
+            onChange={(value) => setForm({ ...form, facility: value })}
+          />
+          <div style={{ gridColumn: "1 / -1" }}>
+            <Field
+              label="Start URL"
+              placeholder="https://wms.acme-dc.internal/inventory"
+              value={form.start_url}
+              onChange={(value) => setForm({ ...form, start_url: value })}
+            />
+          </div>
+        </div>
+        <button
+          onClick={() => onStart(form)}
+          disabled={!complete || pending}
+          style={{
+            alignSelf: "flex-start",
+            padding: "10px 16px",
+            borderRadius: 8,
+            border: "none",
+            background: complete ? ink.accent : "#E7E7E4",
+            color: complete ? "#fff" : ink.textMuted,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: complete ? "pointer" : "not-allowed",
+          }}
+        >
+          {pending ? "Opening a browser…" : "Open a session and start run 1"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: ink.textMuted }}>{label}</span>
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        style={{
+          border: `1px solid ${ink.line}`,
+          borderRadius: 8,
+          padding: "8px 10px",
+          fontSize: 13,
+          fontFamily: mono,
+          outline: "none",
+        }}
+      />
+    </label>
+  );
+}
+
+function Tab({
+  children,
+  active,
+  onClick,
+  dot,
+  pulse,
+}: {
+  children: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  dot: string;
+  pulse?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "0 16px",
+        height: 34,
+        borderRadius: "8px 8px 0 0",
+        border: "none",
+        fontSize: 12.5,
+        fontWeight: 600,
+        cursor: "pointer",
+        background: active ? ink.page : "transparent",
+        color: active ? ink.text : "#8A8C8F",
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: dot,
+          animation: pulse ? "recpulse 1.4s infinite" : undefined,
+        }}
+      />
+      {children}
+    </button>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div
+        style={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: ".08em",
+          color: ink.textMuted,
+          padding: "0 8px 4px",
+        }}
+      >
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Avatar() {
+  return (
+    <span
+      style={{
+        width: 26,
+        height: 26,
+        flex: "0 0 26px",
+        borderRadius: "50%",
+        background: ink.accent,
+        color: "#fff",
+        fontSize: 13,
+        fontWeight: 800,
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
+      g
+    </span>
+  );
+}
+
+function Assistant({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", gap: 12 }}>
+      <Avatar />
+      <div style={{ paddingTop: 3, fontSize: 15, lineHeight: 1.6, maxWidth: "56ch" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Operator({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        alignSelf: "flex-end",
+        maxWidth: "60%",
+        background: ink.text,
+        color: "#F2F2F0",
+        padding: "11px 15px",
+        borderRadius: "14px 14px 4px 14px",
+        fontSize: 14.5,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function PlusItem({
+  icon,
+  title,
+  subtitle,
+  onClick,
+  disabled,
+}: {
+  icon: string;
+  title: string;
+  subtitle: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: "flex",
+        gap: 11,
+        alignItems: "flex-start",
+        padding: "10px 11px",
+        borderRadius: 8,
+        border: "none",
+        background: "transparent",
+        width: "100%",
+        textAlign: "left",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.45 : 1,
+      }}
+    >
+      <span
+        style={{
+          width: 24,
+          height: 24,
+          flex: "0 0 24px",
+          borderRadius: 6,
+          background: disabled ? "#F1F1EE" : ink.accentWash,
+          color: disabled ? ink.textSoft : ink.accentDeep,
+          display: "grid",
+          placeItems: "center",
+          fontSize: 13,
+          fontWeight: 800,
+        }}
+      >
+        {icon}
+      </span>
+      <span>
+        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{title}</span>
+        <span style={{ display: "block", fontSize: 11.5, color: "#7A7C7F", lineHeight: 1.5 }}>
+          {subtitle}
+        </span>
+      </span>
+    </button>
+  );
+}

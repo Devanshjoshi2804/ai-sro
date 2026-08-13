@@ -50,7 +50,7 @@ class CaptureSupervisor:
         inline_body_limit_bytes: int = 256 * 1024,
         screenshot_per_gesture: bool = True,
         video: bool = True,
-        video_max_width: int = 1280,
+        video_fps: int = 2,
     ) -> None:
         self._blobs = blobs
         self._ingest = ingest
@@ -59,7 +59,7 @@ class CaptureSupervisor:
         self._inline_limit = inline_body_limit_bytes
         self._screenshot = screenshot_per_gesture
         self._video = video
-        self._video_max_width = video_max_width
+        self._video_fps = video_fps
         self._running: dict[str, _Running] = {}
 
     async def start(
@@ -76,7 +76,7 @@ class CaptureSupervisor:
             inline_body_limit_bytes=self._inline_limit,
             screenshot_per_gesture=self._screenshot,
             video=self._video,
-            video_max_width=self._video_max_width,
+            video_fps=self._video_fps,
         )
         await session.attach(debugger_url)
         if start_url:

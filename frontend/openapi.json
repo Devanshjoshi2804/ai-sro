@@ -1078,9 +1078,24 @@
             ],
             "title": "Primary Request"
           },
+          "primary_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Status"
+          },
           "error_count": {
             "type": "integer",
             "title": "Error Count"
+          },
+          "applied": {
+            "type": "boolean",
+            "title": "Applied"
           }
         },
         "type": "object",
@@ -1091,7 +1106,9 @@
           "target",
           "request_count",
           "primary_request",
-          "error_count"
+          "primary_status",
+          "error_count",
+          "applied"
         ],
         "title": "FrameSummary",
         "description": "Enough to render the timeline. The full frame is fetched per frame."

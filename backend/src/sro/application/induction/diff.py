@@ -12,6 +12,7 @@ from sro.application.induction.errors import InductionFailed
 from sro.application.induction.naming import deduplicate, suggest_name
 from sro.application.induction.sites import (
     ActionValueSite,
+    HeaderSite,
     JsonBodySite,
     Site,
     TextBodySite,
@@ -23,6 +24,7 @@ from sro.application.induction.sites import (
 )
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.network import CapturedRequest
+from sro.domain.recording.sensitivity import classify_header, is_replayable
 from sro.domain.skill.parameter import Parameter, ParameterKind
 
 
@@ -178,7 +180,45 @@ def _diff_request(index: int, frame_a: ActionFrame, frame_b: ActionFrame) -> lis
 
     return [
         *_diff_url(index, request_a, request_b),
+        *_diff_headers(index, request_a, request_b),
         *_diff_body(index, request_a, request_b),
+    ]
+
+
+def _diff_headers(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Difference]:
+    """Headers that carry meaning and varied between the runs.
+
+    Restricted to replayable headers on purpose. Everything else varies for
+    reasons that have nothing to do with the task: a trace id is new per call, a
+    cookie per session, a Referer per page. Diffing those would produce
+    parameters no operator could answer.
+
+    A header present in one run and missing in the other is left alone rather
+    than treated as a difference -- browsers add and drop `sec-*` headers on
+    their own, and a missing header has no value to parameterise.
+    """
+    replayable_a = {
+        name.lower(): value
+        for name, value in a.request_headers.items()
+        if is_replayable(classify_header(name))
+    }
+    replayable_b = {
+        name.lower(): value
+        for name, value in b.request_headers.items()
+        if is_replayable(classify_header(name))
+    }
+    original_case = {name.lower(): name for name in a.request_headers}
+
+    return [
+        Difference(
+            step_index=index,
+            site=HeaderSite(original_case[name]),
+            value_a=value,
+            value_b=replayable_b[name],
+            url=a.url,
+        )
+        for name, value in replayable_a.items()
+        if name in replayable_b and value != replayable_b[name]
     ]
 
 

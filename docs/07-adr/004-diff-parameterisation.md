@@ -79,3 +79,37 @@ escape turns a literal into a phantom parameter.
 - A JSON numeric leaf becomes the string `"${name}"` after substitution. Harmless
   while nothing executes; typed substitution is a change to rendering, not to the
   address scheme. Marked `# ponytail:` in `sites.py`.
+
+## Headers are diffed too, but not all of them
+
+A header that carries meaning and varied between the two runs is a parameter,
+exactly like a path segment or a body field. Replaying run one's warehouse id
+when the operator asked for a different warehouse is the same failure as
+replaying run one's wave id.
+
+Only **replayable** headers are diffed. Everything else varies for reasons that
+have nothing to do with the task -- a session cookie per session, a trace id per
+call, a Referer per page -- and diffing those would produce parameters no
+operator could answer. So each header ends up in one of four states, and a
+reviewer can see which:
+
+| State | Shown as | Why |
+|---|---|---|
+| Credential | `<blue_yonder/DC01/authorization>` | resolved from the vault at run time |
+| Minted | `<minted per run>` | the captured value is stale by construction |
+| Client-managed | `<set by the client>` | Host, Content-Length, Referer, the sec-* family |
+| Semantic | `DC01` or `${warehouse_id}` | literal if it held, parameter if it varied |
+
+**The limit of two runs.** A header called `X-Trace` carrying a fresh random
+value on every call is indistinguishable, by diffing alone, from a value the
+task genuinely varies. Both simply differ. Rather than inspect values and guess
+-- which is the inference this ADR exists to avoid -- classification is extended
+by *name*: `trace`, `nonce`, `request-id`, `correlation`, `idempotency`,
+`timestamp`. Naming is a decision the system being automated already made, and
+reading it is not the same as guessing at data.
+
+That leaves a real residue: a per-call value under a name nobody would guess
+becomes a parameter. The reviewer sees it, with both observed values, before
+anything is promoted. Two demonstrations cannot do better than that, and a third
+run would narrow it further -- which is a change to make when someone has a case
+that needs it, not before.

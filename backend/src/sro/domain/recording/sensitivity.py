@@ -34,6 +34,15 @@ _TRACE_HEADERS = frozenset(
     {"traceparent", "tracestate", "x-request-id", "x-correlation-id", "x-b3-traceid", "baggage"}
 )
 
+_TRACE_HINTS = ("trace", "nonce", "request-id", "correlation", "idempotency", "-ts", "timestamp")
+"""Substrings, because every system names these differently.
+
+Matched by name rather than by inspecting the value: a header called `X-Trace`
+holds a value that is new on every call, and the two-run diff cannot tell that
+apart from a value the task actually varies. Left unclassified it becomes a
+parameter the operator is asked to supply, which is nonsense.
+"""
+
 _TRANSPORT_HEADERS = frozenset(
     {
         "host",
@@ -86,7 +95,7 @@ def classify_header(name: str) -> Sensitivity:
         return Sensitivity.CSRF
     if lowered == "cookie":
         return Sensitivity.SESSION
-    if lowered in _TRACE_HEADERS:
+    if lowered in _TRACE_HEADERS or any(hint in lowered for hint in _TRACE_HINTS):
         return Sensitivity.TRACE
     if lowered in _TRANSPORT_HEADERS:
         return Sensitivity.TRANSPORT

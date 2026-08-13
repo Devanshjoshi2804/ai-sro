@@ -34,11 +34,23 @@ class TextBodySite:
 
 
 @dataclass(frozen=True, slots=True)
+class HeaderSite:
+    """A request header whose value varied between runs.
+
+    Only headers the domain calls replayable reach here. A trace id differs on
+    every run and a cookie differs on every session; treating those as varying
+    inputs would turn session noise into parameters the operator is asked for.
+    """
+
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
 class ActionValueSite:
     """Text the human typed, or the option they selected."""
 
 
-Site = UrlPathSite | UrlQuerySite | JsonBodySite | TextBodySite | ActionValueSite
+Site = UrlPathSite | UrlQuerySite | JsonBodySite | TextBodySite | HeaderSite | ActionValueSite
 
 
 def describe(site: Site) -> str:
@@ -51,6 +63,8 @@ def describe(site: Site) -> str:
             return f"body {pointer}"
         case TextBodySite():
             return "request body"
+        case HeaderSite(name):
+            return f"header {name!r}"
         case ActionValueSite():
             return "typed value"
 

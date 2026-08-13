@@ -6,6 +6,7 @@ value comes from at run time. See docs/11-capture-completeness.md.
 
 from __future__ import annotations
 
+from sro.application.induction.sites import HeaderSite, Site
 from sro.domain.recording.network import CapturedRequest
 from sro.domain.recording.sensitivity import Sensitivity, classify_header
 from sro.domain.skill.plan import HeaderPlan
@@ -13,10 +14,21 @@ from sro.domain.skill.template import Template
 
 
 def build_header_plans(
-    request: CapturedRequest, *, target_system: str, facility: str
+    request: CapturedRequest,
+    *,
+    target_system: str,
+    facility: str,
+    replacements: dict[Site, str] | None = None,
 ) -> tuple[HeaderPlan, ...]:
-    """One HeaderPlan per observed header. Nothing is dropped."""
+    """One HeaderPlan per observed header. Nothing is dropped.
+
+    ``replacements`` carries the placeholders the diff produced. A semantic
+    header that varied between the runs is a parameter like any other value:
+    replaying run one's warehouse id when the operator asked for another
+    warehouse is the same failure as replaying run one's wave id.
+    """
     plans: list[HeaderPlan] = []
+    substitutions = replacements or {}
 
     for name, value in request.request_headers.items():
         sensitivity = classify_header(name)
@@ -40,7 +52,14 @@ def build_header_plans(
                 # Referer points at the page of a demonstration that is over.
                 plans.append(HeaderPlan(name=name, sensitivity=sensitivity, managed=True))
             case Sensitivity.SEMANTIC:
-                plans.append(HeaderPlan(name=name, sensitivity=sensitivity, value=Template(value)))
+                placeholder = substitutions.get(HeaderSite(name))
+                plans.append(
+                    HeaderPlan(
+                        name=name,
+                        sensitivity=sensitivity,
+                        value=Template(placeholder if placeholder is not None else value),
+                    )
+                )
 
     return tuple(plans)
 

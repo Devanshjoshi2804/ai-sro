@@ -11,6 +11,7 @@ import re
 from sro.application.induction import jsonutil
 from sro.application.induction.sites import (
     ActionValueSite,
+    HeaderSite,
     JsonBodySite,
     Site,
     TextBodySite,
@@ -58,6 +59,12 @@ def suggest_name(site: Site, *, url: str = "", field_label: str | None = None) -
             if index > 0 and index - 1 < len(segments):
                 return f"{snake_case(_singular(segments[index - 1]))}_id"
             return f"path_{index}"
+
+        case HeaderSite(name):
+            # `X-Wave-Id` reads as `wave_id`: the `x-` prefix says the header is
+            # non-standard, which is not information the parameter needs.
+            cleaned = name[2:] if name.lower().startswith("x-") else name
+            return snake_case(cleaned)
 
         case ActionValueSite():
             return snake_case(field_label) if field_label else "input_value"

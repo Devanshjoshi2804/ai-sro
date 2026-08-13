@@ -53,7 +53,10 @@ def _network_plan(
         method=request.method.upper(),
         url=Template(substitute_url(request.url, replacements)),
         headers=build_header_plans(
-            request, target_system=objective.target_system, facility=objective.facility
+            request,
+            target_system=objective.target_system,
+            facility=objective.facility,
+            replacements=replacements,
         ),
         body=(
             Template(substitute_body(body.text, replacements))

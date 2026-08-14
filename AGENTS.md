@@ -21,7 +21,10 @@ starts. The medium ladder and the
 agent design are in [`docs/12-execution-and-agents.md`](docs/12-execution-and-agents.md)
 — read it before building anything that runs a skill.
 
-A demonstration is started by naming a URL. Its objective key is derived from the
+A demonstration is started by naming a URL, and **one** is enough: the two-run
+diff still proves parameters where two runs exist, but a single sealed recording
+becomes a skill through `UnderstandRecording`, with the calls kept as evidence
+and the narrative and parameters marked as a model's reading of them. Its objective key is derived from the
 evidence at seal (`application/capture/identity.py`); nothing asks the operator
 to classify the task up front. See [`docs/06-glossary.md`](docs/06-glossary.md).
 

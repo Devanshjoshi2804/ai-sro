@@ -443,6 +443,77 @@ wrapped once (`application/knowledge/vectors.py`) and a failure costs the caller
 its ordering and nothing else. The same rule holds for any optional rung: the
 system without it must be the system, degraded, not the system, broken.
 
+## One demonstration is enough
+
+The two-run diff proves which values vary, and where two runs exist it is still
+what runs. But it asks an operator to perform a warehouse task twice,
+identically, and the pair is refused if the step counts differ — which is how a
+real attempt failed here: run one had ten steps, run two had four, because a
+password was mistyped the first time.
+
+`POST /v1/skills/understand` takes **one** sealed recording. The split is the
+whole design:
+
+| Part | Where it comes from | Marked |
+|---|---|---|
+| The calls | Captured, untouched | evidence |
+| Step descriptions, summary, when-to-use | A model reading that evidence | a reading |
+| Parameters | The same reading | `proposed` |
+
+**A proposed parameter must be pointable-at.** Every candidate the model names
+is checked against a literal in the captured payloads; one that cannot be found
+is dropped, because a parameter nobody can point at in a payload is a
+hallucination with a name. What survives becomes a placeholder in the plan, so a
+run does not rewrite the demonstration's own number.
+
+A second demonstration later upgrades `proposed` to `proven`. The skill says
+which it is, and the knowledge page counts the proposed ones, because that
+number falling is what "we understand this task now" actually looks like.
+
+Measured on a real capture: ten frames of a login became *"Login to WMS"* with
+ten described steps, one proposed parameter, and the caveat *"the password and
+sign-in steps were performed twice consecutively, which could indicate an
+initial failure"* — which is exactly what happened, and exactly what a smoothed
+summary would have hidden.
+
+## Asking for work on several things
+
+Retrieval picks the skill structurally, as always. **Only then** is a model
+asked to read values out of the sentence, and only for parameters that skill
+declares — asking a model which skill to run would be the wrong-match failure
+with a model attached.
+
+```
+"set LPN …7127 to 48 cases, and LPN …7240 to 65"
+  → two parameter sets
+
+"update these six SKUs to the counts from this morning's cycle count"
+  → none, with "Missing the counts from this morning's cycle count."
+```
+
+The second is the important one. Six invented quantities would have been six
+wrong writes, so a sentence that names no values is a question rather than a
+run.
+
+**The table is what gets confirmed, not the sentence.** Chat renders the
+extracted values as literals with a Run button beneath them; pressing it is the
+authorisation each assisted run records. `POST /v1/skills/{id}/batch` then
+performs N runs — separate idempotency keys, separate audit records, separate
+verification — so one item failing says nothing about the others and the failure
+names which item it was. A missing value refuses that item and continues; a
+safety limit stops the batch, because a WMS that has started answering 500 does
+not need the remaining forty.
+
+## What the organisation knows
+
+Teaching was never per-conversation. Skills, knowledge and threads are all
+tenant-scoped, so one operator demonstrating a task hands it to every colleague,
+and provenance records who taught it. `/knowledge` makes that visible: how many
+claims are held and how firmly, how many were proved by this tenant's own runs
+rather than scraped, how many have been superseded and kept, and — the part an
+enterprise asks about — who taught what, at which stage, with how many
+parameters still only proposed.
+
 ## Autonomy as built
 
 The ceiling is gone: `HIGHEST_PERMITTED_STAGE` is `AUTONOMOUS`. That is not a

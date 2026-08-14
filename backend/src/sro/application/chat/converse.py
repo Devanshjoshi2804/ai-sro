@@ -92,6 +92,15 @@ def _reply(resolution: Resolution) -> str:
     if resolution.matched is not None:
         skill = resolution.matched.skill.name
         version = resolution.matched.version
+        if resolution.items:
+            n = len(resolution.items)
+            return (
+                f"{skill} does that. Here {'is' if n == 1 else 'are'} the {n} "
+                f"{'item' if n == 1 else 'items'} I read from that — check them and "
+                "say go."
+            )
+        if resolution.note:
+            return f"{resolution.question or ''} {resolution.note}".strip()
         if resolution.question:
             return f"{resolution.question}"
         return (
@@ -116,5 +125,9 @@ def _decision(resolution: Resolution) -> dict[str, object]:
         "missing_parameters": list(resolution.missing_parameters),
         "why": list(resolution.why),
         "choices": [c.skill.id.value for c in resolution.choices],
+        # The table the operator confirms. Rendered rather than acted on: their
+        # confirmation is what an assisted run records as its authorisation.
+        "items": [dict(item) for item in resolution.items],
+        "note": resolution.note,
         "proposal_sources": (list(resolution.proposal.sources) if resolution.proposal else []),
     }

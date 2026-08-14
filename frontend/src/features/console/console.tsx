@@ -14,6 +14,7 @@ import {
 import { induceSkill, listSkills, skillKeys } from "@/features/skill/api";
 import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
+import { BatchCard } from "@/features/console/batch-card";
 import { SkillCard } from "@/features/console/skill-card";
 import { TeachPanel } from "@/features/console/teach-panel";
 import { useThread } from "@/features/console/thread-store";
@@ -863,12 +864,16 @@ function ChatTurn({ message }: { message: ChatMessage }) {
 
   const decision = message.decision as {
     matched_skill_id?: string | null;
+    matched_version?: number | null;
     confident?: boolean;
     runnable?: boolean;
     missing_parameters?: string[];
     why?: string[];
     proposal_sources?: string[];
+    items?: Record<string, string>[];
+    note?: string;
   };
+  const items = decision.items ?? [];
 
   return (
     <div style={{ display: "flex", gap: 12 }}>
@@ -889,11 +894,24 @@ function ChatTurn({ message }: { message: ChatMessage }) {
           </div>
         )}
 
+        {decision.note && (
+          <div style={{ fontSize: 12, color: ink.textSoft }}>{decision.note}</div>
+        )}
+
+        {decision.matched_skill_id && items.length > 0 && (
+          <BatchCard
+            skillId={decision.matched_skill_id}
+            skillName={`v${decision.matched_version ?? 1}`}
+            items={items}
+            runnable={decision.runnable !== false}
+          />
+        )}
+
         {decision.matched_skill_id && (
           <SkillCard
             skillId={decision.matched_skill_id}
-            parameters={{}}
-            missing={decision.missing_parameters ?? []}
+            parameters={items.length === 1 ? items[0] : {}}
+            missing={items.length ? [] : (decision.missing_parameters ?? [])}
           />
         )}
       </div>

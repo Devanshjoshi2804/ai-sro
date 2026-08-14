@@ -44,6 +44,13 @@ async def ingest(*, tenant: str, system: str, root: Path) -> None:
         recorded.recorded_not_believed,
     )
 
+    # Unchanged claims are deliberately not rewritten, so anything stored before
+    # embeddings were switched on still has no vector. Filling those in is the
+    # normal case rather than an edge one.
+    filled = await container.backfill_embeddings().execute(ctx)
+    if filled:
+        logger.info("backfilled %d embeddings", filled)
+
 
 def main() -> None:
     configure_logging()

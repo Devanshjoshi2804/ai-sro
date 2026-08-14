@@ -34,7 +34,13 @@ _TEXT_DIGEST = """() => {
             if (rect.width < 2 || rect.height < 2) return;
             const label = (el.getAttribute('aria-label') || el.getAttribute('placeholder')
                 || el.textContent || el.name || '').trim().slice(0, 80);
-            if (label) seen.push(`${label}: ${Math.round(rect.x)},${Math.round(rect.y)}`);
+            // Normalised 0-1000, because that is the space the vision model
+            // answers in. Mixing pixels here and 0-1000 there made a model
+            // repeat a digest coordinate verbatim and land a quarter of the way
+            // up the page.
+            const nx = Math.round((rect.x + rect.width / 2) / window.innerWidth * 1000);
+            const ny = Math.round((rect.y + rect.height / 2) / window.innerHeight * 1000);
+            if (label) seen.push(`${label}: ${nx},${ny}`);
         });
     return seen.slice(0, 200).join('\n');
 }"""

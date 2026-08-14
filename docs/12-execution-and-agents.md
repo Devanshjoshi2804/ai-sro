@@ -341,6 +341,22 @@ the refusal is logged. Otherwise any line naming a credential field is dropped
 from the digest and the dropped names (never values) go into the call record,
 because a silent redaction is indistinguishable from a bug.
 
+**Two things the live model corrected.** The computer-use model refuses a plain
+JSON response schema outright — *"This model requires the use of the Computer
+Use tool"* — so the request carries `types.Tool(computer_use=...)` and the answer
+arrives as a **function call**, not as text. Bounding it is therefore done by
+`excluded_predefined_functions` (`navigate`, `go_back`, `search`,
+`drag_and_drop`, …) rather than by asking politely in a prompt. A reply that is
+prose rather than a call is treated as a refusal: a sentence that names no
+gesture is the model declining, and reading intent out of it is the confident
+wrong action this rung exists to avoid.
+
+The second correction was mine. The screen digest listed control positions in
+CSS pixels while the model answers in 0-1000, and it duly repeated a digest
+coordinate verbatim — landing a quarter of the way up the page. Both spaces are
+now 0-1000, and the model puts a click at (390, 205) on a button spanning
+300-480 × 180-230.
+
 `SRO_VISION_ENABLED` is a separate switch from the API key, and the more
 consequential of the two: this one sends a picture of a customer's live WMS. Off
 by default, and with it off a step whose control has vanished fails with that

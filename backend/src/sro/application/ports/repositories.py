@@ -107,6 +107,13 @@ class KnowledgeRepository(Protocol):
 
     async def save(self, entry: KnowledgeEntry) -> None: ...
 
+    async def without_embedding(
+        self, tenant_id: TenantId, *, limit: int = 200
+    ) -> tuple[KnowledgeEntry, ...]:
+        """Current entries with no vector, for a deployment that turned
+        embeddings on after it had already stored things."""
+        ...
+
     async def search(
         self,
         tenant_id: TenantId,

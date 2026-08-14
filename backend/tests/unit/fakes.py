@@ -512,6 +512,16 @@ class FakeKnowledgeRepository:
                 return entry
         return None
 
+    async def without_embedding(
+        self, tenant_id: TenantId, *, limit: int = 200
+    ) -> tuple[KnowledgeEntry, ...]:
+        pending = [
+            entry
+            for entry in self.rows.values()
+            if entry.tenant_id == tenant_id and entry.current and not entry.embedding
+        ]
+        return tuple(pending[:limit])
+
     async def search(
         self,
         tenant_id: TenantId,

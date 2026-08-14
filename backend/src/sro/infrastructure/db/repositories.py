@@ -280,6 +280,21 @@ class SqlKnowledgeRepository(KnowledgeRepository):
         row = (await self._session.execute(query)).scalars().first()
         return row_to_knowledge(row) if row is not None else None
 
+    async def without_embedding(
+        self, tenant_id: TenantId, *, limit: int = 200
+    ) -> tuple[KnowledgeEntry, ...]:
+        query = (
+            select(KnowledgeRow)
+            .where(
+                KnowledgeRow.tenant_id == tenant_id.value,
+                KnowledgeRow.superseded_by.is_(None),
+                KnowledgeRow.embedding.is_(None),
+            )
+            .limit(limit)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_knowledge(row) for row in rows)
+
     async def search(
         self,
         tenant_id: TenantId,

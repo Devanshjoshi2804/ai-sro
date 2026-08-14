@@ -12,7 +12,6 @@ different point on a different viewport.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -33,9 +32,11 @@ _ACTIONS: dict[str, ActionKind] = {
     "scroll_document": ActionKind.SCROLL,
     "scroll_at": ActionKind.SCROLL,
     "hover_at": ActionKind.HOVER,
-    "navigate": ActionKind.NAVIGATE,
+    "wait_5_seconds": ActionKind.HOVER,
 }
-"""Its vocabulary to ours. Absence is a refusal, never a nearest match."""
+"""Its predefined functions to ours. Absence is a refusal, never a nearest
+match: a `drag_and_drop` turned into a click is a different gesture performed
+confidently. Navigation is absent on purpose and excluded at the tool as well."""
 
 _INSTRUCTIONS = (
     "You are helping finish one step of a warehouse task that was demonstrated "
@@ -46,19 +47,21 @@ _INSTRUCTIONS = (
     "proceed, refuse and say why."
 )
 
-_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "action": {"type": "string"},
-        "x": {"type": "integer"},
-        "y": {"type": "integer"},
-        "value": {"type": "string"},
-        "reasoning": {"type": "string"},
-        "done": {"type": "boolean"},
-        "refusal": {"type": "string"},
-    },
-    "required": ["action", "reasoning"],
-}
+_EXCLUDED = [
+    "open_web_browser",
+    "navigate",
+    "go_back",
+    "go_forward",
+    "search",
+    "drag_and_drop",
+]
+"""Predefined functions this rung must not have.
+
+The model requires its own tool -- a plain JSON schema is refused with 400 -- so
+the way to bound it is to remove the functions rather than to ask it politely.
+Navigation is excluded for the reason the step allow-list exists: a gesture
+demonstrated on one screen must not become "go somewhere else and try there".
+"""
 
 
 class GeminiVisionDriver:
@@ -92,7 +95,7 @@ class GeminiVisionDriver:
                 f"Step goal: {goal}",
                 f"Allowed actions: {', '.join(sorted({a.value for a in allowed}))}",
                 "Already tried this step:\n" + "\n".join(history) if history else "",
-                f"Visible controls (label: x,y):\n{screen.text_digest}"
+                f"Visible controls (label: x,y, already 0-1000):\n{screen.text_digest}"
                 if screen.text_digest
                 else "",
                 "Answer with one gesture. Coordinates are 0-1000, left to right and top "
@@ -108,47 +111,77 @@ class GeminiVisionDriver:
                 types.Part.from_bytes(data=screen.image, mime_type=screen.mime_type),
             ],
             config=types.GenerateContentConfig(
-                response_mime_type="application/json", response_schema=_SCHEMA
+                tools=[
+                    types.Tool(
+                        computer_use=types.ComputerUse(
+                            environment=types.Environment.ENVIRONMENT_BROWSER,
+                            excluded_predefined_functions=_EXCLUDED,
+                        )
+                    )
+                ]
             ),
         )
-        return _gesture(response.text, screen, allowed)
+        return _from_response(response, screen, allowed)
 
 
-def _gesture(text: str | None, screen: Screen, allowed: tuple[ActionKind, ...]) -> ProposedGesture:
-    """Model output is data crossing a trust boundary; a bad shape is a refusal."""
-    try:
-        answer = json.loads(text or "{}")
-    except ValueError:
+def _from_response(
+    response: Any, screen: Screen, allowed: tuple[ActionKind, ...]
+) -> ProposedGesture:
+    """The model answers with a function call, or with prose meaning it did not act.
+
+    Prose is treated as a refusal rather than parsed for intent: a sentence that
+    is not a call is the model declining to name a gesture, and guessing one out
+    of it is exactly the confident-wrong-action this rung is bounded against.
+    """
+    call = next(
+        (
+            part.function_call
+            for candidate in (response.candidates or [])
+            for part in (candidate.content.parts or [] if candidate.content else [])
+            if part.function_call is not None
+        ),
+        None,
+    )
+    # Assembled from the text parts rather than `response.text`, which warns
+    # (correctly) that it is dropping the function call we came for.
+    said = " ".join(
+        part.text.strip()
+        for candidate in (response.candidates or [])
+        for part in (candidate.content.parts or [] if candidate.content else [])
+        if part.text
+    ).strip()
+    if call is None:
         return ProposedGesture(
-            action=ActionKind.HOVER, refusal="the model did not answer with a gesture"
+            action=ActionKind.HOVER,
+            refusal=said[:400] or "the model named no gesture",
         )
+    return _gesture(call.name or "", dict(call.args or {}), said, screen, allowed)
 
-    if refusal := answer.get("refusal"):
-        return ProposedGesture(action=ActionKind.HOVER, refusal=str(refusal))
 
-    if answer.get("done"):
-        return ProposedGesture(
-            action=ActionKind.HOVER, done=True, reasoning=str(answer.get("reasoning", ""))
-        )
-
-    kind = _ACTIONS.get(str(answer.get("action", "")).lower())
+def _gesture(
+    name: str,
+    args: dict[str, Any],
+    said: str,
+    screen: Screen,
+    allowed: tuple[ActionKind, ...],
+) -> ProposedGesture:
+    """A named call becomes a gesture, or a refusal. Never an approximation."""
+    kind = _ACTIONS.get(name.lower())
     if kind is None:
         return ProposedGesture(
             action=ActionKind.HOVER,
-            refusal=f"proposed {answer.get('action')!r}, which this driver cannot perform",
+            refusal=f"proposed {name!r}, which this driver cannot perform",
         )
     if kind not in allowed:
-        return ProposedGesture(
-            action=kind,
-            refusal=f"{kind} is not allowed for this step",
-        )
+        return ProposedGesture(action=kind, refusal=f"{kind} is not allowed for this step")
 
+    value = args.get("text", args.get("value", args.get("keys")))
     return ProposedGesture(
         action=kind,
-        x=_pixels(answer.get("x"), screen.width),
-        y=_pixels(answer.get("y"), screen.height),
-        value=str(answer["value"]) if answer.get("value") is not None else None,
-        reasoning=str(answer.get("reasoning", ""))[:400],
+        x=_pixels(args.get("x"), screen.width),
+        y=_pixels(args.get("y"), screen.height),
+        value=str(value) if value is not None else None,
+        reasoning=said[:400],
     )
 
 

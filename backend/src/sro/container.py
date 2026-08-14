@@ -29,6 +29,7 @@ from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
+from sro.application.knowledge.backfill import BackfillEmbeddings
 from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
@@ -200,6 +201,9 @@ class Container:
 
     def record_claims(self) -> RecordClaims:
         return RecordClaims(self.unit_of_work(), self.clock, self.ids, self.embedder)
+
+    def backfill_embeddings(self) -> BackfillEmbeddings:
+        return BackfillEmbeddings(self.unit_of_work(), self.embedder)
 
     def retrieve_knowledge(self) -> Retrieve:
         return Retrieve(self.unit_of_work(), self.embedder)

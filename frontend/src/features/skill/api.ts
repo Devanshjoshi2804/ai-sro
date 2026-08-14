@@ -23,6 +23,18 @@ export const induceSkill = (firstRecordingId: string, secondRecordingId: string,
     name: name ?? null,
   });
 
-/** v0 permits `recorded → shadow` only; the backend refuses anything further. */
 export const promoteSkill = (skillId: string, version: number, to: string) =>
   api.post<SkillVersionModel>(`/v1/skills/${skillId}/promote`, { version, to });
+
+/** Rewords what the skill is found by. Never what it does. */
+export const describeSkill = (
+  skillId: string,
+  version: number,
+  summary: string,
+  whenToUse: string,
+) =>
+  api.post<SkillVersionModel>(`/v1/skills/${skillId}/describe`, {
+    version,
+    summary,
+    when_to_use: whenToUse,
+  });

@@ -48,6 +48,11 @@ export function SkillList() {
                 <Link href={`/skills/${skill.id}`} className="hover:underline">
                   {skill.name}
                 </Link>
+                {skill.summary && (
+                  <span className="text-muted-foreground block max-w-md truncate text-xs">
+                    {skill.summary}
+                  </span>
+                )}
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {skill.objective_key.target_system} · {skill.objective_key.facility}

@@ -10,6 +10,7 @@ from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.skill.promotion import PromotionStage
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
+    DescribeRequest,
     InduceSkillRequest,
     InductionResponse,
     PromoteRequest,
@@ -62,6 +63,21 @@ async def list_skills(
 async def get_skill(skill_id: str, container: ContainerDep, ctx: ContextDep) -> SkillDetail:
     skill = await container.get_skill().execute(ctx, skill_id=SkillId(skill_id))
     return SkillDetail.of_skill(skill)
+
+
+@router.post("/{skill_id}/describe")
+async def describe_skill(
+    skill_id: str, body: DescribeRequest, container: ContainerDep, ctx: ContextDep
+) -> SkillVersionModel:
+    """Reword what the skill is for. Changes what finds it, never what it does."""
+    version = await container.describe_skill().execute(
+        ctx,
+        skill_id=SkillId(skill_id),
+        version=body.version,
+        summary=body.summary,
+        when_to_use=body.when_to_use,
+    )
+    return SkillVersionModel.of(version)
 
 
 @router.post("/{skill_id}/promote")

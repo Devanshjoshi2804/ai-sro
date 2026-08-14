@@ -46,6 +46,10 @@ export function SkillDetail({ skillId }: { skillId: string }) {
       <header className="flex items-start justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">{skill.data.name}</h1>
+          {latest?.summary && <p className="max-w-2xl text-sm">{latest.summary}</p>}
+          {latest?.when_to_use && (
+            <p className="text-muted-foreground max-w-2xl text-sm">{latest.when_to_use}</p>
+          )}
           <p className="text-muted-foreground text-sm">
             {skill.data.objective_key.target_system} · {skill.data.objective_key.facility} ·{" "}
             {skill.data.objective_key.entity_type}

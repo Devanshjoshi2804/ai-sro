@@ -282,6 +282,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/skills/{skill_id}/describe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Describe Skill
+         * @description Reword what the skill is for. Changes what finds it, never what it does.
+         */
+        post: operations["describe_skill_v1_skills__skill_id__describe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills/{skill_id}/promote": {
         parameters: {
             query?: never;
@@ -425,6 +445,18 @@ export interface components {
             authenticated_at: string | null;
             /** Last Error */
             last_error: string | null;
+        };
+        /** DescribeRequest */
+        DescribeRequest: {
+            /** Version */
+            version: number;
+            /** Summary */
+            summary: string;
+            /**
+             * When To Use
+             * @default
+             */
+            when_to_use: string;
         };
         /**
          * Direction
@@ -716,6 +748,8 @@ export interface components {
             latest_version: number;
             /** Latest Stage */
             latest_stage: string;
+            /** Summary */
+            summary: string;
             /** Versions */
             versions: components["schemas"]["SkillVersionModel"][];
         };
@@ -735,6 +769,8 @@ export interface components {
             latest_version: number;
             /** Latest Stage */
             latest_stage: string;
+            /** Summary */
+            summary: string;
         };
         /** SkillVersionModel */
         SkillVersionModel: {
@@ -742,6 +778,10 @@ export interface components {
             version: number;
             /** Stage */
             stage: string;
+            /** Summary */
+            summary: string;
+            /** When To Use */
+            when_to_use: string;
             /**
              * Induced At
              * Format: date-time
@@ -1384,6 +1424,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SkillDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    describe_skill_v1_skills__skill_id__describe_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                skill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DescribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillVersionModel"];
                 };
             };
             /** @description Validation Error */

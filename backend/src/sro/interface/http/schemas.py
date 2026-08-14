@@ -236,6 +236,9 @@ class SkillSummary(BaseModel):
     created_at: datetime
     latest_version: int
     latest_stage: str
+    summary: str
+    """What the latest version does. Carried on the list because this is what a
+    request is matched against, and a list that hides it hides the skill."""
 
     @classmethod
     def of(cls, skill: Skill) -> SkillSummary:
@@ -253,6 +256,7 @@ class SkillSummary(BaseModel):
             created_at=skill.created_at,
             latest_version=latest.version if latest else 0,
             latest_stage=latest.stage.value if latest else "recorded",
+            summary=latest.summary if latest else "",
         )
 
 
@@ -303,6 +307,8 @@ class StepModel(BaseModel):
 class SkillVersionModel(BaseModel):
     version: int
     stage: str
+    summary: str
+    when_to_use: str
     induced_at: datetime
     induced_by: str
     recording_ids: list[str]
@@ -315,6 +321,8 @@ class SkillVersionModel(BaseModel):
         return cls(
             version=version.version,
             stage=version.stage.value,
+            summary=version.summary,
+            when_to_use=version.when_to_use,
             induced_at=version.provenance.induced_at,
             induced_by=version.provenance.induced_by.value,
             recording_ids=[r.value for r in version.provenance.recording_ids],
@@ -407,6 +415,12 @@ class SkillDetail(SkillSummary):
 class PromoteRequest(BaseModel):
     version: int
     to: str
+
+
+class DescribeRequest(BaseModel):
+    version: int
+    summary: str
+    when_to_use: str = ""
 
 
 class InductionResponse(BaseModel):

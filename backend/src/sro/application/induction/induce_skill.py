@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from sro.application.context import RequestContext
 from sro.application.induction import assertions as assertion_extraction
-from sro.application.induction import narration
+from sro.application.induction import describe, narration
 from sro.application.induction.diff import Parameterisation, parameterise
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
@@ -62,6 +62,7 @@ class InduceSkill:
                 )
                 await uow.skills.add(skill)
 
+            described = describe.compose(objective, steps, parameterisation.parameters)
             version = SkillVersion(
                 version=skill.next_version_number(),
                 steps=steps,
@@ -72,6 +73,8 @@ class InduceSkill:
                     induced_by=ctx.principal_id,
                     note=_provenance_note(run_a, run_b),
                 ),
+                summary=described.summary,
+                when_to_use=described.when_to_use,
             )
             skill.add_version(version)
             await uow.skills.save(skill)

@@ -231,6 +231,28 @@ decision to send a customer's operators' voices to a hosted model. With either
 absent the binding is `NullTranscriber` and demonstrations are silent, which is a
 supported deployment rather than a degraded one.
 
+## A skill says what it is for
+
+Every version carries two sentences: `summary` (what it does) and `when_to_use`.
+They are composed at induction from evidence — the objective, the mutating call
+the skill exists to make, the parameters the diff found, whether a step needs a
+human, any branch the operator described but did not demonstrate, and their own
+closing sentence where they narrated, quoted rather than paraphrased.
+
+No model writes them. A model would produce better prose and worse retrieval:
+the warehouse's own words are already in the payloads and in the narration, and
+those are the words a request will arrive in.
+
+**These two fields are the retrieval surface.** When an operator asks for work,
+their sentence is matched against them — so they are editable, by anyone
+reviewing the skill, through `POST /v1/skills/{id}/describe`. Editing changes
+what finds the skill and never what it does; the plans, parameters and
+assertions are untouched. A skill described in words nobody uses is a skill
+nobody finds.
+
+`summary` is carried on the skills list as well as the detail, because a list
+that hides it hides the skill.
+
 ## Agents
 
 | Agent | Job | Model |

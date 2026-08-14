@@ -1077,6 +1077,79 @@
         }
       }
     },
+    "/v1/skills/{skill_id}/describe": {
+      "post": {
+        "tags": [
+          "skills"
+        ],
+        "summary": "Describe Skill",
+        "description": "Reword what the skill is for. Changes what finds it, never what it does.",
+        "operationId": "describe_skill_v1_skills__skill_id__describe_post",
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescribeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillVersionModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/skills/{skill_id}/promote": {
       "post": {
         "tags": [
@@ -1598,6 +1671,29 @@
           "last_error"
         ],
         "title": "ConnectionModel"
+      },
+      "DescribeRequest": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "when_to_use": {
+            "type": "string",
+            "title": "When To Use",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "summary"
+        ],
+        "title": "DescribeRequest"
       },
       "Direction": {
         "type": "string",
@@ -2446,6 +2542,10 @@
             "type": "string",
             "title": "Latest Stage"
           },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
           "versions": {
             "items": {
               "$ref": "#/components/schemas/SkillVersionModel"
@@ -2462,6 +2562,7 @@
           "created_at",
           "latest_version",
           "latest_stage",
+          "summary",
           "versions"
         ],
         "title": "SkillDetail"
@@ -2491,6 +2592,10 @@
           "latest_stage": {
             "type": "string",
             "title": "Latest Stage"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
           }
         },
         "type": "object",
@@ -2500,7 +2605,8 @@
           "objective_key",
           "created_at",
           "latest_version",
-          "latest_stage"
+          "latest_stage",
+          "summary"
         ],
         "title": "SkillSummary"
       },
@@ -2513,6 +2619,14 @@
           "stage": {
             "type": "string",
             "title": "Stage"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "when_to_use": {
+            "type": "string",
+            "title": "When To Use"
           },
           "induced_at": {
             "type": "string",
@@ -2553,6 +2667,8 @@
         "required": [
           "version",
           "stage",
+          "summary",
+          "when_to_use",
           "induced_at",
           "induced_by",
           "recording_ids",

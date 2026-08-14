@@ -1,9 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { getSkill, skillKeys } from "@/features/skill/api";
+import { toast } from "sonner";
+import {
+  describeSkill,
+  getSkill,
+  skillKeys,
+  type SkillVersionModel,
+} from "@/features/skill/api";
+import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
 
 /**
@@ -67,6 +74,8 @@ export function SkillCard({ skillId }: { skillId: string }) {
           {version.stage}
         </span>
       </div>
+
+      <Description skillId={skillId} version={version} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
         <div
@@ -214,3 +223,133 @@ export function SkillCard({ skillId }: { skillId: string }) {
     </div>
   );
 }
+
+/**
+ * What the skill is for, and the one place it can be corrected.
+ *
+ * Induction writes this from the evidence — the objective, the call it writes
+ * with, the parameters the diff found, and the operator's own closing sentence
+ * where they narrated. It is editable because it is what a spoken request will
+ * be matched against later: a skill described in words nobody uses is a skill
+ * nobody finds. Editing changes what finds it, never what it does.
+ */
+function Description({ skillId, version }: { skillId: string; version: SkillVersionModel }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [summary, setSummary] = useState(version.summary);
+  const [whenToUse, setWhenToUse] = useState(version.when_to_use);
+
+  const save = useMutation({
+    mutationFn: () => describeSkill(skillId, version.version, summary.trim(), whenToUse.trim()),
+    onSuccess: () => {
+      setEditing(false);
+      void queryClient.invalidateQueries({ queryKey: skillKeys.detail(skillId) });
+      void queryClient.invalidateQueries({ queryKey: skillKeys.all });
+    },
+    onError: (error) =>
+      toast.error("Could not save the description", {
+        description: error instanceof ApiError ? error.problem.detail : String(error),
+      }),
+  });
+
+  if (!version.summary && !editing) return null;
+
+  return (
+    <div
+      style={{
+        padding: "13px 16px",
+        borderBottom: `1px solid ${ink.lineSoft}`,
+        display: "flex",
+        flexDirection: "column",
+        gap: 7,
+      }}
+    >
+      {editing ? (
+        <>
+          <textarea
+            value={summary}
+            onChange={(event) => setSummary(event.target.value)}
+            rows={2}
+            style={inputStyle}
+          />
+          <textarea
+            value={whenToUse}
+            onChange={(event) => setWhenToUse(event.target.value)}
+            rows={2}
+            placeholder="When to use it"
+            style={inputStyle}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => save.mutate()}
+              disabled={!summary.trim() || save.isPending}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 7,
+                border: "none",
+                background: ink.accent,
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              {save.isPending ? "Saving…" : "Save"}
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 7,
+                border: "none",
+                background: "transparent",
+                color: ink.textSoft,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 13, lineHeight: 1.65 }}>{version.summary}</div>
+          {version.when_to_use && (
+            <div style={{ fontSize: 12, color: ink.textSoft, lineHeight: 1.6 }}>
+              {version.when_to_use}
+            </div>
+          )}
+          <button
+            onClick={() => setEditing(true)}
+            style={{
+              alignSelf: "flex-start",
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: ink.textMuted,
+              cursor: "pointer",
+            }}
+          >
+            Say it in your words
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+const inputStyle = {
+  border: `1px solid ${ink.line}`,
+  borderRadius: 8,
+  padding: "8px 10px",
+  fontSize: 12.5,
+  lineHeight: 1.6,
+  resize: "vertical",
+  fontFamily: "inherit",
+  background: "#fff",
+  color: ink.text,
+} as const;

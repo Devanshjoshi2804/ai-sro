@@ -86,6 +86,17 @@ class SkillVersion:
     promoted_at: datetime | None = None
     promoted_by: PrincipalId | None = None
 
+    summary: str = ""
+    """What this version does, in a sentence."""
+
+    when_to_use: str = ""
+    """When to reach for it.
+
+    Together with ``summary`` this is what an operator's request is matched
+    against, so it is editable: a skill described in words nobody searches with
+    is a skill nobody finds. Editing it changes what is found, never what runs.
+    """
+
     def __post_init__(self) -> None:
         if self.version < 1:
             raise InvariantViolation("version numbers start at 1")
@@ -102,6 +113,13 @@ class SkillVersion:
     @property
     def needs_human_step(self) -> bool:
         return any(step.requires_human for step in self.steps)
+
+    def describe(self, *, summary: str, when_to_use: str) -> None:
+        """Reword what this version is for. A label, never a behaviour."""
+        if not summary.strip():
+            raise InvariantViolation("a skill nobody can describe is a skill nobody will find")
+        self.summary = summary.strip()
+        self.when_to_use = when_to_use.strip()
 
     def promote(self, to: PromotionStage, at: datetime, by: PrincipalId) -> None:
         check_promotion(self.stage, to)

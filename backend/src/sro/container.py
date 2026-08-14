@@ -42,6 +42,7 @@ from sro.application.recording.list_recordings import ListRecordings
 from sro.application.recording.live_view import GetLiveView
 from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
+from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.config import Settings, get_settings
@@ -143,6 +144,9 @@ class Container:
 
     def promote_skill(self) -> PromoteSkill:
         return PromoteSkill(self.unit_of_work(), self.clock)
+
+    def describe_skill(self) -> DescribeSkill:
+        return DescribeSkill(self.unit_of_work())
 
     def execute_skill(self) -> ExecuteSkill:
         return ExecuteSkill(

@@ -197,3 +197,17 @@ class ModelCallRow(Base):
     failed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     __table_args__ = (Index("ix_model_calls_run", "tenant_id", "run_id", "started_at"),)
+
+
+class ThreadRow(Base):
+    __tablename__ = "threads"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    opened_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    # One document: a thread is read whole and never queried by message.
+    messages: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+
+    __table_args__ = (Index("ix_threads_tenant_opened", "tenant_id", "opened_at"),)

@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sro.application.context import RequestContext
+from sro.application.knowledge.vectors import embed_or_none
 from sro.application.ports.embedding import Embedder
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -110,6 +111,5 @@ class RecordClaims:
 
 
 async def _vectors(embedder: Embedder, claims: tuple[Claim, ...]) -> tuple[tuple[float, ...], ...]:
-    if not claims or not embedder.available:
-        return tuple(() for _ in claims)
-    return await embedder.embed(tuple(claim.as_text() for claim in claims))
+    """No vectors is a worse ordering, never a failed ingest."""
+    return await embed_or_none(embedder, tuple(claim.as_text() for claim in claims))

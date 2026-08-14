@@ -19,6 +19,13 @@ import { TeachPanel } from "@/features/console/teach-panel";
 import { useThread } from "@/features/console/thread-store";
 import { TopBar } from "@/features/console/top-bar";
 import { ConnectPanel, connectionKeys, listConnections } from "@/features/console/connect-panel";
+import {
+  getThread,
+  say,
+  startThread,
+  threadKeys,
+  type ChatMessage,
+} from "@/features/console/chat-api";
 
 /**
  * A teaching session is started by naming a URL and nothing else.
@@ -46,10 +53,37 @@ export function Console() {
   const [teachingAt, setTeachingAt] = useState<Teaching | null>(null);
   const [active, setActive] = useState<{ recordingId: string; run: number } | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
 
   const skills = useQuery({ queryKey: skillKeys.all, queryFn: listSkills });
   const connections = useQuery({ queryKey: connectionKeys.all, queryFn: listConnections });
   const recordings = useQuery({ queryKey: recordingKeys.all, queryFn: listRecordings });
+
+  // The conversation lives server-side: a reload used to lose it, and what was
+  // asked and what the system decided are half of the audit trail.
+  const conversation = useQuery({
+    queryKey: threadKeys.detail(threadId ?? ""),
+    queryFn: () => getThread(threadId as string),
+    enabled: threadId !== null,
+  });
+
+  const ask = useMutation({
+    mutationFn: async (text: string) => {
+      const id = threadId ?? (await startThread()).id;
+      if (threadId === null) setThreadId(id);
+      return say(id, text);
+    },
+    onSuccess: (updated) => {
+      setDraft("");
+      queryClient.setQueryData(threadKeys.detail(updated.id), updated);
+      void queryClient.invalidateQueries({ queryKey: threadKeys.all });
+    },
+    onError: (error) =>
+      toast.error("Could not send that", {
+        description: error instanceof ApiError ? error.problem.detail : String(error),
+      }),
+  });
 
   const start = useMutation({
     mutationFn: ({ form, run }: { form: Teaching; run: number }) => {
@@ -342,9 +376,16 @@ export function Console() {
                 }}
               >
                 <Assistant>
-                  Nothing runs against a live system yet — skills stop at shadow. Teach me a task by
-                  doing it twice and I will work out what changes between the runs.
+                  Ask me for a task and I will tell you which taught skill does it, and what it
+                  still needs. If nothing has been taught for it, I will say what the knowledge base
+                  knows — and you can teach me by doing it twice.
                 </Assistant>
+
+                {(conversation.data?.messages ?? []).map((message) => (
+                  <ChatTurn key={message.id} message={message} />
+                ))}
+
+                {ask.isPending && <Assistant>Looking through what has been taught…</Assistant>}
 
                 {thread.entries.map((entry) => {
                   switch (entry.kind) {
@@ -510,8 +551,14 @@ export function Console() {
                     +
                   </button>
                   <input
-                    disabled
-                    placeholder="Asking for a task lands in phase 4 — teach one with + for now"
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && draft.trim() && !ask.isPending) {
+                        ask.mutate(draft.trim());
+                      }
+                    }}
+                    placeholder="Ask for a task — or teach one with +"
                     style={{
                       flex: 1,
                       border: "none",
@@ -523,8 +570,8 @@ export function Console() {
                   />
                 </div>
                 <div style={{ padding: "9px 4px 0", fontSize: 11, color: ink.textMuted }}>
-                  Skills will run at the highest rung that works: network replay, then UI replay,
-                  then vision. Execution is not built yet.
+                  Asking finds a taught skill and says what it still needs. Running it is a separate
+                  click — that confirmation is what an assisted run records as its authorisation.
                 </div>
               </div>
             </div>
@@ -792,5 +839,50 @@ function PlusItem({
         </span>
       </span>
     </button>
+  );
+}
+
+/**
+ * One turn of the conversation.
+ *
+ * The decision is rendered beside the prose, not instead of it: an operator
+ * reads the sentence, and anybody asking "why did it pick that" reads what
+ * matched. A skill that was found is offered with its card — running it stays a
+ * separate, deliberate click.
+ */
+function ChatTurn({ message }: { message: ChatMessage }) {
+  if (message.speaker === "operator") return <Operator>{message.text}</Operator>;
+
+  const decision = message.decision as {
+    matched_skill_id?: string | null;
+    confident?: boolean;
+    runnable?: boolean;
+    missing_parameters?: string[];
+    why?: string[];
+    proposal_sources?: string[];
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 12 }}>
+      <Avatar />
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 15, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{message.text}</div>
+
+        {decision.why && decision.why.length > 0 && (
+          <div style={{ fontFamily: mono, fontSize: 11, color: ink.textMuted }}>
+            matched on {decision.why.join(" · ")}
+            {decision.confident === false && " — and something in the sentence it cannot explain"}
+          </div>
+        )}
+
+        {decision.proposal_sources && decision.proposal_sources.length > 0 && (
+          <div style={{ fontFamily: mono, fontSize: 11, color: ink.textMuted }}>
+            from {decision.proposal_sources.join(", ")}
+          </div>
+        )}
+
+        {decision.matched_skill_id && <SkillCard skillId={decision.matched_skill_id} />}
+      </div>
+    </div>
   );
 }

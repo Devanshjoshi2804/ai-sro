@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
+from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Run, StepOutcome
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
@@ -615,3 +616,57 @@ def _candidate(candidate: Candidate | None) -> CandidateModel | None:
         why=list(candidate.why),
         unexplained=list(candidate.unexplained),
     )
+
+
+class SayRequest(BaseModel):
+    text: str
+    system: str | None = None
+    parameters: dict[str, str] = Field(default_factory=dict)
+
+
+class MessageModel(BaseModel):
+    id: str
+    speaker: str
+    text: str
+    said_at: datetime
+    decision: dict[str, Any]
+    """What the system worked out, beside what it said. An auditor reads this
+    rather than the prose."""
+
+
+class ThreadSummary(BaseModel):
+    id: str
+    title: str
+    opened_by: str
+    opened_at: datetime
+    message_count: int
+
+    @classmethod
+    def of(cls, thread: Thread) -> ThreadSummary:
+        return cls(
+            id=thread.id.value,
+            title=thread.title,
+            opened_by=thread.opened_by.value,
+            opened_at=thread.opened_at,
+            message_count=len(thread.messages),
+        )
+
+
+class ThreadDetail(ThreadSummary):
+    messages: list[MessageModel]
+
+    @classmethod
+    def of_thread(cls, thread: Thread) -> ThreadDetail:
+        return cls(
+            **ThreadSummary.of(thread).model_dump(),
+            messages=[
+                MessageModel(
+                    id=message.id.value,
+                    speaker=message.speaker.value,
+                    text=message.text,
+                    said_at=message.said_at,
+                    decision=dict(message.decision),
+                )
+                for message in thread.messages
+            ],
+        )

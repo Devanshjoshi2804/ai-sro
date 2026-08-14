@@ -22,6 +22,7 @@ from sro.application.ports.repositories import (
     RecordingRepository,
     RunRepository,
     SkillRepository,
+    ThreadRepository,
 )
 from sro.application.ports.ui import ResolvedLocator, UiOutcome, UiUnavailable
 from sro.application.ports.vision import (
@@ -29,6 +30,7 @@ from sro.application.ports.vision import (
     Screen,
     VisionUnavailable,
 )
+from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
@@ -71,6 +73,8 @@ class FakeIdFactory:
         self._skills = count(1)
         self._runs = count(1)
         self._knowledge = count(1)
+        self._threads = count(1)
+        self._messages = count(1)
 
     def new_recording_id(self) -> RecordingId:
         return RecordingId(f"rec-{next(self._recordings)}")
@@ -83,6 +87,12 @@ class FakeIdFactory:
 
     def new_knowledge_id(self) -> KnowledgeId:
         return KnowledgeId(f"kb-{next(self._knowledge)}")
+
+    def new_thread_id(self) -> ThreadId:
+        return ThreadId(f"thr-{next(self._threads)}")
+
+    def new_message_id(self) -> MessageId:
+        return MessageId(f"msg-{next(self._messages)}")
 
 
 class FakeBrowserProvider:
@@ -555,6 +565,30 @@ class FakeEmbedder:
         return tuple((float(len(text)), 1.0, 0.0) for text in texts)
 
 
+class FakeThreadRepository:
+    def __init__(self) -> None:
+        self.rows: dict[tuple[str, str], Thread] = {}
+
+    async def add(self, thread: Thread) -> None:
+        self.rows[(str(thread.tenant_id), str(thread.id))] = thread
+
+    async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
+        try:
+            return self.rows[(str(tenant_id), str(thread_id))]
+        except KeyError:
+            raise NotFound(f"thread {thread_id} not found") from None
+
+    async def save(self, thread: Thread) -> None:
+        await self.add(thread)
+
+    async def list_for_tenant(
+        self, tenant_id: TenantId, *, limit: int = 50, offset: int = 0
+    ) -> tuple[Thread, ...]:
+        rows = [t for (tenant, _), t in self.rows.items() if tenant == str(tenant_id)]
+        rows.sort(key=lambda thread: thread.opened_at, reverse=True)
+        return tuple(rows[offset : offset + limit])
+
+
 class FakeModelCallRepository:
     def __init__(self) -> None:
         self.calls: list[ModelCall] = []
@@ -580,6 +614,7 @@ class FakeUnitOfWork:
     runs: RunRepository
     knowledge: KnowledgeRepository
     model_calls: ModelCallRepository
+    threads: ThreadRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
@@ -588,6 +623,7 @@ class FakeUnitOfWork:
         self.runs = FakeRunRepository()
         self.knowledge = FakeKnowledgeRepository()
         self.model_calls = FakeModelCallRepository()
+        self.threads = FakeThreadRepository()
         self.commits = 0
         self.rollbacks = 0
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import (
@@ -38,10 +39,12 @@ from sro.domain.skill.skill import Skill
 from sro.infrastructure.db.codec import (
     dump_artifacts,
     dump_frames,
+    dump_messages,
     dump_narration,
     dump_versions,
     load_artifacts,
     load_frames,
+    load_messages,
     load_narration,
     load_versions,
 )
@@ -52,6 +55,7 @@ from sro.infrastructure.db.models import (
     RecordingRow,
     RunRow,
     SkillRow,
+    ThreadRow,
 )
 
 _OBJECTIVE_COLUMNS = ("objective_type", "target_system", "entity_type", "facility", "direction")
@@ -358,3 +362,27 @@ def row_to_model_call(row: ModelCallRow) -> ModelCall:
         outcome=row.outcome,
         failed=row.failed,
     )
+
+
+def thread_to_row(thread: Thread) -> ThreadRow:
+    row = ThreadRow(id=thread.id.value)
+    update_thread_row(row, thread)
+    return row
+
+
+def update_thread_row(row: ThreadRow, thread: Thread) -> None:
+    row.tenant_id = thread.tenant_id.value
+    row.opened_by = thread.opened_by.value
+    row.opened_at = thread.opened_at
+    row.messages = dump_messages(thread.messages)
+
+
+def row_to_thread(row: ThreadRow) -> Thread:
+    thread = Thread(
+        id=ThreadId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        opened_by=PrincipalId(row.opened_by),
+        opened_at=row.opened_at,
+    )
+    thread._messages.extend(load_messages(row.messages))
+    return thread

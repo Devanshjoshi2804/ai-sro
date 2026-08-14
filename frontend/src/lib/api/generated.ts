@@ -343,6 +343,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Threads */
+        get: operations["list_threads_v1_threads_get"];
+        put?: never;
+        /** Start Thread */
+        post: operations["start_thread_v1_threads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/threads/{thread_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Thread */
+        get: operations["get_thread_v1_threads__thread_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/threads/{thread_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Say
+         * @description Say something and get the whole thread back, decision included.
+         *
+         *     Nothing is performed here. A matched skill is offered; starting it is the
+         *     operator's next request, and that is what makes their confirmation the
+         *     authorisation an assisted run records.
+         */
+        post: operations["say_v1_threads__thread_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills/{skill_id}/runs": {
         parameters: {
             query?: never;
@@ -599,6 +658,24 @@ export interface components {
             /** Frame Index */
             frame_index: number | null;
         };
+        /** MessageModel */
+        MessageModel: {
+            /** Id */
+            id: string;
+            /** Speaker */
+            speaker: string;
+            /** Text */
+            text: string;
+            /**
+             * Said At
+             * Format: date-time
+             */
+            said_at: string;
+            /** Decision */
+            decision: {
+                [key: string]: unknown;
+            };
+        };
         /** NetworkPlanModel */
         NetworkPlanModel: {
             /** Method */
@@ -818,6 +895,17 @@ export interface components {
             /** Authorized By */
             authorized_by?: string | null;
         };
+        /** SayRequest */
+        SayRequest: {
+            /** Text */
+            text: string;
+            /** System */
+            system?: string | null;
+            /** Parameters */
+            parameters?: {
+                [key: string]: string;
+            };
+        };
         /** SessionHeadersRequest */
         SessionHeadersRequest: {
             /** Facility */
@@ -960,6 +1048,40 @@ export interface components {
             matched_by: string | null;
             /** Detail */
             detail: string | null;
+        };
+        /** ThreadDetail */
+        ThreadDetail: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Opened By */
+            opened_by: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Message Count */
+            message_count: number;
+            /** Messages */
+            messages: components["schemas"]["MessageModel"][];
+        };
+        /** ThreadSummary */
+        ThreadSummary: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Opened By */
+            opened_by: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Message Count */
+            message_count: number;
         };
         /** UiPlanModel */
         UiPlanModel: {
@@ -1636,6 +1758,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResolutionModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_threads_v1_threads_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_thread_v1_threads_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_thread_v1_threads__thread_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    say_v1_threads__thread_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SayRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDetail"];
                 };
             };
             /** @description Validation Error */

@@ -154,3 +154,34 @@ async def test_without_an_embedder_everything_still_records_and_retrieves() -> N
 
     assert len(found) == 1
     assert found[0].embedding == ()
+
+
+class BrokenEmbedder:
+    """A backend that is configured and does not work — a bad key, a dead
+    endpoint, a quota. Measured live: unguarded, this took down every
+    conversation and every ingest."""
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def dimensions(self) -> int:
+        return 3
+
+    async def embed(self, texts: tuple[str, ...]) -> tuple[tuple[float, ...], ...]:
+        raise RuntimeError("401 UNAUTHENTICATED")
+
+
+async def test_a_broken_embedder_costs_an_ordering_and_nothing_else() -> None:
+    uow = FakeUnitOfWork()
+    broken = BrokenEmbedder()
+
+    recorded = await RecordClaims(uow, FakeClock(), FakeIdFactory(), broken).execute(
+        CTX, (SCRAPED,)
+    )
+    found = await Retrieve(uow, broken).execute(CTX, Question(text="adjust"))
+
+    assert recorded.believed == 1, "ingest is not a feature that depends on similarity"
+    assert len(found) == 1, "structured filters still answer"
+    assert found[0].embedding == ()

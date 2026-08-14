@@ -14,6 +14,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.connection.connect_system import ConnectSystem, LoadSession, StoreSession
 from sro.application.connection.session_headers import StoreSessionHeaders
 from sro.application.execution.execute_skill import (
@@ -201,6 +203,15 @@ class Container:
 
     def retrieve_knowledge(self) -> Retrieve:
         return Retrieve(self.unit_of_work(), self.embedder)
+
+    def start_thread(self) -> StartThread:
+        return StartThread(self.unit_of_work(), self.clock, self.ids)
+
+    def converse(self) -> Converse:
+        return Converse(self.unit_of_work(), self.resolve_intent(), self.clock, self.ids)
+
+    def read_threads(self) -> ReadThreads:
+        return ReadThreads(self.unit_of_work())
 
     def plan_task(self) -> PlanTask:
         return PlanTask(self.retrieve_knowledge())

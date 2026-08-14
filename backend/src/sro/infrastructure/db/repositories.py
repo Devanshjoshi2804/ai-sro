@@ -19,8 +19,10 @@ from sro.application.ports.repositories import (
     RecordingRepository,
     RunRepository,
     SkillRepository,
+    ThreadRepository,
     UnitOfWork,
 )
+from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
@@ -42,13 +44,16 @@ from sro.infrastructure.db.mappers import (
     row_to_recording,
     row_to_run,
     row_to_skill,
+    row_to_thread,
     run_to_row,
     skill_to_row,
+    thread_to_row,
     update_connection_row,
     update_knowledge_row,
     update_recording_row,
     update_run_row,
     update_skill_row,
+    update_thread_row,
 )
 from sro.infrastructure.db.models import (
     ConnectionRow,
@@ -57,6 +62,7 @@ from sro.infrastructure.db.models import (
     RecordingRow,
     RunRow,
     SkillRow,
+    ThreadRow,
 )
 
 
@@ -328,6 +334,42 @@ class SqlKnowledgeRepository(KnowledgeRepository):
         return tuple(row_to_knowledge(row) for row in rows)
 
 
+class SqlThreadRepository(ThreadRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, thread: Thread) -> None:
+        self._session.add(thread_to_row(thread))
+
+    async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
+        return row_to_thread(await self._row(tenant_id, thread_id))
+
+    async def save(self, thread: Thread) -> None:
+        update_thread_row(await self._row(thread.tenant_id, thread.id), thread)
+
+    async def list_for_tenant(
+        self, tenant_id: TenantId, *, limit: int = 50, offset: int = 0
+    ) -> tuple[Thread, ...]:
+        query = (
+            select(ThreadRow)
+            .where(ThreadRow.tenant_id == tenant_id.value)
+            .order_by(ThreadRow.opened_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_thread(row) for row in rows)
+
+    async def _row(self, tenant_id: TenantId, thread_id: ThreadId) -> ThreadRow:
+        query = select(ThreadRow).where(
+            ThreadRow.id == thread_id.value, ThreadRow.tenant_id == tenant_id.value
+        )
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        if row is None:
+            raise NotFound(f"thread {thread_id} not found")
+        return row
+
+
 class SqlModelCallRepository(ModelCallRepository):
     """Append-only. A model call is a fact about what left the deployment."""
 
@@ -363,6 +405,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.runs = SqlRunRepository(self._session)
         self.knowledge = SqlKnowledgeRepository(self._session)
         self.model_calls = SqlModelCallRepository(self._session)
+        self.threads = SqlThreadRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

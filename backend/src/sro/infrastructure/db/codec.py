@@ -16,6 +16,7 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from sro.domain.chat.thread import Message
 from sro.domain.recording.artifact import MediaArtifact
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.narration import NarrationSegment
@@ -24,6 +25,7 @@ from sro.domain.skill.skill import SkillVersion
 _FRAMES = TypeAdapter(tuple[ActionFrame, ...])
 _ARTIFACTS = TypeAdapter(tuple[MediaArtifact, ...])
 _NARRATION = TypeAdapter(tuple[NarrationSegment, ...])
+_MESSAGES = TypeAdapter(tuple[Message, ...])
 _VERSIONS = TypeAdapter(tuple[SkillVersion, ...])
 
 
@@ -56,6 +58,14 @@ def dump_narration(segments: tuple[NarrationSegment, ...]) -> Any:
 
 def load_narration(raw: Any) -> tuple[NarrationSegment, ...]:
     return _NARRATION.validate_python(raw or [])
+
+
+def dump_messages(messages: tuple[Message, ...]) -> Any:
+    return _dump(_MESSAGES, messages)
+
+
+def load_messages(raw: Any) -> tuple[Message, ...]:
+    return _MESSAGES.validate_python(raw or [])
 
 
 def dump_versions(versions: tuple[SkillVersion, ...]) -> Any:

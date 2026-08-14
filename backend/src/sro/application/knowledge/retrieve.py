@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sro.application.context import RequestContext
+from sro.application.knowledge.vectors import embed_or_none
 from sro.application.ports.embedding import Embedder
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.knowledge.entry import SUPPORTS_AUTOMATION, EntryKind, KnowledgeEntry
@@ -36,8 +37,8 @@ class Retrieve:
 
     async def execute(self, ctx: RequestContext, question: Question) -> tuple[KnowledgeEntry, ...]:
         vector: tuple[float, ...] = ()
-        if question.text.strip() and self._embedder.available:
-            embedded = await self._embedder.embed((question.text,))
+        if question.text.strip():
+            embedded = await embed_or_none(self._embedder, (question.text,))
             vector = embedded[0] if embedded else ()
 
         async with self._uow as uow:

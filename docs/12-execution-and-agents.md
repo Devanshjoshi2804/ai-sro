@@ -393,6 +393,40 @@ the sentence, so every match is explainable after the fact — which is what
 `why` records. Parsing a messier sentence with a model belongs with chat, and
 its output lands here to be validated against a skill that exists.
 
+## Chat as built
+
+`POST /v1/threads/{id}/messages` takes a sentence and returns the whole thread.
+The reply is never improvised: it is a rendering of the `Resolution` — the skill
+that matched and what it still needs, the choice between two too close to
+separate, or what the knowledge base knows about a task nobody taught.
+
+**The decision is stored beside the prose.** Every assistant message carries the
+structured resolution: which skill, which version, whether it was confident,
+what is missing, and what matched. An operator reads the sentence; anybody
+asking "why did it pick that" reads the decision. A thread is append-only,
+titled by what was asked first, and survives a reload — the console's transcript
+used to live only in the browser.
+
+**Saying something performs nothing.** A matched skill is *offered*; starting it
+is the operator's next request. That separation is what makes their
+confirmation the authorisation an assisted run records, rather than a checkbox
+somewhere earlier.
+
+No model is called here yet. The reply is composed from a deterministic
+resolution, which is why every message can be explained afterwards. Parsing a
+messier sentence with a model plugs in at the front of this and lands in the
+same validator: a key that resolves to a skill that exists, and parameters that
+skill declares.
+
+### Optional means optional
+
+Measured with a bad Gemini key: embeddings were enabled, the call 401'd, and it
+took down every conversation and every ingest — for a feature whose entire job
+is to *order* candidates a structured filter already chose. Embedding is now
+wrapped once (`application/knowledge/vectors.py`) and a failure costs the caller
+its ordering and nothing else. The same rule holds for any optional rung: the
+system without it must be the system, degraded, not the system, broken.
+
 ## Agents
 
 | Agent | Job | Model |

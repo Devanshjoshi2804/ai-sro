@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
@@ -126,6 +127,20 @@ class KnowledgeRepository(Protocol):
         ...
 
 
+class ThreadRepository(Protocol):
+    async def add(self, thread: Thread) -> None: ...
+
+    async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread: ...
+
+    async def save(self, thread: Thread) -> None: ...
+
+    async def list_for_tenant(
+        self, tenant_id: TenantId, *, limit: int = 50, offset: int = 0
+    ) -> tuple[Thread, ...]:
+        """Most recently opened first."""
+        ...
+
+
 class ModelCallRepository(Protocol):
     async def add(self, call: ModelCall) -> None: ...
 
@@ -143,6 +158,7 @@ class UnitOfWork(Protocol):
     runs: RunRepository
     knowledge: KnowledgeRepository
     model_calls: ModelCallRepository
+    threads: ThreadRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

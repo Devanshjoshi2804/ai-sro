@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol
 
+from sro.domain.chat.thread import MessageId, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import KnowledgeId
 from sro.domain.shared.identifiers import RecordingId, SkillId
@@ -24,3 +25,7 @@ class IdFactory(Protocol):
     def new_run_id(self) -> RunId: ...
 
     def new_knowledge_id(self) -> KnowledgeId: ...
+
+    def new_thread_id(self) -> ThreadId: ...
+
+    def new_message_id(self) -> MessageId: ...

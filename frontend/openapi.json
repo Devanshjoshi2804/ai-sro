@@ -240,6 +240,79 @@
         }
       }
     },
+    "/v1/connections/{connection_id}/session-headers": {
+      "post": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Store Session Headers",
+        "description": "Headers the executor must send as this session and cannot derive.\n\nThe response names the keys and never the values: an endpoint that echoed a\ncredential back would put it in every proxy log between here and the caller.",
+        "operationId": "store_session_headers_v1_connections__connection_id__session_headers_post",
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Connection Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionHeadersRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionHeadersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/recordings": {
       "post": {
         "tags": [
@@ -1074,6 +1147,237 @@
           }
         }
       }
+    },
+    "/v1/skills/{skill_id}/runs": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Run Skill",
+        "description": "Perform the skill at L1.\n\nWhat the stage means here: `shadow` sends every read and withholds every\nwrite, producing the exact request it would have sent. Above shadow the\nwrites go out, and the request must name the human who authorised that.",
+        "operationId": "run_skill_v1_skills__skill_id__runs_post",
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunSkillRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "List Runs",
+        "operationId": "list_runs_v1_runs_get",
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Skill Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunModel"
+                  },
+                  "title": "Response List Runs V1 Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Run",
+        "operationId": "get_run_v1_runs__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1304,6 +1608,17 @@
             ],
             "title": "Abandon Reason",
             "description": "Present means abandon; absent means seal."
+          },
+          "objective_key": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectiveKeyModel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only for a demonstration whose evidence cannot name it, or the second run of a pair. Otherwise the task names itself."
           }
         },
         "type": "object",
@@ -1751,7 +2066,14 @@
             "title": "Id"
           },
           "objective_key": {
-            "$ref": "#/components/schemas/ObjectiveKeyModel"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectiveKeyModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "label": {
             "anyOf": [
@@ -1835,7 +2157,14 @@
             "title": "Id"
           },
           "objective_key": {
-            "$ref": "#/components/schemas/ObjectiveKeyModel"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectiveKeyModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "label": {
             "anyOf": [
@@ -1895,6 +2224,188 @@
           "has_narration"
         ],
         "title": "RecordingSummary"
+      },
+      "RunModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id"
+          },
+          "skill_version": {
+            "type": "integer",
+            "title": "Skill Version"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "medium": {
+            "type": "string",
+            "title": "Medium"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Parameters"
+          },
+          "requested_by": {
+            "type": "string",
+            "title": "Requested By"
+          },
+          "authorized_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorized By"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepOutcomeModel"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "skill_id",
+          "skill_version",
+          "stage",
+          "medium",
+          "status",
+          "parameters",
+          "requested_by",
+          "authorized_by",
+          "started_at",
+          "ended_at",
+          "failure",
+          "steps"
+        ],
+        "title": "RunModel"
+      },
+      "RunSkillRequest": {
+        "properties": {
+          "parameters": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Parameters"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "medium": {
+            "type": "string",
+            "title": "Medium",
+            "default": "network"
+          },
+          "authorized_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorized By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parameters"
+        ],
+        "title": "RunSkillRequest"
+      },
+      "SessionHeadersRequest": {
+        "properties": {
+          "facility": {
+            "type": "string",
+            "title": "Facility"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Headers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "facility",
+          "headers"
+        ],
+        "title": "SessionHeadersRequest"
+      },
+      "SessionHeadersResponse": {
+        "properties": {
+          "stored": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stored"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stored"
+        ],
+        "title": "SessionHeadersResponse"
       },
       "SkillDetail": {
         "properties": {
@@ -2041,7 +2552,14 @@
       "StartRecordingRequest": {
         "properties": {
           "objective_key": {
-            "$ref": "#/components/schemas/ObjectiveKeyModel"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectiveKeyModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "start_url": {
             "anyOf": [
@@ -2064,12 +2582,20 @@
               }
             ],
             "title": "Label"
+          },
+          "attach_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attach To"
           }
         },
         "type": "object",
-        "required": [
-          "objective_key"
-        ],
         "title": "StartRecordingRequest"
       },
       "StartRecordingResponse": {
@@ -2142,6 +2668,138 @@
           "assertions"
         ],
         "title": "StepModel"
+      },
+      "StepOutcomeModel": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "medium": {
+            "type": "string",
+            "title": "Medium"
+          },
+          "disposition": {
+            "type": "string",
+            "title": "Disposition"
+          },
+          "intent": {
+            "type": "string",
+            "title": "Intent"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "status_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Code"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "assertion_failures": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Assertion Failures"
+          },
+          "escalated_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalated From"
+          },
+          "escalation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Reason"
+          },
+          "matched_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched By"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "medium",
+          "disposition",
+          "intent",
+          "method",
+          "url",
+          "status_code",
+          "idempotency_key",
+          "assertion_failures",
+          "escalated_from",
+          "escalation_reason",
+          "matched_by",
+          "detail"
+        ],
+        "title": "StepOutcomeModel"
       },
       "UiPlanModel": {
         "properties": {

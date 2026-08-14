@@ -11,11 +11,16 @@ An operator demonstrates a warehouse task in a browser. The system records it an
 turns two demonstrations of the same task into a parameterised, reviewable
 **skill**.
 
-Today the system captures and induces. It does not execute: `HIGHEST_PERMITTED_STAGE`
-is `SHADOW` and nothing is written to any WMS. The executor, the medium ladder
-and the agent design are planned in
-[`docs/12-execution-and-agents.md`](docs/12-execution-and-agents.md) — read it
-before building anything that runs a skill.
+Today the system captures, induces and **executes**: `HIGHEST_PERMITTED_STAGE` is
+`ASSISTED`, so a reviewed skill performs real writes against a live WMS when a
+run names the human who authorised it. L1 (network replay) and L2 (UI replay)
+are built; L3 (vision), chat and autonomy are not. The medium ladder and the
+agent design are in [`docs/12-execution-and-agents.md`](docs/12-execution-and-agents.md)
+— read it before building anything that runs a skill.
+
+A demonstration is started by naming a URL. Its objective key is derived from the
+evidence at seal (`application/capture/identity.py`); nothing asks the operator
+to classify the task up front. See [`docs/06-glossary.md`](docs/06-glossary.md).
 
 Vocabulary is fixed in [`docs/06-glossary.md`](docs/06-glossary.md). Use those
 words; do not invent synonyms (`demo`, `session`, `macro` are all wrong for

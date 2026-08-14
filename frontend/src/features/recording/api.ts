@@ -5,6 +5,7 @@ export type RecordingDetail = Schemas["RecordingDetail"];
 export type StartRecordingRequest = Schemas["StartRecordingRequest"];
 export type StartRecordingResponse = Schemas["StartRecordingResponse"];
 export type FrameSummary = Schemas["FrameSummary"];
+export type ObjectiveKey = Schemas["ObjectiveKeyModel"];
 
 export const recordingKeys = {
   all: ["recordings"] as const,
@@ -25,7 +26,14 @@ export const getMedia = (id: string) => api.get<Media[]>(`/v1/recordings/${id}/m
 export const getLiveView = (id: string) =>
   api.get<{ live_view_url: string | null }>(`/v1/recordings/${id}/live-view`);
 
-export const finishRecording = (id: string, abandonReason?: string) =>
+export const finishRecording = (
+  id: string,
+  abandonReason?: string,
+  objectiveKey?: ObjectiveKey | null,
+) =>
   api.post<RecordingSummary>(`/v1/recordings/${id}/finish`, {
     abandon_reason: abandonReason ?? null,
+    // Only the second run of a pair carries one: the first names itself from
+    // what it did, and both runs must end up under the same name to pair.
+    objective_key: objectiveKey ?? null,
   });

@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from sro.domain.execution.run import Run, StepOutcome
 from sro.domain.recording.recording import Recording
-from sro.domain.shared.objective import Direction
+from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.skill import Skill, SkillVersion
 
 
@@ -25,9 +25,33 @@ class ObjectiveKeyModel(BaseModel):
     facility: str
     direction: Direction
 
+    @classmethod
+    def of(cls, key: ObjectiveKey | None) -> ObjectiveKeyModel | None:
+        if key is None:
+            return None
+        return cls(
+            objective_type=key.objective_type,
+            target_system=key.target_system,
+            entity_type=key.entity_type,
+            facility=key.facility,
+            direction=key.direction,
+        )
+
+    def to_domain(self) -> ObjectiveKey:
+        return ObjectiveKey(
+            objective_type=self.objective_type,
+            target_system=self.target_system,
+            entity_type=self.entity_type,
+            facility=self.facility,
+            direction=self.direction,
+        )
+
 
 class StartRecordingRequest(BaseModel):
-    objective_key: ObjectiveKeyModel
+    objective_key: ObjectiveKeyModel | None = None
+    """Absent for a first demonstration: the evidence names the task at seal.
+    Present for the second run of a pair, so both carry the same key."""
+
     start_url: str | None = None
     label: str | None = None
 
@@ -86,10 +110,18 @@ class FinishRecordingRequest(BaseModel):
         description="Present means abandon; absent means seal.",
     )
 
+    objective_key: ObjectiveKeyModel | None = Field(
+        default=None,
+        description=(
+            "Only for a demonstration whose evidence cannot name it, or the "
+            "second run of a pair. Otherwise the task names itself."
+        ),
+    )
+
 
 class RecordingSummary(BaseModel):
     id: str
-    objective_key: ObjectiveKeyModel
+    objective_key: ObjectiveKeyModel | None
     label: str | None
     status: str
     demonstrator: str
@@ -102,13 +134,7 @@ class RecordingSummary(BaseModel):
     def of(cls, recording: Recording) -> RecordingSummary:
         return cls(
             id=recording.id.value,
-            objective_key=ObjectiveKeyModel(
-                objective_type=recording.objective_key.objective_type,
-                target_system=recording.objective_key.target_system,
-                entity_type=recording.objective_key.entity_type,
-                facility=recording.objective_key.facility,
-                direction=recording.objective_key.direction,
-            ),
+            objective_key=ObjectiveKeyModel.of(recording.objective_key),
             label=recording.label,
             status=recording.status.value,
             demonstrator=recording.demonstrator.value,

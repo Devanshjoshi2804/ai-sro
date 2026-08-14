@@ -85,6 +85,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/connections/{connection_id}/session-headers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Store Session Headers
+         * @description Headers the executor must send as this session and cannot derive.
+         *
+         *     The response names the keys and never the values: an endpoint that echoed a
+         *     credential back would put it in every proxy log between here and the caller.
+         */
+        post: operations["store_session_headers_v1_connections__connection_id__session_headers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/recordings": {
         parameters: {
             query?: never;
@@ -270,6 +293,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/skills/{skill_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Skill
+         * @description Perform the skill at L1.
+         *
+         *     What the stage means here: `shadow` sends every read and withholds every
+         *     write, producing the exact request it would have sent. Above shadow the
+         *     writes go out, and the request must name the human who authorised that.
+         */
+        post: operations["run_skill_v1_skills__skill_id__runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Runs */
+        get: operations["list_runs_v1_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run */
+        get: operations["get_run_v1_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -349,6 +430,8 @@ export interface components {
              * @description Present means abandon; absent means seal.
              */
             abandon_reason?: string | null;
+            /** @description Only for a demonstration whose evidence cannot name it, or the second run of a pair. Otherwise the task names itself. */
+            objective_key?: components["schemas"]["ObjectiveKeyModel"] | null;
         };
         /**
          * FrameSummary
@@ -499,7 +582,7 @@ export interface components {
         RecordingDetail: {
             /** Id */
             id: string;
-            objective_key: components["schemas"]["ObjectiveKeyModel"];
+            objective_key: components["schemas"]["ObjectiveKeyModel"] | null;
             /** Label */
             label: string | null;
             /** Status */
@@ -526,7 +609,7 @@ export interface components {
         RecordingSummary: {
             /** Id */
             id: string;
-            objective_key: components["schemas"]["ObjectiveKeyModel"];
+            objective_key: components["schemas"]["ObjectiveKeyModel"] | null;
             /** Label */
             label: string | null;
             /** Status */
@@ -544,6 +627,70 @@ export interface components {
             frame_count: number;
             /** Has Narration */
             has_narration: boolean;
+        };
+        /** RunModel */
+        RunModel: {
+            /** Id */
+            id: string;
+            /** Skill Id */
+            skill_id: string;
+            /** Skill Version */
+            skill_version: number;
+            /** Stage */
+            stage: string;
+            /** Medium */
+            medium: string;
+            /** Status */
+            status: string;
+            /** Parameters */
+            parameters: {
+                [key: string]: string;
+            };
+            /** Requested By */
+            requested_by: string;
+            /** Authorized By */
+            authorized_by: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Ended At */
+            ended_at: string | null;
+            /** Failure */
+            failure: string | null;
+            /** Steps */
+            steps: components["schemas"]["StepOutcomeModel"][];
+        };
+        /** RunSkillRequest */
+        RunSkillRequest: {
+            /** Parameters */
+            parameters: {
+                [key: string]: string;
+            };
+            /** Version */
+            version?: number | null;
+            /**
+             * Medium
+             * @default network
+             */
+            medium: string;
+            /** Authorized By */
+            authorized_by?: string | null;
+        };
+        /** SessionHeadersRequest */
+        SessionHeadersRequest: {
+            /** Facility */
+            facility: string;
+            /** Headers */
+            headers: {
+                [key: string]: string;
+            };
+        };
+        /** SessionHeadersResponse */
+        SessionHeadersResponse: {
+            /** Stored */
+            stored: string[];
         };
         /** SkillDetail */
         SkillDetail: {
@@ -605,11 +752,13 @@ export interface components {
         };
         /** StartRecordingRequest */
         StartRecordingRequest: {
-            objective_key: components["schemas"]["ObjectiveKeyModel"];
+            objective_key?: components["schemas"]["ObjectiveKeyModel"] | null;
             /** Start Url */
             start_url?: string | null;
             /** Label */
             label?: string | null;
+            /** Attach To */
+            attach_to?: string | null;
         };
         /** StartRecordingResponse */
         StartRecordingResponse: {
@@ -630,6 +779,35 @@ export interface components {
             ui_plan: components["schemas"]["UiPlanModel"] | null;
             /** Assertions */
             assertions: components["schemas"]["AssertionModel"][];
+        };
+        /** StepOutcomeModel */
+        StepOutcomeModel: {
+            /** Index */
+            index: number;
+            /** Medium */
+            medium: string;
+            /** Disposition */
+            disposition: string;
+            /** Intent */
+            intent: string;
+            /** Method */
+            method: string | null;
+            /** Url */
+            url: string | null;
+            /** Status Code */
+            status_code: number | null;
+            /** Idempotency Key */
+            idempotency_key: string | null;
+            /** Assertion Failures */
+            assertion_failures: string[];
+            /** Escalated From */
+            escalated_from: string | null;
+            /** Escalation Reason */
+            escalation_reason: string | null;
+            /** Matched By */
+            matched_by: string | null;
+            /** Detail */
+            detail: string | null;
         };
         /** UiPlanModel */
         UiPlanModel: {
@@ -797,6 +975,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectionModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    store_session_headers_v1_connections__connection_id__session_headers_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionHeadersRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionHeadersResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1194,6 +1410,114 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SkillVersionModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_skill_v1_skills__skill_id__runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                skill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunSkillRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_runs_v1_runs_get: {
+        parameters: {
+            query?: {
+                skill_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunModel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_v1_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunModel"];
                 };
             };
             /** @description Validation Error */

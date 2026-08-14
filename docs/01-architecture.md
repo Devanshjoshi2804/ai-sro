@@ -88,18 +88,20 @@ they hold on every path — HTTP, Temporal, or a future auto-promotion job:
 
 1. **No skipping.** A promotion moves exactly one rung. "Recorded straight to
    autonomous" is the failure the ladder exists to prevent.
-2. **A ceiling.** `HIGHEST_PERMITTED_STAGE = SHADOW` in this release. There is no
-   executor, so nothing above shadow can honestly claim to be verified. Raising
-   it is one line, and it belongs in the same change as cross-path verification.
+2. **A ceiling.** `HIGHEST_PERMITTED_STAGE = ASSISTED` since L1 execution landed:
+   an assisted run writes for real and must name the human who authorised it.
+   `AUTONOMOUS` stays out of reach until the counters, the circuit breaker and
+   the blast-radius limits exist — see `docs/12-execution-and-agents.md`.
 
 Demotion is not reachable through promotion. Auto-demotion on a failure spike is
 a separate, monitored action — deliberately not wired to a review-UI button.
 
 ## Writes and the read model
 
-Nothing in v0 writes to a WMS. When that changes, the constraint from the
-solution design holds: the platform is a **read model plus an explicit write
-path**, never bidirectional sync. See
+Writes go out only through a run of a reviewed skill, at `assisted` or above,
+carrying an idempotency key and the name of the human who authorised them. The
+constraint from the solution design holds: the platform is a **read model plus an
+explicit write path**, never bidirectional sync. See
 [07-adr/002-read-model-not-bidirectional-sync.md](07-adr/002-read-model-not-bidirectional-sync.md).
 
 ## Durability

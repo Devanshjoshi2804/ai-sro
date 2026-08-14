@@ -56,8 +56,8 @@ export function RecordingList() {
   const pairable = (row: RecordingSummary) =>
     row.status === "sealed" &&
     (selected.length === 0 ||
-      rows.find((r) => r.id === selected[0])?.objective_key.objective_type ===
-        row.objective_key.objective_type);
+      rows.find((r) => r.id === selected[0])?.objective_key?.objective_type ===
+        row.objective_key?.objective_type);
 
   return (
     <div className="space-y-4">
@@ -76,8 +76,8 @@ export function RecordingList() {
           >
             {induct.isPending ? "Inducing…" : "Induce skill from 2 runs"}
           </Button>
-          <Link href="/recordings/new">
-            <Button>Start a demonstration</Button>
+          <Link href="/console">
+            <Button>Teach a workflow</Button>
           </Link>
         </div>
       </div>
@@ -114,10 +114,12 @@ export function RecordingList() {
               </TableCell>
               <TableCell>
                 <Link href={`/recordings/${row.id}`} className="hover:underline">
-                  {row.objective_key.objective_type}
+                  {row.objective_key?.objective_type ?? "unnamed"}
                 </Link>
                 <span className="text-muted-foreground block text-xs">
-                  {row.objective_key.target_system} · {row.objective_key.facility}
+                  {row.objective_key
+                    ? `${row.objective_key.target_system} · ${row.objective_key.facility}`
+                    : "named at seal"}
                 </span>
               </TableCell>
               <TableCell>{row.label ?? "—"}</TableCell>

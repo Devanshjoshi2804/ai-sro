@@ -28,28 +28,22 @@ router = APIRouter(prefix="/recordings", tags=["recordings"])
 async def start_recording(
     body: StartRecordingRequest, container: ContainerDep, ctx: ContextDep
 ) -> StartRecordingResponse:
+    objective = body.objective_key.to_domain() if body.objective_key else None
     started = await container.start_recording().execute(
         ctx,
-        objective_key=ObjectiveKey(
-            objective_type=body.objective_key.objective_type,
-            target_system=body.objective_key.target_system,
-            entity_type=body.objective_key.entity_type,
-            facility=body.objective_key.facility,
-            direction=body.objective_key.direction,
-        ),
+        objective_key=objective,
         start_url=body.start_url,
         label=body.label,
         attach_to=body.attach_to,
     )
     # A stored session, if this system has one. Without it the demonstration
     # opens on a login page and the operator teaches signing in, which is a
-    # different task from the one they meant to teach.
+    # different task from the one they meant to teach. A first demonstration has
+    # not named its system yet, so the URL it starts at stands in.
     session_cookies = (
         ()
-        if body.attach_to
-        else await container.load_session().execute(
-            ctx, target_system=body.objective_key.target_system
-        )
+        if body.attach_to or not started.target_system
+        else await container.load_session().execute(ctx, target_system=started.target_system)
     )
 
     # Capture starts only once the recording is durable: attaching first would
@@ -194,6 +188,10 @@ async def finish_recording(
             ctx, recording_id=RecordingId(recording_id), reason=body.abandon_reason
         )
         if body.abandon_reason
-        else await use_case.seal(ctx, recording_id=RecordingId(recording_id))
+        else await use_case.seal(
+            ctx,
+            recording_id=RecordingId(recording_id),
+            objective_key=body.objective_key.to_domain() if body.objective_key else None,
+        )
     )
     return RecordingSummary.of(recording)

@@ -16,6 +16,21 @@ Not a sentence, and never matched by text similarity. Two recordings pair for
 induction only if their keys are **exactly** equal; near-misses surface in the
 review UI as "these look related, confirm?" rather than being silently diffed.
 
+**Derived, not typed.** The operator starts a demonstration by naming a URL. The
+key is read off the evidence when the run is sealed
+(`application/capture/identity.py`): the call the demonstration ended on names
+the entity and the verb, the query parameter every call carried names the
+facility, and the connection the host belongs to names the system. Run 2 is
+started under run 1's derived key, so a pair pairs by construction.
+
+Asking for five fields up front is what this replaces. Two people describe one
+task two ways, the diff needs exact equality, and the two entry points that
+asked disagreed on the default direction — so the same task taught twice
+produced two objectives and never paired.
+
+A demonstration that asked the server nothing cannot be named this way, and
+sealing it asks the operator instead. That is the exception, not the entry point.
+
 The same task at a different facility is a different objective. It usually is.
 
 ## Recording

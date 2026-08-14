@@ -165,6 +165,34 @@ answer never escalates — pointing a browser at it turns an outage into a heavi
 one. And a shadow run never drives the interface at all: a click is
 indistinguishable from a call once it has happened.
 
+## Teaching entry: the task names itself
+
+An operator starts a demonstration by naming a URL. Nothing else is asked.
+
+What the task *is* — its objective key — is read off the evidence when the run is
+sealed. The call the demonstration ended on names the entity and the verb
+(`PUT /data/WM/wm/inventory/adjust` is `inventory` / `adjust`), the query
+parameter every call carried names the facility (`siteId=SG`), and the connection
+that owns the host names the system (`blue_yonder`, which is what the vault scope
+and the knowledge base call it — `bf56-kms-wms-web-np2.jdadelivers.com` is not).
+
+This replaces a five-field form, and the reason is measured rather than
+aesthetic: there were two such forms, they disagreed on the default direction,
+and two people describe one task two ways. Induction pairs on **exact** equality,
+so every disagreement produced two objectives that could never pair. Deriving
+makes the key a property of what was done. Run 2 is started under run 1's derived
+key, so a pair pairs by construction.
+
+Same rule as parameter naming: no model is asked. Record ids are skipped when
+naming (`/waves/W-8817/release` is about `wave`, not about `W-8817`), routing
+segments (`data`, `api`, `v1`, `wm`) are skipped as facts about how the server is
+wired, and background traffic never names anything because the frame excludes it
+already.
+
+A demonstration that asked the server nothing cannot be named this way. Sealing
+it raises `unnamed_demonstration` and asks the operator for one line — the
+exception, not the entry point.
+
 ## Agents
 
 | Agent | Job | Model |

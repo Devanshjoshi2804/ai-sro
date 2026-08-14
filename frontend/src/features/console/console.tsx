@@ -8,6 +8,7 @@ import {
   listRecordings,
   recordingKeys,
   startRecording,
+  type ObjectiveKey,
   type StartRecordingRequest,
 } from "@/features/recording/api";
 import { induceSkill, listSkills, skillKeys } from "@/features/skill/api";
@@ -19,22 +20,21 @@ import { useThread } from "@/features/console/thread-store";
 import { TopBar } from "@/features/console/top-bar";
 import { ConnectPanel, connectionKeys, listConnections } from "@/features/console/connect-panel";
 
-type Objective = {
-  objective_type: string;
-  target_system: string;
-  entity_type: string;
-  facility: string;
-  direction: "outbound" | "inbound" | "internal";
+/**
+ * A teaching session is started by naming a URL and nothing else.
+ *
+ * What the task *is* — its objective key — is read off the evidence when the
+ * run is sealed: the call the demonstration ended on names the entity and the
+ * verb, the parameter every call carried names the facility. Asking the
+ * operator to type all five up front produced pairs that never matched, because
+ * two people describe one task two ways and the diff needs exact equality.
+ *
+ * Run 2 is then started under run 1's derived name, so the pair is guaranteed
+ * to pair.
+ */
+type Teaching = {
   start_url: string;
-};
-
-const EMPTY: Objective = {
-  objective_type: "",
-  target_system: "",
-  entity_type: "",
-  facility: "",
-  direction: "internal",
-  start_url: "",
+  objective_key: ObjectiveKey | null;
 };
 
 export function Console() {
@@ -43,7 +43,7 @@ export function Console() {
 
   const [tab, setTab] = useState<"chat" | "teach">("chat");
   const [plusOpen, setPlusOpen] = useState(false);
-  const [objective, setObjective] = useState<Objective | null>(null);
+  const [teachingAt, setTeachingAt] = useState<Teaching | null>(null);
   const [active, setActive] = useState<{ recordingId: string; run: number } | null>(null);
   const [connecting, setConnecting] = useState(false);
 
@@ -52,15 +52,9 @@ export function Console() {
   const recordings = useQuery({ queryKey: recordingKeys.all, queryFn: listRecordings });
 
   const start = useMutation({
-    mutationFn: ({ form, run }: { form: Objective; run: number }) => {
+    mutationFn: ({ form, run }: { form: Teaching; run: number }) => {
       const body: StartRecordingRequest = {
-        objective_key: {
-          objective_type: form.objective_type.trim(),
-          target_system: form.target_system.trim(),
-          entity_type: form.entity_type.trim(),
-          facility: form.facility.trim(),
-          direction: form.direction,
-        },
+        objective_key: form.objective_key,
         start_url: form.start_url.trim() || null,
         label: `run ${run}`,
       };
@@ -71,7 +65,7 @@ export function Console() {
         kind: "session",
         recordingId: started.recording_id,
         run: variables.run,
-        label: variables.form.objective_type,
+        label: variables.form.objective_key?.objective_type ?? variables.form.start_url,
       });
       setActive({ recordingId: started.recording_id, run: variables.run });
       setTab("teach");
@@ -100,20 +94,24 @@ export function Console() {
     },
   });
 
-  const beginTeaching = (form: Objective) => {
-    setObjective(form);
-    thread.add({ kind: "operator", text: `Teach a workflow — ${form.objective_type}` });
+  const beginTeaching = (startUrl: string) => {
+    const form: Teaching = { start_url: startUrl, objective_key: null };
+    setTeachingAt(form);
+    thread.add({ kind: "operator", text: `Teach a workflow at ${startUrl}` });
     start.mutate({ form, run: 1 });
   };
 
-  const onSealed = (frames: number) => {
+  const onSealed = (frames: number, objectiveKey: ObjectiveKey | null) => {
     if (!active) return;
     thread.add({ kind: "sealed", recordingId: active.recordingId, run: active.run, frames });
     setActive(null);
     setTab("chat");
 
+    // Run 1's derived name becomes run 2's, so the pair pairs.
+    if (teachingAt && objectiveKey) setTeachingAt({ ...teachingAt, objective_key: objectiveKey });
+
     const sealed = [...thread.sealedRecordings, active.recordingId];
-    if (sealed.length >= 2 && objective) {
+    if (sealed.length >= 2 && teachingAt) {
       const pair = sealed.slice(-2) as [string, string];
       induce.mutate(pair);
     }
@@ -156,6 +154,7 @@ export function Console() {
           <TeachPanel
             recordingId={active.recordingId}
             run={active.run}
+            objectiveKey={teachingAt?.objective_key}
             onSealed={onSealed}
             onDiscarded={() => {
               setActive(null);
@@ -300,7 +299,7 @@ export function Console() {
                             : ink.textMuted,
                     }}
                   />
-                  {recording.objective_key.objective_type}
+                  {recording.objective_key?.objective_type ?? "unnamed"}
                   <span style={{ color: ink.textMuted, fontSize: 11 }}>
                     {recording.frame_count}
                   </span>
@@ -399,12 +398,12 @@ export function Console() {
                   <Assistant>Aligning the two runs and diffing the replayable values…</Assistant>
                 )}
 
-                {objective && !teaching && runsSoFar !== 2 && (
+                {teachingAt && !teaching && runsSoFar !== 2 && (
                   <div style={{ display: "flex", gap: 12 }}>
                     <Avatar />
                     <button
                       onClick={() =>
-                        start.mutate({ form: objective, run: runsSoFar === 1 ? 2 : 1 })
+                        start.mutate({ form: teachingAt, run: runsSoFar === 1 ? 2 : 1 })
                       }
                       disabled={start.isPending}
                       style={{
@@ -428,7 +427,7 @@ export function Console() {
                   </div>
                 )}
 
-                {objective === null && (
+                {teachingAt === null && (
                   <TeachForm onStart={beginTeaching} pending={start.isPending} />
                 )}
               </div>
@@ -457,7 +456,7 @@ export function Console() {
                       subtitle="Opens a recorded browser session"
                       onClick={() => {
                         setPlusOpen(false);
-                        setObjective(null);
+                        setTeachingAt(null);
                         document
                           .getElementById("teach-form")
                           ?.scrollIntoView({ behavior: "smooth" });
@@ -540,17 +539,11 @@ function TeachForm({
   onStart,
   pending,
 }: {
-  onStart: (objective: Objective) => void;
+  onStart: (startUrl: string) => void;
   pending: boolean;
 }) {
-  const [form, setForm] = useState<Objective>(EMPTY);
-  const required: (keyof Objective)[] = [
-    "objective_type",
-    "target_system",
-    "entity_type",
-    "facility",
-  ];
-  const complete = required.every((key) => String(form[key]).trim().length > 0);
+  const [url, setUrl] = useState("");
+  const ready = url.trim().length > 0;
 
   return (
     <div id="teach-form" style={{ display: "flex", gap: 12 }}>
@@ -567,58 +560,30 @@ function TeachForm({
           gap: 12,
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 700 }}>What are you teaching?</div>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>Where does this task start?</div>
         <div style={{ fontSize: 12.5, color: ink.textSoft, lineHeight: 1.6 }}>
-          Two runs only pair into a skill when all five match exactly, so this is asked once rather
-          than guessed.
+          Paste the screen you would open to do it. Nothing else is asked: what the task is gets
+          read off what it does — the call it ends on names the entity and the action.
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <Field
-            label="Task"
-            placeholder="inventory_adjust"
-            value={form.objective_type}
-            onChange={(value) => setForm({ ...form, objective_type: value })}
-          />
-          <Field
-            label="System"
-            placeholder="blue_yonder"
-            value={form.target_system}
-            onChange={(value) => setForm({ ...form, target_system: value })}
-          />
-          <Field
-            label="Entity"
-            placeholder="sku"
-            value={form.entity_type}
-            onChange={(value) => setForm({ ...form, entity_type: value })}
-          />
-          <Field
-            label="Facility"
-            placeholder="DC07"
-            value={form.facility}
-            onChange={(value) => setForm({ ...form, facility: value })}
-          />
-          <div style={{ gridColumn: "1 / -1" }}>
-            <Field
-              label="Start URL"
-              placeholder="https://wms.acme-dc.internal/inventory"
-              value={form.start_url}
-              onChange={(value) => setForm({ ...form, start_url: value })}
-            />
-          </div>
-        </div>
+        <Field
+          label="Start URL"
+          placeholder="https://wms.acme-dc.internal/inventory"
+          value={url}
+          onChange={setUrl}
+        />
         <button
-          onClick={() => onStart(form)}
-          disabled={!complete || pending}
+          onClick={() => onStart(url.trim())}
+          disabled={!ready || pending}
           style={{
             alignSelf: "flex-start",
             padding: "10px 16px",
             borderRadius: 8,
             border: "none",
-            background: complete ? ink.accent : "#E7E7E4",
-            color: complete ? "#fff" : ink.textMuted,
+            background: ready ? ink.accent : "#E7E7E4",
+            color: ready ? "#fff" : ink.textMuted,
             fontSize: 13,
             fontWeight: 700,
-            cursor: complete ? "pointer" : "not-allowed",
+            cursor: ready ? "pointer" : "not-allowed",
           }}
         >
           {pending ? "Opening a browser…" : "Open a session and start run 1"}

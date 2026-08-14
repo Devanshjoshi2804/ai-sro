@@ -28,14 +28,16 @@ export function RecordingDetail({ recordingId }: { recordingId: string }) {
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">
-          {objective.objective_type}{" "}
+          {objective?.objective_type ?? "Unnamed run"}{" "}
           <span className="text-muted-foreground">
             · {recording.data.label ?? recording.data.id}
           </span>
         </h1>
         <p className="text-muted-foreground text-sm">
-          {objective.target_system} · {objective.facility} · {objective.entity_type} ·{" "}
-          {objective.direction} — demonstrated by {recording.data.demonstrator}
+          {objective
+            ? `${objective.target_system} · ${objective.facility} · ${objective.entity_type} · ${objective.direction}`
+            : "still capturing — the evidence names the task when it is sealed"}{" "}
+          — demonstrated by {recording.data.demonstrator}
         </p>
       </header>
 

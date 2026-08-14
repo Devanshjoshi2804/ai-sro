@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sro.application.capture.identity import system_of
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserProvider, BrowserSession
 from sro.application.ports.repositories import UnitOfWork
@@ -22,6 +23,10 @@ class StartedRecording:
     """CDP endpoint for the capture adapter. Never put on the wire."""
 
     browser_session_id: BrowserSessionId | None = None
+
+    target_system: str | None = None
+    """The connected system this URL belongs to, if any -- which is how a
+    demonstration that names nothing still starts already signed in."""
 
 
 def _external_browser(debugger_url: str) -> BrowserSession:
@@ -60,11 +65,19 @@ class StartRecording:
         self,
         ctx: RequestContext,
         *,
-        objective_key: ObjectiveKey,
+        objective_key: ObjectiveKey | None = None,
         start_url: str | None = None,
         label: str | None = None,
         attach_to: str | None = None,
     ) -> StartedRecording:
+        async with self._uow as uow:
+            connections = await uow.connections.list_for_tenant(ctx.tenant_id)
+        system = (
+            objective_key.target_system
+            if objective_key
+            else system_of(connections, start_url, attach_to)
+        )
+
         # Browser first: if it fails nothing is written, so we never accumulate
         # recordings that can only ever be abandoned.
         session = (
@@ -92,4 +105,5 @@ class StartRecording:
             live_view_url=session.live_view_url,
             debugger_url=session.debugger_url,
             browser_session_id=session.id,
+            target_system=system,
         )

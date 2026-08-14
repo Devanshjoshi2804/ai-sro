@@ -35,9 +35,13 @@ class Recording:
 
     id: RecordingId
     tenant_id: TenantId
-    objective_key: ObjectiveKey
     demonstrator: PrincipalId
     started_at: datetime
+
+    objective_key: ObjectiveKey | None = None
+    """What the demonstration was about. Unknown until it is over: the operator
+    starts one by naming a URL, and the evidence names the task at seal."""
+
     browser_session_id: BrowserSessionId | None = None
     label: str | None = None
     status: RecordingStatus = RecordingStatus.CAPTURING
@@ -132,10 +136,22 @@ class Recording:
         self._require_open("attach an artifact")
         self._artifacts.append(artifact)
 
+    def name_objective(self, key: ObjectiveKey) -> None:
+        """Say what this was. Once only -- provenance cites the key as taught."""
+        self._require_open("name the objective")
+        if self.objective_key is not None and self.objective_key != key:
+            raise InvariantViolation("a recording's objective cannot be renamed once it is set")
+        self.objective_key = key
+
     def seal(self, at: datetime) -> None:
         self._require_open("seal")
         if not self._frames:
             raise InvariantViolation("cannot seal a recording with no frames; abandon it instead")
+        if self.objective_key is None:
+            raise InvariantViolation(
+                "cannot seal a recording that has no objective; "
+                "nothing it did says what task it was"
+            )
         self._require_after_start(at)
         self.status = RecordingStatus.SEALED
         self.ended_at = at

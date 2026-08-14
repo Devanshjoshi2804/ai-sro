@@ -13,6 +13,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
+from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
 
 
@@ -44,18 +45,18 @@ class InduceSkill:
         async with self._uow as uow:
             run_a = await uow.recordings.get(ctx.tenant_id, first)
             run_b = await uow.recordings.get(ctx.tenant_id, second)
-            _check_pairable(run_a, run_b)
+            objective = _check_pairable(run_a, run_b)
 
             parameterisation = parameterise(run_a.frames, run_b.frames)
-            steps = _build_steps(run_a, run_b, parameterisation)
+            steps = _build_steps(run_a, run_b, objective, parameterisation)
 
-            skill = await uow.skills.find_by_objective(ctx.tenant_id, run_a.objective_key)
+            skill = await uow.skills.find_by_objective(ctx.tenant_id, objective)
             if skill is None:
                 skill = Skill(
                     id=self._ids.new_skill_id(),
                     tenant_id=ctx.tenant_id,
-                    objective_key=run_a.objective_key,
-                    name=name or run_a.objective_key.objective_type.replace("_", " ").title(),
+                    objective_key=objective,
+                    name=name or objective.objective_type.replace("_", " ").title(),
                     created_at=now,
                 )
                 await uow.skills.add(skill)
@@ -84,7 +85,8 @@ class InduceSkill:
         )
 
 
-def _check_pairable(run_a: Recording, run_b: Recording) -> None:
+def _check_pairable(run_a: Recording, run_b: Recording) -> ObjectiveKey:
+    """The objective both demonstrations share, or why they do not share one."""
     if run_a.id == run_b.id:
         raise InductionFailed(
             "a skill needs two different recordings; diffing one against itself would "
@@ -96,15 +98,27 @@ def _check_pairable(run_a: Recording, run_b: Recording) -> None:
                 f"recording {recording.id} is {recording.status}; only sealed recordings "
                 "can be induced"
             )
-    if run_a.objective_key != run_b.objective_key:
-        raise InductionFailed(
-            f"the recordings describe different objectives "
-            f"({run_a.objective_key.slug()} and {run_b.objective_key.slug()})"
+    key_a, key_b = run_a.objective_key, run_b.objective_key
+    if key_a is None or key_b is None:  # pragma: no cover - sealing sets it
+        raise InductionFailed("a sealed recording always names its objective; this one does not")
+    if key_a != key_b:
+        differing = ", ".join(
+            field
+            for field in ("objective_type", "target_system", "entity_type", "facility", "direction")
+            if getattr(key_a, field) != getattr(key_b, field)
         )
+        raise InductionFailed(
+            f"these two demonstrations did different things: they disagree on {differing} "
+            f"({key_a.slug()} and {key_b.slug()})"
+        )
+    return key_a
 
 
 def _build_steps(
-    run_a: Recording, run_b: Recording, parameterisation: Parameterisation
+    run_a: Recording,
+    run_b: Recording,
+    objective: ObjectiveKey,
+    parameterisation: Parameterisation,
 ) -> tuple[SkillStep, ...]:
     frames_a, frames_b = run_a.frames, run_b.frames
     return tuple(
@@ -118,7 +132,7 @@ def _build_steps(
                 next_a=frames_a[index + 1] if index + 1 < len(frames_a) else None,
                 next_b=frames_b[index + 1] if index + 1 < len(frames_b) else None,
             ),
-            run_a.objective_key,
+            objective,
             frames_b[index],
         )
         for index in range(len(frames_a))

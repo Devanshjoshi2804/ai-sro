@@ -38,6 +38,8 @@ from sro.infrastructure.db.codec import (
 )
 from sro.infrastructure.db.models import ConnectionRow, RecordingRow, RunRow, SkillRow
 
+_OBJECTIVE_COLUMNS = ("objective_type", "target_system", "entity_type", "facility", "direction")
+
 
 def objective_columns(key: ObjectiveKey) -> dict[str, str]:
     return {
@@ -49,7 +51,19 @@ def objective_columns(key: ObjectiveKey) -> dict[str, str]:
     }
 
 
-def _objective(row: RecordingRow | SkillRow) -> ObjectiveKey:
+def _objective_or_none(row: RecordingRow) -> ObjectiveKey | None:
+    if row.objective_type is None:
+        return None
+    return ObjectiveKey(
+        objective_type=row.objective_type,
+        target_system=row.target_system or "",
+        entity_type=row.entity_type or "",
+        facility=row.facility or "",
+        direction=Direction(row.direction or Direction.INTERNAL),
+    )
+
+
+def _objective(row: SkillRow) -> ObjectiveKey:
     return ObjectiveKey(
         objective_type=row.objective_type,
         target_system=row.target_system,
@@ -67,7 +81,12 @@ def recording_to_row(recording: Recording) -> RecordingRow:
 
 def update_recording_row(row: RecordingRow, recording: Recording) -> None:
     row.tenant_id = recording.tenant_id.value
-    for column, value in objective_columns(recording.objective_key).items():
+    columns = (
+        objective_columns(recording.objective_key)
+        if recording.objective_key is not None
+        else dict.fromkeys(_OBJECTIVE_COLUMNS)
+    )
+    for column, value in columns.items():
         setattr(row, column, value)
     row.demonstrator = recording.demonstrator.value
     row.label = recording.label
@@ -86,7 +105,7 @@ def row_to_recording(row: RecordingRow) -> Recording:
     recording = Recording(
         id=RecordingId(row.id),
         tenant_id=TenantId(row.tenant_id),
-        objective_key=_objective(row),
+        objective_key=_objective_or_none(row),
         demonstrator=PrincipalId(row.demonstrator),
         started_at=row.started_at,
         browser_session_id=(

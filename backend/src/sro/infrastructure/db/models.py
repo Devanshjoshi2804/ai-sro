@@ -24,11 +24,12 @@ class RecordingRow(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
 
-    objective_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    target_system: Mapped[str] = mapped_column(String(64), nullable=False)
-    entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    facility: Mapped[str] = mapped_column(String(64), nullable=False)
-    direction: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Nullable while capturing: the evidence names the task at seal.
+    objective_type: Mapped[str | None] = mapped_column(String(64))
+    target_system: Mapped[str | None] = mapped_column(String(64))
+    entity_type: Mapped[str | None] = mapped_column(String(64))
+    facility: Mapped[str | None] = mapped_column(String(64))
+    direction: Mapped[str | None] = mapped_column(String(16))
 
     demonstrator: Mapped[str] = mapped_column(String(64), nullable=False)
     label: Mapped[str | None] = mapped_column(Text)

@@ -9,6 +9,7 @@ import {
   getRecording,
   recordingKeys,
   type FrameSummary,
+  type ObjectiveKey,
 } from "@/features/recording/api";
 import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
@@ -35,12 +36,14 @@ const SETTLE_SECONDS = 8;
 export function TeachPanel({
   recordingId,
   run,
+  objectiveKey,
   onSealed,
   onDiscarded,
 }: {
   recordingId: string;
   run: number;
-  onSealed: (frames: number) => void;
+  objectiveKey?: ObjectiveKey | null;
+  onSealed: (frames: number, objectiveKey: ObjectiveKey | null) => void;
   onDiscarded: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -67,10 +70,10 @@ export function TeachPanel({
   });
 
   const finish = useMutation({
-    mutationFn: (reason?: string) => finishRecording(recordingId, reason),
+    mutationFn: (reason?: string) => finishRecording(recordingId, reason, objectiveKey),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: recordingKeys.all });
-      if (result.status === "sealed") onSealed(result.frame_count);
+      if (result.status === "sealed") onSealed(result.frame_count, result.objective_key);
       else onDiscarded();
     },
     onError: (error) =>

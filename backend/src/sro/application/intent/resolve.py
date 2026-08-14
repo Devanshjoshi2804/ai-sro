@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from sro.application.context import RequestContext
 from sro.application.intent.match import Candidate, ambiguous, rank
 from sro.application.intent.plan_task import PlanTask, Proposal
+from sro.application.ports.intent import IntentParser
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.skill.parameter import ParameterKind
 from sro.domain.skill.promotion import PromotionStage
@@ -57,13 +58,24 @@ class Resolution:
     question: str | None = None
     """What to ask, when the honest answer is a question."""
 
+    items: tuple[dict[str, str], ...] = ()
+    """Parameter sets read out of the sentence. One per thing to do — "these
+    six SKUs" is six. Shown as a table and confirmed before anything is sent,
+    because getting this wrong is not a wrong answer, it is six wrong writes."""
+
+    note: str = ""
+    """What the extraction could not resolve."""
+
     why: tuple[str, ...] = field(default_factory=tuple)
 
 
 class ResolveIntent:
-    def __init__(self, uow: UnitOfWork, planner: PlanTask) -> None:
+    def __init__(
+        self, uow: UnitOfWork, planner: PlanTask, parser: IntentParser | None = None
+    ) -> None:
         self._uow = uow
         self._planner = planner
+        self._parser = parser
 
     async def execute(
         self,
@@ -107,6 +119,22 @@ class ResolveIntent:
         )
         runnable = best.version.stage is not PromotionStage.RECORDED
 
+        # Values second, and only for the skill that was chosen. Asking a model
+        # which skill to run is the wrong-match failure with a model attached.
+        items: tuple[dict[str, str], ...] = ()
+        note = ""
+        declared = tuple(p.name for p in best.version.parameters if p.kind is ParameterKind.INPUT)
+        if self._parser is not None and self._parser.available and declared:
+            extraction = await self._parser.extract(
+                utterance, parameters=declared, context=best.version.summary
+            )
+            items = tuple({**(parameters or {}), **item} for item in extraction.items)
+            note = extraction.note
+            if items:
+                missing = tuple(
+                    sorted({name for item in items for name in declared if name not in item})
+                )
+
         return Resolution(
             utterance=utterance,
             matched=best,
@@ -114,6 +142,8 @@ class ResolveIntent:
             missing_parameters=missing,
             runnable=runnable,
             confident=best.confident,
+            items=items,
+            note=note,
             question=_question_for(best, missing, runnable),
             why=best.why,
         )

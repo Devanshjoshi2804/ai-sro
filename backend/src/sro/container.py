@@ -18,6 +18,7 @@ from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.connection.connect_system import ConnectSystem, LoadSession, StoreSession
 from sro.application.connection.session_headers import StoreSessionHeaders
+from sro.application.execution.batch import RunBatch
 from sro.application.execution.execute_skill import (
     ExecuteSkill,
     ExecuteStep,
@@ -27,6 +28,7 @@ from sro.application.execution.execute_skill import (
 from sro.application.execution.read_runs import GetRun, ListRuns
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction.induce_skill import InduceSkill
+from sro.application.induction.understand import UnderstandRecording
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.backfill import BackfillEmbeddings
@@ -39,6 +41,8 @@ from sro.application.ports.capture import CaptureController
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import HttpCaller
+from sro.application.ports.intent import IntentParser
+from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.transcription import Transcriber
@@ -61,6 +65,10 @@ from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.session import create_engine, create_session_factory
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
+from sro.infrastructure.gemini.intent import GeminiIntentParser
+from sro.infrastructure.gemini.interpreter import GeminiInterpreter
+from sro.infrastructure.gemini.null_intent import NoIntentParser
+from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
 from sro.infrastructure.steel.client import SteelClient
@@ -90,6 +98,8 @@ class Container:
     transcriber: Transcriber
     embedder: Embedder
     vision: VisionDriver | None
+    interpreter: WorkflowInterpreter
+    intent_parser: IntentParser
     vault: CredentialVault
     http: HttpCaller
     ui: UiDriver
@@ -157,6 +167,9 @@ class Container:
     def induce_skill(self) -> InduceSkill:
         return InduceSkill(self.unit_of_work(), self.clock, self.ids)
 
+    def understand_recording(self) -> UnderstandRecording:
+        return UnderstandRecording(self.unit_of_work(), self.interpreter, self.clock, self.ids)
+
     def promote_skill(self) -> PromoteSkill:
         return PromoteSkill(self.unit_of_work(), self.clock)
 
@@ -221,7 +234,10 @@ class Container:
         return PlanTask(self.retrieve_knowledge())
 
     def resolve_intent(self) -> ResolveIntent:
-        return ResolveIntent(self.unit_of_work(), self.plan_task())
+        return ResolveIntent(self.unit_of_work(), self.plan_task(), self.intent_parser)
+
+    def run_batch(self) -> RunBatch:
+        return RunBatch(self.execute_skill())
 
     def get_run(self) -> GetRun:
         return GetRun(self.unit_of_work())
@@ -239,6 +255,21 @@ def _build_transcriber(settings: Settings) -> Transcriber:
     if settings.transcription_enabled and settings.gemini_api_key:
         return GeminiTranscriber(settings.gemini_api_key, settings.gemini_transcription_model)
     return NullTranscriber()
+
+
+def _build_intent_parser(settings: Settings) -> IntentParser:
+    """Reading values out of an operator's sentence. Same switch as the rest:
+    the words they type are theirs, and sending them is a decision."""
+    if settings.interpretation_enabled and settings.gemini_api_key:
+        return GeminiIntentParser(settings.gemini_api_key, settings.gemini_interpreter_model)
+    return NoIntentParser()
+
+
+def _build_interpreter(settings: Settings) -> WorkflowInterpreter:
+    """Reading a demonstration sends its calls and bodies to a hosted model."""
+    if settings.interpretation_enabled and settings.gemini_api_key:
+        return GeminiInterpreter(settings.gemini_api_key, settings.gemini_interpreter_model)
+    return NoInterpreter()
 
 
 def _build_vision(settings: Settings) -> VisionDriver | None:
@@ -314,6 +345,8 @@ def build_container(settings: Settings | None = None) -> Container:
         transcriber=_build_transcriber(settings),
         embedder=_build_embedder(settings),
         vision=_build_vision(settings),
+        interpreter=_build_interpreter(settings),
+        intent_parser=_build_intent_parser(settings),
         vault=_build_vault(settings),
         http=HttpxCaller(),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),

@@ -11,10 +11,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from sro.domain.execution.run import RunId
+from sro.domain.execution.run import Medium, RunId
 from sro.domain.shared.identifiers import SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
-from sro.interface.http.schemas import RunModel, RunSkillRequest
+from sro.interface.http.schemas import (
+    BatchItemModel,
+    BatchRequest,
+    BatchResultModel,
+    RunModel,
+    RunSkillRequest,
+)
 
 router = APIRouter(tags=["runs"])
 
@@ -38,6 +44,43 @@ async def run_skill(
         medium=body.medium,
     )
     return RunModel.of(await container.get_run().execute(ctx, run_id=run_id))
+
+
+@router.post("/skills/{skill_id}/batch", status_code=status.HTTP_201_CREATED)
+async def run_batch(
+    skill_id: str, body: BatchRequest, container: ContainerDep, ctx: ContextDep
+) -> BatchResultModel:
+    """Do the same taught task to several things.
+
+    N runs, each with its own idempotency keys, audit record and verification —
+    so one item failing says nothing about the others, and the failure names
+    which item it was. A safety limit stops the batch rather than the item.
+    """
+    result = await container.run_batch().execute(
+        ctx,
+        skill_id=SkillId(skill_id),
+        items=tuple(body.items),
+        authorized_by=body.authorized_by,
+        version=body.version,
+        medium=Medium(body.medium),
+    )
+    return BatchResultModel(
+        items=[
+            BatchItemModel(
+                parameters=item.parameters,
+                run_id=item.run.id.value if item.run else None,
+                status=(
+                    "refused"
+                    if item.refused
+                    else (item.run.status.value if item.run else "unknown")
+                ),
+                detail=item.refused or (item.run.failure if item.run else None),
+            )
+            for item in result.items
+        ],
+        performed=result.performed,
+        stopped_early=result.stopped_early,
+    )
 
 
 @router.get("/runs")

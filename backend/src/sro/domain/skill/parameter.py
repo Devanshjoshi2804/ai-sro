@@ -16,6 +16,20 @@ class ParameterKind(StrEnum):
     """Produced by an earlier step's response. Never prompted for."""
 
 
+class Evidence(StrEnum):
+    """How firmly we know this is a parameter rather than a constant."""
+
+    PROVEN = "proven"
+    """Two demonstrations disagreed here. A fact, not a reading."""
+
+    PROPOSED = "proposed"
+    """One demonstration, and a model's reading of it. One value is just a
+    value: nothing about a single run distinguishes the LPN the operator chose
+    from the site code that is the same every time. Proposed parameters are
+    shown as such, are confirmed by whoever runs the skill, and become proven
+    the first time a second demonstration disagrees with the first."""
+
+
 @dataclass(frozen=True, slots=True)
 class Parameter:
     name: str
@@ -23,6 +37,8 @@ class Parameter:
     description: str = ""
     observed_values: tuple[str, ...] = ()
     """The values that proved this field varies -- evidence for the reviewer."""
+
+    evidence: Evidence = Evidence.PROVEN
 
     source_step_index: int | None = None
     source_pointer: str | None = None

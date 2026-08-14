@@ -935,6 +935,70 @@
         }
       }
     },
+    "/v1/skills/understand": {
+      "post": {
+        "tags": [
+          "skills"
+        ],
+        "summary": "Understand Recording",
+        "description": "One demonstration to a skill.\n\nThe two-run diff proves which values vary; this reads a single run instead,\nand says so: the calls are evidence, the description and the parameters are\na model's reading of them, and every parameter it proposes is checked\nagainst a literal in the captured payloads before it survives.",
+        "operationId": "understand_recording_v1_skills_understand_post",
+        "parameters": [
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnderstandRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnderstoodResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/skills": {
       "get": {
         "tags": [
@@ -1602,6 +1666,79 @@
         }
       }
     },
+    "/v1/skills/{skill_id}/batch": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Run Batch",
+        "description": "Do the same taught task to several things.\n\nN runs, each with its own idempotency keys, audit record and verification \u2014\nso one item failing says nothing about the others, and the failure names\nwhich item it was. A safety limit stops the batch rather than the item.",
+        "operationId": "run_batch_v1_skills__skill_id__batch_post",
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResultModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/runs": {
       "get": {
         "tags": [
@@ -1856,6 +1993,130 @@
           "pointer"
         ],
         "title": "AssertionModel"
+      },
+      "BatchItemModel": {
+        "properties": {
+          "parameters": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Parameters"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "parameters",
+          "run_id",
+          "status",
+          "detail"
+        ],
+        "title": "BatchItemModel"
+      },
+      "BatchRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "authorized_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authorized By"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "medium": {
+            "type": "string",
+            "title": "Medium",
+            "default": "network"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "BatchRequest"
+      },
+      "BatchResultModel": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BatchItemModel"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "performed": {
+            "type": "integer",
+            "title": "Performed"
+          },
+          "stopped_early": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopped Early"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "performed",
+          "stopped_early"
+        ],
+        "title": "BatchResultModel"
       },
       "Body_attach_artifact_v1_recordings__recording_id__artifacts_post": {
         "properties": {
@@ -3749,6 +4010,63 @@
           "wait_for"
         ],
         "title": "UiPlanModel"
+      },
+      "UnderstandRequest": {
+        "properties": {
+          "recording_id": {
+            "type": "string",
+            "title": "Recording Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recording_id"
+        ],
+        "title": "UnderstandRequest"
+      },
+      "UnderstoodResponse": {
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "step_count": {
+            "type": "integer",
+            "title": "Step Count"
+          },
+          "proposed_parameter_count": {
+            "type": "integer",
+            "title": "Proposed Parameter Count"
+          },
+          "caveat": {
+            "type": "string",
+            "title": "Caveat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skill_id",
+          "version",
+          "step_count",
+          "proposed_parameter_count",
+          "caveat"
+        ],
+        "title": "UnderstoodResponse"
       },
       "ValidationError": {
         "properties": {

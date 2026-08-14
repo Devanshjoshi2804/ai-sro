@@ -227,6 +227,21 @@ class ArtifactModel(BaseModel):
         )
 
 
+class UnderstandRequest(BaseModel):
+    recording_id: str
+    name: str | None = None
+
+
+class UnderstoodResponse(BaseModel):
+    skill_id: str
+    version: int
+    step_count: int
+    proposed_parameter_count: int
+    caveat: str
+    """What the reading could not account for. Kept, because "I did not
+    understand step 4" is the most useful thing it can say."""
+
+
 class InduceSkillRequest(BaseModel):
     first_recording_id: str
     second_recording_id: str
@@ -458,6 +473,32 @@ class InductionResponse(BaseModel):
     step_count: int
     input_parameter_count: int
     derived_parameter_count: int
+
+
+class BatchRequest(BaseModel):
+    items: list[dict[str, str]]
+    """One parameter set per thing to do. The operator confirmed this table;
+    that confirmation is what each assisted run records as its authorisation."""
+
+    authorized_by: str | None = None
+    version: int | None = None
+    medium: str = "network"
+
+
+class BatchItemModel(BaseModel):
+    parameters: dict[str, str]
+    run_id: str | None
+    status: str
+    """`refused` when a limit or a missing value stopped it before anything was
+    sent — distinct from a run that went out and failed."""
+
+    detail: str | None
+
+
+class BatchResultModel(BaseModel):
+    items: list[BatchItemModel]
+    performed: int
+    stopped_early: str | None
 
 
 class RunSkillRequest(BaseModel):

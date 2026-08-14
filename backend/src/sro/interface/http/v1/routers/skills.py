@@ -17,6 +17,8 @@ from sro.interface.http.schemas import (
     SkillDetail,
     SkillSummary,
     SkillVersionModel,
+    UnderstandRequest,
+    UnderstoodResponse,
 )
 
 router = APIRouter(prefix="/skills", tags=["skills"])
@@ -45,6 +47,29 @@ async def induce_skill(
         step_count=induced.step_count,
         input_parameter_count=induced.input_parameter_count,
         derived_parameter_count=induced.derived_parameter_count,
+    )
+
+
+@router.post("/understand", status_code=status.HTTP_201_CREATED)
+async def understand_recording(
+    body: UnderstandRequest, container: ContainerDep, ctx: ContextDep
+) -> UnderstoodResponse:
+    """One demonstration to a skill.
+
+    The two-run diff proves which values vary; this reads a single run instead,
+    and says so: the calls are evidence, the description and the parameters are
+    a model's reading of them, and every parameter it proposes is checked
+    against a literal in the captured payloads before it survives.
+    """
+    understood = await container.understand_recording().execute(
+        ctx, recording_id=RecordingId(body.recording_id), name=body.name
+    )
+    return UnderstoodResponse(
+        skill_id=understood.skill_id.value,
+        version=understood.version,
+        step_count=understood.step_count,
+        proposed_parameter_count=understood.proposed_parameter_count,
+        caveat=understood.caveat,
     )
 
 

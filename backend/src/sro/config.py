@@ -95,6 +95,14 @@ class Settings(BaseSettings):
     gemini_transcription_model: str = "gemini-2.5-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
     gemini_vision_model: str = "gemini-2.5-computer-use-preview-10-2025"
+    gemini_interpreter_model: str = "gemini-2.5-flash"
+
+    interpretation_enabled: bool = False
+    """Reading one demonstration as a workflow sends the captured calls and
+    bodies to a hosted model. Same rule as every other egress: a key is not
+    consent, so this is its own switch. Off, a single demonstration still
+    becomes a skill -- with mechanical step descriptions and no proposed
+    parameters."""
 
     vision_enabled: bool = False
     """The L3 rung sends a screenshot of a customer's live WMS to Google.

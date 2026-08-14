@@ -248,6 +248,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/skills/understand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Understand Recording
+         * @description One demonstration to a skill.
+         *
+         *     The two-run diff proves which values vary; this reads a single run instead,
+         *     and says so: the calls are evidence, the description and the parameters are
+         *     a model's reading of them, and every parameter it proposes is checked
+         *     against a literal in the captured payloads before it survives.
+         */
+        post: operations["understand_recording_v1_skills_understand_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills": {
         parameters: {
             query?: never;
@@ -426,6 +451,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/skills/{skill_id}/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Batch
+         * @description Do the same taught task to several things.
+         *
+         *     N runs, each with its own idempotency keys, audit record and verification —
+         *     so one item failing says nothing about the others, and the failure names
+         *     which item it was. A safety limit stops the batch rather than the item.
+         */
+        post: operations["run_batch_v1_skills__skill_id__batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/runs": {
         parameters: {
             query?: never;
@@ -492,6 +541,44 @@ export interface components {
             expected: string;
             /** Pointer */
             pointer: string | null;
+        };
+        /** BatchItemModel */
+        BatchItemModel: {
+            /** Parameters */
+            parameters: {
+                [key: string]: string;
+            };
+            /** Run Id */
+            run_id: string | null;
+            /** Status */
+            status: string;
+            /** Detail */
+            detail: string | null;
+        };
+        /** BatchRequest */
+        BatchRequest: {
+            /** Items */
+            items: {
+                [key: string]: string;
+            }[];
+            /** Authorized By */
+            authorized_by?: string | null;
+            /** Version */
+            version?: number | null;
+            /**
+             * Medium
+             * @default network
+             */
+            medium: string;
+        };
+        /** BatchResultModel */
+        BatchResultModel: {
+            /** Items */
+            items: components["schemas"]["BatchItemModel"][];
+            /** Performed */
+            performed: number;
+            /** Stopped Early */
+            stopped_early: string | null;
         };
         /** Body_attach_artifact_v1_recordings__recording_id__artifacts_post */
         Body_attach_artifact_v1_recordings__recording_id__artifacts_post: {
@@ -1118,6 +1205,26 @@ export interface components {
             /** Wait For */
             wait_for: string | null;
         };
+        /** UnderstandRequest */
+        UnderstandRequest: {
+            /** Recording Id */
+            recording_id: string;
+            /** Name */
+            name?: string | null;
+        };
+        /** UnderstoodResponse */
+        UnderstoodResponse: {
+            /** Skill Id */
+            skill_id: string;
+            /** Version */
+            version: number;
+            /** Step Count */
+            step_count: number;
+            /** Proposed Parameter Count */
+            proposed_parameter_count: number;
+            /** Caveat */
+            caveat: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1612,6 +1719,42 @@ export interface operations {
             };
         };
     };
+    understand_recording_v1_skills_understand_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnderstandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnderstoodResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_skills_v1_skills_get: {
         parameters: {
             query?: {
@@ -1954,6 +2097,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_batch_v1_skills__skill_id__batch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                skill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResultModel"];
                 };
             };
             /** @description Validation Error */

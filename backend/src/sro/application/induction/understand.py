@@ -1,0 +1,334 @@
+"""One demonstration to a usable skill.
+
+The two-run diff is still the better instrument, and where two runs exist it is
+what runs. This is for the ordinary case the diff cannot serve: a task nobody
+can perform twice identically, or a task somebody only had time to do once.
+
+The split is the point. **The calls are evidence and are untouched.** The
+narrative -- what each step was for, what the whole thing accomplishes, which
+values look like inputs -- is a model reading the same evidence, and every part
+of it is marked as read rather than proven. A candidate parameter that cannot be
+found in a captured payload is dropped: a parameter nobody can point at in the
+evidence is a hallucination with a name.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+
+from sro.application.capture.identity import derive_objective_key, system_of
+from sro.application.context import RequestContext
+from sro.application.induction import narration as narration_alignment
+from sro.application.induction.assertions import StepEvidence
+from sro.application.induction.diff import Parameterisation, Substitution
+from sro.application.induction.emit import emit_step
+from sro.application.induction.errors import InductionFailed
+from sro.application.induction.sites import (
+    ActionValueSite,
+    JsonBodySite,
+    Site,
+    UrlQuerySite,
+    url_query_pairs,
+)
+from sro.application.ports.interpretation import Reading, WorkflowInterpreter
+from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock, IdFactory
+from sro.domain.recording.events import ActionFrame
+from sro.domain.recording.recording import Recording, RecordingStatus
+from sro.domain.shared.identifiers import RecordingId, SkillId
+from sro.domain.skill.assertion import Assertion, AssertionKind
+from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
+from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
+from sro.domain.skill.template import Template
+
+_MAX_EVIDENCE_CHARS = 60_000
+
+
+@dataclass(frozen=True, slots=True)
+class Understood:
+    skill_id: SkillId
+    version: int
+    step_count: int
+    proposed_parameter_count: int
+    caveat: str
+
+
+class UnderstandRecording:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        interpreter: WorkflowInterpreter,
+        clock: Clock,
+        ids: IdFactory,
+    ) -> None:
+        self._uow = uow
+        self._interpreter = interpreter
+        self._clock = clock
+        self._ids = ids
+
+    async def execute(
+        self, ctx: RequestContext, *, recording_id: RecordingId, name: str | None = None
+    ) -> Understood:
+        now = self._clock.now()
+
+        async with self._uow as uow:
+            recording = await uow.recordings.get(ctx.tenant_id, recording_id)
+            if recording.status is not RecordingStatus.SEALED:
+                raise InductionFailed(
+                    f"recording {recording.id} is {recording.status}; seal it first"
+                )
+            if not recording.frames:
+                raise InductionFailed("this demonstration captured nothing to learn from")
+            connections = await uow.connections.list_for_tenant(ctx.tenant_id)
+
+        objective = recording.objective_key or derive_objective_key(
+            recording.frames,
+            system=system_of(
+                connections,
+                *(f.primary_request.url for f in recording.frames if f.primary_request),
+            ),
+        )
+        if objective is None:
+            raise InductionFailed(
+                "nothing this demonstration did says what task it was; name it and try again"
+            )
+
+        reading = (
+            await self._interpreter.read(_as_evidence(recording))
+            if self._interpreter.available
+            else Reading(
+                caveat="no interpreter is configured; the steps are described mechanically"
+            )
+        )
+
+        proposed = _believable(reading, recording.frames)
+        steps = _steps(recording, reading, proposed)
+        parameters = tuple(
+            Parameter(
+                name=name_,
+                kind=ParameterKind.INPUT,
+                description=description,
+                observed_values=(value,),
+                evidence=Evidence.PROPOSED,
+            )
+            for name_, (value, description) in proposed.items()
+        )
+
+        async with self._uow as uow:
+            skill = await uow.skills.find_by_objective(ctx.tenant_id, objective)
+            if skill is None:
+                skill = Skill(
+                    id=self._ids.new_skill_id(),
+                    tenant_id=ctx.tenant_id,
+                    objective_key=objective,
+                    name=name
+                    or reading.title
+                    or objective.objective_type.replace("_", " ").title(),
+                    created_at=now,
+                )
+                await uow.skills.add(skill)
+
+            version = SkillVersion(
+                version=skill.next_version_number(),
+                steps=steps,
+                parameters=parameters,
+                provenance=Provenance(
+                    recording_ids=(recording.id,),
+                    induced_at=now,
+                    induced_by=ctx.principal_id,
+                    note=(
+                        "read from one demonstration: the calls are evidence, the description "
+                        "and the parameters are a model's reading of it"
+                    ),
+                ),
+                summary=reading.summary
+                or f"{objective.objective_type} on {objective.target_system}",
+                when_to_use=reading.when_to_use,
+            )
+            skill.add_version(version)
+            await uow.skills.save(skill)
+            await uow.commit()
+
+        return Understood(
+            skill_id=skill.id,
+            version=version.version,
+            step_count=len(steps),
+            proposed_parameter_count=len(parameters),
+            caveat=reading.caveat,
+        )
+
+
+def _as_evidence(recording: Recording) -> str:
+    """The demonstration as text a model can read.
+
+    Bodies are included because they are where the values are, and they have
+    already had credentials removed at capture time -- this sends what is
+    stored, and what is stored never held a password.
+    """
+    lines: list[str] = []
+    for frame in recording.frames:
+        action = frame.action
+        target = action.target.describe() if action.target else ""
+        value = "«secret»" if action.secret else (action.value or "")
+        lines.append(f"[{frame.index}] {action.kind} {target} {value}".rstrip())
+        request = frame.primary_request
+        if request is not None:
+            lines.append(f"     {request.method} {request.url} -> {request.status}")
+            if request.request_text:
+                lines.append(f"     sent: {request.request_text[:600]}")
+            if request.response_text:
+                lines.append(f"     back: {request.response_text[:600]}")
+    for segment in recording.narration:
+        lines.append(f"said: {segment.text}")
+    return "\n".join(lines)[:_MAX_EVIDENCE_CHARS]
+
+
+def _believable(reading: Reading, frames: tuple[ActionFrame, ...]) -> dict[str, tuple[str, str]]:
+    """Candidates whose value actually appears in what was captured.
+
+    The check that keeps this honest: a model can name any parameter it likes,
+    and only the ones pointing at a literal in the evidence survive.
+    """
+    haystack = _as_text(frames)
+    kept: dict[str, tuple[str, str]] = {}
+    for candidate in reading.parameters:
+        value = candidate.value.strip()
+        if not value or value not in haystack:
+            continue
+        name = candidate.name.strip()
+        if not name.isidentifier() or name in kept:
+            continue
+        kept[name] = (value, candidate.description)
+    return kept
+
+
+def _as_text(frames: tuple[ActionFrame, ...]) -> str:
+    parts: list[str] = []
+    for frame in frames:
+        if frame.action.value and not frame.action.secret:
+            parts.append(frame.action.value)
+        request = frame.primary_request
+        if request is not None:
+            parts.append(request.url)
+            parts.append(request.request_text or "")
+            parts.append(request.response_text or "")
+    return "\n".join(parts)
+
+
+def _steps(
+    recording: Recording, reading: Reading, proposed: dict[str, tuple[str, str]]
+) -> tuple[SkillStep, ...]:
+    """Steps built from the evidence, described by the reading."""
+    said = narration_alignment.align(recording.frames, recording.narration)
+    read_by_index = {step.index: step for step in reading.steps}
+
+    steps: list[SkillStep] = []
+    for frame in recording.frames:
+        step = emit_step(
+            frame.index,
+            frame,
+            _substitutions(frame, proposed),
+            _no_assertions(frame),
+            recording.objective_key,  # type: ignore[arg-type]
+            None,
+            said.get(frame.index),
+        )
+        if (heard := read_by_index.get(frame.index)) is not None and heard.what.strip():
+            # The model's sentence is a better label than "click button#x". It
+            # is a label only: the plans underneath are untouched.
+            step = SkillStep(
+                index=step.index,
+                intent=heard.what.strip()[:200],
+                network_plan=step.network_plan,
+                ui_plan=step.ui_plan,
+                assertions=step.assertions,
+                requires_human=step.requires_human,
+                narration=step.narration or heard.why,
+                branch_hint=step.branch_hint,
+            )
+        steps.append(step)
+    return tuple(steps)
+
+
+def _substitutions(frame: ActionFrame, proposed: dict[str, tuple[str, str]]) -> Parameterisation:
+    """This step's placeholders, in the shape the emitter already understands."""
+    sites = _replacements(frame, proposed)
+    return Parameterisation(
+        parameters=(),
+        substitutions={
+            frame.index: tuple(
+                Substitution(site=site, parameter=text.strip("${}")) for site, text in sites.items()
+            )
+        },
+    )
+
+
+def _replacements(frame: ActionFrame, proposed: dict[str, tuple[str, str]]) -> dict[Site, str]:
+    """Where each candidate value sits in this step, so the plan carries a
+    placeholder rather than one run's literal."""
+    found: dict[Site, str] = {}
+    request = frame.primary_request
+    for name, (value, _) in proposed.items():
+        placeholder = f"${{{name}}}"
+        if frame.action.value == value and not frame.action.secret:
+            found[ActionValueSite()] = placeholder
+        if request is None:
+            continue
+        for key, query_value in url_query_pairs(request.url):
+            if query_value == value:
+                found[UrlQuerySite(key)] = placeholder
+        for pointer in _pointers_to(request.request_text, value):
+            found[JsonBodySite(pointer)] = placeholder
+    return found
+
+
+def _pointers_to(body: str | None, value: str) -> list[str]:
+    if not body:
+        return []
+    try:
+        document = json.loads(body)
+    except ValueError:
+        return []
+
+    found: list[str] = []
+
+    def walk(node: object, path: str) -> None:
+        if isinstance(node, dict):
+            for key, child in node.items():
+                walk(child, f"{path}/{key}")
+        elif isinstance(node, list):
+            for index, child in enumerate(node):
+                walk(child, f"{path}/{index}")
+        elif str(node) == value:
+            found.append(path)
+
+    walk(document, "")
+    return found
+
+
+def _no_assertions(frame: ActionFrame) -> StepEvidence:
+    """What a single run can assert: the status the system actually answered.
+
+    Deliberately thin. The read-back comparison that a pair produces is not
+    available here, and inventing a richer assertion from one observation is how
+    a verifier starts failing correct runs.
+    """
+    request = frame.primary_request
+    if request is None or request.status is None:
+        return StepEvidence(assertions=(), wait_for=None)
+    return StepEvidence(
+        assertions=(
+            Assertion(kind=AssertionKind.HTTP_STATUS, expected=Template(str(request.status))),
+        ),
+        wait_for=None,
+    )
+
+
+def _one_run(replacements: dict[Site, str]) -> Parameterisation:
+    """A `Parameterisation` for a single run: the same substitutions on every
+    step, because there is no second run to disagree about where they belong."""
+    return Parameterisation(
+        parameters=(),
+        substitutions={},
+    )

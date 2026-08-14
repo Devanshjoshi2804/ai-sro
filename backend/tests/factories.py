@@ -217,3 +217,7 @@ def skill(*, versions: int = 1, **overrides: Any) -> Skill:
     for n in range(1, versions + 1):
         result.add_version(skill_version(version=n))
     return result
+
+
+# re-exported so a test can build a payload without importing the domain twice
+Body = Body

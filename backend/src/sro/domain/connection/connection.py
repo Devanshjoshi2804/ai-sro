@@ -59,6 +59,15 @@ class Connection:
             raise InvariantViolation("Connection.created_at must be timezone-aware")
 
     @property
+    def cookie_key(self) -> str:
+        """Where the executor looks for this system's cookie header.
+
+        Facility-less: a login is to a system, not to a site, and a skill that
+        names `<system>/<facility>/cookie` falls back to this when its site has
+        no session of its own."""
+        return f"{self.tenant_id}/{self.target_system}/cookie"
+
+    @property
     def session_key(self) -> str:
         """Vault key holding the captured browser session."""
         return f"{self.tenant_id}/{self.target_system}/session"

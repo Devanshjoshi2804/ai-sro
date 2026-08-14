@@ -307,3 +307,35 @@ async def test_a_boolean_matches_what_induction_wrote_down() -> None:
 
     assert any(a.pointer == "/approvalRequired" for a in evidence.assertions)
     assert run.steps[0].assertion_failures == ()
+
+
+async def test_a_skill_taught_at_one_site_uses_the_system_s_login() -> None:
+    """A skill names `<system>/<site>/cookie`; a login is to a system.
+
+    Two places used to hold "the session" — the blob written when an operator
+    connected, and a cookie header written separately. They aged apart, and
+    every call came back 302 to the login page while the browser was signed in.
+    """
+    from sro.application.execution.headers import resolve_headers
+    from sro.domain.recording.sensitivity import Sensitivity
+    from sro.domain.skill.plan import HeaderPlan
+
+    vault = FakeCredentialVault()
+    await vault.store("acme/blue_yonder/cookie", "session=current")
+
+    resolved = await resolve_headers(
+        (
+            HeaderPlan(
+                name="cookie",
+                sensitivity=Sensitivity.SESSION,
+                credential_ref="blue_yonder/SG/cookie",
+            ),
+        ),
+        values={},
+        vault=vault,
+        scope="acme",
+        session_scope="blue_yonder/SG",
+    )
+
+    assert resolved.missing == ()
+    assert resolved.headers["cookie"] == "session=current"

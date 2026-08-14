@@ -15,6 +15,10 @@ from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.skill.plan import HeaderPlan
 
 
+def _system_of(credential_ref: str) -> str:
+    return credential_ref.split("/", 1)[0]
+
+
 @dataclass(frozen=True, slots=True)
 class ResolvedHeaders:
     headers: dict[str, str]
@@ -53,6 +57,11 @@ async def resolve_headers(
 
         if plan.credential_ref is not None:
             secret = await vault.get(f"{scope}/{plan.credential_ref}")
+            if secret is None:
+                # A skill names `<system>/<site>/cookie`; a login is to a
+                # system. Falling back keeps a skill taught at one site usable
+                # at another the same connection reaches.
+                secret = await vault.get(f"{scope}/{_system_of(plan.credential_ref)}/cookie")
             if secret is None:
                 missing.append(plan.name)
             else:

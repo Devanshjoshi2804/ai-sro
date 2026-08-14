@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserProvider
@@ -86,6 +87,23 @@ class ConnectSystem:
         )
 
 
+def _cookie_header(cookies: list[dict[str, object]], origin: str) -> str:
+    """The cookies this system's own host would receive, as one header.
+
+    Scoped by host on purpose: the identity-provider cookies belong to the login
+    domain and sending them to the application proves nothing, while the
+    application's own session cookie is the thing being kept.
+    """
+    host = urlsplit(origin).hostname or ""
+    wanted = [
+        cookie
+        for cookie in cookies
+        if host.endswith(str(cookie.get("domain", "")).lstrip("."))
+        or str(cookie.get("domain", "")).lstrip(".") in host
+    ]
+    return "; ".join(f"{cookie['name']}={cookie['value']}" for cookie in wanted)
+
+
 class StoreSession:
     """Keep the session a human just created, so nothing has to ask them again."""
 
@@ -122,6 +140,14 @@ class StoreSession:
             await self._vault.store(
                 connection.session_key,
                 json.dumps({"origin": connection.base_url, "cookies": cookies}),
+            )
+            # And the form the executor sends. Keeping only the blob meant a
+            # skill kept replaying a cookie header written weeks earlier: two
+            # places held "the session", they aged apart, and every call came
+            # back 302 to the login page while the browser was happily signed
+            # in. One store, refreshed together.
+            await self._vault.store(
+                connection.cookie_key, _cookie_header(cookies, connection.base_url)
             )
             connection.authenticated(self._clock.now())
             await uow.connections.save(connection)

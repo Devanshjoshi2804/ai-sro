@@ -305,6 +305,53 @@ and retrieval works without it.
 Flows (`http/flows/*.json`) are deliberately not ingested: no key appears in all
 35 files, so any reader would be guessing. They stay as human evidence.
 
+## Retrieval decides what; the ladder decides how
+
+`POST /v1/intent/resolve` turns a sentence into a decision. It starts no run.
+
+**Structural before semantic.** A skill is a candidate only if something on its
+objective key matches — system, entity, facility or verb — and wording only
+orders what survived. Wording alone never matches: a sentence about carriers
+must not find the wave skill because both descriptions say "release".
+
+**A partial match is the dangerous one.** Measured live: *"count inventory in
+SG"* hit an inventory-adjust skill's entity and facility, scored well, and the
+one word that says what to do — *count* — matched nothing. So every candidate
+carries the words it cannot account for, and a candidate with any is offered as
+a question rather than presented as an answer:
+
+> Did you mean Adjust LPN quantity (blue_yonder/SG)? Nothing it does accounts
+> for count.
+
+**Ambiguity is offered, not resolved.** Two candidates within two points are
+returned together, distinguished by their keys — three skills called "Release
+Wave" are told apart as `blue_yonder/DC07`, `/DC05`, `/DC03`, which is what the
+key exists for. Guessing between them is the wrong-match failure with extra
+steps.
+
+**Nothing taught falls to the knowledge base, never to the ladder.** The
+tempting mistake is to run the nearest skill in a browser and let vision sort it
+out — a confident wrong action. Instead the planner answers from ingested
+knowledge, with its sources and evidence levels attached:
+
+```
+> add a carrier
+  no skill — proposal from index/app-map.json, index/api-endpoints.json
+    open Configuration ▸ Partners ▸ Carriers ▸ Transport Modes   [observed]
+    the screen calls /data/WM/rpux/filter/columns/WMCarrierProNumber [observed]
+  "…review it, or teach me the task and I will do it exactly as you do."
+```
+
+A proposal is not a skill and carries a caveat saying so: it cites screens and
+endpoints rather than two demonstrations, so nobody has ever performed it here.
+It is read, not run — provenance comes from doing the task, not from reading
+about it.
+
+The resolver makes no model call. Ranking is a pure function of the library and
+the sentence, so every match is explainable after the fact — which is what
+`why` records. Parsing a messier sentence with a model belongs with chat, and
+its output lands here to be validated against a skill that exists.
+
 ## Agents
 
 | Agent | Job | Model |

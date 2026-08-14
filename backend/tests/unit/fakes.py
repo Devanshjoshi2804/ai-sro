@@ -6,6 +6,7 @@ rather than a capability, and should be redesigned before it gets an adapter.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from itertools import count
 
@@ -419,6 +420,12 @@ class FakeCredentialVault:
         self.secrets.pop(key, None)
 
 
+def _terms(text: str) -> list[str]:
+    """Mirrors SqlKnowledgeRepository: any word, not the whole phrase."""
+    skip = {"a", "an", "the", "at", "in", "on", "of", "to", "for", "and"}
+    return [w for w in re.findall(r"[A-Za-z0-9]+", text.lower()) if len(w) > 2 and w not in skip]
+
+
 class FakeKnowledgeRepository:
     def __init__(self) -> None:
         self.rows: dict[str, KnowledgeEntry] = {}
@@ -463,9 +470,11 @@ class FakeKnowledgeRepository:
             and (not kinds or entry.kind in kinds)
             and (min_evidence is None or entry.evidence.rank >= min_evidence.rank)
             and (
-                not terms.strip()
-                or terms.lower() in entry.title.lower()
-                or terms.lower() in entry.key.lower()
+                not _terms(terms)
+                or any(
+                    word in entry.title.lower() or word in entry.key.lower()
+                    for word in _terms(terms)
+                )
             )
         ]
         return tuple(found[:limit])

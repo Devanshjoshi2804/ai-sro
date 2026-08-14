@@ -1222,6 +1222,70 @@
         }
       }
     },
+    "/v1/intent/resolve": {
+      "post": {
+        "tags": [
+          "intent"
+        ],
+        "summary": "Resolve Intent",
+        "description": "What was asked for, and whether anything can honestly perform it.\n\nDeliberately separate from starting a run: an operator confirms a match\nbefore a write goes out, and that confirmation is what an assisted run\nrecords as its authorisation.",
+        "operationId": "resolve_intent_v1_intent_resolve_post",
+        "parameters": [
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveIntentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolutionModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/skills/{skill_id}/runs": {
       "post": {
         "tags": [
@@ -1590,6 +1654,60 @@
           "file"
         ],
         "title": "Body_attach_artifact_v1_recordings__recording_id__artifacts_post"
+      },
+      "CandidateModel": {
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "why": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Why"
+          },
+          "unexplained": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unexplained"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skill_id",
+          "name",
+          "version",
+          "stage",
+          "summary",
+          "score",
+          "why",
+          "unexplained"
+        ],
+        "title": "CandidateModel"
       },
       "ConnectSystemRequest": {
         "properties": {
@@ -2168,6 +2286,63 @@
         ],
         "title": "PromoteRequest"
       },
+      "ProposalModel": {
+        "properties": {
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedStepModel"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "caveat": {
+            "type": "string",
+            "title": "Caveat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steps",
+          "sources",
+          "caveat"
+        ],
+        "title": "ProposalModel"
+      },
+      "ProposedStepModel": {
+        "properties": {
+          "what": {
+            "type": "string",
+            "title": "What"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "evidence": {
+            "type": "string",
+            "title": "Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "what",
+          "detail",
+          "source",
+          "evidence"
+        ],
+        "title": "ProposedStepModel"
+      },
       "RecordingDetail": {
         "properties": {
           "id": {
@@ -2333,6 +2508,119 @@
           "has_narration"
         ],
         "title": "RecordingSummary"
+      },
+      "ResolutionModel": {
+        "properties": {
+          "utterance": {
+            "type": "string",
+            "title": "Utterance"
+          },
+          "matched": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateModel"
+            },
+            "type": "array",
+            "title": "Choices"
+          },
+          "missing_parameters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Parameters"
+          },
+          "runnable": {
+            "type": "boolean",
+            "title": "Runnable"
+          },
+          "confident": {
+            "type": "boolean",
+            "title": "Confident"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          },
+          "why": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Why"
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProposalModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "utterance",
+          "matched",
+          "choices",
+          "missing_parameters",
+          "runnable",
+          "confident",
+          "question",
+          "why",
+          "proposal"
+        ],
+        "title": "ResolutionModel",
+        "description": "What the system decided a sentence asked for.\n\n`matched` absent with `choices` present means two skills were too close to\nseparate; `proposal` present means nothing was taught and this is what the\nknowledge base says. Neither is a run."
+      },
+      "ResolveIntentRequest": {
+        "properties": {
+          "utterance": {
+            "type": "string",
+            "title": "Utterance"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "utterance"
+        ],
+        "title": "ResolveIntentRequest"
       },
       "RunModel": {
         "properties": {

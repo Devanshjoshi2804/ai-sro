@@ -12,6 +12,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from sro.application.intent.match import Candidate
+from sro.application.intent.resolve import Resolution
 from sro.domain.execution.run import Run, StepOutcome
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
@@ -519,3 +521,97 @@ class SessionHeadersRequest(BaseModel):
 class SessionHeadersResponse(BaseModel):
     stored: list[str]
     """Key names only. A credential is never echoed back."""
+
+
+class ResolveIntentRequest(BaseModel):
+    utterance: str
+    system: str | None = None
+    parameters: dict[str, str] = Field(default_factory=dict)
+
+
+class CandidateModel(BaseModel):
+    skill_id: str
+    name: str
+    version: int
+    stage: str
+    summary: str
+    score: int
+    why: list[str]
+    unexplained: list[str]
+
+
+class ProposedStepModel(BaseModel):
+    what: str
+    detail: str
+    source: str
+    evidence: str
+
+
+class ProposalModel(BaseModel):
+    steps: list[ProposedStepModel]
+    sources: list[str]
+    caveat: str
+
+
+class ResolutionModel(BaseModel):
+    """What the system decided a sentence asked for.
+
+    `matched` absent with `choices` present means two skills were too close to
+    separate; `proposal` present means nothing was taught and this is what the
+    knowledge base says. Neither is a run.
+    """
+
+    utterance: str
+    matched: CandidateModel | None
+    choices: list[CandidateModel]
+    missing_parameters: list[str]
+    runnable: bool
+    confident: bool
+    question: str | None
+    why: list[str]
+    proposal: ProposalModel | None
+
+    @classmethod
+    def of(cls, resolution: Resolution) -> ResolutionModel:
+        return cls(
+            utterance=resolution.utterance,
+            matched=_candidate(resolution.matched),
+            choices=[model for c in resolution.choices if (model := _candidate(c))],
+            missing_parameters=list(resolution.missing_parameters),
+            runnable=resolution.runnable,
+            confident=resolution.confident,
+            question=resolution.question,
+            why=list(resolution.why),
+            proposal=(
+                ProposalModel(
+                    steps=[
+                        ProposedStepModel(
+                            what=step.what,
+                            detail=step.detail,
+                            source=step.source,
+                            evidence=step.evidence.value,
+                        )
+                        for step in resolution.proposal.steps
+                    ],
+                    sources=list(resolution.proposal.sources),
+                    caveat=resolution.proposal.caveat,
+                )
+                if resolution.proposal is not None
+                else None
+            ),
+        )
+
+
+def _candidate(candidate: Candidate | None) -> CandidateModel | None:
+    if candidate is None:
+        return None
+    return CandidateModel(
+        skill_id=candidate.skill.id.value,
+        name=candidate.skill.name,
+        version=candidate.version.version,
+        stage=candidate.version.stage.value,
+        summary=candidate.version.summary,
+        score=candidate.score,
+        why=list(candidate.why),
+        unexplained=list(candidate.unexplained),
+    )

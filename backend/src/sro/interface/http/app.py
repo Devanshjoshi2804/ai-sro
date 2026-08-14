@@ -11,7 +11,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from sro.config import get_settings
 from sro.container import build_container
 from sro.interface.http.errors import install_error_handlers
-from sro.interface.http.v1.routers import connections, health, recordings, runs, skills
+from sro.interface.http.v1.routers import (
+    connections,
+    health,
+    intent,
+    recordings,
+    runs,
+    skills,
+)
 from sro.observability import configure_logging
 
 
@@ -48,6 +55,7 @@ def create_app() -> FastAPI:
     app.include_router(connections.router, prefix="/v1")
     app.include_router(recordings.router, prefix="/v1")
     app.include_router(skills.router, prefix="/v1")
+    app.include_router(intent.router, prefix="/v1")
     app.include_router(runs.router, prefix="/v1")
     return app
 

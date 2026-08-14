@@ -319,6 +319,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/intent/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Intent
+         * @description What was asked for, and whether anything can honestly perform it.
+         *
+         *     Deliberately separate from starting a run: an operator confirms a match
+         *     before a write goes out, and that confirmation is what an assisted run
+         *     records as its authorisation.
+         */
+        post: operations["resolve_intent_v1_intent_resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills/{skill_id}/runs": {
         parameters: {
             query?: never;
@@ -419,6 +443,25 @@ export interface components {
             duration_ms?: number | null;
             /** Recorded From */
             recorded_from?: string | null;
+        };
+        /** CandidateModel */
+        CandidateModel: {
+            /** Skill Id */
+            skill_id: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /** Stage */
+            stage: string;
+            /** Summary */
+            summary: string;
+            /** Score */
+            score: number;
+            /** Why */
+            why: string[];
+            /** Unexplained */
+            unexplained: string[];
         };
         /** ConnectSystemRequest */
         ConnectSystemRequest: {
@@ -618,6 +661,26 @@ export interface components {
             /** To */
             to: string;
         };
+        /** ProposalModel */
+        ProposalModel: {
+            /** Steps */
+            steps: components["schemas"]["ProposedStepModel"][];
+            /** Sources */
+            sources: string[];
+            /** Caveat */
+            caveat: string;
+        };
+        /** ProposedStepModel */
+        ProposedStepModel: {
+            /** What */
+            what: string;
+            /** Detail */
+            detail: string;
+            /** Source */
+            source: string;
+            /** Evidence */
+            evidence: string;
+        };
         /** RecordingDetail */
         RecordingDetail: {
             /** Id */
@@ -667,6 +730,43 @@ export interface components {
             frame_count: number;
             /** Has Narration */
             has_narration: boolean;
+        };
+        /**
+         * ResolutionModel
+         * @description What the system decided a sentence asked for.
+         *
+         *     `matched` absent with `choices` present means two skills were too close to
+         *     separate; `proposal` present means nothing was taught and this is what the
+         *     knowledge base says. Neither is a run.
+         */
+        ResolutionModel: {
+            /** Utterance */
+            utterance: string;
+            matched: components["schemas"]["CandidateModel"] | null;
+            /** Choices */
+            choices: components["schemas"]["CandidateModel"][];
+            /** Missing Parameters */
+            missing_parameters: string[];
+            /** Runnable */
+            runnable: boolean;
+            /** Confident */
+            confident: boolean;
+            /** Question */
+            question: string | null;
+            /** Why */
+            why: string[];
+            proposal: components["schemas"]["ProposalModel"] | null;
+        };
+        /** ResolveIntentRequest */
+        ResolveIntentRequest: {
+            /** Utterance */
+            utterance: string;
+            /** System */
+            system?: string | null;
+            /** Parameters */
+            parameters?: {
+                [key: string]: string;
+            };
         };
         /** RunModel */
         RunModel: {
@@ -1500,6 +1600,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SkillVersionModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_intent_v1_intent_resolve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveIntentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolutionModel"];
                 };
             };
             /** @description Validation Error */

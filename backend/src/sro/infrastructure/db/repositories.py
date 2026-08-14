@@ -7,6 +7,8 @@ that does not exist -- the difference is not something a caller may learn.
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -220,6 +222,18 @@ class SqlRunRepository(RunRepository):
         return row
 
 
+_NOT_WORTH_MATCHING = frozenset({"a", "an", "the", "at", "in", "on", "of", "to", "for", "and"})
+
+
+def _terms(text: str) -> list[str]:
+    """Words worth matching. Two characters or fewer match everything."""
+    return [
+        word
+        for word in re.findall(r"[A-Za-z0-9]+", text.lower())
+        if len(word) > 2 and word not in _NOT_WORTH_MATCHING
+    ]
+
+
 class SqlKnowledgeRepository(KnowledgeRepository):
     """Structured filters narrow, similarity only orders.
 
@@ -282,10 +296,20 @@ class SqlKnowledgeRepository(KnowledgeRepository):
                     [level.value for level in EvidenceLevel if level.rank >= min_evidence.rank]
                 )
             )
-        if terms.strip():
-            pattern = f"%{terms.strip()}%"
+        if words := _terms(terms):
+            # Any word, not the whole phrase. "add a carrier" ILIKE'd whole
+            # matches nothing, and a sentence is how the question arrives.
             query = query.where(
-                or_(KnowledgeRow.title.ilike(pattern), KnowledgeRow.key.ilike(pattern))
+                or_(
+                    *[
+                        clause
+                        for word in words
+                        for clause in (
+                            KnowledgeRow.title.ilike(f"%{word}%"),
+                            KnowledgeRow.key.ilike(f"%{word}%"),
+                        )
+                    ]
+                )
             )
         if embedding:
             query = query.where(KnowledgeRow.embedding.is_not(None)).order_by(

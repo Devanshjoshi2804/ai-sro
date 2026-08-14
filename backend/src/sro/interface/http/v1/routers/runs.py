@@ -35,6 +35,7 @@ async def run_skill(
         parameters=body.parameters,
         version=body.version,
         authorized_by=body.authorized_by,
+        medium=body.medium,
     )
     return RunModel.of(await container.get_run().execute(ctx, run_id=run_id))
 

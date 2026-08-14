@@ -104,6 +104,50 @@
     return (el.innerText || el.value || '').trim().slice(0, MAX_TEXT) || null;
   };
 
+  // The component behind the element, when the page is built out of components.
+  //
+  // ExtJS renders every control as nested `<div>`s with ids like `ext-gen4443`
+  // that are assigned in render order, so a selector recorded today matches a
+  // different control tomorrow -- and the accessibility tree, measured on four
+  // screens of this WMS, carries no role for most of them and never carries the
+  // payload key. The component model is the only view that survives a reload:
+  // `xtype` is what the application calls the control, and `itemId` is what its
+  // own code uses to find it.
+  const component = (el) => {
+    if (!window.Ext || !Ext.getCmp) return null;
+    let node = el;
+    let cmp = null;
+    while (node && node.nodeType === 1 && !cmp) {
+      if (node.id) {
+        // Ext gives sub-elements suffixed ids (`-inputEl`, `-btnIconEl`); the
+        // component is registered under the stem.
+        cmp = Ext.getCmp(node.id) || Ext.getCmp(node.id.replace(/-[a-zA-Z]+El$/, ''));
+      }
+      node = node.parentElement;
+    }
+    if (!cmp) return null;
+
+    const chain = [];
+    for (let k = cmp; k && chain.length < 10; k = k.ownerCt || k.floatParent) {
+      const xtype = k.getXType ? k.getXType() : k.xtype;
+      if (!xtype) continue;
+      chain.unshift(k.itemId && !/^ext-/.test(k.itemId) ? `${xtype}#${k.itemId}` : xtype);
+    }
+    // Two segments: enough context to disambiguate, short enough to survive a
+    // screen being re-parented, which happens whenever a dialog is involved.
+    const query = chain.slice(-2).join(' ');
+    return {
+      framework: 'extjs',
+      xtype: cmp.getXType ? cmp.getXType() : cmp.xtype,
+      itemId: cmp.itemId && !/^ext-/.test(cmp.itemId) ? cmp.itemId : null,
+      name: cmp.name || null,
+      fieldLabel: cmp.fieldLabel || null,
+      text: typeof cmp.text === 'string' ? cmp.text.slice(0, MAX_TEXT) : null,
+      query,
+      chain,
+    };
+  };
+
   const describe = (el) => {
     if (!el || el.nodeType !== 1) return null;
     const secret = isSecretField(el);
@@ -133,6 +177,7 @@
       xpath: xpath(el),
       bounds: { x: box.x, y: box.y, width: box.width, height: box.height },
       attributes,
+      component: component(el),
     };
   };
 

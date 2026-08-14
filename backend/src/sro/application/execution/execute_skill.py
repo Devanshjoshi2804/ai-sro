@@ -14,7 +14,7 @@ What this is careful about, in order of how much damage the alternative does:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from sro.application.context import RequestContext
 from sro.application.execution.headers import client_headers, resolve_headers
@@ -22,7 +22,9 @@ from sro.application.execution.verify import check, extract
 from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.application.ports.ui import ResolvedLocator, UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
+from sro.domain.execution.escalation import FailureKind, next_medium
 from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import PrincipalId, SkillId
@@ -44,6 +46,13 @@ class ExecutionRequest:
     parameters: dict[str, str]
     version: int | None = None
     authorized_by: str | None = None
+
+    medium: Medium = Medium.NETWORK
+    """Which rung performs the whole task.
+
+    A choice, not a fallback. Swapping medium mid-run leaves the browser without
+    the screen state the earlier steps would have produced, so the task is the
+    unit that changes rung, and today a human picks it."""
 
 
 class StartRun:
@@ -70,6 +79,7 @@ class StartRun:
                 requested_by=ctx.principal_id,
                 started_at=self._clock.now(),
                 authorized_by=_principal(request.authorized_by),
+                medium=request.medium,
             )
             await uow.runs.add(run)
             await uow.commit()
@@ -84,10 +94,17 @@ class ExecuteStep:
     step it is asking for has already been recorded, because the run says so.
     """
 
-    def __init__(self, uow: UnitOfWork, http: HttpCaller, vault: CredentialVault) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        http: HttpCaller,
+        vault: CredentialVault,
+        ui: UiDriver | None = None,
+    ) -> None:
         self._uow = uow
         self._http = http
         self._vault = vault
+        self._ui = ui
 
     async def execute(self, ctx: RequestContext, *, run_id: RunId, index: int) -> StepOutcome:
         async with self._uow as uow:
@@ -99,6 +116,14 @@ class ExecuteStep:
             return run.steps[index]  # already done; never send it twice
 
         step = version.steps[index]
+        if run.medium is Medium.UI:
+            outcome = await self._perform_in_ui(run, step, values=run.values)
+            run.record(outcome)
+            async with self._uow as uow:
+                await uow.runs.save(run)
+                await uow.commit()
+            return outcome
+
         produces = next(
             (
                 parameter
@@ -108,7 +133,7 @@ class ExecuteStep:
             None,
         )
 
-        outcome, derived = await self._perform(
+        outcome, derived, failure = await self._perform(
             run,
             step,
             values=run.values,
@@ -116,6 +141,8 @@ class ExecuteStep:
             session_scope=(f"{skill.objective_key.target_system}/{skill.objective_key.facility}"),
             produces=produces,
         )
+        if failure is not None:
+            outcome = await self._escalate(run, step, outcome, failure, values=run.values)
         run.record(outcome)
         for name, value in derived.items():
             run.learn(name, value)
@@ -124,6 +151,143 @@ class ExecuteStep:
             await uow.runs.save(run)
             await uow.commit()
         return outcome
+
+    async def _perform_in_ui(
+        self, run: Run, step: SkillStep, *, values: dict[str, str]
+    ) -> StepOutcome:
+        """Perform one step of a task that is being run in the browser.
+
+        The write rule is the same as at L1 and matters more here: a click is
+        indistinguishable from a call once it has happened, so a stage that may
+        not write may not click either.
+        """
+        plan = step.ui_plan
+        if plan is None or not plan.replayable:
+            return StepOutcome(
+                index=step.index,
+                medium=Medium.UI,
+                disposition=StepDisposition.SKIPPED,
+                intent=step.intent,
+                detail="the demonstration left nothing here that can be found again",
+            )
+        if not run.performs_writes:
+            return StepOutcome(
+                index=step.index,
+                medium=Medium.UI,
+                disposition=StepDisposition.WITHHELD,
+                intent=step.intent,
+                idempotency_key=f"{run.id}:{step.index}",
+                detail=(
+                    f"{run.stage} does not drive the interface; "
+                    f"would {plan.action} {plan.locators[0].describe() if plan.locators else ''}"
+                ),
+            )
+        if self._ui is None:
+            return self._failed(step, None, "no browser is attached", medium=Medium.UI)
+
+        try:
+            locators = tuple(
+                ResolvedLocator(
+                    strategy=locator.strategy,
+                    query=locator.query.render(values),
+                    within=locator.within,
+                    visible_only=locator.visible_only,
+                )
+                for locator in plan.locators
+            )
+            value = plan.value.render(values) if plan.value is not None else None
+        except KeyError as missing:
+            return self._failed(
+                step, None, f"no value for parameter {missing.args[0]!r}", medium=Medium.UI
+            )
+
+        try:
+            result = await self._ui.perform(action=plan.action, locators=locators, value=value)
+        except UiUnavailable as error:
+            return self._failed(step, None, str(error), medium=Medium.UI)
+
+        if not result.performed:
+            return self._failed(step, None, result.detail or "control not found", medium=Medium.UI)
+        return StepOutcome(
+            index=step.index,
+            medium=Medium.UI,
+            disposition=StepDisposition.PERFORMED,
+            intent=step.intent,
+            idempotency_key=f"{run.id}:{step.index}",
+            matched_by=result.matched_by.value if result.matched_by else None,
+            detail=(f"{result.candidates} candidates" if result.candidates > 1 else None),
+        )
+
+    async def _escalate(
+        self,
+        run: Run,
+        step: SkillStep,
+        outcome: StepOutcome,
+        failure: FailureKind,
+        *,
+        values: dict[str, str],
+    ) -> StepOutcome:
+        """Try the next rung, if the policy allows one and the run may act.
+
+        Shadow never drives the interface. A withheld call is a call that did not
+        happen; a click on the same screen is a call that did, and a rehearsal
+        that quietly changed a warehouse would be worse than no rehearsal.
+        """
+        rule = next_medium(failure, Medium.NETWORK)
+        if rule is None or rule.then is not Medium.UI:
+            return outcome
+        if not run.performs_writes:
+            return replace(
+                outcome,
+                detail=f"{outcome.detail or failure}; {run.stage} does not drive the interface",
+            )
+        if self._ui is None or step.ui_plan is None or not step.ui_plan.replayable:
+            return replace(
+                outcome,
+                detail=f"{outcome.detail or failure}; nothing to replay in the interface",
+            )
+
+        plan = step.ui_plan
+        try:
+            locators = tuple(
+                ResolvedLocator(
+                    strategy=locator.strategy,
+                    query=locator.query.render(values),
+                    within=locator.within,
+                    visible_only=locator.visible_only,
+                )
+                for locator in plan.locators
+            )
+            value = plan.value.render(values) if plan.value is not None else None
+        except KeyError as missing:
+            return replace(outcome, detail=f"no value for parameter {missing.args[0]!r}")
+
+        try:
+            result = await self._ui.perform(action=plan.action, locators=locators, value=value)
+        except UiUnavailable as error:
+            return replace(outcome, detail=f"{outcome.detail or failure}; no browser: {error}")
+
+        if not result.performed:
+            return replace(
+                outcome,
+                escalated_from=Medium.NETWORK,
+                escalation_reason=rule.because,
+                detail=result.detail,
+            )
+        return StepOutcome(
+            index=step.index,
+            medium=Medium.UI,
+            disposition=StepDisposition.PERFORMED,
+            intent=step.intent,
+            idempotency_key=outcome.idempotency_key,
+            escalated_from=Medium.NETWORK,
+            escalation_reason=rule.because,
+            matched_by=result.matched_by.value if result.matched_by else None,
+            detail=(
+                f"{outcome.detail or failure} at L1; performed in the interface"
+                + (f" ({result.candidates} candidates)" if result.candidates > 1 else "")
+            ),
+        )
 
     async def _perform(
         self,
@@ -134,7 +298,7 @@ class ExecuteStep:
         scope: str,
         session_scope: str,
         produces: Parameter | None = None,
-    ) -> tuple[StepOutcome, dict[str, str]]:
+    ) -> tuple[StepOutcome, dict[str, str], FailureKind | None]:
         plan = step.network_plan
         if plan is None:
             return (
@@ -146,6 +310,7 @@ class ExecuteStep:
                     detail="the demonstration produced no call here; only the UI moved",
                 ),
                 {},
+                FailureKind.NO_PLAN,
             )
         if not plan.replayable:
             return (
@@ -157,6 +322,7 @@ class ExecuteStep:
                     detail=plan.unreplayable_reason,
                 ),
                 {},
+                FailureKind.UNREPLAYABLE,
             )
 
         mutating = plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
@@ -169,6 +335,7 @@ class ExecuteStep:
             return (
                 self._failed(step, key, f"no value for parameter {missing.args[0]!r}"),
                 {},
+                None,
             )
 
         resolved = await resolve_headers(
@@ -186,6 +353,7 @@ class ExecuteStep:
                     "no live value for " + ", ".join(resolved.missing) + "; connect the system",
                 ),
                 {},
+                FailureKind.CREDENTIAL_MISSING,
             )
 
         if mutating and not run.performs_writes:
@@ -201,6 +369,7 @@ class ExecuteStep:
                     detail=f"{run.stage} does not send writes; the request was produced, not sent",
                 ),
                 {},
+                None,
             )
 
         headers = {**client_headers(plan.headers, url), **resolved.headers}
@@ -210,7 +379,11 @@ class ExecuteStep:
             detail = str(error)
             if mutating:
                 detail += " -- the call may have arrived; do not retry without checking"
-            return self._failed(step, key, detail, method=plan.method, url=url), {}
+            return (
+                self._failed(step, key, detail, method=plan.method, url=url),
+                {},
+                FailureKind.UNREACHABLE,
+            )
 
         failures = check(step.assertions, response, values=values)
         if plan.expected_status is not None and response.status_code != plan.expected_status:
@@ -232,6 +405,7 @@ class ExecuteStep:
                 assertion_failures=failures,
             ),
             _derive(produces, response),
+            FailureKind.ASSERTION_FAILED if failures else None,
         )
 
     @staticmethod
@@ -242,10 +416,11 @@ class ExecuteStep:
         *,
         method: str | None = None,
         url: str | None = None,
+        medium: Medium = Medium.NETWORK,
     ) -> StepOutcome:
         return StepOutcome(
             index=step.index,
-            medium=Medium.NETWORK,
+            medium=medium,
             disposition=StepDisposition.FAILED,
             intent=step.intent,
             method=method,
@@ -285,10 +460,11 @@ class ExecuteSkill:
         vault: CredentialVault,
         clock: Clock,
         ids: IdFactory,
+        ui: UiDriver | None = None,
     ) -> None:
         self._uow = uow
         self._start = StartRun(uow, clock, ids)
-        self._step = ExecuteStep(uow, http, vault)
+        self._step = ExecuteStep(uow, http, vault, ui)
         self._finish = FinishRun(uow, clock)
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:

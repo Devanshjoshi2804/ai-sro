@@ -119,6 +119,7 @@ def _build_steps(
                 next_b=frames_b[index + 1] if index + 1 < len(frames_b) else None,
             ),
             run_a.objective_key,
+            frames_b[index],
         )
         for index in range(len(frames_a))
     )

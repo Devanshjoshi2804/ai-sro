@@ -20,8 +20,10 @@ from sro.application.ports.repositories import (
     RunRepository,
     SkillRepository,
 )
+from sro.application.ports.ui import ResolvedLocator, UiOutcome, UiUnavailable
 from sro.domain.connection.connection import Connection, ConnectionId
-from sro.domain.execution.run import Run, RunId
+from sro.domain.execution.run import Medium, Run, RunId
+from sro.domain.recording.events import ActionKind
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import (
@@ -31,6 +33,7 @@ from sro.domain.shared.identifiers import (
     TenantId,
 )
 from sro.domain.shared.objective import ObjectiveKey
+from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.skill import Skill
 
 
@@ -173,6 +176,7 @@ class FakeDurableExecution:
         parameters: dict[str, str],
         version: int | None = None,
         authorized_by: str | None = None,
+        medium: str = "network",
     ) -> RunId:
         if self._execute is None:
             raise NotImplementedError("this fake was not given an executor")
@@ -183,6 +187,7 @@ class FakeDurableExecution:
                 parameters=dict(parameters),
                 version=version,
                 authorized_by=authorized_by,
+                medium=Medium(medium),
             ),
         )
         return run.id
@@ -355,6 +360,36 @@ class FakeHttpCaller:
         if self.responses:
             return self.responses.pop(0)
         return HttpResponse(status_code=200, headers={}, text="{}")
+
+
+class FakeUiDriver:
+    """Answers a queue of outcomes and records what it was asked to do."""
+
+    def __init__(self, *, available: bool = True) -> None:
+        self.available = available
+        self.asked: list[dict[str, object]] = []
+        self.outcomes: list[UiOutcome] = []
+
+    def will_find(self, strategy: LocatorStrategy, candidates: int = 1) -> None:
+        self.outcomes.append(UiOutcome(performed=True, matched_by=strategy, candidates=candidates))
+
+    def will_not_find(self) -> None:
+        self.outcomes.append(UiOutcome(performed=False, detail="no control matched"))
+
+    async def perform(
+        self,
+        *,
+        action: ActionKind,
+        locators: tuple[ResolvedLocator, ...],
+        value: str | None = None,
+    ) -> UiOutcome:
+        if not self.available:
+            raise UiUnavailable("no browser is attached")
+        self.asked.append({"action": action, "locators": locators, "value": value})
+        return self.outcomes.pop(0) if self.outcomes else UiOutcome(performed=True)
+
+    async def current_url(self) -> str | None:
+        return "https://wms.test/portal"
 
 
 class FakeCredentialVault:

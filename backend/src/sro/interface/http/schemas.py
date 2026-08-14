@@ -391,6 +391,9 @@ class RunSkillRequest(BaseModel):
     parameters: dict[str, str]
     version: int | None = None
 
+    medium: str = "network"
+    """`network` replays the calls; `ui` performs the task in a browser."""
+
     authorized_by: str | None = None
     """Required above shadow. The human who allowed this run to write."""
 
@@ -405,6 +408,9 @@ class StepOutcomeModel(BaseModel):
     status_code: int | None
     idempotency_key: str | None
     assertion_failures: list[str]
+    escalated_from: str | None
+    escalation_reason: str | None
+    matched_by: str | None
     detail: str | None
 
     @classmethod
@@ -419,6 +425,9 @@ class StepOutcomeModel(BaseModel):
             status_code=step.status_code,
             idempotency_key=step.idempotency_key,
             assertion_failures=list(step.assertion_failures),
+            escalated_from=step.escalated_from.value if step.escalated_from else None,
+            escalation_reason=step.escalation_reason,
+            matched_by=step.matched_by,
             detail=step.detail,
         )
 
@@ -428,6 +437,7 @@ class RunModel(BaseModel):
     skill_id: str
     skill_version: int
     stage: str
+    medium: str
     status: str
     parameters: dict[str, str]
     requested_by: str
@@ -444,6 +454,7 @@ class RunModel(BaseModel):
             skill_id=run.skill_id.value,
             skill_version=run.skill_version,
             stage=run.stage.value,
+            medium=run.medium.value,
             status=run.status.value,
             parameters=dict(run.parameters),
             requested_by=run.requested_by.value,

@@ -125,6 +125,46 @@ read one — an operator, or the capture adapter, which sees every request heade
 of the session it is attached to. It expires with the session, and a run whose
 header has expired fails at its first write rather than doing half a task.
 
+## L2 as built
+
+The measured problem first, because it decides the design: on this WMS the
+accessibility tree carries no `button` role on three of four screens and never
+carries a field's payload key, while the DOM ids are handed out in render order
+— `ext-gen4443` is a different control after a reload. Replaying a demonstration
+by CSS path or by role would find the wrong control or none.
+
+So capture now also records **what the application calls the control**. The
+recorder walks from the clicked element to its ExtJS component and stores the
+`xtype`, the `itemId` and a two-segment `Ext.ComponentQuery` — the selector
+language the application's own code uses. Induction turns that into an ordered
+list of `ControlLocator`s: component query, test id, role and name, text, CSS
+path. A signal that differs between the two demonstrations describes the record
+rather than the control, so it becomes the parameter the diff already created
+(the row for *this* LPN) or is dropped.
+
+The driver resolves a component query by asking ExtJS, filtering to the visible
+instance — this SPA keeps every screen it has ever shown — and then acts on the
+resulting element through Playwright, so the gesture is a real click with real
+actionability checks rather than a synthetic event the application may ignore.
+Each step records which strategy matched: a step that only ever matches on the
+last fallback is a skill about to break.
+
+### The task is the unit that changes rung
+
+A run that swapped medium half way through would leave the browser without the
+screen state the earlier steps never produced, and a lone UI step would not find
+its control. So the medium is a property of the **run**: `network` replays the
+calls, `ui` performs the whole task in a browser. The escalation table in
+`domain/execution/escalation.py` says which failures make the second choice
+sensible; choosing it automatically belongs with Phase 5, because it is the same
+decision as the circuit breaker.
+
+Two refusals in that table are worth naming. A missing credential never
+escalates — a browser cannot invent a session either. A system that did not
+answer never escalates — pointing a browser at it turns an outage into a heavier
+one. And a shadow run never drives the interface at all: a click is
+indistinguishable from a call once it has happened.
+
 ## Agents
 
 | Agent | Job | Model |

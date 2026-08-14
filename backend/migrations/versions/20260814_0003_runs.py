@@ -29,6 +29,9 @@ def upgrade() -> None:
         # The stage is copied, not joined: a promotion tomorrow must not change
         # the record of what this run was permitted to do.
         sa.Column("stage", sa.String(16), nullable=False),
+        # Which rung performed the task. A property of the run, because it is
+        # the first thing anybody asks about a run that behaved oddly.
+        sa.Column("medium", sa.String(16), nullable=False),
         sa.Column("status", sa.String(16), nullable=False),
         sa.Column("requested_by", sa.String(64), nullable=False),
         sa.Column("authorized_by", sa.String(64)),

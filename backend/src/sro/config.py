@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     debug: bool = False
 
     database_url: str = "postgresql+asyncpg://sro:sro@localhost:5432/sro"
+
+    ui_debugger_url: str = ""
+    """CDP endpoint of a browser the executor may drive for L2.
+
+    Empty by default, and an empty value is not a degraded mode: a run that
+    would have escalated records that there was no browser rather than
+    pretending the step was impossible."""
     redis_url: str = "redis://localhost:6379/0"
 
     s3_endpoint_url: str = "http://localhost:9000"

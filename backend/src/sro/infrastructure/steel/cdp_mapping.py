@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sro.domain.recording.axgraph import AxGraph
-from sro.domain.recording.element import Bounds, ElementFingerprint
+from sro.domain.recording.element import Bounds, ComponentIdentity, ElementFingerprint
 from sro.domain.recording.events import ActionKind, InputAction
 from sro.domain.recording.network import (
     Cookie,
@@ -351,4 +351,24 @@ def _to_dom_fingerprint(raw: CdpPayload) -> ElementFingerprint:
             else None
         ),
         attributes={str(k): str(v) for k, v in (raw.get("attributes") or {}).items()},
+        component=_to_component(raw.get("component")),
     )
+
+
+def _to_component(raw: object) -> ComponentIdentity | None:
+    if not isinstance(raw, dict) or not raw.get("query"):
+        return None
+    return ComponentIdentity(
+        framework=str(raw.get("framework") or "unknown"),
+        query=str(raw["query"]),
+        xtype=_text(raw.get("xtype")),
+        item_id=_text(raw.get("itemId")),
+        name=_text(raw.get("name")),
+        field_label=_text(raw.get("fieldLabel")),
+        text=_text(raw.get("text")),
+        chain=tuple(str(part) for part in (raw.get("chain") or [])),
+    )
+
+
+def _text(value: object) -> str | None:
+    return str(value) if value else None

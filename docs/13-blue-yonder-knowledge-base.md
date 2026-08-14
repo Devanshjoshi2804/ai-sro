@@ -28,12 +28,18 @@ release yields a documented, schema-discoverable command sequence."*
 
 Measured: of 551 endpoints the portal calls, **499 belong to the `WM` service and all of them are
 REST** with a `{@type, data}` envelope — 315 on `/data/WM/wm/<resource>`, 161 on `/data/WM/rpux/`
-(grid columns and filters), 22 named commands under `/data/WM/`. No MOCA command traffic was observed
+(grid columns and filters), 23 named commands under `/data/WM/`. No MOCA command traffic was observed
 leaving the browser.
 
 (Re-counted from `index/api-endpoints.json`. An earlier draft of this document attributed all 499 to
 the `/data/WM/wm/` prefix; that prefix holds 315. The conclusion is unaffected — every one of them is
 REST — but the figure named the wrong set, and this base's own rule is that evidence outranks prose.)
+
+The 23 named commands are worth a second look, because they are the closest thing to MOCA syntax the
+browser emits: `listCountries`, `listYards`, `listCarrierForLookup`, `listInventoryStatusProgressions`
+— RPC-shaped `list*` calls that almost certainly wrap MOCA commands of the same name. Every one of
+them is a **read-only lookup feeding a dropdown**. There is no MOCA-shaped call anywhere on the write
+path.
 
 MOCA is underneath — the REST responses carry a `moca-status` header (`2966` on a duplicate-key 409,
 `-1` on a validation 422). That is better than the ADR's premise rather than worse: the transport is
@@ -135,6 +141,38 @@ The coverage consequence is that the base's write contract, proven on nine
 Configuration resources, does not generalise to the operational tier: config
 writes take effect, operational writes queue. Anything asserted about one tier
 from evidence in the other is asserted, not observed.
+
+## What the executor found that the base could not
+
+The `Referer` failure in commit `620697e` went the other way: the running system taught the knowledge
+base something 266 recorded exchanges could not have contained. It has now been reproduced
+deliberately (`knowledge-base/blue-yonder-sce/http/exchanges/businessUnits.jsonl`, cases `referer-*`
+and `out-of-page-*`):
+
+| call | result |
+|---|---|
+| in-page, browser's own Referer | 200 |
+| in-page, `referrerPolicy: no-referrer` | opaqueredirect — the browser blocked a 3xx |
+| out-of-page, no Referer, `maxRedirects: 0` | **302 → `/portal`** |
+| out-of-page, Referer set to the portal origin | 200 |
+| in-page, Referer derived from the target URL | 200 — the value is **not** checked against the page actually open |
+
+Two things worth carrying beyond this one header.
+
+**The failure is silent by default.** An executor that follows redirects receives 200 and an HTML
+login page. Any assertion reading only the status code passes. Anything replaying calls out of a
+browser should treat "200 that is actually the login page" as a distinct, detectable outcome.
+
+**Header classification needs a fourth state.** The four visible states today are vault reference,
+minted per run, set by the client, and semantic. `Referer` is none of them: it varies per
+demonstration, so a differ marks it client-managed and drops it — and dropping it breaks
+authentication. It has to be **synthesised from the target of the call being made**, which is a
+category two runs cannot discover by diffing, because both runs contain a Referer that is *true and
+irrelevant*. `Origin` and the `Sec-Fetch-*` family are the obvious next candidates to test the same way.
+
+The knowledge base has recorded the general lesson as a standing rule in its `SCHEMA.md`: an exchange
+captured inside the page proves the route and the payload, **not** the header set, because every
+ambient header was supplied by Chrome and stripped before storage.
 
 ## Where it fits the phases
 

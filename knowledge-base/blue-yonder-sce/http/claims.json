@@ -1,7 +1,7 @@
 {
   "purpose": "Every prior claim about failure behaviour, and whether a scripted Playwright run with full request+response capture reproduced it. Claims from hand-driven Claude-in-Chrome sessions are 'asserted' until reproduced here. See ../../SCHEMA.md for evidence levels.",
-  "generated_by": "tools/cdp/trace.mjs, tools/cdp/modal-probe.mjs, tools/cdp/battery.mjs, tools/cdp/battery2.mjs \u2014 2026-08-12",
-  "headline": "9 claims re-tested. 6 reproduced, 3 falsified. All 3 failures share one root cause: a hand-driven session read the UI (a modal, a network panel) and inferred what the wire did, instead of recording the wire.",
+  "generated_by": "tools/cdp/trace.mjs, tools/cdp/modal-probe.mjs, tools/cdp/battery.mjs, tools/cdp/battery2.mjs — 2026-08-12",
+  "headline": "19 claims re-tested from this base. Two further claims arrive from the AI-SRO executor and are recorded as asserted: this base has no stored exchange for either, and one of them (Referer) exposes a blind spot the instrument itself created.",
   "claims": [
     {
       "id": "clients-duplicate-orphans-address",
@@ -24,7 +24,7 @@
       "verdict": "FALSIFIED",
       "evidence": "http/flows/suppliersDuplicate.json",
       "observed": [
-        "POST /wm/addresses -> 201 (addressId A000365889) \u2014 it DOES fire and DOES succeed",
+        "POST /wm/addresses -> 201 (addressId A000365889) — it DOES fire and DOES succeed",
         "POST /wm/suppliers -> 409"
       ],
       "why_the_original_was_wrong": "Read off the browser network panel by eye during a hand-driven session; the addresses POST was present but not noticed.",
@@ -57,7 +57,7 @@
         "GET /wm/transportEquipmentTypes/AIR (a real code) is also ROUTE-MISSING",
         "Real resource is /wm/codes?columnName=trlr_typ"
       ],
-      "why_the_original_was_wrong": "The delete proof was 'a later GET returned 404' \u2014 circular, since a nonexistent route 404s forever.",
+      "why_the_original_was_wrong": "The delete proof was 'a later GET returned 404' — circular, since a nonexistent route 404s forever.",
       "evidence_level": "reproduced"
     },
     {
@@ -127,7 +127,7 @@
     },
     {
       "id": "nonadd-flows-copy-edit-delete",
-      "source": "Every recipe in this repo: 'Copy \u2014 not captured' and 'Delete \u2014 not captured via UI click; direct-API equivalent tested'.",
+      "source": "Every recipe in this repo: 'Copy — not captured' and 'Delete — not captured via UI click; direct-API equivalent tested'.",
       "claim": "The UI Copy and Delete buttons had never been captured; the direct-API DELETE was assumed equivalent.",
       "verdict": "NOW CAPTURED",
       "evidence": "http/flows/nonadd2-customerTypes.json",
@@ -300,6 +300,32 @@
       ],
       "why_writes_are_still_open": "A location record has 176 fields and no captured create payload exists. Writing one would mean GUESSING the body - which is the exact anti-pattern that produced the falsified claims in this repo. The create payload must be captured from the real Add form first, the same way businessUnitDescription was recovered. Deliberately not guessed.",
       "evidence_level": "observed"
+    },
+    {
+      "id": "referer-required-for-api-auth",
+      "source": "AI-SRO commit 620697e — a live L1 executor run, not this base",
+      "claim": "Blue Yonder's auth filter rejects a same-origin API call that carries no Referer, answering 302 to the login page whatever session cookie the call carries. An executor that correctly declines to replay a captured Referer therefore gets 302 on every read.",
+      "verdict": "ASSERTED ELSEWHERE — NOT YET REPRODUCED IN THIS BASE",
+      "evidence": "none stored here yet; tools/cdp/probe-referer.mjs written to test it, blocked on a logged-in browser",
+      "observed": [
+        "Reported: every read returned 302 to the login page until the executor sent a Referer derived from the target URL.",
+        "This base cannot confirm or deny it from its own 266 exchanges: every one of them was issued from INSIDE the page, where the browser attaches a same-origin Referer automatically. The instrument hid the variable."
+      ],
+      "why_it_matters": "It is the difference between a captured call being replayable out of the browser and not. It also means header classification cannot be settled by diffing alone: Referer varies per demonstration, so a differ marks it client-managed, and dropping it breaks authentication.",
+      "evidence_level": "asserted"
+    },
+    {
+      "id": "operational-writes-queue-for-approval",
+      "source": "AI-SRO commit 620697e — an assisted L1 run against the QA instance",
+      "claim": "An inventory adjustment does not change on-hand. PUT /data/WM/wm/inventory/adjust answers 200 with approvalRequired true, the location is locked, and a row appears under Inventory > Adjustments > Approvals.",
+      "verdict": "ASSERTED ELSEWHERE — CONSISTENT WITH THIS BASE, NOT RECORDED IN IT",
+      "evidence": "none stored here; no exchange under http/exchanges for any inventory route",
+      "observed": [
+        "Reported: LPN ...826960 at EF131, 66 CS -> 65 CS, reason AA - Physical Count, left pending approval.",
+        "Every write this base has proven is a Configuration-tier resource, where a write takes effect immediately. This is the first evidence that the OPERATIONAL tier behaves differently."
+      ],
+      "why_it_matters": "A post-condition of \"the number changed\" is wrong for the operational tier. The correct post-condition is that an approval row exists. A verifier written against the Configuration-tier contract would fail every correct operational run — or, worse, one that checks only HTTP 200 would pass a run whose effect is queued and may still be rejected.",
+      "evidence_level": "asserted"
     }
   ],
   "still_asserted_not_reproduced": [],

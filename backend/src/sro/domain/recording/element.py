@@ -18,6 +18,30 @@ class Bounds:
 
 
 @dataclass(frozen=True, slots=True)
+class ComponentIdentity:
+    """What the application itself calls this control.
+
+    Present only where the page is built out of components and the recorder
+    could reach the framework. For ExtJS that is `xtype`, `itemId`, and a query
+    in the framework's own selector language -- the three things that survive a
+    re-render, which the DOM id and often the accessibility role do not.
+    """
+
+    framework: str
+    query: str
+    xtype: str | None = None
+    item_id: str | None = None
+    name: str | None = None
+    field_label: str | None = None
+    text: str | None = None
+    chain: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.framework.strip() or not self.query.strip():
+            raise InvariantViolation("ComponentIdentity needs a framework and a query")
+
+
+@dataclass(frozen=True, slots=True)
 class ElementFingerprint:
     """Every independent signal about one element at one moment.
 
@@ -45,6 +69,9 @@ class ElementFingerprint:
     states: frozenset[str] = frozenset()
     """AX states present: ``disabled``, ``checked``, ``expanded``, ``selected``,
     ``focused``, ``required``, ``invalid``, ``busy``."""
+
+    component: ComponentIdentity | None = None
+    """The framework's own handle on this control, when there is one."""
 
     bounds: Bounds | None = None
     attributes: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))

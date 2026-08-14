@@ -109,6 +109,7 @@ class TemporalDurableExecution:
         parameters: dict[str, str],
         version: int | None = None,
         authorized_by: str | None = None,
+        medium: str = "network",
     ) -> RunId:
         client = await self._connect()
         request = StartRunRequest(
@@ -118,6 +119,7 @@ class TemporalDurableExecution:
             parameters=dict(parameters),
             version=version,
             authorized_by=authorized_by,
+            medium=medium,
         )
         handle = await client.start_workflow(
             ExecutionWorkflow.run,

@@ -92,6 +92,28 @@ Every claim carries one. Nothing may be reported as done at a level it has not r
 
 `asserted` claims are carried as open work, never as coverage.
 
+## What the instrument cannot see
+
+Every one of the 266 stored exchanges was issued **from inside the authenticated page**, by
+`fetch` running in the app's own frame. That is what makes the recorder safe — it never handles a
+credential — and it is also a blind spot with a precise boundary:
+
+**Any header the browser attaches on its own is untested here.** `Cookie`, `Referer`, `Origin`,
+`User-Agent` and the `Sec-*` family were supplied by Chrome, never by the recorder, and were
+stripped or ignored on the way to disk. So this base can say what the server does with a *body*
+and a *route*. It cannot, from its own evidence, say which of those ambient headers the server
+actually requires.
+
+That is not hypothetical. The AI-SRO executor — replaying these calls from outside a browser —
+found that omitting `Referer` returns **302 to the login page on every read**, with a valid session
+cookie attached. Nothing in 266 exchanges could have predicted that, because the variable was never
+varied.
+
+**Standing rule: an exchange recorded in-page proves the route and the payload, not the header
+set.** A claim that a call is replayable out-of-browser needs a probe that varies the ambient
+header deliberately (`tools/cdp/probe-referer.mjs`), and until such a probe runs, the claim is
+`asserted`.
+
 ## Verification provenance
 
 Claims originally produced by hand-driven browser sessions (Claude-in-Chrome) are treated as

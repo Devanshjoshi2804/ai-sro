@@ -32,6 +32,7 @@ from sro.application.ports.http import HttpCaller
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.transcription import Transcriber
+from sro.application.ports.ui import UiDriver
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
 from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
@@ -50,6 +51,7 @@ from sro.infrastructure.db.session import create_engine, create_session_factory
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
+from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
 from sro.infrastructure.system import SystemClock, UuidFactory
 from sro.infrastructure.telemetry.otel import configure_tracing
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
@@ -73,6 +75,7 @@ class Container:
     transcriber: Transcriber
     vault: CredentialVault
     http: HttpCaller
+    ui: UiDriver
     durable: DurableExecution
     session_factory: async_sessionmaker[AsyncSession]
 
@@ -141,13 +144,15 @@ class Container:
         return PromoteSkill(self.unit_of_work(), self.clock)
 
     def execute_skill(self) -> ExecuteSkill:
-        return ExecuteSkill(self.unit_of_work(), self.http, self.vault, self.clock, self.ids)
+        return ExecuteSkill(
+            self.unit_of_work(), self.http, self.vault, self.clock, self.ids, self.ui
+        )
 
     def start_run(self) -> StartRun:
         return StartRun(self.unit_of_work(), self.clock, self.ids)
 
     def execute_step(self) -> ExecuteStep:
-        return ExecuteStep(self.unit_of_work(), self.http, self.vault)
+        return ExecuteStep(self.unit_of_work(), self.http, self.vault, self.ui)
 
     def finish_run(self) -> FinishRun:
         return FinishRun(self.unit_of_work(), self.clock)
@@ -216,6 +221,7 @@ def build_container(settings: Settings | None = None) -> Container:
         transcriber=NullTranscriber(),
         vault=_build_vault(settings),
         http=HttpxCaller(),
+        ui=PlaywrightUiDriver(settings.ui_debugger_url),
         durable=TemporalDurableExecution(
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),

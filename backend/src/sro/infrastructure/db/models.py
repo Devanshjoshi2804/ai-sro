@@ -119,6 +119,7 @@ class RunRow(Base):
     skill_id: Mapped[str] = mapped_column(String(64), nullable=False)
     skill_version: Mapped[int] = mapped_column(Integer, nullable=False)
     stage: Mapped[str] = mapped_column(String(16), nullable=False)
+    medium: Mapped[str] = mapped_column(String(16), nullable=False, default="network")
     status: Mapped[str] = mapped_column(String(16), nullable=False)
 
     requested_by: Mapped[str] = mapped_column(String(64), nullable=False)

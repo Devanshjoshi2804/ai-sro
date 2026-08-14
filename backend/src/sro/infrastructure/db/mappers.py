@@ -179,6 +179,7 @@ def update_run_row(row: RunRow, run: Run) -> None:
     row.skill_id = run.skill_id.value
     row.skill_version = run.skill_version
     row.stage = run.stage.value
+    row.medium = run.medium.value
     row.status = run.status.value
     row.requested_by = run.requested_by.value
     row.authorized_by = run.authorized_by.value if run.authorized_by else None
@@ -197,6 +198,7 @@ def row_to_run(row: RunRow) -> Run:
         skill_id=SkillId(row.skill_id),
         skill_version=row.skill_version,
         stage=PromotionStage(row.stage),
+        medium=Medium(row.medium),
         parameters=dict(row.parameters),
         requested_by=PrincipalId(row.requested_by),
         started_at=row.started_at,
@@ -221,6 +223,9 @@ def _step_to_json(step: StepOutcome) -> dict[str, Any]:
         "status_code": step.status_code,
         "idempotency_key": step.idempotency_key,
         "assertion_failures": list(step.assertion_failures),
+        "escalated_from": step.escalated_from.value if step.escalated_from else None,
+        "escalation_reason": step.escalation_reason,
+        "matched_by": step.matched_by,
         "detail": step.detail,
     }
 
@@ -236,5 +241,8 @@ def _step_from_json(data: dict[str, Any]) -> StepOutcome:
         status_code=data.get("status_code"),
         idempotency_key=data.get("idempotency_key"),
         assertion_failures=tuple(data.get("assertion_failures") or ()),
+        escalated_from=(Medium(data["escalated_from"]) if data.get("escalated_from") else None),
+        escalation_reason=data.get("escalation_reason"),
+        matched_by=data.get("matched_by"),
         detail=data.get("detail"),
     )

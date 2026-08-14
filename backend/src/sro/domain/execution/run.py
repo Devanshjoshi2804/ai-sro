@@ -65,6 +65,17 @@ class StepOutcome:
     so a retry can tell "already done" from "never started"."""
 
     assertion_failures: tuple[str, ...] = ()
+
+    escalated_from: Medium | None = None
+    """Set when a slower medium finished what a faster one could not. The run
+    says which rung actually did the work, because a step that quietly needs the
+    browser every time is a skill drifting from the system it was taught on."""
+
+    escalation_reason: str | None = None
+    matched_by: str | None = None
+    """Which locator strategy found the control, for a UI step. A step that only
+    ever matches on the last fallback is about to break."""
+
     detail: str | None = None
     """Why it was withheld, skipped or failed. Never carries a response body."""
 
@@ -88,6 +99,11 @@ class Run:
     parameters: Mapping[str, str]
     requested_by: PrincipalId
     started_at: datetime
+
+    medium: Medium = Medium.NETWORK
+    """The rung this run performs the task at. Recorded on the run rather than
+    inferred from the steps, because "we ran this in a browser" is the first
+    thing anybody asks about a run that behaved oddly."""
 
     authorized_by: PrincipalId | None = None
     """Who authorised writes for this run. Required above shadow; a run that

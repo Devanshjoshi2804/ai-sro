@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     # runtime would make anything that schedules work import every adapter.
     from sro.container import Container
 from sro.application.execution.execute_skill import ExecutionRequest
-from sro.domain.execution.run import RunId
+from sro.domain.execution.run import Medium, RunId
 from sro.domain.shared.identifiers import (
     BrowserSessionId,
     PrincipalId,
@@ -55,6 +55,7 @@ class StartRunRequest:
     parameters: dict[str, str]
     version: int | None = None
     authorized_by: str | None = None
+    medium: str = "network"
 
 
 @dataclass
@@ -152,6 +153,7 @@ class Activities:
                 parameters=dict(request.parameters),
                 version=request.version,
                 authorized_by=request.authorized_by,
+                medium=Medium(request.medium),
             ),
         )
         uow = self._container.unit_of_work()

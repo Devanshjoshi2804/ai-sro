@@ -5,6 +5,7 @@ from __future__ import annotations
 from sro.application.induction.assertions import StepEvidence
 from sro.application.induction.diff import Parameterisation
 from sro.application.induction.headers import build_header_plans
+from sro.application.induction.locators import build_locators
 from sro.application.induction.sites import (
     ActionValueSite,
     Site,
@@ -27,13 +28,14 @@ def emit_step(
     parameterisation: Parameterisation,
     evidence: StepEvidence,
     objective: ObjectiveKey,
+    other: ActionFrame | None = None,
 ) -> SkillStep:
     replacements = parameterisation.for_step(index)
     return SkillStep(
         index=index,
         intent=_describe_intent(frame),
         network_plan=_network_plan(frame, replacements, objective),
-        ui_plan=_ui_plan(frame, replacements, evidence),
+        ui_plan=_ui_plan(frame, replacements, evidence, other),
         assertions=evidence.assertions,
         requires_human=_requires_human(frame),
     )
@@ -74,7 +76,10 @@ def _network_plan(
 
 
 def _ui_plan(
-    frame: ActionFrame, replacements: dict[Site, str], evidence: StepEvidence
+    frame: ActionFrame,
+    replacements: dict[Site, str],
+    evidence: StepEvidence,
+    other: ActionFrame | None = None,
 ) -> UiPlan | None:
     action = frame.action
     if action.target is None and action.kind is not ActionKind.NAVIGATE:
@@ -95,6 +100,11 @@ def _ui_plan(
         value=value,
         wait_for=evidence.wait_for,
         target_path=target_path,
+        locators=build_locators(
+            action.target,
+            other.action.target if other is not None else None,
+            value_placeholder=replacements.get(ActionValueSite()),
+        ),
     )
 
 

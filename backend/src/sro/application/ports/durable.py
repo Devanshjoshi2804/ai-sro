@@ -40,6 +40,7 @@ class DurableExecution(Protocol):
         parameters: dict[str, str],
         version: int | None = None,
         authorized_by: str | None = None,
+        medium: str = "network",
     ) -> RunId:
         """Perform a skill durably and wait for it to finish.
 

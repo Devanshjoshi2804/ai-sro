@@ -8,6 +8,7 @@ from sro.domain.recording.element import ElementFingerprint
 from sro.domain.recording.events import ActionKind
 from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.errors import InvariantViolation
+from sro.domain.skill.locator import ControlLocator
 from sro.domain.skill.template import Template
 
 _ACTIONS_NEEDING_TARGET = frozenset({"click", "type", "select", "upload"})
@@ -120,10 +121,26 @@ class UiPlan:
     ``dialog “Release” > form > button “Confirm”``. Disambiguates the third Save
     button on a page, which an accessible name alone cannot."""
 
+    locators: tuple[ControlLocator, ...] = ()
+    """How to find the control again, strongest strategy first.
+
+    Separate from ``target`` on purpose: the fingerprint is evidence about one
+    moment, and a locator is a decision about what will still be true later.
+    Empty means the demonstration produced nothing worth replaying by -- which
+    is a fact about that step, not a reason to guess."""
+
     def __post_init__(self) -> None:
         if self.action in _ACTIONS_NEEDING_TARGET and self.target is None:
             raise InvariantViolation(f"UiPlan for {self.action} requires a target element")
 
     @property
+    def replayable(self) -> bool:
+        """Whether a driver could act on this step at all."""
+        return self.action not in _ACTIONS_NEEDING_TARGET or bool(self.locators)
+
+    @property
     def placeholders(self) -> frozenset[str]:
-        return self.value.placeholders if self.value is not None else frozenset()
+        names = self.value.placeholders if self.value is not None else frozenset()
+        for locator in self.locators:
+            names |= locator.placeholders
+        return frozenset(names)

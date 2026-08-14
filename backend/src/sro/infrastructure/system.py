@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.execution.run import RunId
+from sro.domain.knowledge.entry import KnowledgeId
 from sro.domain.shared.identifiers import RecordingId, SkillId
 
 
@@ -26,3 +27,6 @@ class UuidFactory(IdFactory):
 
     def new_run_id(self) -> RunId:
         return RunId(f"run_{uuid.uuid4().hex}")
+
+    def new_knowledge_id(self) -> KnowledgeId:
+        return KnowledgeId(f"kb_{uuid.uuid4().hex}")

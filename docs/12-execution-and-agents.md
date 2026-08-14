@@ -253,6 +253,58 @@ nobody finds.
 `summary` is carried on the skills list as well as the detail, because a list
 that hides it hides the skill.
 
+## The knowledge store
+
+`knowledge-base/blue-yonder-sce/` was a folder nothing read. It is now loaded
+into `knowledge_entries` by `make ingest-kb`: **1,917 claims** — 551 endpoints,
+398 fields, 316 screens, 216+ status observations, 84 create forms, 21 recorded
+quirks.
+
+**Every entry carries the evidence behind it**, at the level the base itself
+recorded: `asserted` (written down, no stored exchange), `observed` (seen once),
+`reproduced` (re-run and matched), `round_trip` (created, read back, changed,
+deleted). Flattening these to "we know this" is precisely what the base's own
+audit caught — six documented behaviours turned out to be fiction, one of them
+"verified" against a route that never existed. So help-text fields land as
+`asserted` and a re-run probe battery lands as `reproduced`, and
+`automation_only` retrieval refuses anything below `reproduced`: an asserted
+claim may inform a human and may not build a request. That floor is a `WHERE`
+clause, not a filter over the page, because filtering after the limit hides
+strong claims behind weak ones that happened to sort first.
+
+**Nothing is ever overwritten.** A claim that replaces another leaves it in
+place pointing forward (`superseded_by`), because "we used to believe this" is
+the only way to explain an incident afterwards. Retrieval never returns
+superseded rows.
+
+**Evidence decides, not arrival order.** `domain/knowledge/supersede.py` is the
+whole learning loop in three verdicts: an identical claim from the same source
+is *unchanged* (which is what makes ingest re-runnable — proved by ingesting a
+frozen copy twice for 1,917 rows both times); stronger-or-equal evidence
+*supersedes*; weaker evidence contradicting stronger is *recorded but not
+believed*. Without that last rule a nightly re-scrape would silently erase
+everything execution had learned.
+
+**Runs write back.** `LearnFromRun` hangs off `FinishRun`, where the in-process
+and durable paths converge, and records what each verified step proved: this
+method and path answered this status, cited to the run. Three things teach it
+nothing — a withheld shadow write (built, never sent, status unknown), a step
+whose assertions failed (the skill and the system disagree; recording it would
+teach the store the skill's bugs), and a run that did not succeed. What is
+recorded is `reproduced`, never `round_trip`: the call was made and checked,
+which is not the same as creating, reading back, changing and deleting. Claiming
+the higher level is exactly the inflation the base's audit was about.
+
+**Retrieval is structured first, similar second.** System, kind and evidence
+narrow with `WHERE`; the vector only orders what survives. A nearest neighbour
+over the whole store answers with another system's endpoint, confidently. Both
+embeddings and transcription follow the same two-switch rule: a key is not
+consent to send, so `SRO_KNOWLEDGE_EMBEDDINGS_ENABLED` is a separate decision
+and retrieval works without it.
+
+Flows (`http/flows/*.json`) are deliberately not ingested: no key appears in all
+35 files, so any reader would be guessing. They stay as human evidence.
+
 ## Agents
 
 | Agent | Job | Model |

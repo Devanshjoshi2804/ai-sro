@@ -16,6 +16,7 @@ from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.application.ports.http import HttpResponse, TargetUnreachable
 from sro.application.ports.repositories import (
     ConnectionRepository,
+    KnowledgeRepository,
     RecordingRepository,
     RunRepository,
     SkillRepository,
@@ -23,6 +24,12 @@ from sro.application.ports.repositories import (
 from sro.application.ports.ui import ResolvedLocator, UiOutcome, UiUnavailable
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.run import Medium, Run, RunId
+from sro.domain.knowledge.entry import (
+    EntryKind,
+    EvidenceLevel,
+    KnowledgeEntry,
+    KnowledgeId,
+)
 from sro.domain.recording.events import ActionKind
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import NotFound
@@ -55,6 +62,7 @@ class FakeIdFactory:
         self._recordings = count(1)
         self._skills = count(1)
         self._runs = count(1)
+        self._knowledge = count(1)
 
     def new_recording_id(self) -> RecordingId:
         return RecordingId(f"rec-{next(self._recordings)}")
@@ -64,6 +72,9 @@ class FakeIdFactory:
 
     def new_run_id(self) -> RunId:
         return RunId(f"run-{next(self._runs)}")
+
+    def new_knowledge_id(self) -> KnowledgeId:
+        return KnowledgeId(f"kb-{next(self._knowledge)}")
 
 
 class FakeBrowserProvider:
@@ -408,6 +419,81 @@ class FakeCredentialVault:
         self.secrets.pop(key, None)
 
 
+class FakeKnowledgeRepository:
+    def __init__(self) -> None:
+        self.rows: dict[str, KnowledgeEntry] = {}
+
+    async def add(self, entry: KnowledgeEntry) -> None:
+        self.rows[str(entry.id)] = entry
+
+    async def save(self, entry: KnowledgeEntry) -> None:
+        self.rows[str(entry.id)] = entry
+
+    async def current(
+        self, tenant_id: TenantId, *, system: str, kind: EntryKind, key: str
+    ) -> KnowledgeEntry | None:
+        for entry in self.rows.values():
+            if (
+                entry.tenant_id == tenant_id
+                and entry.system == system
+                and entry.kind is kind
+                and entry.key == key
+                and entry.current
+            ):
+                return entry
+        return None
+
+    async def search(
+        self,
+        tenant_id: TenantId,
+        *,
+        system: str | None = None,
+        kinds: tuple[EntryKind, ...] = (),
+        terms: str = "",
+        embedding: tuple[float, ...] = (),
+        min_evidence: EvidenceLevel | None = None,
+        limit: int = 20,
+    ) -> tuple[KnowledgeEntry, ...]:
+        found = [
+            entry
+            for entry in self.rows.values()
+            if entry.tenant_id == tenant_id
+            and entry.current
+            and (system is None or entry.system == system)
+            and (not kinds or entry.kind in kinds)
+            and (min_evidence is None or entry.evidence.rank >= min_evidence.rank)
+            and (
+                not terms.strip()
+                or terms.lower() in entry.title.lower()
+                or terms.lower() in entry.key.lower()
+            )
+        ]
+        return tuple(found[:limit])
+
+
+class FakeEmbedder:
+    """Deterministic and meaningless: enough to prove a vector is stored and
+    passed, never enough to imply the numbers mean something."""
+
+    def __init__(self, available: bool = True) -> None:
+        self._available = available
+        self.asked: list[tuple[str, ...]] = []
+
+    @property
+    def available(self) -> bool:
+        return self._available
+
+    @property
+    def dimensions(self) -> int:
+        return 3
+
+    async def embed(self, texts: tuple[str, ...]) -> tuple[tuple[float, ...], ...]:
+        self.asked.append(texts)
+        if not self._available:
+            return tuple(() for _ in texts)
+        return tuple((float(len(text)), 1.0, 0.0) for text in texts)
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -418,12 +504,14 @@ class FakeUnitOfWork:
     skills: SkillRepository
     connections: ConnectionRepository
     runs: RunRepository
+    knowledge: KnowledgeRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
         self.skills = FakeSkillRepository()
         self.connections = FakeConnectionRepository()
         self.runs = FakeRunRepository()
+        self.knowledge = FakeKnowledgeRepository()
         self.commits = 0
         self.rollbacks = 0
 

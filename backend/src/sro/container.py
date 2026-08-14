@@ -24,10 +24,14 @@ from sro.application.execution.execute_skill import (
 )
 from sro.application.execution.read_runs import GetRun, ListRuns
 from sro.application.induction.induce_skill import InduceSkill
+from sro.application.knowledge.learn_from_run import LearnFromRun
+from sro.application.knowledge.record_claim import RecordClaims
+from sro.application.knowledge.retrieve import Retrieve
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.durable import DurableExecution
+from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import HttpCaller
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -50,6 +54,7 @@ from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.session import create_engine, create_session_factory
 from sro.infrastructure.http.httpx_caller import HttpxCaller
+from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
 from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
@@ -75,6 +80,7 @@ class Container:
     blobs: BlobStore
     browser: BrowserProvider
     transcriber: Transcriber
+    embedder: Embedder
     vault: CredentialVault
     http: HttpCaller
     ui: UiDriver
@@ -148,9 +154,18 @@ class Container:
     def describe_skill(self) -> DescribeSkill:
         return DescribeSkill(self.unit_of_work())
 
+    def learn_from_run(self) -> LearnFromRun:
+        return LearnFromRun(self.record_claims())
+
     def execute_skill(self) -> ExecuteSkill:
         return ExecuteSkill(
-            self.unit_of_work(), self.http, self.vault, self.clock, self.ids, self.ui
+            self.unit_of_work(),
+            self.http,
+            self.vault,
+            self.clock,
+            self.ids,
+            self.ui,
+            self.learn_from_run(),
         )
 
     def start_run(self) -> StartRun:
@@ -160,7 +175,13 @@ class Container:
         return ExecuteStep(self.unit_of_work(), self.http, self.vault, self.ui)
 
     def finish_run(self) -> FinishRun:
-        return FinishRun(self.unit_of_work(), self.clock)
+        return FinishRun(self.unit_of_work(), self.clock, self.learn_from_run())
+
+    def record_claims(self) -> RecordClaims:
+        return RecordClaims(self.unit_of_work(), self.clock, self.ids, self.embedder)
+
+    def retrieve_knowledge(self) -> Retrieve:
+        return Retrieve(self.unit_of_work(), self.embedder)
 
     def get_run(self) -> GetRun:
         return GetRun(self.unit_of_work())
@@ -178,6 +199,13 @@ def _build_transcriber(settings: Settings) -> Transcriber:
     if settings.transcription_enabled and settings.gemini_api_key:
         return GeminiTranscriber(settings.gemini_api_key, settings.gemini_transcription_model)
     return NullTranscriber()
+
+
+def _build_embedder(settings: Settings) -> Embedder:
+    """Same two-switch rule as transcription: a key is not consent to send."""
+    if settings.knowledge_embeddings_enabled and settings.gemini_api_key:
+        return GeminiEmbedder(settings.gemini_api_key, settings.gemini_embedding_model)
+    return NoEmbedder()
 
 
 def _build_vault(settings: Settings) -> CredentialVault:
@@ -235,6 +263,7 @@ def build_container(settings: Settings | None = None) -> Container:
             session_timeout_seconds=settings.steel_session_timeout_seconds,
         ),
         transcriber=_build_transcriber(settings),
+        embedder=_build_embedder(settings),
         vault=_build_vault(settings),
         http=HttpxCaller(),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),

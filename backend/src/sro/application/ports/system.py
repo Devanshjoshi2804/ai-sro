@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Protocol
 
 from sro.domain.execution.run import RunId
+from sro.domain.knowledge.entry import KnowledgeId
 from sro.domain.shared.identifiers import RecordingId, SkillId
 
 
@@ -21,3 +22,5 @@ class IdFactory(Protocol):
     def new_skill_id(self) -> SkillId: ...
 
     def new_run_id(self) -> RunId: ...
+
+    def new_knowledge_id(self) -> KnowledgeId: ...

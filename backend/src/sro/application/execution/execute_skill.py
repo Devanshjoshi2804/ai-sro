@@ -19,6 +19,7 @@ from dataclasses import dataclass, replace
 from sro.application.context import RequestContext
 from sro.application.execution.headers import client_headers, resolve_headers
 from sro.application.execution.verify import check, extract
+from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -431,18 +432,30 @@ class ExecuteStep:
 
 
 class FinishRun:
-    """Close the run and decide what it says."""
+    """Close the run and decide what it says.
 
-    def __init__(self, uow: UnitOfWork, clock: Clock) -> None:
+    Both paths end here -- in-process and durable -- which is why the knowledge
+    write-back hangs off this and not off the workflow: a run that survives a
+    restart teaches the store the same thing as one that did not.
+    """
+
+    def __init__(self, uow: UnitOfWork, clock: Clock, learn: LearnFromRun | None = None) -> None:
         self._uow = uow
         self._clock = clock
+        self._learn = learn
 
     async def execute(self, ctx: RequestContext, *, run_id: RunId) -> Run:
         async with self._uow as uow:
             run = await uow.runs.get(ctx.tenant_id, run_id)
             run.finish(self._clock.now())
             await uow.runs.save(run)
+            skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
             await uow.commit()
+
+        if self._learn is not None:
+            # After the commit: what the run did is the record, and a failure to
+            # write down what was learned must not undo it.
+            await self._learn.execute(ctx, run=run, system=skill.objective_key.target_system)
         return run
 
 
@@ -461,11 +474,12 @@ class ExecuteSkill:
         clock: Clock,
         ids: IdFactory,
         ui: UiDriver | None = None,
+        learn: LearnFromRun | None = None,
     ) -> None:
         self._uow = uow
         self._start = StartRun(uow, clock, ids)
         self._step = ExecuteStep(uow, http, vault, ui)
-        self._finish = FinishRun(uow, clock)
+        self._finish = FinishRun(uow, clock, learn)
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
         run = await self._start.execute(ctx, request)

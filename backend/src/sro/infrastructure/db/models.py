@@ -9,7 +9,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Index, Integer, String, Text
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import DateTime, Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -136,3 +137,42 @@ class RunRow(Base):
     failure: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (Index("ix_runs_tenant_started", "tenant_id", "started_at"),)
+
+
+EMBEDDING_DIMENSIONS = 768
+"""Fixed by the column. Changing the embedding model means re-embedding the
+store, not mixing two geometries in one index."""
+
+
+class KnowledgeRow(Base):
+    __tablename__ = "knowledge_entries"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    system: Mapped[str] = mapped_column(String(64), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[str] = mapped_column(String(16), nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    # Superseded rows are kept: "we used to believe this" is the only way to
+    # explain an incident afterwards.
+    superseded_by: Mapped[str | None] = mapped_column(String(64))
+
+    embedding: Mapped[Any] = mapped_column(Vector(EMBEDDING_DIMENSIONS), nullable=True)
+
+    __table_args__ = (
+        # Retrieval filters on all four before it ever measures a distance.
+        Index(
+            "ix_knowledge_current",
+            "tenant_id",
+            "system",
+            "kind",
+            "key",
+            postgresql_where=text("superseded_by IS NULL"),
+        ),
+        Index("ix_knowledge_tenant_kind", "tenant_id", "kind"),
+    )

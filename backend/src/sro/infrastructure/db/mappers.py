@@ -17,6 +17,12 @@ from sro.domain.execution.run import (
     StepDisposition,
     StepOutcome,
 )
+from sro.domain.knowledge.entry import (
+    EntryKind,
+    EvidenceLevel,
+    KnowledgeEntry,
+    KnowledgeId,
+)
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import (
     BrowserSessionId,
@@ -38,7 +44,13 @@ from sro.infrastructure.db.codec import (
     load_narration,
     load_versions,
 )
-from sro.infrastructure.db.models import ConnectionRow, RecordingRow, RunRow, SkillRow
+from sro.infrastructure.db.models import (
+    ConnectionRow,
+    KnowledgeRow,
+    RecordingRow,
+    RunRow,
+    SkillRow,
+)
 
 _OBJECTIVE_COLUMNS = ("objective_type", "target_system", "entity_type", "facility", "direction")
 
@@ -268,4 +280,41 @@ def _step_from_json(data: dict[str, Any]) -> StepOutcome:
         escalation_reason=data.get("escalation_reason"),
         matched_by=data.get("matched_by"),
         detail=data.get("detail"),
+    )
+
+
+def knowledge_to_row(entry: KnowledgeEntry) -> KnowledgeRow:
+    row = KnowledgeRow(id=str(entry.id))
+    update_knowledge_row(row, entry)
+    return row
+
+
+def update_knowledge_row(row: KnowledgeRow, entry: KnowledgeEntry) -> None:
+    row.tenant_id = entry.tenant_id.value
+    row.system = entry.system
+    row.kind = entry.kind.value
+    row.key = entry.key
+    row.title = entry.title
+    row.body = dict(entry.body)
+    row.source = entry.source
+    row.evidence = entry.evidence.value
+    row.observed_at = entry.observed_at
+    row.superseded_by = str(entry.superseded_by) if entry.superseded_by else None
+    row.embedding = list(entry.embedding) if entry.embedding else None
+
+
+def row_to_knowledge(row: KnowledgeRow) -> KnowledgeEntry:
+    return KnowledgeEntry(
+        id=KnowledgeId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        system=row.system,
+        kind=EntryKind(row.kind),
+        key=row.key,
+        title=row.title,
+        body=dict(row.body or {}),
+        source=row.source,
+        evidence=EvidenceLevel(row.evidence),
+        observed_at=row.observed_at,
+        superseded_by=KnowledgeId(row.superseded_by) if row.superseded_by else None,
+        embedding=tuple(row.embedding) if row.embedding is not None else (),
     )

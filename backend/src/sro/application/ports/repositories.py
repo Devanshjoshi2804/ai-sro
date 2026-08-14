@@ -11,6 +11,7 @@ from typing import Protocol
 
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.run import Run, RunId
+from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.identifiers import RecordingId, SkillId, TenantId
 from sro.domain.shared.objective import ObjectiveKey
@@ -93,6 +94,37 @@ class RunRepository(Protocol):
         ...
 
 
+class KnowledgeRepository(Protocol):
+    async def add(self, entry: KnowledgeEntry) -> None: ...
+
+    async def current(
+        self, tenant_id: TenantId, *, system: str, kind: EntryKind, key: str
+    ) -> KnowledgeEntry | None:
+        """The claim believed right now for this key, if there is one."""
+        ...
+
+    async def save(self, entry: KnowledgeEntry) -> None: ...
+
+    async def search(
+        self,
+        tenant_id: TenantId,
+        *,
+        system: str | None = None,
+        kinds: tuple[EntryKind, ...] = (),
+        terms: str = "",
+        embedding: tuple[float, ...] = (),
+        min_evidence: EvidenceLevel | None = None,
+        limit: int = 20,
+    ) -> tuple[KnowledgeEntry, ...]:
+        """Superseded entries are never returned: they are history, not belief.
+
+        Structured filters narrow first and similarity only orders what is left
+        -- ``docs/09-agentic-standards.md``, because a nearest neighbour across
+        the whole store answers confidently with the wrong system's endpoint.
+        """
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -100,6 +132,7 @@ class UnitOfWork(Protocol):
     skills: SkillRepository
     connections: ConnectionRepository
     runs: RunRepository
+    knowledge: KnowledgeRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

@@ -10,7 +10,7 @@ FRONTEND := cd frontend &&
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs reset install migrate revision api worker web vault-key \
         lint lint-backend lint-frontend format test test-unit test-integration \
-        test-contract types check
+        test-contract types check ingest-kb
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -60,6 +60,9 @@ worker: ## Run the Temporal worker
 
 web: ## Run the Next.js dev server on :3000
 	$(FRONTEND) npm run dev
+
+ingest-kb: ## Load the recorded Blue Yonder knowledge base: make ingest-kb [tenant=acme]
+	$(BACKEND) uv run python -m sro.infrastructure.knowledge.ingest $(or $(tenant),acme)
 
 types: ## Regenerate frontend API types from the backend OpenAPI document
 	$(BACKEND) uv run python -m sro.interface.http.export_openapi > ../frontend/openapi.json

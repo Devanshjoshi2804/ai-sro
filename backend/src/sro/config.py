@@ -84,6 +84,12 @@ class Settings(BaseSettings):
     a customer's screen or a customer's words to a hosted model."""
 
     gemini_transcription_model: str = "gemini-2.5-flash"
+    gemini_embedding_model: str = "gemini-embedding-001"
+
+    knowledge_embeddings_enabled: bool = False
+    """Embeddings order what a structured filter already chose. Off by default:
+    retrieval works without them, and turning them on sends the knowledge base's
+    titles to a hosted model."""
 
 
 @lru_cache

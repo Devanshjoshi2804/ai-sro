@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from types import TracebackType
@@ -12,6 +14,13 @@ from playwright.async_api import Browser, async_playwright
 
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.domain.shared.identifiers import BrowserSessionId
+
+logger = logging.getLogger(__name__)
+
+_LIVE_ATTEMPTS = 4
+_LIVE_POLL_SECONDS = 0.5
+"""Chrome takes a moment to attach, so `idle` is only a failure once it has had
+a few seconds to stop being one."""
 
 
 class SteelClient:
@@ -50,15 +59,78 @@ class SteelClient:
             raise BrowserUnavailable(f"could not start a Steel session: {exc}") from exc
 
         body = response.json()
-        session_id = str(body["id"])
+        session_id = BrowserSessionId(str(body["id"]))
+        await self._require_browser(session_id, str(body.get("status", "")))
+
         return BrowserSession(
-            id=BrowserSessionId(session_id),
+            id=session_id,
             # Steel reports its own URLs as seen from inside its container
             # (0.0.0.0:3000). Only the path is usable from out here; the host
             # comes from configuration, which knows the published ports.
             live_view_url=self._base_url + _path_of(body.get("sessionViewerUrl")),
             debugger_url=await self._websocket_debugger_url(),
         )
+
+    async def _require_browser(self, session_id: BrowserSessionId, status: str) -> None:
+        """Refuse a session that has no browser behind it.
+
+        Steel answers 201 whether or not Chrome came up: a session with nothing
+        attached is reported as `idle`, and a self-hosted Steel has exactly one
+        browser to give. Handing that back produced a teaching session that
+        looked like it was recording and showed "the browser session has ended"
+        -- half an hour of a demonstration going nowhere.
+
+        A brief `idle` is normal while Chrome starts, so this waits before
+        deciding, and then says which session is holding the browser.
+        """
+        for attempt in range(_LIVE_ATTEMPTS):
+            if status.lower() == "live":
+                return
+            if status.lower() in {"released", "failed"}:
+                break
+            await asyncio.sleep(_LIVE_POLL_SECONDS * (attempt + 1))
+            status = await self._status(session_id)
+
+        holders = [
+            held for held in await self._live_sessions() if str(held.get("id")) != str(session_id)
+        ]
+        await self.close(session_id)
+        raise BrowserUnavailable(
+            f"Steel accepted the session but no browser attached to it (status {status!r})"
+            + (
+                "; "
+                + ", ".join(
+                    f"{held.get('id')} has been {held.get('status')} since {held.get('createdAt')}"
+                    for held in holders[:3]
+                )
+                + " — a self-hosted Steel has one browser, and a session it still calls live "
+                "after its Chrome has gone will hold it forever. Restart the Steel container."
+                if holders
+                else " — check that Chrome can start inside the Steel container."
+            )
+        )
+
+    async def _status(self, session_id: BrowserSessionId) -> str:
+        try:
+            response = await self._client.get(f"{self._base_url}/v1/sessions/{session_id}")
+            response.raise_for_status()
+        except httpx.HTTPError:
+            return "unknown"
+        return str(response.json().get("status", "unknown"))
+
+    async def _live_sessions(self) -> list[dict[str, object]]:
+        """Sessions Steel currently believes are using the browser."""
+        try:
+            response = await self._client.get(f"{self._base_url}/v1/sessions")
+            response.raise_for_status()
+        except httpx.HTTPError:
+            return []
+        sessions = response.json().get("sessions", [])
+        return [
+            session
+            for session in sessions
+            if str(session.get("status", "")).lower() in {"live", "idle"}
+        ]
 
     async def _websocket_debugger_url(self) -> str:
         """Chrome's own websocket endpoint, with the host put back.
@@ -80,7 +152,12 @@ class SteelClient:
 
     async def close(self, session_id: BrowserSessionId) -> None:
         """Release the session. A 404 is success -- crash recovery calls this on
-        sessions the provider already reaped."""
+        sessions the provider already reaped.
+
+        The release is checked rather than assumed. Steel answers 200 to
+        releasing a session whose Chrome has already died and leaves it marked
+        live, which reads as success and holds the only browser forever.
+        """
         try:
             response = await self._client.post(f"{self._base_url}/v1/sessions/{session_id}/release")
             if response.status_code == httpx.codes.NOT_FOUND:
@@ -90,6 +167,15 @@ class SteelClient:
             raise BrowserUnavailable(
                 f"could not release Steel session {session_id}: {exc}"
             ) from exc
+
+        if (status := await self._status(session_id)).lower() in {"live", "idle"}:
+            logger.warning(
+                "Steel accepted the release of %s and still reports it as %s; "
+                "its browser is gone and the session will hold Steel's only one "
+                "until the container is restarted",
+                session_id,
+                status,
+            )
 
     async def navigate(self, session_id: BrowserSessionId, url: str) -> None:
         async with self._attached() as browser:
@@ -140,7 +226,9 @@ class SteelClient:
             raise BrowserUnavailable(f"could not read Steel session {session_id}: {exc}") from exc
 
         body = response.json()
-        if str(body.get("status", "")).lower() in {"released", "failed"}:
+        # `idle` too: a viewer pointed at a session with no browser behind it
+        # renders an empty frame that reads as "the operator's work vanished".
+        if str(body.get("status", "")).lower() in {"released", "failed", "idle"}:
             return None
         return self._base_url + _path_of(body.get("sessionViewerUrl"))
 

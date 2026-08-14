@@ -159,6 +159,18 @@ Steel quirks, all worked around in `infrastructure/steel/client.py`: health is a
 strips the port from `webSocketDebuggerUrl`; `startUrl` is ignored for an
 attached browser, so the adapter navigates itself.
 
+- **A Steel session is not a browser.** `POST /v1/sessions` answers 201 whether
+  or not Chrome came up, and a session with nothing attached is reported `idle`.
+  `open()` waits for `live` and refuses otherwise, because handing that back
+  produced a teaching session that said "Recording · run 1 of 2" over a viewer
+  reading "the browser session has ended".
+- **Steel does not notice its own dead browser.** When Chrome dies leaving a
+  stale `/tmp/steel-chrome/SingletonLock`, the session stays `live` forever and
+  holds the only browser a self-hosted Steel has. Releasing it answers **200 and
+  changes nothing**, so `close()` checks afterwards and warns. The refusal from
+  `open()` names the holder and says to restart the container, because that is
+  the only thing that clears it.
+
 ## Testing
 
 - `tests/unit` — fakes only, no Docker, no network, no real clock.

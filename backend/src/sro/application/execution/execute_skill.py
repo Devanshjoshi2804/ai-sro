@@ -27,7 +27,16 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.ui import ResolvedLocator, UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
 from sro.domain.execution.escalation import FailureKind, next_medium
-from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
+from sro.domain.execution.run import (
+    Medium,
+    Run,
+    RunId,
+    RunStatus,
+    StepDisposition,
+    StepOutcome,
+)
+from sro.domain.execution.safety import FAILURE_WINDOW, WRITE_WINDOW, RunFact, assess
+from sro.domain.execution.verdict import judge
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import PrincipalId, SkillId
 from sro.domain.skill.parameter import Parameter, ParameterKind
@@ -57,6 +66,16 @@ class ExecutionRequest:
     unit that changes rung, and today a human picks it."""
 
 
+class Refused(DomainError):
+    """A safety limit stopped this before anything was sent.
+
+    Separate from NotRunnable, which is about the skill: this is about the
+    system's recent behaviour, and the answer is a person rather than a retry.
+    """
+
+    code = "refused"
+
+
 class StartRun:
     """Create the run. Nothing has been sent when this returns."""
 
@@ -66,10 +85,22 @@ class StartRun:
         self._ids = ids
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
+        now = self._clock.now()
         async with self._uow as uow:
             skill = await uow.skills.get(ctx.tenant_id, request.skill_id)
             version = _version_of(skill, request.version)
             _check_runnable(version, request)
+
+            # Checked here because here is where nothing has happened yet. A
+            # limit enforced after the first write is a limit that has already
+            # been exceeded.
+            system = skill.objective_key.target_system
+            recent = await uow.runs.finished_since(
+                ctx.tenant_id, target_system=system, since=now - FAILURE_WINDOW - WRITE_WINDOW
+            )
+            verdict = assess(tuple(_fact(run) for run in recent), now)
+            if not verdict.permitted:
+                raise Refused(verdict.reason or "recent runs against this system have failed")
 
             run = Run(
                 id=self._ids.new_run_id(),
@@ -79,9 +110,10 @@ class StartRun:
                 stage=version.stage,
                 parameters=dict(request.parameters),
                 requested_by=ctx.principal_id,
-                started_at=self._clock.now(),
+                started_at=now,
                 authorized_by=_principal(request.authorized_by),
                 medium=request.medium,
+                target_system=system,
             )
             await uow.runs.add(run)
             await uow.commit()
@@ -488,9 +520,26 @@ class FinishRun:
     async def execute(self, ctx: RequestContext, *, run_id: RunId) -> Run:
         async with self._uow as uow:
             run = await uow.runs.get(ctx.tenant_id, run_id)
-            run.finish(self._clock.now())
+            now = self._clock.now()
+            run.finish(now)
             await uow.runs.save(run)
+
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
+            version = skill.version(run.skill_version)
+            verdict = judge(run)
+            version.record_run(verdict, now)
+            # Demotion is automatic and needs no human, which is exactly why it
+            # is bounded by a small number: confirming a few runs costs an
+            # operator minutes, and a broken autonomous skill keeps writing.
+            if version.track_record.should_demote and version.stage.rung > (
+                PromotionStage.SHADOW.rung
+            ):
+                version.demote(
+                    PromotionStage.SHADOW,
+                    now,
+                    f"{version.track_record.consecutive_failures} runs failed in a row",
+                )
+            await uow.skills.save(skill)
             await uow.commit()
 
         if self._learn is not None:
@@ -570,6 +619,14 @@ def _derive(produces: Parameter | None, response: HttpResponse) -> dict[str, str
     return {} if value is None else {produces.name: value}
 
 
+def _fact(run: Run) -> RunFact:
+    return RunFact(
+        finished_at=run.ended_at or run.started_at,
+        failed=run.status is RunStatus.FAILED,
+        writes=run.writes_sent,
+    )
+
+
 def _principal(value: str | None) -> PrincipalId | None:
     return PrincipalId(value) if value else None
 
@@ -580,5 +637,6 @@ __all__ = [
     "ExecutionRequest",
     "FinishRun",
     "NotRunnable",
+    "Refused",
     "StartRun",
 ]

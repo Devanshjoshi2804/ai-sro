@@ -8,6 +8,7 @@ that does not exist -- the difference is not something a caller may learn.
 from __future__ import annotations
 
 import re
+from datetime import datetime
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -222,6 +223,18 @@ class SqlRunRepository(RunRepository):
         if skill_id is not None:
             query = query.where(RunRow.skill_id == skill_id.value)
         query = query.order_by(RunRow.started_at.desc()).limit(limit).offset(offset)
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_run(row) for row in rows)
+
+    async def finished_since(
+        self, tenant_id: TenantId, *, target_system: str, since: datetime
+    ) -> tuple[Run, ...]:
+        query = select(RunRow).where(
+            RunRow.tenant_id == tenant_id.value,
+            RunRow.target_system == target_system,
+            RunRow.ended_at.is_not(None),
+            RunRow.ended_at >= since,
+        )
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_run(row) for row in rows)
 

@@ -12,6 +12,7 @@ from sro.domain.skill.assertion import Assertion
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.plan import NetworkPlan, UiPlan
 from sro.domain.skill.promotion import PromotionStage, check_promotion
+from sro.domain.skill.track_record import TrackRecord, Verdict, why_not_autonomous
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,8 +87,15 @@ class SkillVersion:
     promoted_at: datetime | None = None
     promoted_by: PrincipalId | None = None
 
+    track_record: TrackRecord = field(default_factory=TrackRecord)
+    """What this version has actually done. Autonomy is earned from this, never
+    granted by a click."""
+
     summary: str = ""
     """What this version does, in a sentence."""
+
+    demotion_reason: str | None = None
+    """Why this version was pulled back down, when it was."""
 
     when_to_use: str = ""
     """When to reach for it.
@@ -121,8 +129,36 @@ class SkillVersion:
         self.summary = summary.strip()
         self.when_to_use = when_to_use.strip()
 
+    @property
+    def verifiable(self) -> bool:
+        """Whether a run of this can be checked at all.
+
+        A skill with no assertion anywhere produces runs that only ever prove a
+        request was sent. That may run assisted forever; it may never run
+        unattended.
+        """
+        return any(step.assertions for step in self.steps)
+
+    def record_run(self, verdict: Verdict, at: datetime) -> None:
+        self.track_record = self.track_record.after(verdict, at)
+
+    def demote(self, to: PromotionStage, at: datetime, why: str) -> None:
+        """Pull a version back down. Not a promotion in reverse: this happens
+        automatically, without a human, which is exactly why it is a separate
+        method with a reason attached."""
+        if to.rung >= self.stage.rung:
+            raise InvariantViolation(f"{to} is not below {self.stage}")
+        self.stage = to
+        self.promoted_at = at
+        self.promoted_by = None
+        self.demotion_reason = why
+
     def promote(self, to: PromotionStage, at: datetime, by: PrincipalId) -> None:
         check_promotion(self.stage, to)
+        if to is PromotionStage.AUTONOMOUS and (
+            refusal := why_not_autonomous(self.track_record, verifiable=self.verifiable)
+        ):
+            raise InvariantViolation(f"not ready to run unattended: {refusal}")
         if at.tzinfo is None:
             raise InvariantViolation("promotion timestamp must be timezone-aware")
         self.stage = to

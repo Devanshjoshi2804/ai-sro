@@ -7,6 +7,7 @@ instead of returning ``None``.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol
 
 from sro.domain.chat.thread import Thread, ThreadId
@@ -93,6 +94,12 @@ class RunRepository(Protocol):
         offset: int = 0,
     ) -> tuple[Run, ...]:
         """Newest first."""
+        ...
+
+    async def finished_since(
+        self, tenant_id: TenantId, *, target_system: str, since: datetime
+    ) -> tuple[Run, ...]:
+        """Runs against one system that have ended. What the breaker reads."""
         ...
 
 

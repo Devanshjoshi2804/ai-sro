@@ -11,10 +11,13 @@ An operator demonstrates a warehouse task in a browser. The system records it an
 turns two demonstrations of the same task into a parameterised, reviewable
 **skill**.
 
-Today the system captures, induces and **executes**: `HIGHEST_PERMITTED_STAGE` is
-`ASSISTED`, so a reviewed skill performs real writes against a live WMS when a
-run names the human who authorised it. L1 (network replay) and L2 (UI replay)
-are built; L3 (vision), chat and autonomy are not. The medium ladder and the
+Today the system captures, induces, **executes** and **is asked for work in
+chat**. All three rungs are built — L1 network replay, L2 UI replay, L3 Gemini
+computer use — and `HIGHEST_PERMITTED_STAGE` is `AUTONOMOUS`. The ceiling is not
+what holds the line: `SkillVersion.promote` refuses the last rung until a
+version is checkable and has ten consecutive clean runs, three consecutive
+failures demote it automatically, and a circuit breaker stops a run before it
+starts. The medium ladder and the
 agent design are in [`docs/12-execution-and-agents.md`](docs/12-execution-and-agents.md)
 — read it before building anything that runs a skill.
 
@@ -179,7 +182,8 @@ database and will otherwise accept the suite's work and fail to find it.
 | Path | Why |
 |---|---|
 | `backend/pyproject.toml` `[tool.importlinter]` | The architecture guard |
-| `domain/skill/promotion.py` | Governance ladder. `HIGHEST_PERMITTED_STAGE` must not rise without an executor and cross-path verification. |
+| `domain/skill/promotion.py` | Governance ladder. The ceiling is open; `SkillVersion.promote` and `domain/skill/track_record.py` are what refuse autonomy. |
+| `domain/execution/safety.py` | Circuit breaker and blast radius. Loosening a limit here is a decision about a customer's warehouse. |
 | `domain/recording/sensitivity.py` | Decides what may leave the evidence plane. Name-based by design; classifying by inspecting values is the inference ADR 004 forbids. |
 | `infrastructure/steel/recorder.js` | See capture invariants above |
 | `infra/docker-compose.yml` | Port map is deliberate; Steel is on 3010 so Next keeps 3000 |

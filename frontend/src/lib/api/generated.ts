@@ -970,6 +970,11 @@ export interface components {
             summary: string;
             /** When To Use */
             when_to_use: string;
+            track_record: components["schemas"]["TrackRecordModel"];
+            /** Ready For Autonomy */
+            ready_for_autonomy: string | null;
+            /** Demotion Reason */
+            demotion_reason: string | null;
             /**
              * Induced At
              * Format: date-time
@@ -1082,6 +1087,19 @@ export interface components {
             opened_at: string;
             /** Message Count */
             message_count: number;
+        };
+        /** TrackRecordModel */
+        TrackRecordModel: {
+            /** Clean Streak */
+            clean_streak: number;
+            /** Consecutive Failures */
+            consecutive_failures: number;
+            /** Clean Runs */
+            clean_runs: number;
+            /** Degraded Runs */
+            degraded_runs: number;
+            /** Failed Runs */
+            failed_runs: number;
         };
         /** UiPlanModel */
         UiPlanModel: {

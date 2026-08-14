@@ -3225,6 +3225,31 @@
             "type": "string",
             "title": "When To Use"
           },
+          "track_record": {
+            "$ref": "#/components/schemas/TrackRecordModel"
+          },
+          "ready_for_autonomy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready For Autonomy"
+          },
+          "demotion_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demotion Reason"
+          },
           "induced_at": {
             "type": "string",
             "format": "date-time",
@@ -3266,6 +3291,9 @@
           "stage",
           "summary",
           "when_to_use",
+          "track_record",
+          "ready_for_autonomy",
+          "demotion_reason",
           "induced_at",
           "induced_by",
           "recording_ids",
@@ -3619,6 +3647,39 @@
           "message_count"
         ],
         "title": "ThreadSummary"
+      },
+      "TrackRecordModel": {
+        "properties": {
+          "clean_streak": {
+            "type": "integer",
+            "title": "Clean Streak"
+          },
+          "consecutive_failures": {
+            "type": "integer",
+            "title": "Consecutive Failures"
+          },
+          "clean_runs": {
+            "type": "integer",
+            "title": "Clean Runs"
+          },
+          "degraded_runs": {
+            "type": "integer",
+            "title": "Degraded Runs"
+          },
+          "failed_runs": {
+            "type": "integer",
+            "title": "Failed Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clean_streak",
+          "consecutive_failures",
+          "clean_runs",
+          "degraded_runs",
+          "failed_runs"
+        ],
+        "title": "TrackRecordModel"
       },
       "UiPlanModel": {
         "properties": {

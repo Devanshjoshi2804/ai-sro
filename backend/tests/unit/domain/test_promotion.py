@@ -34,15 +34,19 @@ def test_promotion_cannot_go_backwards() -> None:
         check_promotion(PromotionStage.SHADOW, PromotionStage.RECORDED)
 
 
-def test_this_release_refuses_to_go_past_assisted() -> None:
-    # ASSISTED is available because an L1 executor exists and checks every step
-    # against the demonstration's assertions. AUTONOMOUS additionally claims a
-    # result is right when no human looked, which needs one medium's outcome
-    # checked against another's -- and nothing here does that yet.
-    assert HIGHEST_PERMITTED_STAGE is PromotionStage.ASSISTED
+def test_the_ladder_is_open_to_the_top_and_the_evidence_holds_the_line() -> None:
+    # The ceiling is no longer what stops autonomy: a version's own record does.
+    # A one-line config change could always have lifted a ceiling; a clean-run
+    # streak cannot be edited into existence.
+    assert HIGHEST_PERMITTED_STAGE is PromotionStage.AUTONOMOUS
+    check_promotion(PromotionStage.ASSISTED, PromotionStage.AUTONOMOUS)
 
-    with pytest.raises(InvariantViolation, match="unattended"):
-        check_promotion(PromotionStage.ASSISTED, PromotionStage.AUTONOMOUS)
+    version = f.skill_version()
+    version.promote(PromotionStage.SHADOW, f.at(10), f.OPERATOR)
+    version.promote(PromotionStage.ASSISTED, f.at(20), f.OPERATOR)
+
+    with pytest.raises(InvariantViolation, match="cannot be checked"):
+        version.promote(PromotionStage.AUTONOMOUS, f.at(30), f.OPERATOR)
 
 
 def test_promotion_records_who_and_when() -> None:

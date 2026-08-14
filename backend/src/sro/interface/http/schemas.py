@@ -19,6 +19,7 @@ from sro.domain.execution.run import Run, StepOutcome
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.skill import Skill, SkillVersion
+from sro.domain.skill.track_record import why_not_autonomous
 
 
 class ObjectiveKeyModel(BaseModel):
@@ -307,11 +308,25 @@ class StepModel(BaseModel):
     assertions: list[AssertionModel]
 
 
+class TrackRecordModel(BaseModel):
+    clean_streak: int
+    consecutive_failures: int
+    clean_runs: int
+    degraded_runs: int
+    failed_runs: int
+
+
 class SkillVersionModel(BaseModel):
     version: int
     stage: str
     summary: str
     when_to_use: str
+    track_record: TrackRecordModel
+    ready_for_autonomy: str | None
+    """``None`` when it is ready; otherwise the reason it is not. A gate that
+    says no without saying why is a gate people work around."""
+
+    demotion_reason: str | None
     induced_at: datetime
     induced_by: str
     recording_ids: list[str]
@@ -326,6 +341,17 @@ class SkillVersionModel(BaseModel):
             stage=version.stage.value,
             summary=version.summary,
             when_to_use=version.when_to_use,
+            track_record=TrackRecordModel(
+                clean_streak=version.track_record.clean_streak,
+                consecutive_failures=version.track_record.consecutive_failures,
+                clean_runs=version.track_record.clean_runs,
+                degraded_runs=version.track_record.degraded_runs,
+                failed_runs=version.track_record.failed_runs,
+            ),
+            ready_for_autonomy=why_not_autonomous(
+                version.track_record, verifiable=version.verifiable
+            ),
+            demotion_reason=version.demotion_reason,
             induced_at=version.provenance.induced_at,
             induced_by=version.provenance.induced_by.value,
             recording_ids=[r.value for r in version.provenance.recording_ids],

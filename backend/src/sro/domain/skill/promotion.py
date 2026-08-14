@@ -25,14 +25,20 @@ class PromotionStage(StrEnum):
         return PromotionStage(_ORDER[self.rung + 1])
 
 
-# ASSISTED because an L1 executor now exists and every step it performs is
-# checked against the assertions the demonstration established. AUTONOMOUS stays
-# closed: it additionally requires the cross-path check (an L2 or L3 result
-# verified against what L1 would have produced), which arrives with those rungs.
+# AUTONOMOUS is reachable now that the things which make it survivable exist:
+# a run is classified (domain/execution/verdict.py), a version's clean streak is
+# counted rather than asserted, a skill with no assertion anywhere can never
+# qualify, three consecutive failures demote automatically, and a circuit
+# breaker plus a write budget stop a run before it starts.
+#
+# Reachable is not the same as easy. `SkillVersion.promote` refuses the last
+# rung until the record earns it, so the ceiling is no longer what holds the
+# line -- the evidence is.
 #
 # The difference the ladder actually makes: at SHADOW a write is produced and
-# withheld, at ASSISTED it is sent and the run names the human who allowed it.
-HIGHEST_PERMITTED_STAGE = PromotionStage.ASSISTED
+# withheld, at ASSISTED it is sent and the run names the human who allowed it,
+# at AUTONOMOUS nobody is named because nobody was asked.
+HIGHEST_PERMITTED_STAGE = PromotionStage.AUTONOMOUS
 
 
 def check_promotion(current: PromotionStage, target: PromotionStage) -> None:

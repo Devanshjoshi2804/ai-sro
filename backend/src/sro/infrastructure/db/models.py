@@ -123,6 +123,7 @@ class RunRow(Base):
     skill_version: Mapped[int] = mapped_column(Integer, nullable=False)
     stage: Mapped[str] = mapped_column(String(16), nullable=False)
     medium: Mapped[str] = mapped_column(String(16), nullable=False, default="network")
+    target_system: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     status: Mapped[str] = mapped_column(String(16), nullable=False)
 
     requested_by: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -136,7 +137,11 @@ class RunRow(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     failure: Mapped[str | None] = mapped_column(Text)
 
-    __table_args__ = (Index("ix_runs_tenant_started", "tenant_id", "started_at"),)
+    __table_args__ = (
+        Index("ix_runs_tenant_started", "tenant_id", "started_at"),
+        # The breaker's question: how has this system behaved lately.
+        Index("ix_runs_system_ended", "tenant_id", "target_system", "ended_at"),
+    )
 
 
 EMBEDDING_DIMENSIONS = 768

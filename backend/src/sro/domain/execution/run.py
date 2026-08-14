@@ -105,6 +105,14 @@ class Run:
     inferred from the steps, because "we ran this in a browser" is the first
     thing anybody asks about a run that behaved oddly."""
 
+    target_system: str = ""
+    """Which system this run wrote to.
+
+    Copied from the skill rather than joined: the circuit breaker asks "how has
+    this system behaved lately", and a join through a skill that has since been
+    re-induced would answer a different question.
+    """
+
     authorized_by: PrincipalId | None = None
     """Who authorised writes for this run. Required above shadow; a run that
     changed a warehouse names the human who allowed it."""
@@ -132,6 +140,15 @@ class Run:
                 f"a {self.stage} run performs real writes and must name the human who authorised it"
             )
         self.parameters = MappingProxyType(dict(self.parameters))
+
+    @property
+    def writes_sent(self) -> int:
+        """Mutating steps that actually went out. What the blast radius counts."""
+        return sum(
+            1
+            for step in self.steps
+            if step.disposition is StepDisposition.PERFORMED and step.idempotency_key is not None
+        )
 
     @property
     def performs_writes(self) -> bool:

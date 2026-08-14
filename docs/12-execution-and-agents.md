@@ -443,6 +443,65 @@ wrapped once (`application/knowledge/vectors.py`) and a failure costs the caller
 its ordering and nothing else. The same rule holds for any optional rung: the
 system without it must be the system, degraded, not the system, broken.
 
+## Autonomy as built
+
+The ceiling is gone: `HIGHEST_PERMITTED_STAGE` is `AUTONOMOUS`. That is not a
+loosening, because the thing holding the line is no longer a constant somebody
+could edit — it is a record nobody can fake.
+
+**A run is classified, not just counted.** `domain/execution/verdict.py` calls a
+finished run `clean` (every step at L1, every assertion passed), `degraded` (it
+worked, but a slower rung had to finish it), `failed`, or `withheld` (a shadow
+rehearsal). The distinction that matters: a run which succeeded *because vision
+found the button somewhere new* succeeded **and** told us the recipe is stale.
+It resets the streak rather than advancing it.
+
+**Autonomy is earned twice over.** `SkillVersion.promote` refuses the last rung
+unless both hold:
+
+- **Checkable.** A skill with no assertion anywhere may run assisted
+  indefinitely and never unattended. Runs of it only ever prove a request was
+  sent.
+- **Ten clean runs in a row.** Consecutive, not cumulative — nine wins in ten is
+  a skill that does the wrong thing on a Tuesday, and a total would hide that
+  behind a good average.
+
+The refusal is a sentence, not a boolean, and it is on the wire
+(`ready_for_autonomy`): a gate that says no without saying why is a gate people
+work around.
+
+**Demotion needs nobody.** Three consecutive failures pull a version back to
+shadow with the reason attached. `demote()` is a separate method from `promote()`
+precisely because it happens without a human — `promoted_by` is cleared, since
+nobody authorised it.
+
+**Two limits stop a run before it starts**, both derived from what recent runs
+actually did rather than from a counter somebody must remember to increment —
+derived state cannot drift, and a restart cannot lose it:
+
+| Limit | Trips on |
+|---|---|
+| Circuit breaker | 3 failed runs against one system in 15 minutes |
+| Blast radius | 60 writes an hour per system; 25 items in one request |
+
+Both fail *closed to a human*. The answer is never "retry harder": retrying into
+a system that is already failing is how a degraded WMS becomes an unavailable
+one. A refused run is a 409 with the reason, and nothing was sent.
+
+This is why a run now records `target_system`. The breaker's question is "how
+has this system behaved lately", and joining through a skill that has since been
+re-induced would answer a different one.
+
+### What stays manual, and why
+
+Run-level auto-escalation — a whole task failing at L1 and being retried in the
+browser without being asked — is **not** built, deliberately. Per-step
+escalation is bounded (the step already failed; the next rung finishes that one
+step). A second whole-task attempt is a second set of writes, and whether the
+first attempt's writes landed is exactly what a failed run cannot say. That
+needs an idempotency story across runs, not a policy table, and until it exists
+the decision belongs to the operator who can look.
+
 ## Agents
 
 | Agent | Job | Model |

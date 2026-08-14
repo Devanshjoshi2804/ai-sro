@@ -88,10 +88,12 @@ they hold on every path — HTTP, Temporal, or a future auto-promotion job:
 
 1. **No skipping.** A promotion moves exactly one rung. "Recorded straight to
    autonomous" is the failure the ladder exists to prevent.
-2. **A ceiling.** `HIGHEST_PERMITTED_STAGE = ASSISTED` since L1 execution landed:
-   an assisted run writes for real and must name the human who authorised it.
-   `AUTONOMOUS` stays out of reach until the counters, the circuit breaker and
-   the blast-radius limits exist — see `docs/12-execution-and-agents.md`.
+2. **Evidence, not a ceiling.** `HIGHEST_PERMITTED_STAGE` is `AUTONOMOUS`, and
+   what holds the line is `SkillVersion.promote`: the last rung is refused
+   unless the version is checkable (some step has an assertion) and has ten
+   consecutive clean runs. A constant could always have been edited; a clean-run
+   streak cannot be. Three consecutive failures demote automatically. See
+   `docs/12-execution-and-agents.md`.
 
 Demotion is not reachable through promotion. Auto-demotion on a failure spike is
 a separate, monitored action — deliberately not wired to a review-UI button.

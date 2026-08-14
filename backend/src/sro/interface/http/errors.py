@@ -10,6 +10,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from sro.application.connection.connect_system import NotAuthenticated
+from sro.application.execution.execute_skill import Refused
 from sro.application.induction.errors import InductionFailed
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.vault import VaultUnavailable
@@ -23,6 +24,7 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     BrowserUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     VaultUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     NotAuthenticated: status.HTTP_409_CONFLICT,
+    Refused: status.HTTP_409_CONFLICT,
 }
 
 _TITLES = {

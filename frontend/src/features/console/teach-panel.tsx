@@ -296,7 +296,7 @@ export function TeachPanel({
         </div>
       )}
 
-      <div style={{ flex: 1, minHeight: 0, padding: "18px 20px", display: "flex" }}>
+      <div style={{ flex: 1, minHeight: 0, padding: "10px 12px", display: "flex" }}>
         <div
           style={{
             flex: 1,
@@ -310,54 +310,6 @@ export function TeachPanel({
             boxShadow: "0 6px 22px rgba(20,20,20,.07)",
           }}
         >
-          <div
-            style={{
-              flex: "0 0 auto",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "9px 12px",
-              background: "#F1F1EE",
-              borderBottom: "1px solid #DEDEDA",
-            }}
-          >
-            <span style={{ display: "flex", gap: 6 }}>
-              {[0, 1, 2].map((dot) => (
-                <span
-                  key={dot}
-                  style={{ width: 10, height: 10, borderRadius: "50%", background: "#D9DAD6" }}
-                />
-              ))}
-            </span>
-            <span
-              style={{
-                flex: 1,
-                background: ink.panel,
-                border: "1px solid #DEDEDA",
-                borderRadius: 6,
-                padding: "5px 10px",
-                fontFamily: mono,
-                fontSize: 11,
-                color: ink.textSoft,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {frames.at(-1)?.primary_request?.split(" ")[1] ?? "session"}
-            </span>
-            <span
-              style={{
-                fontSize: 10.5,
-                fontWeight: 700,
-                letterSpacing: ".06em",
-                color: ink.textSoft,
-              }}
-            >
-              STEEL SESSION
-            </span>
-          </div>
-
           {url ? (
             <iframe
               src={url}
@@ -384,9 +336,9 @@ export function TeachPanel({
 
         <aside
           style={{
-            width: 268,
-            flex: "0 0 268px",
-            marginLeft: 18,
+            width: 210,
+            flex: "0 0 210px",
+            marginLeft: 12,
             display: "flex",
             flexDirection: "column",
             gap: 10,

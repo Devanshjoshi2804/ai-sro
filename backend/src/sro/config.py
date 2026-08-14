@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     steel_base_url: str = "http://localhost:3010"
     steel_cdp_url: str = "http://localhost:9223"
     """Chrome DevTools endpoint Steel publishes. Playwright connects over it."""
+    browser_width: int = 1600
+    browser_height: int = 1000
+    """The teaching browser's viewport.
+
+    Steel defaults to something small, and this WMS is a dense ExtJS grid: at
+    the default the operator is reading a postage stamp, and the accessibility
+    tree that gets captured is one of a layout nobody uses.
+    """
+
     steel_session_timeout_seconds: int = 3600
 
     temporal_address: str = "localhost:7233"

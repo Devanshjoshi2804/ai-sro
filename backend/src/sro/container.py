@@ -309,6 +309,7 @@ def build_container(settings: Settings | None = None) -> Container:
             settings.steel_base_url,
             settings.steel_cdp_url,
             session_timeout_seconds=settings.steel_session_timeout_seconds,
+            dimensions=(settings.browser_width, settings.browser_height),
         ),
         transcriber=_build_transcriber(settings),
         embedder=_build_embedder(settings),

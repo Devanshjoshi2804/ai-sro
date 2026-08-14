@@ -36,11 +36,13 @@ class SteelClient:
         cdp_url: str,
         *,
         session_timeout_seconds: int = 3600,
+        dimensions: tuple[int, int] = (1600, 1000),
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._cdp_url = cdp_url.rstrip("/")
         self._timeout_seconds = session_timeout_seconds
+        self._dimensions = dimensions
         self._client = client or httpx.AsyncClient(timeout=30.0)
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
@@ -48,6 +50,11 @@ class SteelClient:
             "timeout": self._timeout_seconds * 1000,
             "blockAds": True,
             "solveCaptcha": False,
+            # Sized deliberately. The operator has to be able to read the screen
+            # they are demonstrating on, and the accessibility tree that gets
+            # captured is the one this viewport produced -- a cramped layout
+            # teaches a skill about a layout nobody uses.
+            "dimensions": {"width": self._dimensions[0], "height": self._dimensions[1]},
         }
         if start_url:
             payload["startUrl"] = start_url

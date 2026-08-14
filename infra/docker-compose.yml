@@ -124,6 +124,13 @@ services:
   # ---------------------------------------------------------------------------
   steel:
     image: ghcr.io/steel-dev/steel-browser:latest
+    environment:
+      # Steel builds every URL it hands out from this: the session viewer, the
+      # player's websocket, the CDP endpoint. Unset, it uses its own inside-the-
+      # container address (0.0.0.0:3000), and the live view sits on "Session
+      # connecting..." forever because a browser on the host cannot dial that.
+      DOMAIN: "localhost:3010"
+      CDP_DOMAIN: "localhost:9223"
     ports:
       - "3010:3000"   # sessions API + debug UI  -> http://localhost:3010/ui
       - "9223:9223"   # chrome devtools protocol

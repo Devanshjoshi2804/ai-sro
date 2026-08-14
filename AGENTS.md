@@ -164,6 +164,11 @@ attached browser, so the adapter navigates itself.
   `open()` waits for `live` and refuses otherwise, because handing that back
   produced a teaching session that said "Recording · run 1 of 2" over a viewer
   reading "the browser session has ended".
+- **Steel advertises whatever `DOMAIN` says**, and unset it advertises its own
+  inside-the-container address. The session player embeds that in its websocket
+  (`ws://0.0.0.0:3000/v1/sessions/cast`), which a browser on the host cannot
+  dial, so the live view sits on "Session connecting…" forever. `DOMAIN` and
+  `CDP_DOMAIN` are set in `infra/docker-compose.yml` for this reason.
 - **Steel does not notice its own dead browser.** When Chrome dies leaving a
   stale `/tmp/steel-chrome/SingletonLock`, the session stays `live` forever and
   holds the only browser a self-hosted Steel has. Releasing it answers **200 and

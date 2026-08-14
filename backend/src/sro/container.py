@@ -55,6 +55,7 @@ from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
 from sro.infrastructure.system import SystemClock, UuidFactory
 from sro.infrastructure.telemetry.otel import configure_tracing
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
+from sro.infrastructure.transcription.gemini import GeminiTranscriber
 from sro.infrastructure.transcription.null import NullTranscriber
 from sro.infrastructure.vault.file_vault import FileCredentialVault
 
@@ -164,6 +165,17 @@ class Container:
         return ListRuns(self.unit_of_work())
 
 
+def _build_transcriber(settings: Settings) -> Transcriber:
+    """Narration leaves the deployment, so it takes two switches, not one.
+
+    A key on its own is not consent to send a customer's operators' voices to a
+    hosted model; `transcription_enabled` is that decision, made per deployment.
+    """
+    if settings.transcription_enabled and settings.gemini_api_key:
+        return GeminiTranscriber(settings.gemini_api_key, settings.gemini_transcription_model)
+    return NullTranscriber()
+
+
 def _build_vault(settings: Settings) -> CredentialVault:
     """A vault that refuses to start beats one that writes plaintext.
 
@@ -218,7 +230,7 @@ def build_container(settings: Settings | None = None) -> Container:
             settings.steel_cdp_url,
             session_timeout_seconds=settings.steel_session_timeout_seconds,
         ),
-        transcriber=NullTranscriber(),
+        transcriber=_build_transcriber(settings),
         vault=_build_vault(settings),
         http=HttpxCaller(),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),

@@ -192,7 +192,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Attach Artifact */
+        /**
+         * Attach Artifact
+         * @description ``recorded_from`` is when the microphone started, for audio.
+         *
+         *     Without it a transcript's offsets cannot be placed against the frames, and
+         *     narration attaches to the wrong steps -- which is worse than none.
+         */
         post: operations["attach_artifact_v1_recordings__recording_id__artifacts_post"];
         delete?: never;
         options?: never;
@@ -391,6 +397,8 @@ export interface components {
             file: string;
             /** Duration Ms */
             duration_ms?: number | null;
+            /** Recorded From */
+            recorded_from?: string | null;
         };
         /** ConnectSystemRequest */
         ConnectSystemRequest: {
@@ -775,6 +783,10 @@ export interface components {
             intent: string;
             /** Requires Human */
             requires_human: boolean;
+            /** Narration */
+            narration: string;
+            /** Branch Hint */
+            branch_hint: string | null;
             network_plan: components["schemas"]["NetworkPlanModel"] | null;
             ui_plan: components["schemas"]["UiPlanModel"] | null;
             /** Assertions */

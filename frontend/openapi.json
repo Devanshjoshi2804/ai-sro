@@ -732,6 +732,7 @@
           "recordings"
         ],
         "summary": "Attach Artifact",
+        "description": "``recorded_from`` is when the microphone started, for audio.\n\nWithout it a transcript's offsets cannot be placed against the frames, and\nnarration attaches to the wrong steps -- which is worse than none.",
         "operationId": "attach_artifact_v1_recordings__recording_id__artifacts_post",
         "parameters": [
           {
@@ -1496,6 +1497,18 @@
               }
             ],
             "title": "Duration Ms"
+          },
+          "recorded_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded From"
           }
         },
         "type": "object",
@@ -2630,6 +2643,21 @@
             "type": "boolean",
             "title": "Requires Human"
           },
+          "narration": {
+            "type": "string",
+            "title": "Narration"
+          },
+          "branch_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Hint"
+          },
           "network_plan": {
             "anyOf": [
               {
@@ -2663,6 +2691,8 @@
           "index",
           "intent",
           "requires_human",
+          "narration",
+          "branch_hint",
           "network_plan",
           "ui_plan",
           "assertions"

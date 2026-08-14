@@ -2,16 +2,33 @@
 
 from __future__ import annotations
 
+import json
 import mimetypes
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from sro.application.context import RequestContext
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
-from sro.application.ports.transcription import Transcriber
+from sro.application.ports.transcription import TranscribedSegment, Transcriber
 from sro.domain.recording.artifact import ArtifactKind, MediaArtifact
+from sro.domain.recording.narration import NarrationSegment
 from sro.domain.shared.identifiers import RecordingId, TenantId
+
+
+def _place(
+    segments: tuple[TranscribedSegment, ...], recorded_from: datetime
+) -> tuple[NarrationSegment, ...]:
+    """Offsets into the audio become points on the recording's clock."""
+    return tuple(
+        NarrationSegment(
+            starts_at=recorded_from + timedelta(milliseconds=segment.start_ms),
+            ends_at=recorded_from + timedelta(milliseconds=segment.end_ms),
+            text=segment.text,
+        )
+        for segment in segments
+    )
 
 
 def artifact_key(
@@ -50,7 +67,11 @@ class AttachArtifact:
         data: bytes,
         content_type: str,
         duration_ms: int | None = None,
+        recorded_from: datetime | None = None,
     ) -> AttachResult:
+        """``recorded_from`` is when the microphone started, which is the only
+        thing that turns a transcript's offsets into times a frame can be
+        matched against."""
         now = self._clock.now()
 
         key = artifact_key(ctx.tenant_id, recording_id, kind, content_type)
@@ -68,20 +89,31 @@ class AttachArtifact:
         ]
 
         transcript_uri: str | None = None
+        segments: tuple[NarrationSegment, ...] = ()
         if kind is ArtifactKind.AUDIO and self._transcriber.available:
-            text = await self._transcriber.transcribe(data, content_type=content_type)
+            transcribed = await self._transcriber.transcribe(data, content_type=content_type)
+            segments = _place(transcribed, recorded_from or now)
             transcript_key = artifact_key(
-                ctx.tenant_id, recording_id, ArtifactKind.TRANSCRIPT, "text/plain"
+                ctx.tenant_id, recording_id, ArtifactKind.TRANSCRIPT, "application/json"
             )
-            payload = text.encode("utf-8")
+            payload = json.dumps(
+                [
+                    {
+                        "starts_at": segment.starts_at.isoformat(),
+                        "ends_at": segment.ends_at.isoformat(),
+                        "text": segment.text,
+                    }
+                    for segment in segments
+                ]
+            ).encode("utf-8")
             transcript_uri = await self._blobs.put(
-                transcript_key, payload, content_type="text/plain"
+                transcript_key, payload, content_type="application/json"
             )
             artifacts.append(
                 MediaArtifact(
                     kind=ArtifactKind.TRANSCRIPT,
                     uri=transcript_uri,
-                    content_type="text/plain",
+                    content_type="application/json",
                     size_bytes=len(payload),
                     created_at=now,
                 )
@@ -91,6 +123,8 @@ class AttachArtifact:
             recording = await uow.recordings.get(ctx.tenant_id, recording_id)
             for artifact in artifacts:
                 recording.attach_artifact(artifact)
+            if segments:
+                recording.attach_narration(segments)
             await uow.recordings.save(recording)
             await uow.commit()
 

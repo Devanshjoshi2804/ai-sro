@@ -31,9 +31,11 @@ from sro.domain.skill.skill import Skill
 from sro.infrastructure.db.codec import (
     dump_artifacts,
     dump_frames,
+    dump_narration,
     dump_versions,
     load_artifacts,
     load_frames,
+    load_narration,
     load_versions,
 )
 from sro.infrastructure.db.models import ConnectionRow, RecordingRow, RunRow, SkillRow
@@ -99,6 +101,7 @@ def update_recording_row(row: RecordingRow, recording: Recording) -> None:
     row.abandon_reason = recording.abandon_reason
     row.frames = dump_frames(recording.frames)
     row.artifacts = dump_artifacts(recording.artifacts)
+    row.narration = dump_narration(recording.narration)
 
 
 def row_to_recording(row: RecordingRow) -> Recording:
@@ -121,6 +124,7 @@ def row_to_recording(row: RecordingRow) -> Recording:
     # not a state transition.
     recording._frames.extend(load_frames(row.frames))
     recording._artifacts.extend(load_artifacts(row.artifacts))
+    recording._narration.extend(load_narration(row.narration))
     return recording
 
 

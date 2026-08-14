@@ -25,6 +25,7 @@ dependencies = [
     "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
     "av>=18.1.0",
     "cryptography>=50.0.0",
+    "google-genai>=2.7",
 ]
 
 [project.optional-dependencies]

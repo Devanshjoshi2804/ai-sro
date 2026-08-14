@@ -8,6 +8,7 @@ from enum import StrEnum
 
 from sro.domain.recording.artifact import ArtifactKind, MediaArtifact
 from sro.domain.recording.events import ActionFrame
+from sro.domain.recording.narration import NarrationSegment
 from sro.domain.recording.network import CapturedRequest
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import (
@@ -50,6 +51,7 @@ class Recording:
 
     _frames: list[ActionFrame] = field(default_factory=list, repr=False)
     _artifacts: list[MediaArtifact] = field(default_factory=list, repr=False)
+    _narration: list[NarrationSegment] = field(default_factory=list, repr=False)
 
     def __post_init__(self) -> None:
         if self.started_at.tzinfo is None:
@@ -62,6 +64,10 @@ class Recording:
     @property
     def artifacts(self) -> tuple[MediaArtifact, ...]:
         return tuple(self._artifacts)
+
+    @property
+    def narration(self) -> tuple[NarrationSegment, ...]:
+        return tuple(self._narration)
 
     @property
     def is_open(self) -> bool:
@@ -135,6 +141,15 @@ class Recording:
     def attach_artifact(self, artifact: MediaArtifact) -> None:
         self._require_open("attach an artifact")
         self._artifacts.append(artifact)
+
+    def attach_narration(self, segments: tuple[NarrationSegment, ...]) -> None:
+        """Replace what was heard. A re-transcription supersedes, never appends.
+
+        Kept in time order because everything downstream lines it up against
+        frames, and a transcriber is free to return segments out of order.
+        """
+        self._require_open("attach narration")
+        self._narration = sorted(segments, key=lambda segment: segment.starts_at)
 
     def name_objective(self, key: ObjectiveKey) -> None:
         """Say what this was. Once only -- provenance cites the key as taught."""

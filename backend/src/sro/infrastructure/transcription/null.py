@@ -6,7 +6,7 @@ Narration is optional, so this is the default binding rather than an error path.
 
 from __future__ import annotations
 
-from sro.application.ports.transcription import Transcriber
+from sro.application.ports.transcription import TranscribedSegment, Transcriber
 
 
 class NullTranscriber(Transcriber):
@@ -14,5 +14,7 @@ class NullTranscriber(Transcriber):
     def available(self) -> bool:
         return False
 
-    async def transcribe(self, audio: bytes, *, content_type: str) -> str:
-        return ""
+    async def transcribe(
+        self, audio: bytes, *, content_type: str
+    ) -> tuple[TranscribedSegment, ...]:
+        return ()

@@ -133,6 +133,20 @@ function StepCard({ step }: { step: StepModel }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
+        {step.narration && (
+          <blockquote className="border-muted text-muted-foreground border-l-2 pl-3 text-sm italic">
+            “{step.narration}”
+          </blockquote>
+        )}
+        {step.branch_hint && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs">
+            <span className="font-medium">Described but not demonstrated:</span>{" "}
+            {step.branch_hint}
+            <span className="text-muted-foreground block">
+              Nothing was recorded doing this, so it is a question rather than a branch.
+            </span>
+          </div>
+        )}
         {step.network_plan && (
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs font-medium uppercase">Network plan</p>

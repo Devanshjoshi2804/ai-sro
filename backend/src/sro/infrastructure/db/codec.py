@@ -18,10 +18,12 @@ from pydantic import TypeAdapter
 
 from sro.domain.recording.artifact import MediaArtifact
 from sro.domain.recording.events import ActionFrame
+from sro.domain.recording.narration import NarrationSegment
 from sro.domain.skill.skill import SkillVersion
 
 _FRAMES = TypeAdapter(tuple[ActionFrame, ...])
 _ARTIFACTS = TypeAdapter(tuple[MediaArtifact, ...])
+_NARRATION = TypeAdapter(tuple[NarrationSegment, ...])
 _VERSIONS = TypeAdapter(tuple[SkillVersion, ...])
 
 
@@ -46,6 +48,14 @@ def dump_artifacts(artifacts: tuple[MediaArtifact, ...]) -> Any:
 
 def load_artifacts(raw: Any) -> tuple[MediaArtifact, ...]:
     return _ARTIFACTS.validate_python(raw or [])
+
+
+def dump_narration(segments: tuple[NarrationSegment, ...]) -> Any:
+    return _dump(_NARRATION, segments)
+
+
+def load_narration(raw: Any) -> tuple[NarrationSegment, ...]:
+    return _NARRATION.validate_python(raw or [])
 
 
 def dump_versions(versions: tuple[SkillVersion, ...]) -> Any:

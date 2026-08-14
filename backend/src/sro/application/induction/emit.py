@@ -6,6 +6,7 @@ from sro.application.induction.assertions import StepEvidence
 from sro.application.induction.diff import Parameterisation
 from sro.application.induction.headers import build_header_plans
 from sro.application.induction.locators import build_locators
+from sro.application.induction.narration import StepNarration
 from sro.application.induction.sites import (
     ActionValueSite,
     Site,
@@ -29,6 +30,7 @@ def emit_step(
     evidence: StepEvidence,
     objective: ObjectiveKey,
     other: ActionFrame | None = None,
+    narration: StepNarration | None = None,
 ) -> SkillStep:
     replacements = parameterisation.for_step(index)
     return SkillStep(
@@ -37,7 +39,11 @@ def emit_step(
         network_plan=_network_plan(frame, replacements, objective),
         ui_plan=_ui_plan(frame, replacements, evidence, other),
         assertions=evidence.assertions,
-        requires_human=_requires_human(frame),
+        # Either source may flag a human: the screen shows an MFA field, or the
+        # operator says they would check with a supervisor here.
+        requires_human=_requires_human(frame) or bool(narration and narration.requires_human),
+        narration=narration.text if narration else "",
+        branch_hint=narration.branch_hint if narration else None,
     )
 
 

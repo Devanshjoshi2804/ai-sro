@@ -26,6 +26,16 @@ export const getMedia = (id: string) => api.get<Media[]>(`/v1/recordings/${id}/m
 export const getLiveView = (id: string) =>
   api.get<{ live_view_url: string | null }>(`/v1/recordings/${id}/live-view`);
 
+/** Narration audio, with the moment the microphone started so a transcript's
+ * offsets can be lined up against the frames. */
+export const attachNarration = (id: string, audio: Blob, recordedFrom: Date) => {
+  const form = new FormData();
+  form.append("kind", "audio");
+  form.append("file", audio, "narration.webm");
+  form.append("recorded_from", recordedFrom.toISOString());
+  return api.upload<{ kind: string; uri: string }>(`/v1/recordings/${id}/artifacts`, form);
+};
+
 export const finishRecording = (
   id: string,
   abandonReason?: string,

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  attachNarration,
   finishRecording,
   getLiveView,
   getRecording,
@@ -13,6 +14,7 @@ import {
 } from "@/features/recording/api";
 import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
+import { useNarration } from "@/features/console/use-narration";
 
 /**
  * A teaching session: a live browser, captured from the moment it opens.
@@ -47,6 +49,7 @@ export function TeachPanel({
   onDiscarded: () => void;
 }) {
   const queryClient = useQueryClient();
+  const narration = useNarration();
   const [countdown, setCountdown] = useState<number | null>(null);
   const [autoSealOff, setAutoSealOff] = useState(false);
   const settled = useRef(false);
@@ -70,7 +73,21 @@ export function TeachPanel({
   });
 
   const finish = useMutation({
-    mutationFn: (reason?: string) => finishRecording(recordingId, reason, objectiveKey),
+    mutationFn: async (reason?: string) => {
+      // Narration first: a sealed recording rejects attachments, so uploading
+      // after the seal would silently lose everything the operator said.
+      const spoken = await narration.stop();
+      if (spoken && !reason) {
+        try {
+          await attachNarration(recordingId, spoken.audio, spoken.startedAt);
+        } catch (cause) {
+          toast.error("Narration could not be attached", {
+            description: `${cause instanceof ApiError ? cause.problem.detail : String(cause)}. The demonstration itself is unaffected.`,
+          });
+        }
+      }
+      return finishRecording(recordingId, reason, objectiveKey);
+    },
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: recordingKeys.all });
       if (result.status === "sealed") onSealed(result.frame_count, result.objective_key);
@@ -154,6 +171,50 @@ export function TeachPanel({
         <span style={{ flex: 1 }} />
         {capturing && (
           <>
+            <button
+              onClick={() => (narration.recording ? undefined : void narration.start())}
+              disabled={narration.recording}
+              title={
+                narration.error ??
+                "Say what you are checking and what you would do differently. It is kept as a note on the step, never as a step."
+              }
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "8px 13px",
+                borderRadius: 8,
+                border: `1px solid ${narration.error ? ink.danger : ink.line}`,
+                background: narration.recording ? ink.goodWash : ink.panel,
+                color: narration.error ? ink.danger : ink.text,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: narration.recording ? "default" : "pointer",
+              }}
+            >
+              {narration.recording ? "Narrating" : narration.error ? "No microphone" : "Narrate"}
+              {narration.recording && (
+                <span
+                  aria-hidden
+                  style={{
+                    width: 34,
+                    height: 5,
+                    borderRadius: 3,
+                    background: "#D6D6D2",
+                    overflow: "hidden",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "block",
+                      height: "100%",
+                      width: `${Math.round(narration.level * 100)}%`,
+                      background: ink.good,
+                    }}
+                  />
+                </span>
+              )}
+            </button>
             <button
               onClick={() => finish.mutate(undefined)}
               disabled={finish.isPending || frames.length === 0}

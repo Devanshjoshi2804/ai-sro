@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from sro.application.context import RequestContext
 from sro.application.induction import assertions as assertion_extraction
+from sro.application.induction import narration
 from sro.application.induction.diff import Parameterisation, parameterise
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
@@ -121,6 +122,9 @@ def _build_steps(
     parameterisation: Parameterisation,
 ) -> tuple[SkillStep, ...]:
     frames_a, frames_b = run_a.frames, run_b.frames
+    # Run A's narration, because run A's frames are the ones being emitted. Run
+    # B is here to disagree with A, not to describe it.
+    said = narration.align(frames_a, run_a.narration)
     return tuple(
         emit_step(
             index,
@@ -134,6 +138,7 @@ def _build_steps(
             ),
             objective,
             frames_b[index],
+            said.get(frames_a[index].index),
         )
         for index in range(len(frames_a))
     )

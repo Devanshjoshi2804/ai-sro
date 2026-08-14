@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Query, UploadFile, status
@@ -149,7 +150,13 @@ async def attach_artifact(
     kind: Annotated[ArtifactKind, Form()],
     file: Annotated[UploadFile, File()],
     duration_ms: Annotated[int | None, Form()] = None,
+    recorded_from: Annotated[datetime | None, Form()] = None,
 ) -> ArtifactModel:
+    """``recorded_from`` is when the microphone started, for audio.
+
+    Without it a transcript's offsets cannot be placed against the frames, and
+    narration attaches to the wrong steps -- which is worse than none.
+    """
     data = await file.read()
     result = await container.attach_artifact().execute(
         ctx,
@@ -158,6 +165,7 @@ async def attach_artifact(
         data=data,
         content_type=file.content_type or "application/octet-stream",
         duration_ms=duration_ms,
+        recorded_from=recorded_from,
     )
     return ArtifactModel(
         kind=kind.value,

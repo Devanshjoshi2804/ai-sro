@@ -23,6 +23,18 @@ class SkillStep:
     assertions: tuple[Assertion, ...] = ()
     requires_human: bool = False
 
+    narration: str = ""
+    """What the operator said while doing this step.
+
+    Kept apart from ``intent`` on purpose: intent is derived from what was
+    observed and is the same on every replay, narration is a transcript and is
+    a model's reading of a microphone. One field holding either would make them
+    indistinguishable at review, which is where the difference matters most."""
+
+    branch_hint: str | None = None
+    """A path the operator described but did not demonstrate. A question for a
+    reviewer -- never executed, because nothing was recorded doing it."""
+
     def __post_init__(self) -> None:
         if self.index < 0:
             raise InvariantViolation("SkillStep.index must be non-negative")

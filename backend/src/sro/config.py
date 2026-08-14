@@ -78,6 +78,13 @@ class Settings(BaseSettings):
     transcription_enabled: bool = False
     """Narration transcription is optional. Default binding is NullTranscriber."""
 
+    gemini_api_key: str = ""
+    """Without it every model-backed adapter stays unbound and the system runs
+    exactly as it does today -- deliberately, for deployments that may not send
+    a customer's screen or a customer's words to a hosted model."""
+
+    gemini_transcription_model: str = "gemini-2.5-flash"
+
 
 @lru_cache
 def get_settings() -> Settings:

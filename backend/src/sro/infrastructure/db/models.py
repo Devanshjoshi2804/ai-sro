@@ -42,6 +42,7 @@ class RecordingRow(Base):
 
     frames: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     artifacts: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    narration: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
 
     __table_args__ = (
         Index("ix_recordings_tenant_started", "tenant_id", "started_at"),

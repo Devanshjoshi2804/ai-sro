@@ -193,6 +193,44 @@ A demonstration that asked the server nothing cannot be named this way. Sealing
 it raises `unnamed_demonstration` and asks the operator for one line — the
 exception, not the entry point.
 
+## Narration
+
+Clicks record what was done. They cannot record *why*: which branch the operator
+was checking for, what they would have done had the count not matched, where they
+would stop and ask a supervisor. None of that is recoverable from the network
+trace afterwards, so the microphone is offered during the demonstration — opt-in
+per session, with a live level meter, because a muted microphone looks exactly
+like a working one until the run cannot be repeated.
+
+Audio is uploaded before the seal (a sealed recording rejects attachments),
+transcribed into **timed segments**, and placed on the recording's own clock
+using the moment the microphone started. Alignment is half-open at both ends: a
+sentence finishing exactly as the next click lands belongs to the action it was
+describing. The last frame's window stays open, because "and that is queued for
+approval now" arrives after the final click and is usually the best sentence in
+the recording.
+
+**The rule that makes this safe: narration labels, evidence decides.** What was
+said becomes a note on a step, a branch a reviewer is asked about, and a flag
+that a human belongs in the loop. It never becomes a parameter, a step or a
+request — those come only from the two-run diff. A test asserts that inducing the
+same pair with and without narration produces identical parameters, steps and
+network plans.
+
+The separation is kept in the data as well as in the rule: `SkillStep.intent`
+stays derived from what was observed, and the words go in `SkillStep.narration`.
+One field holding either would make a transcript indistinguishable from evidence
+at review time, which is exactly where the difference matters.
+
+A branch hint is never executable. The demonstration walked one path; the other
+one has no evidence, so it is a question for a reviewer rather than a plan.
+
+Transcription is the first egress in the system, so it takes two switches:
+`SRO_GEMINI_API_KEY` and `SRO_TRANSCRIPTION_ENABLED`. A key is not by itself a
+decision to send a customer's operators' voices to a hosted model. With either
+absent the binding is `NullTranscriber` and demonstrations are silent, which is a
+supported deployment rather than a degraded one.
+
 ## Agents
 
 | Agent | Job | Model |

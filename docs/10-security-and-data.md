@@ -23,6 +23,21 @@ executor resolves it at run time and sends the real value.
 Nothing is lost. A secret simply is not copied into an artifact designed to
 travel between sites — which is a storage decision, not a capture decision.
 
+## Egress
+
+Capture is storage: it stays in the deployment's own infrastructure. **Sending is
+a different decision and is made separately**, per destination, per deployment.
+
+Narration is the first thing that leaves. Transcription requires both
+`SRO_GEMINI_API_KEY` and `SRO_TRANSCRIPTION_ENABLED`: possessing a key is not
+consent to send a customer's operators' voices to a hosted model. With either
+absent the binding is `NullTranscriber`, demonstrations are silent, and nothing
+about the system's guarantees changes.
+
+The same shape holds for every model-backed rung added later — the set of
+destinations is configuration, so a deployment that may not use a hosted model
+runs with them off.
+
 ## Tenancy
 
 `tenant_id` is on every row and is the first parameter of every repository

@@ -742,3 +742,42 @@ class ThreadDetail(ThreadSummary):
                 for message in thread.messages
             ],
         )
+
+
+class TaughtSkillModel(BaseModel):
+    skill_id: str
+    name: str
+    system: str
+    facility: str
+    version: int
+    stage: str
+    taught_by: str
+    taught_at: str
+    clean_streak: int
+    proposed_parameters: int
+
+
+class KnowledgeSummaryModel(BaseModel):
+    """What this organisation knows, and how it got there."""
+
+    system_counts: dict[str, int]
+    kind_counts: dict[str, int]
+    evidence_counts: dict[str, int]
+    learned_from_runs: int
+    """Claims proved by this tenant's own runs rather than scraped. The number
+    that says the system is learning rather than merely loaded."""
+
+    superseded: int
+    skills: list[TaughtSkillModel]
+
+
+class KnowledgeEntryModel(BaseModel):
+    id: str
+    system: str
+    kind: str
+    key: str
+    title: str
+    source: str
+    evidence: str
+    observed_at: datetime
+    body: dict[str, Any]

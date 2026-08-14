@@ -368,6 +368,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/knowledge/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Summary
+         * @description One person teaches; the tenant knows. This is that, counted.
+         */
+        get: operations["summary_v1_knowledge_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/knowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search */
+        get: operations["search_v1_knowledge_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/threads": {
         parameters: {
             query?: never;
@@ -652,6 +689,16 @@ export interface components {
          * @enum {string}
          */
         Direction: "inbound" | "outbound" | "internal";
+        /**
+         * EntryKind
+         * @enum {string}
+         */
+        EntryKind: "screen" | "endpoint" | "field" | "form" | "flow" | "status" | "quirk";
+        /**
+         * EvidenceLevel
+         * @enum {string}
+         */
+        EvidenceLevel: "asserted" | "observed" | "reproduced" | "round_trip";
         /** FinishRecordingRequest */
         FinishRecordingRequest: {
             /**
@@ -724,6 +771,56 @@ export interface components {
             input_parameter_count: number;
             /** Derived Parameter Count */
             derived_parameter_count: number;
+        };
+        /** KnowledgeEntryModel */
+        KnowledgeEntryModel: {
+            /** Id */
+            id: string;
+            /** System */
+            system: string;
+            /** Kind */
+            kind: string;
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /** Source */
+            source: string;
+            /** Evidence */
+            evidence: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /** Body */
+            body: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * KnowledgeSummaryModel
+         * @description What this organisation knows, and how it got there.
+         */
+        KnowledgeSummaryModel: {
+            /** System Counts */
+            system_counts: {
+                [key: string]: number;
+            };
+            /** Kind Counts */
+            kind_counts: {
+                [key: string]: number;
+            };
+            /** Evidence Counts */
+            evidence_counts: {
+                [key: string]: number;
+            };
+            /** Learned From Runs */
+            learned_from_runs: number;
+            /** Superseded */
+            superseded: number;
+            /** Skills */
+            skills: components["schemas"]["TaughtSkillModel"][];
         };
         /** LiveViewResponse */
         LiveViewResponse: {
@@ -1144,6 +1241,29 @@ export interface components {
             matched_by: string | null;
             /** Detail */
             detail: string | null;
+        };
+        /** TaughtSkillModel */
+        TaughtSkillModel: {
+            /** Skill Id */
+            skill_id: string;
+            /** Name */
+            name: string;
+            /** System */
+            system: string;
+            /** Facility */
+            facility: string;
+            /** Version */
+            version: number;
+            /** Stage */
+            stage: string;
+            /** Taught By */
+            taught_by: string;
+            /** Taught At */
+            taught_at: string;
+            /** Clean Streak */
+            clean_streak: number;
+            /** Proposed Parameters */
+            proposed_parameters: number;
         };
         /** ThreadDetail */
         ThreadDetail: {
@@ -1923,6 +2043,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResolutionModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    summary_v1_knowledge_summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeSummaryModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_v1_knowledge_get: {
+        parameters: {
+            query?: {
+                q?: string;
+                system?: string | null;
+                kind?: components["schemas"]["EntryKind"] | null;
+                min_evidence?: components["schemas"]["EvidenceLevel"] | null;
+                limit?: number;
+            };
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeEntryModel"][];
                 };
             };
             /** @description Validation Error */

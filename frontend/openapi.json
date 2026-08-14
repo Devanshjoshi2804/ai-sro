@@ -1350,6 +1350,187 @@
         }
       }
     },
+    "/v1/knowledge/summary": {
+      "get": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Summary",
+        "description": "One person teaches; the tenant knows. This is that, counted.",
+        "operationId": "summary_v1_knowledge_summary_get",
+        "parameters": [
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeSummaryModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/knowledge": {
+      "get": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Search",
+        "operationId": "search_v1_knowledge_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "system",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "System"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EntryKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "min_evidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EvidenceLevel"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Evidence"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KnowledgeEntryModel"
+                  },
+                  "title": "Response Search V1 Knowledge Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/threads": {
       "post": {
         "tags": [
@@ -2326,6 +2507,29 @@
         ],
         "title": "Direction"
       },
+      "EntryKind": {
+        "type": "string",
+        "enum": [
+          "screen",
+          "endpoint",
+          "field",
+          "form",
+          "flow",
+          "status",
+          "quirk"
+        ],
+        "title": "EntryKind"
+      },
+      "EvidenceLevel": {
+        "type": "string",
+        "enum": [
+          "asserted",
+          "observed",
+          "reproduced",
+          "round_trip"
+        ],
+        "title": "EvidenceLevel"
+      },
       "FinishRecordingRequest": {
         "properties": {
           "abandon_reason": {
@@ -2526,6 +2730,112 @@
           "derived_parameter_count"
         ],
         "title": "InductionResponse"
+      },
+      "KnowledgeEntryModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "system": {
+            "type": "string",
+            "title": "System"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "evidence": {
+            "type": "string",
+            "title": "Evidence"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "system",
+          "kind",
+          "key",
+          "title",
+          "source",
+          "evidence",
+          "observed_at",
+          "body"
+        ],
+        "title": "KnowledgeEntryModel"
+      },
+      "KnowledgeSummaryModel": {
+        "properties": {
+          "system_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "System Counts"
+          },
+          "kind_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Kind Counts"
+          },
+          "evidence_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Evidence Counts"
+          },
+          "learned_from_runs": {
+            "type": "integer",
+            "title": "Learned From Runs"
+          },
+          "superseded": {
+            "type": "integer",
+            "title": "Superseded"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/TaughtSkillModel"
+            },
+            "type": "array",
+            "title": "Skills"
+          }
+        },
+        "type": "object",
+        "required": [
+          "system_counts",
+          "kind_counts",
+          "evidence_counts",
+          "learned_from_runs",
+          "superseded",
+          "skills"
+        ],
+        "title": "KnowledgeSummaryModel",
+        "description": "What this organisation knows, and how it got there."
       },
       "LiveViewResponse": {
         "properties": {
@@ -3840,6 +4150,64 @@
           "detail"
         ],
         "title": "StepOutcomeModel"
+      },
+      "TaughtSkillModel": {
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "system": {
+            "type": "string",
+            "title": "System"
+          },
+          "facility": {
+            "type": "string",
+            "title": "Facility"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "taught_by": {
+            "type": "string",
+            "title": "Taught By"
+          },
+          "taught_at": {
+            "type": "string",
+            "title": "Taught At"
+          },
+          "clean_streak": {
+            "type": "integer",
+            "title": "Clean Streak"
+          },
+          "proposed_parameters": {
+            "type": "integer",
+            "title": "Proposed Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "skill_id",
+          "name",
+          "system",
+          "facility",
+          "version",
+          "stage",
+          "taught_by",
+          "taught_at",
+          "clean_streak",
+          "proposed_parameters"
+        ],
+        "title": "TaughtSkillModel"
       },
       "ThreadDetail": {
         "properties": {

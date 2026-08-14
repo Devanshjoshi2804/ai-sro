@@ -39,13 +39,29 @@ def _steel(*, status: str, others: list[dict[str, object]] | None = None) -> Ste
             released.append(path)
             return httpx.Response(200, json={"success": True})
         if request.method == "POST" and path == "/v1/sessions":
-            return httpx.Response(201, json={"id": "new-session", "status": status})
+            return httpx.Response(
+                201,
+                json={
+                    "id": "new-session",
+                    "status": status,
+                    "sessionViewerUrl": "http://0.0.0.0:3000/",
+                    "debugUrl": "http://0.0.0.0:3000/v1/sessions/debug",
+                },
+            )
         if path == "/v1/sessions":
             return httpx.Response(
                 200, json={"sessions": [*(others or []), {"id": "new-session", "status": status}]}
             )
         if path.startswith("/v1/sessions/"):
-            return httpx.Response(200, json={"id": "new-session", "status": status})
+            return httpx.Response(
+                200,
+                json={
+                    "id": "new-session",
+                    "status": status,
+                    "sessionViewerUrl": "http://0.0.0.0:3000/",
+                    "debugUrl": "http://0.0.0.0:3000/v1/sessions/debug",
+                },
+            )
         if path == "/json/version":
             return httpx.Response(200, json={"webSocketDebuggerUrl": "ws://localhost/devtools/x"})
         return httpx.Response(404)
@@ -110,3 +126,15 @@ async def test_an_idle_session_has_no_live_view_to_show() -> None:
     reads as "the operator's work vanished"."""
     assert await _steel(status="idle").live_view_url(BrowserSessionId("new-session")) is None
     assert await _steel(status="live").live_view_url(BrowserSessionId("new-session")) is not None
+
+
+async def test_the_live_view_is_the_player_not_steel_s_own_console() -> None:
+    """`sessionViewerUrl` is Steel's product UI: its header, Docs and Discord
+    links, a details panel, and a Release Session button sitting inside our
+    teaching screen — offering an operator a way to end the recording that we
+    would never hear about."""
+    steel = _steel(status="live")
+
+    session = await steel.open()
+
+    assert session.live_view_url.endswith("/v1/sessions/debug")

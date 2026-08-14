@@ -67,7 +67,7 @@ class SteelClient:
             # Steel reports its own URLs as seen from inside its container
             # (0.0.0.0:3000). Only the path is usable from out here; the host
             # comes from configuration, which knows the published ports.
-            live_view_url=self._base_url + _path_of(body.get("sessionViewerUrl")),
+            live_view_url=self._viewer(body),
             debugger_url=await self._websocket_debugger_url(),
         )
 
@@ -230,7 +230,18 @@ class SteelClient:
         # renders an empty frame that reads as "the operator's work vanished".
         if str(body.get("status", "")).lower() in {"released", "failed", "idle"}:
             return None
-        return self._base_url + _path_of(body.get("sessionViewerUrl"))
+        return self._viewer(body)
+
+    def _viewer(self, body: dict[str, object]) -> str:
+        """Steel's bare session player rather than its own console.
+
+        `sessionViewerUrl` is Steel's product UI — its header, its Docs and
+        Discord links, a details panel and a Release Session button sitting
+        inside our teaching screen, offering an operator a way to end the
+        recording that we would never hear about. `debugUrl` is the same
+        screencast with none of it.
+        """
+        return self._base_url + _path_of(body.get("debugUrl") or body.get("sessionViewerUrl"))
 
     async def health(self) -> bool:
         try:

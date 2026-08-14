@@ -93,9 +93,16 @@ def uow() -> FakeUnitOfWork:
 
 
 @pytest.fixture
-async def client(uow: FakeUnitOfWork) -> AsyncIterator[httpx.AsyncClient]:
+def container(uow: FakeUnitOfWork) -> _FakeContainer:
+    return _FakeContainer(uow)
+
+
+@pytest.fixture
+async def client(
+    uow: FakeUnitOfWork, container: _FakeContainer
+) -> AsyncIterator[httpx.AsyncClient]:
     app = create_app()
-    app.dependency_overrides[get_container] = lambda: _FakeContainer(uow)
+    app.dependency_overrides[get_container] = lambda: container
     transport = ASGITransport(app=app)
     async with httpx.AsyncClient(
         transport=transport,
@@ -113,10 +120,34 @@ class TestHealth:
         assert response.json()["status"] == "ok"
 
 
+async def _connected(uow: FakeUnitOfWork, container: _FakeContainer) -> None:
+    """A system somebody has already signed in to."""
+    import json
+
+    from sro.domain.connection.connection import Connection, ConnectionId
+
+    connection = Connection(
+        id=ConnectionId("con-1"),
+        tenant_id=f.TENANT,
+        name="Blue Yonder",
+        target_system="blue_yonder",
+        base_url="https://wms.test/portal",
+        created_at=f.T0,
+    )
+    connection.authenticated(f.at(10))
+    await uow.connections.add(connection)
+    await container.vault.store(
+        connection.session_key,
+        json.dumps({"origin": connection.base_url, "cookies": [{"name": "s", "value": "1"}]}),
+    )
+
+
 class TestRecordings:
     async def test_starting_a_recording_returns_a_live_view(
-        self, client: httpx.AsyncClient
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
     ) -> None:
+        await _connected(uow, container)
+
         response = await client.post(
             "/v1/recordings",
             json={
@@ -133,6 +164,29 @@ class TestRecordings:
 
         assert response.status_code == 201
         assert response.json()["live_view_url"]
+
+    async def test_teaching_refuses_before_a_login_page_can_appear(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        """Nobody is signed in to this system. Said now, rather than discovered
+        three clicks into a demonstration of the identity provider."""
+        response = await client.post(
+            "/v1/recordings",
+            json={
+                "objective_key": {
+                    "objective_type": "release_wave",
+                    "target_system": "blue_yonder",
+                    "entity_type": "wave",
+                    "facility": "DC01",
+                    "direction": "outbound",
+                },
+                "start_url": "https://wms.test",
+            },
+        )
+
+        assert response.status_code == 409
+        assert "nobody is signed in" in response.json()["detail"]
+        assert "Connect it once" in response.json()["detail"]
 
     async def test_an_unknown_recording_is_a_problem_document(
         self, client: httpx.AsyncClient

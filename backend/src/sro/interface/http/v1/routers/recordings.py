@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Query, UploadFile, status
 
+from sro.application.recording.start_recording import NoSessionForSystem
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.shared.identifiers import RecordingId
 from sro.domain.shared.objective import Direction, ObjectiveKey
@@ -46,6 +47,17 @@ async def start_recording(
         if body.attach_to or not started.target_system
         else await container.load_session().execute(ctx, target_system=started.target_system)
     )
+    if started.target_system and not body.attach_to and not session_cookies:
+        # Said now, not discovered three clicks into a demonstration.
+        await container.finish_recording().abandon(
+            ctx,
+            recording_id=started.recording_id,
+            reason=f"nobody is signed in to {started.target_system}",
+        )
+        raise NoSessionForSystem(
+            f"nobody is signed in to {started.target_system}. Connect it once and every "
+            "teaching session after that starts already signed in."
+        )
 
     # Capture starts only once the recording is durable: attaching first would
     # leave a live CDP session with nowhere to put what it records.

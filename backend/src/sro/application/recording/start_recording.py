@@ -10,8 +10,20 @@ from sro.application.ports.browser import BrowserProvider, BrowserSession
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.recording.recording import Recording
+from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import BrowserSessionId, RecordingId
 from sro.domain.shared.objective import ObjectiveKey
+
+
+class NoSessionForSystem(DomainError):
+    """This system is known but nobody is signed in to it.
+
+    Raised before a browser opens, because the alternative is what used to
+    happen: the operator gets a login page inside a live recording and teaches
+    signing in, which is a different task from the one they meant to teach.
+    """
+
+    code = "no_session_for_system"
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,11 +92,12 @@ class StartRecording:
 
         # Browser first: if it fails nothing is written, so we never accumulate
         # recordings that can only ever be abandoned.
-        session = (
-            _external_browser(attach_to)
-            if attach_to
-            else await self._browser.open(start_url=start_url)
-        )
+        # Opened blank on purpose. Handing the provider a start URL makes it
+        # navigate the moment the session exists -- before the stored session
+        # cookies have been restored -- so the operator lands on the identity
+        # provider's login page and teaches signing in instead of the task.
+        # Capture navigates after restoring them.
+        session = _external_browser(attach_to) if attach_to else await self._browser.open()
 
         recording = Recording(
             id=self._ids.new_recording_id(),

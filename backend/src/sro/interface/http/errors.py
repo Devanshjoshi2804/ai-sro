@@ -17,6 +17,7 @@ from sro.application.execution.execute_skill import Refused
 from sro.application.induction.errors import InductionFailed
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.vault import VaultUnavailable
+from sro.application.recording.start_recording import NoSessionForSystem
 from sro.domain.shared.errors import Conflict, DomainError, InvariantViolation, NotFound
 
 _STATUS_BY_ERROR: dict[type[Exception], int] = {
@@ -28,6 +29,7 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     VaultUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     NotAuthenticated: status.HTTP_409_CONFLICT,
     Refused: status.HTTP_409_CONFLICT,
+    NoSessionForSystem: status.HTTP_409_CONFLICT,
 }
 
 _TITLES = {

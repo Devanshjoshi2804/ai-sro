@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from urllib.parse import urlsplit
 
 from sro.application.context import RequestContext
@@ -135,24 +136,93 @@ class StoreSession:
 
         async with self._uow as uow:
             connection = await uow.connections.get(ctx.tenant_id, connection_id)
-            # Cookies are bearer credentials: whoever holds them is the operator
-            # until they expire. They go to the vault, never to a recording.
-            await self._vault.store(
-                connection.session_key,
-                json.dumps({"origin": connection.base_url, "cookies": cookies}),
-            )
-            # And the form the executor sends. Keeping only the blob meant a
-            # skill kept replaying a cookie header written weeks earlier: two
-            # places held "the session", they aged apart, and every call came
-            # back 302 to the login page while the browser was happily signed
-            # in. One store, refreshed together.
-            await self._vault.store(
-                connection.cookie_key, _cookie_header(cookies, connection.base_url)
-            )
-            connection.authenticated(self._clock.now())
+            await _keep(self._vault, connection, cookies, self._clock.now())
             await uow.connections.save(connection)
             await uow.commit()
         return connection
+
+
+class RefreshSession:
+    """Keep the stored session current, every time a browser proves it is signed in.
+
+    Written once at connect, a session is stale by the following week: the
+    application rotates its session cookie, the identity provider issues a new
+    one, and the blob in the vault names a session the server has forgotten.
+    Restoring it puts the operator back on the login page -- which is the thing
+    connecting once was supposed to prevent.
+
+    So every capture that ends signed in refreshes it. Connect once means
+    connect once only if what was connected is kept alive.
+    """
+
+    def __init__(self, uow: UnitOfWork, vault: CredentialVault, clock: Clock) -> None:
+        self._uow = uow
+        self._vault = vault
+        self._clock = clock
+
+    async def execute(self, ctx: RequestContext, *, cookies: list[dict[str, object]]) -> int:
+        """Refresh every connection these cookies can speak for. Returns how many."""
+        if not cookies:
+            return 0
+        async with self._uow as uow:
+            connections = await uow.connections.list_for_tenant(ctx.tenant_id)
+            refreshed = 0
+            for connection in connections:
+                # A cookie header with nothing in it means these cookies are not
+                # this system's -- a second connection open in another tab, say.
+                # Overwriting a good session with it would be the bug we are here
+                # to fix, pointed the other way.
+                header = _cookie_header(cookies, connection.base_url)
+                if not header or not _still_signed_in(
+                    header, await self._vault.get(connection.cookie_key)
+                ):
+                    continue
+                await _keep(self._vault, connection, cookies, self._clock.now())
+                await uow.connections.save(connection)
+                refreshed += 1
+            await uow.commit()
+        return refreshed
+
+
+def _names(header: str) -> set[str]:
+    return {pair.split("=", 1)[0].strip() for pair in header.split(";") if "=" in pair}
+
+
+def _still_signed_in(header: str, stored: str | None) -> bool:
+    """Whether this browser ended the session logged in, judged by what it kept.
+
+    A capture that finished on the identity provider still holds cookies -- the
+    routing and anti-forgery ones survive being signed out -- so "has cookies"
+    is not the question. What a logged-out browser has *lost* is the
+    application's own session cookie. Refreshing from it would replace a working
+    session with a logged-out one, which is worse than never refreshing at all.
+    """
+    return not stored or _names(stored) <= _names(header)
+
+
+async def _keep(
+    vault: CredentialVault,
+    connection: Connection,
+    cookies: list[dict[str, object]],
+    now: datetime,
+) -> None:
+    """Both forms of the session, written together.
+
+    Cookies are bearer credentials: whoever holds them is the operator until
+    they expire. They go to the vault, never to a recording.
+
+    The blob is what a browser restores; the header is what the executor sends.
+    Keeping only the blob meant a skill kept replaying a cookie header written
+    weeks earlier: two places held "the session", they aged apart, and every
+    call came back 302 to the login page while the browser was happily signed
+    in. One store, refreshed together.
+    """
+    await vault.store(
+        connection.session_key,
+        json.dumps({"origin": connection.base_url, "cookies": cookies}),
+    )
+    await vault.store(connection.cookie_key, _cookie_header(cookies, connection.base_url))
+    connection.authenticated(now)
 
 
 class LoadSession:

@@ -243,11 +243,27 @@ class CaptureSession:
         if cdp is None or not cookies:
             return False
         try:
-            await cdp.send("Network.setCookies", {"cookies": cookies})
+            await cdp.send("Network.setCookies", {"cookies": [_addressed(c) for c in cookies]})
+            stored = {
+                (c["domain"], c["name"])
+                for c in (await cdp.send("Network.getAllCookies"))["cookies"]
+            }
         except Exception:
             logger.warning("could not restore the stored session", exc_info=True)
             return False
-        return True
+        # Silence here is what used to send an operator to a login page: the
+        # command succeeds, some cookies never land, and the identity provider
+        # is the first thing that notices.
+        refused = [
+            f"{c['domain']}{c['path']}{c['name']}"
+            for c in cookies
+            if (c["domain"], c["name"]) not in stored
+        ]
+        if refused:
+            logger.warning(
+                "the browser refused %d stored cookies: %s", len(refused), ", ".join(refused)
+            )
+        return len(refused) < len(cookies)
 
     async def open_at(self, url: str) -> None:
         """Put the session on the page the operator asked to start from.
@@ -646,3 +662,21 @@ class CaptureSession:
         if self._page is None:
             raise RuntimeError("CaptureSession.attach() has not run")
         return self._page
+
+
+def _addressed(cookie: dict[str, Any]) -> dict[str, Any]:
+    """Give a stored cookie the URL it came from.
+
+    ``Network.setCookies`` derives the source scheme from the URL. Without one a
+    cookie marked ``secure`` is treated as arriving over plain HTTP and is
+    dropped -- silently, in a batch the command still reports as successful.
+    The identity-provider cookies are exactly the ones marked secure, so the
+    session restored without them looks complete and is not.
+    """
+    if cookie.get("url"):
+        return cookie
+    domain = str(cookie.get("domain", "")).lstrip(".")
+    if not domain:
+        return cookie
+    scheme = "https" if cookie.get("secure", True) else "http"
+    return {**cookie, "url": f"{scheme}://{domain}{cookie.get('path', '/')}"}

@@ -1,0 +1,105 @@
+"""A stored session is only worth storing if it is kept current.
+
+Written once at connect and never again, the session in the vault names a
+session the server has already rotated away from. Restoring it lands the
+operator on the login page -- the exact thing connecting once was meant to
+prevent. Every capture that ends signed in refreshes it.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime
+
+import pytest
+
+from sro.application.connection.connect_system import RefreshSession
+from sro.application.context import RequestContext
+from sro.domain.connection.connection import Connection, ConnectionId
+from tests import factories as f
+from tests.unit.fakes import FakeClock, FakeCredentialVault, FakeUnitOfWork
+
+CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+
+WMS = "https://wms.example.com/portal"
+
+
+def _cookie(name: str, value: str, domain: str = "wms.example.com") -> dict[str, object]:
+    return {"name": name, "value": value, "domain": domain, "path": "/"}
+
+
+async def _connected(uow: FakeUnitOfWork) -> Connection:
+    connection = Connection(
+        id=ConnectionId("con_1"),
+        tenant_id=f.TENANT,
+        name="WMS",
+        target_system="blue_yonder",
+        base_url=WMS,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    async with uow:
+        await uow.connections.add(connection)
+        await uow.commit()
+    return connection
+
+
+@pytest.mark.asyncio
+async def test_a_signed_in_capture_replaces_the_session_it_started_with() -> None:
+    uow, vault = FakeUnitOfWork(), FakeCredentialVault()
+    connection = await _connected(uow)
+    await vault.store(connection.session_key, json.dumps({"origin": WMS, "cookies": []}))
+
+    refreshed = await RefreshSession(uow, vault, FakeClock()).execute(
+        CTX, cookies=[_cookie("SESSIONID", "rotated")]
+    )
+
+    assert refreshed == 1
+    stored = json.loads(await vault.get(connection.session_key) or "{}")
+    assert stored["cookies"] == [_cookie("SESSIONID", "rotated")]
+    # Both forms, or the executor keeps sending the header the browser no
+    # longer agrees with.
+    assert await vault.get(connection.cookie_key) == "SESSIONID=rotated"
+
+
+@pytest.mark.asyncio
+async def test_cookies_from_somewhere_else_never_overwrite_a_good_session() -> None:
+    uow, vault = FakeUnitOfWork(), FakeCredentialVault()
+    connection = await _connected(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=good")
+
+    refreshed = await RefreshSession(uow, vault, FakeClock()).execute(
+        CTX, cookies=[_cookie("other", "x", domain="unrelated.example.org")]
+    )
+
+    assert refreshed == 0
+    assert await vault.get(connection.cookie_key) == "SESSIONID=good"
+
+
+@pytest.mark.asyncio
+async def test_a_capture_that_held_no_cookies_leaves_the_session_alone() -> None:
+    uow, vault = FakeUnitOfWork(), FakeCredentialVault()
+    connection = await _connected(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=good")
+
+    assert await RefreshSession(uow, vault, FakeClock()).execute(CTX, cookies=[]) == 0
+    assert await vault.get(connection.cookie_key) == "SESSIONID=good"
+
+
+@pytest.mark.asyncio
+async def test_a_capture_that_ended_logged_out_does_not_replace_a_working_session() -> None:
+    """The failure this whole mechanism could cause if it trusted "has cookies".
+
+    Signed out, the browser still holds the routing and anti-forgery cookies. It
+    has lost the session one, and refreshing from it would overwrite a session
+    that still works.
+    """
+    uow, vault = FakeUnitOfWork(), FakeCredentialVault()
+    connection = await _connected(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=good; CSRF=abc")
+
+    refreshed = await RefreshSession(uow, vault, FakeClock()).execute(
+        CTX, cookies=[_cookie("CSRF", "def")]
+    )
+
+    assert refreshed == 0
+    assert await vault.get(connection.cookie_key) == "SESSIONID=good; CSRF=abc"

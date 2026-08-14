@@ -196,6 +196,12 @@ async def finish_recording(
     container: ContainerDep,
     ctx: ContextDep,
 ) -> RecordingSummary:
+    # The browser is signed in right now and about to be thrown away. Taking its
+    # cookies first is what keeps "connect it once" true a month later.
+    await container.refresh_session().execute(
+        ctx, cookies=await container.capture.snapshot_cookies(RecordingId(recording_id))
+    )
+
     # Drain and detach before sealing: a sealed recording rejects appends, so
     # anything still buffered would be lost with no error to show for it.
     await container.capture.stop(ctx, recording_id=RecordingId(recording_id))

@@ -19,6 +19,7 @@ from dataclasses import dataclass, replace
 from sro.application.context import RequestContext
 from sro.application.execution.headers import client_headers, resolve_headers
 from sro.application.execution.verify import check, extract
+from sro.application.execution.vision_step import PerformWithVision
 from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
@@ -101,11 +102,13 @@ class ExecuteStep:
         http: HttpCaller,
         vault: CredentialVault,
         ui: UiDriver | None = None,
+        vision: PerformWithVision | None = None,
     ) -> None:
         self._uow = uow
         self._http = http
         self._vault = vault
         self._ui = ui
+        self._vision = vision
 
     async def execute(self, ctx: RequestContext, *, run_id: RunId, index: int) -> StepOutcome:
         async with self._uow as uow:
@@ -269,11 +272,17 @@ class ExecuteStep:
             return replace(outcome, detail=f"{outcome.detail or failure}; no browser: {error}")
 
         if not result.performed:
-            return replace(
-                outcome,
-                escalated_from=Medium.NETWORK,
-                escalation_reason=rule.because,
-                detail=result.detail,
+            # The recorded control is gone. Whether anything above may look at
+            # the screen instead is the policy's decision, not this method's.
+            return await self._escalate_to_vision(
+                run,
+                step,
+                replace(
+                    outcome,
+                    escalated_from=Medium.NETWORK,
+                    escalation_reason=rule.because,
+                    detail=result.detail,
+                ),
             )
         return StepOutcome(
             index=step.index,
@@ -287,6 +296,38 @@ class ExecuteStep:
             detail=(
                 f"{outcome.detail or failure} at L1; performed in the interface"
                 + (f" ({result.candidates} candidates)" if result.candidates > 1 else "")
+            ),
+        )
+
+    async def _escalate_to_vision(
+        self, run: Run, step: SkillStep, outcome: StepOutcome
+    ) -> StepOutcome:
+        """The last rung, if the policy allows it and it is configured.
+
+        Every attempt is recorded whether or not the model was reached: a run
+        that would have escalated and could not is a different fact from a run
+        that never tried, and only one of them means the deployment is missing
+        a rung.
+        """
+        rule = next_medium(FailureKind.CONTROL_NOT_FOUND, Medium.UI)
+        if rule is None or rule.then is not Medium.VISION or self._vision is None:
+            return outcome
+
+        result = await self._vision.execute(run, step)
+        if result.calls:
+            async with self._uow as uow:
+                for call in result.calls:
+                    await uow.model_calls.add(call)
+                await uow.commit()
+
+        performed = result.outcome.disposition is StepDisposition.PERFORMED
+        return replace(
+            result.outcome,
+            escalation_reason=rule.because,
+            detail=(
+                f"{outcome.detail or 'the control was not found'}; {result.outcome.detail}"
+                if not performed
+                else result.outcome.detail
             ),
         )
 
@@ -475,10 +516,11 @@ class ExecuteSkill:
         ids: IdFactory,
         ui: UiDriver | None = None,
         learn: LearnFromRun | None = None,
+        vision: PerformWithVision | None = None,
     ) -> None:
         self._uow = uow
         self._start = StartRun(uow, clock, ids)
-        self._step = ExecuteStep(uow, http, vault, ui)
+        self._step = ExecuteStep(uow, http, vault, ui, vision)
         self._finish = FinishRun(uow, clock, learn)
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:

@@ -99,8 +99,17 @@ _POLICY: tuple[EscalationRule, ...] = (
     EscalationRule(
         when=FailureKind.CONTROL_NOT_FOUND,
         at=Medium.UI,
+        then=Medium.VISION,
+        because=(
+            "the control the demonstration recorded is gone, and what is on the screen "
+            "instead is a question about pixels rather than about selectors"
+        ),
+    ),
+    EscalationRule(
+        when=FailureKind.CONTROL_NOT_FOUND,
+        at=Medium.VISION,
         then=None,
-        because="vision is the rung above and is not available in this release",
+        because="a human is the rung above vision, and there is no rung above a human",
     ),
 )
 

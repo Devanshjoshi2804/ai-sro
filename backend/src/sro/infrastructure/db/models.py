@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, Index, Integer, String, Text, text
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -176,3 +176,24 @@ class KnowledgeRow(Base):
         ),
         Index("ix_knowledge_tenant_kind", "tenant_id", "kind"),
     )
+
+
+class ModelCallRow(Base):
+    __tablename__ = "model_calls"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    run_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    step_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    purpose: Mapped[str] = mapped_column(String(32), nullable=False)
+    destination: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sent_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    image_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    redacted_fields: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    outcome: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    failed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    __table_args__ = (Index("ix_model_calls_run", "tenant_id", "run_id", "started_at"),)

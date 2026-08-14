@@ -23,6 +23,7 @@ from sro.application.execution.execute_skill import (
     StartRun,
 )
 from sro.application.execution.read_runs import GetRun, ListRuns
+from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
@@ -40,6 +41,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.transcription import Transcriber
 from sro.application.ports.ui import UiDriver
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
+from sro.application.ports.vision import VisionDriver
 from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.get_recording import GetRecording
@@ -55,6 +57,7 @@ from sro.config import Settings, get_settings
 from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.session import create_engine, create_session_factory
+from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
 from sro.infrastructure.steel.client import SteelClient
@@ -83,6 +86,7 @@ class Container:
     browser: BrowserProvider
     transcriber: Transcriber
     embedder: Embedder
+    vision: VisionDriver | None
     vault: CredentialVault
     http: HttpCaller
     ui: UiDriver
@@ -159,6 +163,16 @@ class Container:
     def learn_from_run(self) -> LearnFromRun:
         return LearnFromRun(self.record_claims())
 
+    def perform_with_vision(self) -> PerformWithVision:
+        return PerformWithVision(
+            self.ui,
+            self.vision,
+            self.clock,
+            egress_enabled=self.settings.vision_enabled,
+            destination=f"gemini:{self.settings.gemini_vision_model}",
+            model=self.settings.gemini_vision_model,
+        )
+
     def execute_skill(self) -> ExecuteSkill:
         return ExecuteSkill(
             self.unit_of_work(),
@@ -168,13 +182,16 @@ class Container:
             self.ids,
             self.ui,
             self.learn_from_run(),
+            self.perform_with_vision(),
         )
 
     def start_run(self) -> StartRun:
         return StartRun(self.unit_of_work(), self.clock, self.ids)
 
     def execute_step(self) -> ExecuteStep:
-        return ExecuteStep(self.unit_of_work(), self.http, self.vault, self.ui)
+        return ExecuteStep(
+            self.unit_of_work(), self.http, self.vault, self.ui, self.perform_with_vision()
+        )
 
     def finish_run(self) -> FinishRun:
         return FinishRun(self.unit_of_work(), self.clock, self.learn_from_run())
@@ -207,6 +224,14 @@ def _build_transcriber(settings: Settings) -> Transcriber:
     if settings.transcription_enabled and settings.gemini_api_key:
         return GeminiTranscriber(settings.gemini_api_key, settings.gemini_transcription_model)
     return NullTranscriber()
+
+
+def _build_vision(settings: Settings) -> VisionDriver | None:
+    """Two switches again, and the more consequential pair: this one sends a
+    picture of a customer's live warehouse system."""
+    if settings.vision_enabled and settings.gemini_api_key:
+        return GeminiVisionDriver(settings.gemini_api_key, settings.gemini_vision_model)
+    return None
 
 
 def _build_embedder(settings: Settings) -> Embedder:
@@ -272,6 +297,7 @@ def build_container(settings: Settings | None = None) -> Container:
         ),
         transcriber=_build_transcriber(settings),
         embedder=_build_embedder(settings),
+        vision=_build_vision(settings),
         vault=_build_vault(settings),
         http=HttpxCaller(),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),

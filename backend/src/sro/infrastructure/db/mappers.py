@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
+from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import (
     Medium,
     Run,
@@ -47,6 +48,7 @@ from sro.infrastructure.db.codec import (
 from sro.infrastructure.db.models import (
     ConnectionRow,
     KnowledgeRow,
+    ModelCallRow,
     RecordingRow,
     RunRow,
     SkillRow,
@@ -317,4 +319,42 @@ def row_to_knowledge(row: KnowledgeRow) -> KnowledgeEntry:
         observed_at=row.observed_at,
         superseded_by=KnowledgeId(row.superseded_by) if row.superseded_by else None,
         embedding=tuple(row.embedding) if row.embedding is not None else (),
+    )
+
+
+def model_call_to_row(call: ModelCall) -> ModelCallRow:
+    return ModelCallRow(
+        id=call.id,
+        tenant_id=call.tenant_id.value,
+        run_id=call.run_id.value,
+        step_index=call.step_index,
+        purpose=call.purpose,
+        destination=call.destination,
+        model=call.model,
+        started_at=call.started_at,
+        duration_ms=call.duration_ms,
+        sent_bytes=call.sent_bytes,
+        image_sent=call.image_sent,
+        redacted_fields=list(call.redacted_fields),
+        outcome=call.outcome,
+        failed=call.failed,
+    )
+
+
+def row_to_model_call(row: ModelCallRow) -> ModelCall:
+    return ModelCall(
+        id=row.id,
+        tenant_id=TenantId(row.tenant_id),
+        run_id=RunId(row.run_id),
+        step_index=row.step_index,
+        purpose=row.purpose,
+        destination=row.destination,
+        model=row.model,
+        started_at=row.started_at,
+        duration_ms=row.duration_ms,
+        sent_bytes=row.sent_bytes,
+        image_sent=row.image_sent,
+        redacted_fields=tuple(row.redacted_fields or ()),
+        outcome=row.outcome,
+        failed=row.failed,
     )

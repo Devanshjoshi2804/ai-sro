@@ -85,6 +85,14 @@ class Settings(BaseSettings):
 
     gemini_transcription_model: str = "gemini-2.5-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
+    gemini_vision_model: str = "gemini-2.5-computer-use-preview-10-2025"
+
+    vision_enabled: bool = False
+    """The L3 rung sends a screenshot of a customer's live WMS to Google.
+
+    Off by default and separate from the key, like every other egress here. With
+    it off, a step whose control has vanished fails with that reason rather than
+    quietly reaching for a model."""
 
     knowledge_embeddings_enabled: bool = False
     """Embeddings order what a structured filter already chose. Off by default:

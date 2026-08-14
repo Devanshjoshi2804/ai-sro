@@ -217,3 +217,58 @@ async def test_a_shadow_run_in_the_browser_withholds_the_gesture() -> None:
     assert ui.asked == []
     assert run.steps[0].disposition is StepDisposition.WITHHELD
     assert "wm-adjust-window button#finishButton" in (run.steps[0].detail or "")
+
+
+async def test_a_control_that_has_vanished_escalates_to_vision() -> None:
+    """L2 knew where the control was; L3 is asked what is on the screen instead."""
+    from sro.application.execution.vision_step import PerformWithVision
+    from sro.application.ports.vision import ProposedGesture
+    from sro.domain.recording.events import ActionKind as Kind
+    from tests.unit.fakes import FakeVisionDriver
+
+    uow, vault = FakeUnitOfWork(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    http, ui = FakeHttpCaller(), FakeUiDriver()
+    http.answer(status_code=404, text="{}")
+    ui.will_not_find()
+
+    model = FakeVisionDriver(
+        ProposedGesture(action=Kind.CLICK, x=120, y=340, reasoning="the button moved")
+    )
+    vision = PerformWithVision(ui, model, FakeClock(), egress_enabled=True, model="fake-vision")
+
+    version = f.skill_version(steps=(_step(),))
+    skill = f.skill(versions=0)
+    skill.add_version(version)
+    for stage in (PromotionStage.SHADOW, PromotionStage.ASSISTED):
+        version.promote(stage, f.at(700), f.OPERATOR)
+    await uow.skills.add(skill)
+
+    run = await ExecuteSkill(
+        uow, http, vault, FakeClock(), FakeIdFactory(), ui, None, vision
+    ).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    step = run.steps[0]
+    assert step.medium is Medium.VISION
+    assert step.disposition is StepDisposition.PERFORMED
+    assert step.matched_by == "vision"
+    assert uow.model_calls.calls, "what was sent to the model is part of the run's record"
+    assert uow.model_calls.calls[0].run_id == run.id
+
+
+async def test_vision_is_not_reached_when_the_deployment_has_no_rung_for_it() -> None:
+    http, ui = FakeHttpCaller(), FakeUiDriver()
+    http.answer(status_code=404, text="{}")
+    ui.will_not_find()
+
+    run = await _run(stage=PromotionStage.ASSISTED, http=http, ui=ui)
+
+    assert run.steps[0].medium is Medium.NETWORK
+    assert "no control matched" in (run.steps[0].detail or "")

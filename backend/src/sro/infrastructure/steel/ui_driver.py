@@ -20,10 +20,27 @@ import logging
 from playwright.async_api import Frame, Page, async_playwright
 
 from sro.application.ports.ui import ResolvedLocator, UiOutcome, UiUnavailable
+from sro.application.ports.vision import Screen
 from sro.domain.recording.events import ActionKind
 from sro.domain.skill.locator import LocatorStrategy
 
 logger = logging.getLogger(__name__)
+
+_TEXT_DIGEST = """() => {
+    const seen = [];
+    document.querySelectorAll('input, select, textarea, button, a, .x-grid-cell, label')
+        .forEach((el) => {
+            const rect = el.getBoundingClientRect();
+            if (rect.width < 2 || rect.height < 2) return;
+            const label = (el.getAttribute('aria-label') || el.getAttribute('placeholder')
+                || el.textContent || el.name || '').trim().slice(0, 80);
+            if (label) seen.push(`${label}: ${Math.round(rect.x)},${Math.round(rect.y)}`);
+        });
+    return seen.slice(0, 200).join('\n');
+}"""
+"""Visible controls, with where they are. Names come from the DOM rather than
+from the picture: the redaction step can only reason about text, and a control's
+own name beats one inferred from pixels."""
 
 _TYPE_DELAY_MS = 60
 """Typed rather than set. ExtJS combo boxes filter on keystrokes, and a value
@@ -78,6 +95,72 @@ class PlaywrightUiDriver:
 
         tried = ", ".join(f"{loc.strategy}={loc.query}" for loc in locators) or "nothing"
         return UiOutcome(performed=False, detail=f"no control matched: {tried}")
+
+    async def capture(self) -> Screen:
+        """A screenshot and the page's visible text, for the rung that looks.
+
+        The text digest is gathered alongside the image because it is exact and
+        the image is not: a control's name read out of the DOM beats the same
+        name inferred from pixels, and the redaction step can only reason about
+        text.
+        """
+        if not self._debugger_url:
+            raise UiUnavailable("no browser is attached; set SRO_UI_DEBUGGER_URL")
+
+        async with self._page() as page:
+            frame = await _visible_screen(page)
+            image = await page.screenshot(type="png")
+            size = page.viewport_size or {"width": 1280, "height": 800}
+            try:
+                digest = await frame.evaluate(_TEXT_DIGEST)
+            except Exception:
+                logger.debug("the visible frame would not describe itself", exc_info=True)
+                digest = ""
+            return Screen(
+                image=image,
+                mime_type="image/png",
+                width=int(size["width"]),
+                height=int(size["height"]),
+                text_digest=str(digest)[:8000],
+            )
+
+    async def perform_at(
+        self, *, action: ActionKind, x: int, y: int, value: str | None = None
+    ) -> UiOutcome:
+        """Act at a point, because the gesture came from pixels.
+
+        Deliberately separate from ``perform``: a coordinate is not a control
+        the demonstration identified, and the run's record should never be able
+        to confuse the two.
+        """
+        if not self._debugger_url:
+            raise UiUnavailable("no browser is attached; set SRO_UI_DEBUGGER_URL")
+
+        async with self._page() as page:
+            try:
+                await page.mouse.move(x, y)
+                match action:
+                    case ActionKind.CLICK:
+                        await page.mouse.click(x, y)
+                    case ActionKind.TYPE:
+                        await page.mouse.click(x, y)
+                        await page.keyboard.type(value or "", delay=_TYPE_DELAY_MS)
+                    case ActionKind.PRESS:
+                        await page.keyboard.press(value or "Enter")
+                    case ActionKind.SCROLL:
+                        await page.mouse.wheel(0, int(value or 400))
+                    case ActionKind.HOVER:
+                        pass  # the move above is the hover
+                    case _:
+                        return UiOutcome(
+                            performed=False, detail=f"{action} cannot be performed at a point"
+                        )
+            except Exception as error:
+                return UiOutcome(
+                    performed=False, detail=f"could not {action} at ({x},{y}): {error}"
+                )
+            await page.wait_for_timeout(1200)
+            return UiOutcome(performed=True, candidates=1)
 
     def _page(self) -> _AttachedPage:
         return _AttachedPage(self._debugger_url)

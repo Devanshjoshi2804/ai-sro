@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from sro.application.ports.vision import Screen
 from sro.domain.recording.events import ActionKind
 from sro.domain.skill.locator import LocatorStrategy
 
@@ -51,6 +52,18 @@ class UiDriver(Protocol):
 
     async def current_url(self) -> str | None:
         """Where the driven browser is, for the run's record."""
+        ...
+
+    async def capture(self) -> Screen:
+        """What is on screen, for a rung that has to look at it."""
+        ...
+
+    async def perform_at(
+        self, *, action: ActionKind, x: int, y: int, value: str | None = None
+    ) -> UiOutcome:
+        """Act at a point, for a gesture that came from pixels rather than a
+        locator. Kept apart from ``perform`` so a coordinate can never be
+        mistaken for a control the demonstration actually identified."""
         ...
 
 

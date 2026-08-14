@@ -18,12 +18,19 @@ from sro.application.ports.http import HttpResponse, TargetUnreachable
 from sro.application.ports.repositories import (
     ConnectionRepository,
     KnowledgeRepository,
+    ModelCallRepository,
     RecordingRepository,
     RunRepository,
     SkillRepository,
 )
 from sro.application.ports.ui import ResolvedLocator, UiOutcome, UiUnavailable
+from sro.application.ports.vision import (
+    ProposedGesture,
+    Screen,
+    VisionUnavailable,
+)
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.knowledge.entry import (
     EntryKind,
@@ -374,11 +381,37 @@ class FakeHttpCaller:
         return HttpResponse(status_code=200, headers={}, text="{}")
 
 
+class FakeVisionDriver:
+    """Proposes whatever it was told to, in order. Enough to prove the loop's
+    bounds; never enough to imply a model would do this."""
+
+    def __init__(self, *gestures: ProposedGesture, available: bool = True) -> None:
+        self._gestures = list(gestures)
+        self._available = available
+        self.asked: list[dict[str, object]] = []
+
+    async def propose(
+        self,
+        *,
+        goal: str,
+        screen: Screen,
+        allowed: tuple[ActionKind, ...],
+        history: tuple[str, ...] = (),
+    ) -> ProposedGesture:
+        if not self._available:
+            raise VisionUnavailable("no vision backend")
+        self.asked.append({"goal": goal, "screen": screen, "allowed": allowed, "history": history})
+        if not self._gestures:
+            return ProposedGesture(action=ActionKind.HOVER, refusal="nothing left to try")
+        return self._gestures.pop(0)
+
+
 class FakeUiDriver:
     """Answers a queue of outcomes and records what it was asked to do."""
 
-    def __init__(self, *, available: bool = True) -> None:
+    def __init__(self, *, available: bool = True, digest: str = "Finish: 100,200") -> None:
         self.available = available
+        self.digest = digest
         self.asked: list[dict[str, object]] = []
         self.outcomes: list[UiOutcome] = []
 
@@ -402,6 +435,25 @@ class FakeUiDriver:
 
     async def current_url(self) -> str | None:
         return "https://wms.test/portal"
+
+    async def capture(self) -> Screen:
+        if not self.available:
+            raise UiUnavailable("no browser is attached")
+        return Screen(
+            image=b"\x89PNG-not-really",
+            mime_type="image/png",
+            width=1280,
+            height=800,
+            text_digest=self.digest,
+        )
+
+    async def perform_at(
+        self, *, action: ActionKind, x: int, y: int, value: str | None = None
+    ) -> UiOutcome:
+        if not self.available:
+            raise UiUnavailable("no browser is attached")
+        self.asked.append({"action": action, "at": (x, y), "value": value})
+        return self.outcomes.pop(0) if self.outcomes else UiOutcome(performed=True)
 
 
 class FakeCredentialVault:
@@ -503,6 +555,19 @@ class FakeEmbedder:
         return tuple((float(len(text)), 1.0, 0.0) for text in texts)
 
 
+class FakeModelCallRepository:
+    def __init__(self) -> None:
+        self.calls: list[ModelCall] = []
+
+    async def add(self, call: ModelCall) -> None:
+        self.calls.append(call)
+
+    async def list_for_run(self, tenant_id: TenantId, run_id: RunId) -> tuple[ModelCall, ...]:
+        return tuple(
+            call for call in self.calls if call.tenant_id == tenant_id and call.run_id == run_id
+        )
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -514,6 +579,7 @@ class FakeUnitOfWork:
     connections: ConnectionRepository
     runs: RunRepository
     knowledge: KnowledgeRepository
+    model_calls: ModelCallRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
@@ -521,6 +587,7 @@ class FakeUnitOfWork:
         self.connections = FakeConnectionRepository()
         self.runs = FakeRunRepository()
         self.knowledge = FakeKnowledgeRepository()
+        self.model_calls = FakeModelCallRepository()
         self.commits = 0
         self.rollbacks = 0
 

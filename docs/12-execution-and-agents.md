@@ -305,6 +305,47 @@ and retrieval works without it.
 Flows (`http/flows/*.json`) are deliberately not ingested: no key appears in all
 35 files, so any reader would be guessing. They stay as human evidence.
 
+## L3 as built
+
+Reached when L2 finds nothing: the control the demonstration recorded is gone,
+and what is on the screen instead is a question about pixels rather than about
+selectors. The escalation table now says so, and says that nothing follows
+vision — a human is the rung above, and there is no rung above a human.
+
+**The model proposes one gesture. It never touches the browser.** Everything it
+returns is executed by the same driver that executes a taught step, so real
+actionability checks and trusted events still apply, and the run records the
+same shape of outcome either way. `perform_at` is deliberately a separate method
+from `perform`: a coordinate is not a control the demonstration identified, and
+the record must never be able to confuse the two.
+
+Bounded on every side, because this is the least predictable thing in the system
+pointed at a live warehouse:
+
+| Bound | Why |
+|---|---|
+| Five gestures per step | A model that has not finished in five is not about to |
+| Allowed actions = the step's own gesture + scroll/hover | A demonstrated click must not become "navigate somewhere else and try there" |
+| No writes without authorisation | Same rule as every rung: a click cannot be withheld once made, so a shadow run never reaches for the model at all |
+| Every call recorded | `model_calls` holds run, step, destination, bytes, what was redacted, and the outcome — written whether or not the call succeeded |
+
+**The model may not decide it succeeded.** `done` is stored as a claim, with its
+reasoning, and the step's own assertions are what verify. Anything the driver
+cannot map — a `drag_and_drop`, an action outside the allowed set, an answer
+that is not JSON — is a refusal rather than a nearest match, because a `drag`
+approximated as a click is a different gesture performed confidently.
+
+**Redaction happens before sending, never after.** A screen whose text mentions
+a password, PIN or token field is not sent at all — the image is withheld and
+the refusal is logged. Otherwise any line naming a credential field is dropped
+from the digest and the dropped names (never values) go into the call record,
+because a silent redaction is indistinguishable from a bug.
+
+`SRO_VISION_ENABLED` is a separate switch from the API key, and the more
+consequential of the two: this one sends a picture of a customer's live WMS. Off
+by default, and with it off a step whose control has vanished fails with that
+reason rather than quietly reaching for a model.
+
 ## Retrieval decides what; the ladder decides how
 
 `POST /v1/intent/resolve` turns a sentence into a decision. It starts no run.

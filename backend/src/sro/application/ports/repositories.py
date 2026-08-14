@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.recording.recording import Recording
@@ -125,6 +126,14 @@ class KnowledgeRepository(Protocol):
         ...
 
 
+class ModelCallRepository(Protocol):
+    async def add(self, call: ModelCall) -> None: ...
+
+    async def list_for_run(self, tenant_id: TenantId, run_id: RunId) -> tuple[ModelCall, ...]:
+        """Every call a run made, oldest first. The run's egress record."""
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -133,6 +142,7 @@ class UnitOfWork(Protocol):
     connections: ConnectionRepository
     runs: RunRepository
     knowledge: KnowledgeRepository
+    model_calls: ModelCallRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

@@ -15,12 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sro.application.ports.repositories import (
     ConnectionRepository,
     KnowledgeRepository,
+    ModelCallRepository,
     RecordingRepository,
     RunRepository,
     SkillRepository,
     UnitOfWork,
 )
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.recording.recording import Recording
@@ -31,10 +33,12 @@ from sro.domain.skill.skill import Skill
 from sro.infrastructure.db.mappers import (
     connection_to_row,
     knowledge_to_row,
+    model_call_to_row,
     objective_columns,
     recording_to_row,
     row_to_connection,
     row_to_knowledge,
+    row_to_model_call,
     row_to_recording,
     row_to_run,
     row_to_skill,
@@ -49,6 +53,7 @@ from sro.infrastructure.db.mappers import (
 from sro.infrastructure.db.models import (
     ConnectionRow,
     KnowledgeRow,
+    ModelCallRow,
     RecordingRow,
     RunRow,
     SkillRow,
@@ -323,6 +328,25 @@ class SqlKnowledgeRepository(KnowledgeRepository):
         return tuple(row_to_knowledge(row) for row in rows)
 
 
+class SqlModelCallRepository(ModelCallRepository):
+    """Append-only. A model call is a fact about what left the deployment."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, call: ModelCall) -> None:
+        self._session.add(model_call_to_row(call))
+
+    async def list_for_run(self, tenant_id: TenantId, run_id: RunId) -> tuple[ModelCall, ...]:
+        query = (
+            select(ModelCallRow)
+            .where(ModelCallRow.tenant_id == tenant_id.value, ModelCallRow.run_id == run_id.value)
+            .order_by(ModelCallRow.started_at)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_model_call(row) for row in rows)
+
+
 class SqlUnitOfWork(UnitOfWork):
     """One session per block. The session opens on entry, not on construction,
     so a unit of work can be built once and used per request."""
@@ -338,6 +362,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.connections = SqlConnectionRepository(self._session)
         self.runs = SqlRunRepository(self._session)
         self.knowledge = SqlKnowledgeRepository(self._session)
+        self.model_calls = SqlModelCallRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

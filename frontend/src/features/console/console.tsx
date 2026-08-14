@@ -881,7 +881,13 @@ function ChatTurn({ message }: { message: ChatMessage }) {
           </div>
         )}
 
-        {decision.matched_skill_id && <SkillCard skillId={decision.matched_skill_id} />}
+        {decision.matched_skill_id && (
+          <SkillCard
+            skillId={decision.matched_skill_id}
+            parameters={{}}
+            missing={decision.missing_parameters ?? []}
+          />
+        )}
       </div>
     </div>
   );

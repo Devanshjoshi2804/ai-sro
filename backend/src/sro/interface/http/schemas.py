@@ -513,6 +513,10 @@ class RunModel(BaseModel):
     medium: str
     status: str
     parameters: dict[str, str]
+    derived: dict[str, str]
+    """Values read out of the system as the run went. The audit answer to "what
+    did it actually send", which the parameters alone cannot give."""
+
     requested_by: str
     authorized_by: str | None
     started_at: datetime
@@ -530,6 +534,7 @@ class RunModel(BaseModel):
             medium=run.medium.value,
             status=run.status.value,
             parameters=dict(run.parameters),
+            derived=dict(run.derived),
             requested_by=run.requested_by.value,
             authorized_by=run.authorized_by.value if run.authorized_by else None,
             started_at=run.started_at,

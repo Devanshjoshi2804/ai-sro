@@ -863,6 +863,10 @@ export interface components {
             parameters: {
                 [key: string]: string;
             };
+            /** Derived */
+            derived: {
+                [key: string]: string;
+            };
             /** Requested By */
             requested_by: string;
             /** Authorized By */

@@ -10,8 +10,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** v0 stops at shadow. The backend refuses anything beyond it regardless. */
-const NEXT_STAGE: Record<string, string | undefined> = { recorded: "shadow" };
+/**
+ * The whole ladder is reachable. What refuses the last rung is the version's
+ * own record, not this map — the backend answers with the reason, and it is
+ * shown rather than swallowed.
+ */
+const NEXT_STAGE: Record<string, string | undefined> = {
+  recorded: "shadow",
+  shadow: "assisted",
+  assisted: "autonomous",
+};
 
 export function SkillDetail({ skillId }: { skillId: string }) {
   const queryClient = useQueryClient();
@@ -65,8 +73,13 @@ export function SkillDetail({ skillId }: { skillId: string }) {
               onClick={() =>
                 nextStage && promote.mutate({ version: latest.version, to: nextStage })
               }
+              title={
+                nextStage === "autonomous" && latest.ready_for_autonomy
+                  ? latest.ready_for_autonomy
+                  : undefined
+              }
             >
-              {nextStage ? `Promote to ${nextStage}` : "At highest permitted stage"}
+              {nextStage ? `Promote to ${nextStage}` : "At the top of the ladder"}
             </Button>
           </div>
         )}
@@ -74,6 +87,33 @@ export function SkillDetail({ skillId }: { skillId: string }) {
 
       {latest && (
         <>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Track record</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <p className="tabular-nums">
+                {latest.track_record.clean_streak} clean in a row ·{" "}
+                {latest.track_record.clean_runs} clean · {latest.track_record.degraded_runs}{" "}
+                needed a slower rung · {latest.track_record.failed_runs} failed
+              </p>
+              {latest.ready_for_autonomy ? (
+                <p className="text-muted-foreground">
+                  Not ready to run unattended: {latest.ready_for_autonomy}
+                </p>
+              ) : (
+                <p className="text-muted-foreground">
+                  This version has earned the right to run unattended.
+                </p>
+              )}
+              {latest.demotion_reason && (
+                <p className="text-destructive">
+                  Demoted automatically: {latest.demotion_reason}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Provenance</CardTitle>

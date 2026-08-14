@@ -2933,6 +2933,13 @@
             "type": "object",
             "title": "Parameters"
           },
+          "derived": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Derived"
+          },
           "requested_by": {
             "type": "string",
             "title": "Requested By"
@@ -2993,6 +3000,7 @@
           "medium",
           "status",
           "parameters",
+          "derived",
           "requested_by",
           "authorized_by",
           "started_at",

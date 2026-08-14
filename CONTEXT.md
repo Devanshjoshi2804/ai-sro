@@ -4,7 +4,7 @@ One document, self-contained: what this is, what exists today, every decision
 taken and why, and what happens next. Written to be handed to a person or a tool
 that has never seen the repository.
 
-Repository: `bitbucket.org/lab89/ai-sro` · latest commit `a430743`
+Repository: `bitbucket.org/lab89/ai-sro` · latest commit `2c9e4f2`
 Deeper reading: [`docs/00-overview.md`](docs/00-overview.md) and the ADRs in
 [`docs/07-adr/`](docs/07-adr/). Agent-facing rules: [`AGENTS.md`](AGENTS.md).
 
@@ -46,11 +46,19 @@ model as a fallback rather than the mechanism.
 
 ## 3. What exists today (built, running, verified)
 
-The **Workflow Builder** — demonstrations in, reviewable skills out. Nothing
-executes; `HIGHEST_PERMITTED_STAGE = SHADOW` and no WMS is written to.
+The whole slice: **teach → learn → ask → perform → verify → learn from it.**
 
-Proven end to end against real infrastructure: start a demonstration from the UI,
-drive a real browser, seal it, do it again, induce, review, promote.
+An operator names a URL and demonstrates a task twice, narrating why. The system
+derives what the task *was* from the evidence, diffs the two runs into a
+parameterised skill, and writes the skill's own description. Later the operator
+asks for that work in chat; retrieval decides which taught skill it is, and the
+skill runs — network replay first, then the interface, then a vision model, each
+attempt verified against the assertions the demonstration established. What the
+run proved is written back into the knowledge store, and a version that keeps
+running clean earns its way up the promotion ladder.
+
+Proven end to end against a live Blue Yonder QA instance, including a real
+`PUT /data/WM/wm/inventory/adjust` that landed in the approval queue.
 
 ```
 POST http://…/api/waves/${wave_id}/release
@@ -132,7 +140,7 @@ Steel and Temporal · 10 frontend tests.
 
 ---
 
-## 4. What we are building next
+## 4. How the parts fit
 
 An operator opens a chat-style thread. A **+** offers "teach a workflow", which
 opens a browser session inside the thread. They demonstrate; the system learns.
@@ -221,18 +229,17 @@ than advancing it.
 
 | Phase | Contents | State |
 |---|---|---|
-| **0** | Secret capture hardening | In progress — blocking |
-| **1** | L1 network execution: execution domain, HTTP executor, idempotency, verification, deterministic workflow, audit | Next |
-| **2** | L2 UI replay by accessibility ancestry; escalation policy as data | |
-| **3** | L3 Gemini computer use; redaction before egress; model-call logging | |
-| **4** | Chat and intent; teach entry point; validated intent; batch preview | |
-| **5** | Autonomy: counters, circuit breaker, blast-radius limits | |
+| **0** | Secret capture hardening | Done |
+| **1** | L1 network execution: execution domain, HTTP executor, idempotency, verification, deterministic workflow, audit | Done — proven on the live QA WMS |
+| **2** | L2 UI replay by ExtJS component query; escalation policy as data | Done — driver proven live; the induced-locator run still needs one QA click |
+| **3** | L3 Gemini computer use; redaction before egress; model-call logging | Done — proven against the real model |
+| **4** | Chat and intent; teach entry point; retrieval-first routing; knowledge-base planner | Done |
+| **5** | Autonomy: verdicts, clean-run counters, circuit breaker, blast radius, auto-demotion | Done |
 
-**Phase 0 is blocking and small.** Password fields are captured verbatim today —
-the page recorder sends the value of every `change` event regardless of input
-type. Teaching a Blue Yonder login would put the password into the evidence plane
-as plain text and into a UI plan as a literal. Nothing may be recorded against a
-real WMS login until this is fixed.
+Three things landed alongside the phases because using the thing showed they
+were missing: teaching by URL alone (the objective key is derived from the
+evidence), narration, and the knowledge store the scraped Blue Yonder base
+feeds.
 
 ---
 
@@ -288,7 +295,12 @@ real WMS login until this is fixed.
   exchanges, 16 resources taken through a full create → read back → update → delete → confirm-gone
   cycle. Consequences for the design are in
   [`docs/13-blue-yonder-knowledge-base.md`](docs/13-blue-yonder-knowledge-base.md).
-- **Gemini API key** for Phases 3 and 4.
+- ~~Gemini API key~~ — **arrived**. Embeddings (768-dim, 1,932 claims), narration
+  transcription and the computer-use model are all verified working against it.
+- **One click in the QA browser.** The Phase 2 proof with *induced* component
+  locators needs the portal switched back from the CONFIGURATION menu to
+  INVENTORY; scripted navigation cannot get past the app restoring a config
+  screen.
 
 ## 10. Getting it running
 

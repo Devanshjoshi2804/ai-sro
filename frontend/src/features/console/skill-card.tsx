@@ -10,7 +10,9 @@ import {
   skillKeys,
   type SkillVersionModel,
 } from "@/features/skill/api";
+import { runKeys, startRun } from "@/features/run/api";
 import { ApiError } from "@/lib/api/client";
+import { env } from "@/lib/env";
 import { ink, mono } from "@/features/console/theme";
 
 /**
@@ -20,7 +22,15 @@ import { ink, mono } from "@/features/console/theme";
  * they vary, the assertions extracted from the demonstration, and which two
  * recordings it came from. Nothing is illustrative.
  */
-export function SkillCard({ skillId }: { skillId: string }) {
+export function SkillCard({
+  skillId,
+  parameters,
+  missing = [],
+}: {
+  skillId: string;
+  parameters?: Record<string, string>;
+  missing?: string[];
+}) {
   const [open, setOpen] = useState(false);
   const skill = useQuery({ queryKey: skillKeys.detail(skillId), queryFn: () => getSkill(skillId) });
 
@@ -216,6 +226,14 @@ export function SkillCard({ skillId }: { skillId: string }) {
           · {version.induced_by}
         </span>
         <span style={{ flex: 1 }} />
+        {parameters !== undefined && (
+          <RunButton
+            skillId={skillId}
+            version={version}
+            parameters={parameters}
+            missing={missing}
+          />
+        )}
         <Link href={`/skills/${skillId}`} style={{ color: ink.accentDeep, fontWeight: 600 }}>
           Review and promote →
         </Link>
@@ -353,3 +371,81 @@ const inputStyle = {
   background: "#fff",
   color: ink.text,
 } as const;
+
+
+/**
+ * Turning an offer into a run.
+ *
+ * The click *is* the authorisation: above shadow the backend refuses a run that
+ * names nobody, so the operator who pressed this is the name on the record.
+ * Disabled while a parameter is missing, because a half-supplied write is worse
+ * than an unstarted one.
+ */
+function RunButton({
+  skillId,
+  version,
+  parameters,
+  missing,
+}: {
+  skillId: string;
+  version: SkillVersionModel;
+  parameters: Record<string, string>;
+  missing: string[];
+}) {
+  const queryClient = useQueryClient();
+  const [runId, setRunId] = useState<string | null>(null);
+
+  const run = useMutation({
+    mutationFn: () =>
+      startRun(skillId, parameters, {
+        authorizedBy: env.NEXT_PUBLIC_PRINCIPAL_ID,
+        version: version.version,
+      }),
+    onSuccess: (started) => {
+      setRunId(started.id);
+      void queryClient.invalidateQueries({ queryKey: runKeys.all });
+      toast.success(`Run ${started.status}`, {
+        description: started.failure ?? `${started.steps.length} steps, over ${started.medium}`,
+      });
+    },
+    onError: (error) =>
+      toast.error("The run did not start", {
+        description: error instanceof ApiError ? error.problem.detail : String(error),
+      }),
+  });
+
+  if (runId) {
+    return (
+      <Link href={`/runs/${runId}`} style={{ color: ink.accentDeep, fontWeight: 600 }}>
+        See the run →
+      </Link>
+    );
+  }
+
+  const blocked = missing.length > 0 || version.stage === "recorded";
+  return (
+    <button
+      onClick={() => run.mutate()}
+      disabled={blocked || run.isPending}
+      title={
+        missing.length > 0
+          ? `Still needs ${missing.join(", ")}`
+          : version.stage === "recorded"
+            ? "Nobody has reviewed this yet"
+            : `Runs as ${env.NEXT_PUBLIC_PRINCIPAL_ID}`
+      }
+      style={{
+        padding: "6px 12px",
+        borderRadius: 7,
+        border: "none",
+        background: blocked ? "#E7E7E4" : ink.accent,
+        color: blocked ? ink.textMuted : "#fff",
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: blocked ? "not-allowed" : "pointer",
+      }}
+    >
+      {run.isPending ? "Running…" : "Run it"}
+    </button>
+  );
+}

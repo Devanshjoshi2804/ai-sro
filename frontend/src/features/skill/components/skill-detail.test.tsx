@@ -12,6 +12,17 @@ import * as api from "@/features/skill/api";
 const version = {
   version: 1,
   stage: "recorded",
+  summary: "Release a wave at DC01.",
+  when_to_use: "Use to start picking.",
+  track_record: {
+    clean_streak: 0,
+    consecutive_failures: 0,
+    clean_runs: 0,
+    degraded_runs: 0,
+    failed_runs: 0,
+  },
+  ready_for_autonomy: "0 clean runs in a row, 10 needed",
+  demotion_reason: null,
   induced_at: "2026-03-01T09:00:00Z",
   induced_by: "clerk@acme.test",
   recording_ids: ["rec-1", "rec-2"],
@@ -94,17 +105,30 @@ describe("SkillDetail", () => {
     expect(screen.queryByRole("button", { name: /autonomous/i })).not.toBeInTheDocument();
   });
 
-  it("stops offering promotion once the highest permitted stage is reached", async () => {
+  it("stops offering promotion at the top of the ladder", async () => {
     vi.spyOn(api, "getSkill").mockResolvedValue({
       ...skill,
-      latest_stage: "shadow",
-      versions: [{ ...version, stage: "shadow" }],
+      latest_stage: "autonomous",
+      versions: [{ ...version, stage: "autonomous", ready_for_autonomy: null }],
     } as never);
 
     renderWithQuery(<SkillDetail skillId="skl-1" />);
 
-    const button = await screen.findByRole("button", { name: /highest permitted stage/i });
+    const button = await screen.findByRole("button", { name: /top of the ladder/i });
     expect(button).toBeDisabled();
+  });
+
+  it("says why a version cannot run unattended yet", async () => {
+    // A gate that says no without saying why is a gate people work around.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      latest_stage: "assisted",
+      versions: [{ ...version, stage: "assisted" }],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    expect(await screen.findByText(/0 clean runs in a row, 10 needed/)).toBeInTheDocument();
   });
 
   it("promotes the version the reviewer is looking at", async () => {

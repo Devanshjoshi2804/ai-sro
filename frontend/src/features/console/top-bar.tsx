@@ -74,7 +74,7 @@ export function TopBar({ children, tenant = "acme" }: { children?: ReactNode; te
             color: ink.barText,
           }}
         >
-          HIGHEST STAGE · SHADOW
+          LADDER · EARNED, NOT SET
         </span>
       </div>
     </nav>

@@ -211,3 +211,19 @@ class TestSkills:
 
         assert response.status_code == 200
         assert response.json()["stage"] == "shadow"
+
+
+class TestProblemDocuments:
+    async def test_a_malformed_body_is_a_problem_document_like_everything_else(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        """FastAPI's default answer is a list of objects, which breaks the
+        contract every other failure keeps — and a client that renders `detail`
+        crashes on it rather than showing the operator what was wrong."""
+        response = await client.post("/v1/recordings", json={"objective_key": 12})
+
+        assert response.status_code == 422
+        assert response.headers["content-type"].startswith("application/problem+json")
+        problem = response.json()
+        assert isinstance(problem["detail"], str)
+        assert "objective_key" in problem["detail"]

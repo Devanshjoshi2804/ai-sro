@@ -16,6 +16,18 @@ export type Problem = {
   instance?: string;
 };
 
+function asText(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.map(asText).join("; ");
+  if (detail && typeof detail === "object") {
+    const record = detail as Record<string, unknown>;
+    const where = Array.isArray(record.loc) ? record.loc.slice(1).join(".") : "";
+    const what = typeof record.msg === "string" ? record.msg : JSON.stringify(detail);
+    return where ? `${where}: ${what}` : what;
+  }
+  return detail === undefined || detail === null ? "" : String(detail);
+}
+
 export class ApiError extends Error {
   constructor(readonly problem: Problem) {
     super(problem.detail || problem.title);
@@ -43,15 +55,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const problem = (await response.json().catch(() => null)) as Problem | null;
-    throw new ApiError(
-      problem ?? {
-        type: "about:blank",
-        title: response.statusText,
-        status: response.status,
-        detail: `${init?.method ?? "GET"} ${path} failed`,
-      },
-    );
+    const body = (await response.json().catch(() => null)) as Partial<Problem> | null;
+    throw new ApiError({
+      type: typeof body?.type === "string" ? body.type : "about:blank",
+      title: typeof body?.title === "string" ? body.title : response.statusText,
+      status: typeof body?.status === "number" ? body.status : response.status,
+      // Coerced rather than trusted. An error body is data crossing a trust
+      // boundary like any other, and a `detail` that is not a string — a proxy's
+      // HTML, a framework's list of validation objects — used to reach React as
+      // a child and take the whole page down with it.
+      detail: asText(body?.detail) || `${init?.method ?? "GET"} ${path} failed`,
+    });
   }
 
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);

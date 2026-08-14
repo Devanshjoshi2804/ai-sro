@@ -107,9 +107,17 @@ export function Console() {
     },
     onError: (error) => {
       const detail = error instanceof ApiError ? error.problem.detail : String(error);
+      // The one-session hint is only true when the browser is what refused.
+      // Appending it to every failure sent an operator looking at Steel while
+      // the actual answer — a request the API would not accept — was on screen.
+      const busy = error instanceof ApiError && error.problem.status === 503;
       thread.add({
         kind: "system",
-        text: `Could not open a browser session: ${detail}. The browser may already be in use — a self-hosted Steel runs one session at a time.`,
+        text:
+          `Could not open a browser session: ${detail}` +
+          (busy
+            ? ". The browser may already be in use — a self-hosted Steel runs one session at a time."
+            : ""),
       });
       toast.error("Could not open a browser session", { description: detail });
     },

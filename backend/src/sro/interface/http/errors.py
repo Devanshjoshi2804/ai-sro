@@ -6,7 +6,10 @@ here, so every endpoint reports the same failure the same way.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from sro.application.connection.connect_system import NotAuthenticated
@@ -60,7 +63,34 @@ def _problem(request: Request, exc: Exception) -> JSONResponse:
     )
 
 
+def _validation_problem(request: Request, exc: Exception) -> JSONResponse:
+    """A malformed body is a problem document too.
+
+    FastAPI's default answer is a list of objects, which breaks the contract
+    every other failure here keeps -- and a client that renders `detail`
+    crashes on it rather than showing the operator what was wrong.
+    """
+    errors: list[dict[str, Any]] = getattr(exc, "errors", lambda: [])()
+    detail = "; ".join(
+        f"{'.'.join(str(part) for part in error.get('loc', ())[1:]) or 'body'}: "
+        f"{error.get('msg', 'is not valid')}"
+        for error in errors
+    )
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        media_type="application/problem+json",
+        content={
+            "type": "https://ai-sro.dev/problems/invalid_request",
+            "title": _TITLES[status.HTTP_422_UNPROCESSABLE_CONTENT],
+            "status": status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "detail": detail or "the request body is not valid",
+            "instance": str(request.url.path),
+        },
+    )
+
+
 def install_error_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(RequestValidationError, _validation_problem)
     for error_type in (
         DomainError,
         InductionFailed,

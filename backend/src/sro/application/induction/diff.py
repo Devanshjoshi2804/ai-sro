@@ -18,6 +18,7 @@ from sro.application.induction.sites import (
     TextBodySite,
     UrlPathSite,
     UrlQuerySite,
+    describe,
     parse_json,
     url_path_segments,
     url_query_pairs,
@@ -132,7 +133,7 @@ def _build_parameter(
         return Parameter(
             name=name,
             kind=ParameterKind.INPUT,
-            description=f"varies between runs at {len(sites)} place(s)",
+            description=_where(sites),
             observed_values=(value_a, value_b),
         )
     step_index, pointer = source
@@ -144,6 +145,23 @@ def _build_parameter(
         source_step_index=step_index,
         source_pointer=pointer,
     )
+
+
+def _where(sites: list[Difference]) -> str:
+    """Name every place this value appears, not just how many.
+
+    A parameter is one value, and one value can sit under several field names:
+    Blue Yonder's adjust payload sends the detail number as both `lpn` and
+    `detailNumber`, so the group is named after whichever site was seen first
+    and the plan reads `"lpn": "${detail_number}"`. That is faithful, and it
+    looks exactly like a mis-binding to anybody reviewing it -- it cost an
+    afternoon of mine. Saying where the value appears is the difference between
+    a reviewer trusting the plan and re-deriving it.
+    """
+    places = list(dict.fromkeys(describe(site.site) for site in sites))
+    if len(places) == 1:
+        return f"varies between runs at {places[0]}"
+    return "one value, varying between runs, sent at " + ", ".join(places)
 
 
 def _diff_action(index: int, frame_a: ActionFrame, frame_b: ActionFrame) -> list[Difference]:

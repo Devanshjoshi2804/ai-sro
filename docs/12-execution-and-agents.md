@@ -514,6 +514,26 @@ rather than scraped, how many have been superseded and kept, and — the part an
 enterprise asks about — who taught what, at which stage, with how many
 parameters still only proposed.
 
+### One value, several field names
+
+Blue Yonder's adjust payload sends the detail number twice: as `detailNumber`
+and again as `lpn`, while the actual LPN travels in `loadNumber`. The diff
+groups by value, so both sites become one parameter named after whichever was
+seen first, and the plan reads:
+
+```json
+"lpn": "${detail_number}"
+```
+
+That is faithful — and it looks exactly like a mis-binding. It cost an
+afternoon: a live replay was inspected, the line was read as a defect, and the
+"fix" would have broken a correct plan. The recordings settled it in one query,
+which is the argument for keeping evidence rather than only conclusions.
+
+A parameter now names every place it is sent rather than counting them, so a
+reviewer sees *one value, varying between runs, sent at body /lpn, body
+/detailNumber* and does not have to re-derive it.
+
 ## Autonomy as built
 
 The ceiling is gone: `HIGHEST_PERMITTED_STAGE` is `AUTONOMOUS`. That is not a

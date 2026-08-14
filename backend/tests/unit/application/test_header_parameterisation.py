@@ -114,3 +114,36 @@ class TestTheEmittedPlan:
         )
 
         assert str(next(p for p in plans if p.name == "X-Warehouse-Id").value) == "WH-1"
+
+
+async def test_a_parameter_says_every_field_it_is_sent_as() -> None:
+    """One value can sit under several field names. Blue Yonder's adjust payload
+    sends the detail number as both `lpn` and `detailNumber`, so the group is
+    named after whichever site came first and the plan reads
+    `"lpn": "${detail_number}"` — faithful, and indistinguishable from a
+    mis-binding unless the parameter says where it appears."""
+    from sro.application.induction.diff import parameterise
+
+    def run(detail: str, load: str) -> tuple:
+        return (
+            f.frame(
+                0,
+                requests=(
+                    f.request(
+                        method="PUT",
+                        url="https://wms.test/data/WM/wm/inventory/adjust",
+                        request_body=f.Body(
+                            text=f'{{"loadNumber":"{load}","lpn":"{detail}","detailNumber":"{detail}"}}',
+                            size_bytes=80,
+                            mime_type="application/json",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    result = parameterise(run("D0001", "LPN-1"), run("D0002", "LPN-2"))
+
+    shared = next(p for p in result.parameters if "D0001" in p.observed_values)
+    assert "/lpn" in shared.description and "/detailNumber" in shared.description
+    assert "one value" in shared.description

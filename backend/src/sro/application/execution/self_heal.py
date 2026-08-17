@@ -23,15 +23,18 @@ rediscovering it. That is the difference between a retry and a brain.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 
 from sro.application.connection.check_session import CheckSession, SessionHealth
+from sro.application.connection.connect_system import RefreshSession
 from sro.application.connection.sign_in import EnsureSignedIn
 from sro.application.context import RequestContext
 from sro.application.knowledge.record_claim import Claim, RecordClaims
 from sro.application.ports.browser import BrowserProvider, BrowserUnavailable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.vault import CredentialVault
+from sro.domain.connection.connection import Connection
 from sro.domain.execution.diagnosis import Diagnosis, Remedy, diagnose
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
 
@@ -71,6 +74,7 @@ class SelfHeal:
         check: CheckSession,
         ensure: EnsureSignedIn,
         record: RecordClaims,
+        refresh: RefreshSession,
     ) -> None:
         self._uow = uow
         self._vault = vault
@@ -78,6 +82,7 @@ class SelfHeal:
         self._check = check
         self._ensure = ensure
         self._record = record
+        self._refresh = refresh
 
     async def attempt(
         self,
@@ -163,7 +168,13 @@ class SelfHeal:
         except BrowserUnavailable:
             return None
         try:
+            await self._browser.restore(session.id, await self._load(ctx, connection))
             headers = await self._browser.session_headers(session.id, connection.base_url)
+            # Both, from this browser, in this order. A token minted in one
+            # session and a cookie kept from another authenticate nothing: the
+            # first attempt at this took the token alone, reported success, and
+            # the retry was refused exactly as before.
+            cookies = list(await self._browser.session_cookies(session.id))
         finally:
             await self._browser.close(session.id)
 
@@ -171,7 +182,21 @@ class SelfHeal:
             return None
         for name, value in headers.items():
             await self._vault.store(f"{ctx.tenant_id}/{target_system}/{facility}/{name}", value)
-        return "took a fresh " + ", ".join(sorted(headers)) + " from the application"
+        await self._refresh.execute(ctx, cookies=cookies, trusted=True)
+        return "took a fresh " + ", ".join(sorted(headers)) + " and the session that minted it"
+
+    async def _load(self, ctx: RequestContext, connection: Connection) -> list[dict[str, object]]:
+        """The stored session, so the browser starts where the operator left it.
+
+        A blank browser sent to the application lands on a login page and mints
+        nothing worth having.
+        """
+        stored = await self._vault.get(connection.session_key)
+        if not stored:
+            return []
+        payload = json.loads(stored)
+        cookies: list[dict[str, object]] = payload.get("cookies", [])
+        return cookies
 
     async def _learn(
         self,

@@ -234,7 +234,13 @@ class RefreshSession:
         self._vault = vault
         self._clock = clock
 
-    async def execute(self, ctx: RequestContext, *, cookies: list[dict[str, object]]) -> int:
+    async def execute(
+        self,
+        ctx: RequestContext,
+        *,
+        cookies: list[dict[str, object]],
+        trusted: bool = False,
+    ) -> int:
         """Refresh every connection these cookies can speak for. Returns how many."""
         if not cookies:
             return 0
@@ -247,8 +253,14 @@ class RefreshSession:
                 # Overwriting a good session with it would be the bug we are here
                 # to fix, pointed the other way.
                 header = _cookie_header(cookies, connection.base_url)
-                if not header or not _still_signed_in(
-                    header, await self._vault.get(connection.cookie_key)
+                # `trusted` means the caller has just watched this browser make
+                # an authenticated call, which is better evidence than the name
+                # comparison below -- and the comparison rejects a good session
+                # for holding one cookie fewer, which is how a healer took a
+                # fresh token and left the stale cookie beside it.
+                if not header or not (
+                    trusted
+                    or _still_signed_in(header, await self._vault.get(connection.cookie_key))
                 ):
                     continue
                 await _keep(self._vault, connection, cookies, self._clock.now())

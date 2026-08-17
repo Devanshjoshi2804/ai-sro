@@ -8,6 +8,7 @@ it heals -- it is everything it refuses to heal.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -156,6 +157,7 @@ async def test_an_outage_is_never_answered_by_signing_in() -> None:
         check,
         EnsureSignedIn(sign_in, check, uow),
         RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
+        RefreshSession(uow, vault, FakeClock()),
     )
 
     healed = await healer.attempt(
@@ -218,6 +220,7 @@ async def test_a_live_session_with_a_rejected_call_is_repaired_as_context() -> N
         check,
         EnsureSignedIn(sign_in, check, uow),
         RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
+        RefreshSession(uow, vault, FakeClock()),
     )
 
     healed = await healer.attempt(
@@ -235,3 +238,76 @@ async def test_a_live_session_with_a_rejected_call_is_repaired_as_context() -> N
     assert healed is not None
     assert await vault.get("acme/blue_yonder/SG/csrf-encrypt-token") == "fresh"
     assert await vault.get("acme/blue_yonder/SG/referer") == "https://wms.example.com/page?ctx=1"
+
+
+@pytest.mark.asyncio
+async def test_the_token_and_the_session_that_minted_it_are_taken_together() -> None:
+    """The pairing bug, in the healer this time.
+
+    A token minted in one browser and a cookie kept from another authenticate
+    nothing. The first version took the token alone, reported success, and the
+    retry was refused exactly as before.
+    """
+    uow, vault = FakeUnitOfWork(), FakeCredentialVault()
+    browser, http = FakeBrowserProvider(), FakeHttpCaller()
+    connection = Connection(
+        id=ConnectionId("con_1"),
+        tenant_id=f.TENANT,
+        name="WMS",
+        target_system="blue_yonder",
+        base_url="https://wms.example.com/portal",
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    connection.authenticated(datetime(2026, 1, 2, tzinfo=UTC))
+    async with uow:
+        await uow.connections.add(connection)
+        await uow.commit()
+    await vault.store(connection.cookie_key, "SESSIONID=stale")
+    await vault.store(
+        connection.session_key,
+        json.dumps(
+            {
+                "origin": connection.base_url,
+                "cookies": [{"name": "SESSIONID", "value": "stale", "domain": "wms.example.com"}],
+            }
+        ),
+    )
+    http.answer(status_code=200)  # the portal is happy; the API was not
+    browser.headers = {"csrf-encrypt-token": "fresh"}
+    browser.cookies = (
+        {"name": "SESSIONID", "value": "minted-with-it", "domain": "wms.example.com"},
+    )
+
+    sign_in = SignIn(
+        uow, vault, browser, FakeSignInDriver(), RefreshSession(uow, vault, FakeClock())
+    )
+    check = CheckSession(uow, vault, http)
+    healer = SelfHeal(
+        uow,
+        vault,
+        browser,
+        check,
+        EnsureSignedIn(sign_in, check, uow),
+        RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
+        RefreshSession(uow, vault, FakeClock()),
+    )
+
+    healed = await healer.attempt(
+        CTX,
+        target_system="blue_yonder",
+        facility="SG",
+        step_index=0,
+        mutating=False,
+        budget=HealBudget(),
+        status_code=302,
+        redirected_off_host=True,
+        endpoint="GET /data/WM/wm/transportModes",
+    )
+
+    assert healed is not None
+    # The browser started from the stored session rather than blank: a browser
+    # sent to the application with nothing in it lands on a login page, and
+    # everything read there belongs to nobody.
+    assert browser.restored
+    assert await vault.get("acme/blue_yonder/SG/csrf-encrypt-token") == "fresh"
+    assert await vault.get(connection.cookie_key) == "SESSIONID=minted-with-it"

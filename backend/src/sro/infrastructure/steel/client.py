@@ -16,6 +16,7 @@ from playwright.async_api import Browser, async_playwright
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.domain.recording.sensitivity import Sensitivity, classify_header
 from sro.domain.shared.identifiers import BrowserSessionId
+from sro.infrastructure.steel.capture import _addressed
 
 _CONTEXT = frozenset({"referer"})
 """Not a credential, and not replayable from the demonstration either.
@@ -233,6 +234,23 @@ class SteelClient:
             context = browser.contexts[0] if browser.contexts else None
             cookies = await context.cookies() if context else []
         return tuple(dict(cookie) for cookie in cookies)
+
+    async def restore(self, session_id: BrowserSessionId, cookies: list[dict[str, object]]) -> None:
+        """Set stored cookies, addressed so the browser will accept them.
+
+        ``Network.setCookies`` derives the source scheme from the URL, and drops
+        a cookie marked secure without one -- silently, in a batch it still
+        reports as successful. The identity provider's cookies are exactly the
+        secure ones.
+        """
+        if not cookies:
+            return
+        async with self._attached() as browser:
+            context = browser.contexts[0] if browser.contexts else await browser.new_context()
+            page = context.pages[0] if context.pages else await context.new_page()
+            cdp = await context.new_cdp_session(page)
+            await cdp.send("Network.setCookies", {"cookies": [_addressed(c) for c in cookies]})
+            await cdp.detach()
 
     async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
         """Watch the application make one request, and keep what authenticates it.

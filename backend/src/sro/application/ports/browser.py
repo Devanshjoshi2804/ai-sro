@@ -41,6 +41,14 @@ class BrowserProvider(Protocol):
         """
         ...
 
+    async def restore(self, session_id: BrowserSessionId, cookies: list[dict[str, object]]) -> None:
+        """Put a stored session into a fresh browser, before it navigates.
+
+        A browser sent to the application with nothing in it lands on a login
+        page, and everything read from that page belongs to nobody.
+        """
+        ...
+
     async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
         """The headers this session's own application sends, beyond its cookies.
 

@@ -245,6 +245,7 @@ class Container:
             self.check_session(),
             self.ensure_signed_in(),
             self.record_claims(),
+            self.refresh_session(),
         )
 
     def execute_step(self) -> ExecuteStep:

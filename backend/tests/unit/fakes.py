@@ -131,6 +131,7 @@ class FakeBrowserProvider:
             {"name": "JSESSIONID", "value": "fake-session", "domain": "wms.test"},
         )
         self.headers: dict[str, str] = {}
+        self.restored: list[dict[str, object]] = []
         self._counter = count(1)
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
@@ -157,6 +158,9 @@ class FakeBrowserProvider:
 
     async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
         return dict(self.headers)
+
+    async def restore(self, session_id: BrowserSessionId, cookies: list[dict[str, object]]) -> None:
+        self.restored = list(cookies)
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         if session_id in self.closed:

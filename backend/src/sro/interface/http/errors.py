@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 from sro.application.connection.connect_system import NotAuthenticated
 from sro.application.connection.sign_in import NoCredentials
-from sro.application.execution.execute_skill import Refused
+from sro.application.execution.execute_skill import NotRunnable, Refused
 from sro.application.induction.errors import InductionFailed
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.sign_in import SignInFailed
@@ -31,6 +31,10 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     VaultUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     NotAuthenticated: status.HTTP_409_CONFLICT,
     Refused: status.HTTP_409_CONFLICT,
+    # The durable path re-raises every refusal as NotRunnable, so without this
+    # a tripped circuit breaker reached the operator as a 500 -- "internal
+    # error" for the one outcome the system was most deliberate about.
+    NotRunnable: status.HTTP_409_CONFLICT,
     NoSessionForSystem: status.HTTP_409_CONFLICT,
     NoCredentials: status.HTTP_409_CONFLICT,
     # A login that did not complete is about the system's state, not the

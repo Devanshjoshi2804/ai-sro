@@ -130,6 +130,7 @@ class FakeBrowserProvider:
         self.cookies: tuple[dict[str, object], ...] = (
             {"name": "JSESSIONID", "value": "fake-session", "domain": "wms.test"},
         )
+        self.headers: dict[str, str] = {}
         self._counter = count(1)
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
@@ -153,6 +154,9 @@ class FakeBrowserProvider:
 
     async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
         return self.cookies
+
+    async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
+        return dict(self.headers)
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         if session_id in self.closed:

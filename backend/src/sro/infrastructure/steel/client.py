@@ -7,13 +7,29 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from types import TracebackType
+from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
 from playwright.async_api import Browser, async_playwright
 
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
+from sro.domain.recording.sensitivity import Sensitivity, classify_header
 from sro.domain.shared.identifiers import BrowserSessionId
+
+_CONTEXT = frozenset({"referer"})
+"""Not a credential, and not replayable from the demonstration either.
+
+Blue Yonder's auth filter reads a per-session ``libraryContext`` out of the
+Referer and redirects to the login page without it. The executor sent a live
+cookie and a live token and still got a 302 -- which looks exactly like being
+signed out. The page the application itself calls from is part of the session,
+so it is kept with the session."""
+
+_WANTED = frozenset({Sensitivity.AUTH, Sensitivity.CSRF})
+"""What authenticates a call, and nothing else. The cookie is kept separately
+and refreshed on its own schedule; the transport headers belong to the request
+being made, not to the one being replayed."""
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +233,53 @@ class SteelClient:
             context = browser.contexts[0] if browser.contexts else None
             cookies = await context.cookies() if context else []
         return tuple(dict(cookie) for cookie in cookies)
+
+    async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
+        """Watch the application make one request, and keep what authenticates it.
+
+        The page is reloaded rather than merely observed: the tokens wanted are
+        sent on the application's own data calls, and a browser sitting idle on
+        a screen makes none. Reloading the address the connection names is the
+        cheapest way to provoke exactly the traffic the executor will imitate.
+
+        Only same-origin requests are read. A third party's bearer token is
+        theirs, is useless against this system, and has no business in a vault
+        keyed by it.
+        """
+        host = urlsplit(url).hostname or ""
+        found: dict[str, str] = {}
+
+        async with self._attached() as browser:
+            context = browser.contexts[0] if browser.contexts else await browser.new_context()
+            page = context.pages[0] if context.pages else await context.new_page()
+            cdp = await context.new_cdp_session(page)
+
+            def observe(event: dict[str, Any]) -> None:
+                request = event.get("request") or {}
+                if (urlsplit(str(request.get("url", ""))).hostname or "") != host:
+                    return
+                # Data calls only: the document request carries no token, and
+                # its Referer is whatever the operator came from.
+                if "/data/" not in str(request.get("url", "")):
+                    return
+                for name, value in (request.get("headers") or {}).items():
+                    if not isinstance(value, str):
+                        continue
+                    if classify_header(name) in _WANTED or name.lower() in _CONTEXT:
+                        found.setdefault(name.lower(), value)
+
+            cdp.on("Network.requestWillBeSent", observe)
+            await cdp.send("Network.enable")
+            try:
+                await page.goto(url, wait_until="domcontentloaded")
+                # The data calls follow the document, not the other way round.
+                await page.wait_for_timeout(6000)
+            except Exception:
+                logger.warning("could not provoke traffic at %s", url, exc_info=True)
+            finally:
+                await cdp.detach()
+
+        return found
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         """Ask Steel where the session can be driven.

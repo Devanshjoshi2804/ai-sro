@@ -169,6 +169,12 @@ column at all** and can only be paged. There is no pattern to infer it from (`*C
 everything else 31%), so `index/filterable-columns.json` holds the measured answer per resource.
 Check it before trusting an empty result: on an unproven column, empty means unknown, not absent.
 
+**Records publish their own relationships.** A shipment carries `*_uri` links to its orders, picks,
+waves, shipmentLines, handlingUnits, crossdocks and manifestDetails; a trailer to its inboundLoads,
+stagingLocations and workflowResults. Two of those links are **operations, not collections** —
+`trailers.closeWithWorkQueue` and `structuredInventory.editAsn`, identified by GET answering 405 —
+and neither appears in the 551-endpoint catalogue. See `index/action-links.json`.
+
 **State vocabularies** for 23 operational resources are in `index/status-vocabulary.json`, including
 the shipment lifecycle: `R` Ready, `I` In-Process, `S` Staged, `L` Loading, `D` Loaded, `C` Load
 Complete, `X` Transfer, `B` Cancelled.

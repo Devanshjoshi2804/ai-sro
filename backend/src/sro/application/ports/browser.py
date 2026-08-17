@@ -41,6 +41,22 @@ class BrowserProvider(Protocol):
         """
         ...
 
+    async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
+        """The headers this session's own application sends, beyond its cookies.
+
+        Some systems authenticate a call with more than a cookie -- Blue Yonder
+        signs every request with a ``CSRF-ENCRYPT-TOKEN`` issued at login, held
+        in the page rather than in a cookie or in storage. Without it the
+        executor is refused while the browser beside it is signed in, which is
+        the state a run cannot diagnose for itself.
+
+        Observed from a request the application makes on its own, because that
+        is the only place the value appears. Returns only the headers that
+        authenticate; nothing about the transport, and never the cookie, which
+        is kept separately and refreshed on its own schedule.
+        """
+        ...
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         """Where a human drives this session, asked for after the fact.
 

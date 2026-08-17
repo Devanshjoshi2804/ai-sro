@@ -1,0 +1,119 @@
+{
+  "generated_by": "tools/cdp/trace-entity.mjs",
+  "traces": {
+    "trailers": {
+      "sub_collections": [
+        {
+          "link": "checkIn_uri",
+          "path": "/wm/trailers/checkedInTrailers",
+          "status": 404,
+          "rows": 0
+        },
+        {
+          "link": "closeWithWorkQueue_uri",
+          "path": "/wm/trailers/closedTrailers/queue",
+          "status": 405,
+          "rows": 0
+        },
+        {
+          "link": "close_uri",
+          "path": "/wm/trailers/closedTrailers",
+          "status": 404,
+          "rows": 0
+        },
+        {
+          "link": "dispatch_uri",
+          "path": "/wm/trailers/dispatchTrailers",
+          "status": 404,
+          "rows": 0
+        },
+        {
+          "link": "inboundLoads_uri",
+          "path": "/wm/trailers/TRL0083530/inboundLoads",
+          "status": 200,
+          "rows": 1
+        },
+        {
+          "link": "occupiedYardLocations_uri",
+          "path": "/wm/trailers/TRL0083530/occupiedYardLocations",
+          "status": 404,
+          "rows": 0
+        },
+        {
+          "link": "orders_uri",
+          "path": "/wm/trailers/TRL0083530/inboundShipments",
+          "status": 404,
+          "rows": 0
+        },
+        {
+          "link": "outboundLoads_uri",
+          "path": "/wm/trailers/TRL0083530/outboundLoads",
+          "status": 200,
+          "rows": 0
+        },
+        {
+          "link": "pendingMove_uri",
+          "path": "/wm/trailers/TRL0083530/pendingLocationMove",
+          "status": 200,
+          "rows": 0
+        },
+        {
+          "link": "stagingLocations_uri",
+          "path": "/wm/trailers/TRL0083530/trailerStagingLaneLocations",
+          "status": 200,
+          "rows": 0
+        },
+        {
+          "link": "suggestedStagingLanesForUnload_uri",
+          "path": "/wm/trailers/TRL0083530/suggestedStagingLanesForUnload",
+          "status": 200,
+          "rows": 0
+        },
+        {
+          "link": "trailerCheck_uri",
+          "path": "/wm/confirmWorkflowResults/CS0000333242",
+          "status": 404,
+          "rows": 0
+        },
+        {
+          "link": "trailerMove_uri",
+          "path": "/wm/trailers/trailerMove",
+          "status": 404,
+          "rows": 0
+        },
+        {
+          "link": "transportationEquipmentNotes_uri",
+          "path": "/wm/trailers/TRL0083530/transportationEquipmentNotes",
+          "status": 200,
+          "rows": 0
+        },
+        {
+          "link": "workflowResults_uri",
+          "path": "/wm/trailers/TRL0083530/confirmWorkflowResults",
+          "status": 200,
+          "rows": 1
+        }
+      ],
+      "traced_record": "TRL0083530",
+      "keys_followed": [
+        "resourceId",
+        "safetyCheckId",
+        "supplierNumber",
+        "trailerCode",
+        "trailerId",
+        "trailerNumber"
+      ],
+      "joins_that_returned_rows": [
+        {
+          "from": "trailers",
+          "to": "suppliers",
+          "via": "supplierNumber",
+          "value": "SONOCO",
+          "rows": 1,
+          "status": 200
+        }
+      ],
+      "joins_that_returned_nothing": []
+    }
+  }
+}

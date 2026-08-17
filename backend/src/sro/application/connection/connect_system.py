@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserProvider
@@ -124,6 +124,20 @@ def _system_from(base_url: str) -> str:
     return (parts[-1] if parts else host).replace("-", "_") or "system"
 
 
+def _facility_of(base_url: str) -> str:
+    """Which site this login covers, from the address it was made at.
+
+    Session headers are stored per facility because that is how the executor
+    looks them up -- ``<system>/<facility>/<header>``. Blue Yonder names it in
+    the portal URL, and a connection made without one covers the default site.
+    """
+    query = dict(parse_qsl(urlsplit(base_url).query))
+    for key in ("siteId", "site", "facility", "warehouseId"):
+        if query.get(key):
+            return str(query[key])
+    return "default"
+
+
 def _name_from(base_url: str) -> str:
     """Something a human recognises in a sidebar, from the same one field."""
     return urlsplit(base_url).hostname or base_url
@@ -181,9 +195,22 @@ class StoreSession:
                 "nobody has signed in yet: the browser holds no session for this system."
             )
 
+        # Some systems authenticate a call with more than a cookie. Blue Yonder
+        # signs every request with a token minted by the portal page, so the
+        # executor was refused while the browser beside it was signed in -- and
+        # a run cannot diagnose that for itself. Taken here, from the browser
+        # that just proved it is signed in, because that is where it exists.
+        headers = await self._browser.session_headers(browser_session_id, connection.base_url)
+
         async with self._uow as uow:
             connection = await uow.connections.get(ctx.tenant_id, connection_id)
             await _keep(self._vault, connection, cookies, self._clock.now())
+            for name, value in headers.items():
+                await self._vault.store(
+                    f"{ctx.tenant_id}/{connection.target_system}/"
+                    f"{_facility_of(connection.base_url)}/{name}",
+                    value,
+                )
             await uow.connections.save(connection)
             await uow.commit()
         return connection

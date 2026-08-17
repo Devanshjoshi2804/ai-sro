@@ -52,6 +52,18 @@ async def resolve_headers(
     missing: list[str] = []
 
     for plan in plans:
+        if plan.managed and plan.name.lower() == "referer":
+            # The page the application makes its calls from, when the session
+            # recorded one. Blue Yonder's filter reads a per-session
+            # `libraryContext` out of the Referer and redirects to the login
+            # page without it -- so the executor sent a live cookie, a live
+            # token, and still got a 302, which is indistinguishable from being
+            # signed out. The origin remains the fallback.
+            live = await vault.get(f"{scope}/{session_scope}/referer")
+            if live:
+                _put(headers, "referer", live)
+            continue
+
         if plan.managed or plan.sensitivity is Sensitivity.TRANSPORT:
             continue  # the HTTP client owns these
 

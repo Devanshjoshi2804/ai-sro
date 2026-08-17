@@ -1,0 +1,478 @@
+{
+  "generated_by": "tools/cdp/probe-action-links.mjs",
+  "what_this_is": "Links each record publishes as *_uri. Some are sub-collections; some are OPERATIONS the endpoint catalogue does not contain. Probed with GET and OPTIONS only.",
+  "resources": {
+    "trailers": {
+      "sampled_record": "TRL0157056",
+      "actions": [
+        {
+          "link": "closeWithWorkQueue_uri",
+          "path": "/wm/trailers/closedTrailers/queue",
+          "get_status": 405,
+          "options_status": 520,
+          "allow": null,
+          "kind": "action (GET not allowed)"
+        }
+      ],
+      "sub_collections": [
+        {
+          "link": "checkIn_uri",
+          "path": "/wm/trailers/checkedInTrailers",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        },
+        {
+          "link": "close_uri",
+          "path": "/wm/trailers/closedTrailers",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        },
+        {
+          "link": "dispatch_uri",
+          "path": "/wm/trailers/dispatchTrailers",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        },
+        {
+          "link": "inboundLoads_uri",
+          "path": "/wm/trailers/TRL0157056/inboundLoads",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "occupiedYardLocations_uri",
+          "path": "/wm/trailers/TRL0157056/occupiedYardLocations",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        },
+        {
+          "link": "orders_uri",
+          "path": "/wm/trailers/TRL0157056/outboundOrders",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        },
+        {
+          "link": "outboundLoads_uri",
+          "path": "/wm/trailers/TRL0157056/outboundLoads",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "pendingMove_uri",
+          "path": "/wm/trailers/TRL0157056/pendingLocationMove",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "stagingLocations_uri",
+          "path": "/wm/trailers/TRL0157056/trailerStagingLaneLocations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "suggestedStagingLanesForUnload_uri",
+          "path": "/wm/trailers/TRL0157056/suggestedStagingLanesForUnload",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "trailerMove_uri",
+          "path": "/wm/trailers/trailerMove",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        },
+        {
+          "link": "transportationEquipmentNotes_uri",
+          "path": "/wm/trailers/TRL0157056/transportationEquipmentNotes",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "workflowResults_uri",
+          "path": "/wm/trailers/TRL0157056/confirmWorkflowResults",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "shipments": {
+      "sampled_record": "SID0009108",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "crossdocks_uri",
+          "path": "/wm/shipments/SID0009108/crossdocks",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "destinationLocations_uri",
+          "path": "/wm/shipments/SID0009108/destinationLocations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "handlingUnits_uri",
+          "path": "/wm/shipments/SID0009108/handlingUnits",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "hasNotes_uri",
+          "path": "/wm/shipments/SID0009108/hasNotes",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "manifestDetails_uri",
+          "path": "/wm/shipments/SID0009108/manifestDetails",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "orders_uri",
+          "path": "/wm/shipments/SID0009108/plannableOrders",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "outboundOrders_uri",
+          "path": "/wm/shipments/SID0009108/outboundOrders",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "pendingReplenishments_uri",
+          "path": "/wm/shipments/SID0009108/pendingReplenishments",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "picks_uri",
+          "path": "/wm/shipments/SID0009108/picks",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "routeToAddress_uri",
+          "path": "/wm/addresses/SONOCO",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "shipmentLines_uri",
+          "path": "/wm/shipments/SID0009108/shipmentLines",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "shippingProgressQuantities_uri",
+          "path": "/wm/shipments/SID0009108/shippingProgressQuantities",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "shorts_uri",
+          "path": "/wm/shipments/SID0009108/shorts",
+          "get_status": 500,
+          "options_status": 520,
+          "allow": null,
+          "kind": "unclear (500)"
+        },
+        {
+          "link": "structuredInventory_uri",
+          "path": "/wm/shipments/SID0009108/structuredInventory",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "wavableShipmentLines_uri",
+          "path": "/wm/shipments/SID0009108/wavableShipmentLines",
+          "get_status": 500,
+          "options_status": 520,
+          "allow": null,
+          "kind": "unclear (500)"
+        },
+        {
+          "link": "waves_uri",
+          "path": "/wm/shipments/SID0009108/waves",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "outboundLoads": {
+      "sampled_record": "LD00003073",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "crossdocks_uri",
+          "path": "/wm/outboundLoads/LD00003073/crossdocks",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "destinationLocations_uri",
+          "path": "/wm/outboundLoads/LD00003073/destinationLocations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "measures_uri",
+          "path": "/wm/outboundLoads/LD00003073/measurements",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "orders_uri",
+          "path": "/wm/outboundLoads/LD00003073/plannableOrders",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "pendingReplenishments_uri",
+          "path": "/wm/outboundLoads/LD00003073/pendingReplenishments",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "picks_uri",
+          "path": "/wm/outboundLoads/LD00003073/picks",
+          "get_status": 500,
+          "options_status": 520,
+          "allow": null,
+          "kind": "unclear (500)"
+        },
+        {
+          "link": "shipments_uri",
+          "path": "/wm/outboundLoads/LD00003073/shipments",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "shippingProgressQuantities_uri",
+          "path": "/wm/outboundLoads/LD00003073/shippingProgressQuantities",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "shorts_uri",
+          "path": "/wm/outboundLoads/LD00003073/shorts",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "stops_uri",
+          "path": "/wm/outboundLoads/LD00003073/stops",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "structuredInventory_uri",
+          "path": "/wm/outboundLoads/LD00003073/structuredInventory",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "subResourceCounts_uri",
+          "path": "/wm/outboundLoads/LD00003073/subResourceCounts",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "waves_uri",
+          "path": "/wm/outboundLoads/LD00003073/waves",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "structuredInventory": {
+      "sampled_record": "-1*!D00000056ORS*!00000776442003821453*!S00000064330",
+      "actions": [
+        {
+          "link": "editAsn_uri",
+          "path": "/wm/inventory/asn/00000776442003821453",
+          "get_status": 405,
+          "options_status": 520,
+          "allow": null,
+          "kind": "action (GET not allowed)"
+        }
+      ],
+      "sub_collections": [
+        {
+          "link": "hazardousItemQuantities_uri",
+          "path": "/wm/structuredInventory/-1%2A%21D00000056ORS%2A%2100000776442003821453%2A%21S00000064330/hazardousItemQuantities?level=lodnum",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "inventoryHolds_uri",
+          "path": "/wm/structuredInventory/-1%2A%21D00000056ORS%2A%2100000776442003821453%2A%21S00000064330/heldInventory",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "item_uri",
+          "path": "/wm/items/----%2A%210113228000%2A%21SG",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "location_uri",
+          "path": "/wm/locations/RB327A%2A%21SG",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "movePendingDetail_uri",
+          "path": "/wm/structuredInventory/-1%2A%21D00000056ORS%2A%2100000776442003821453%2A%21S00000064330/movePendingDetail?level=lodnum",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        },
+        {
+          "link": "pickedInventoryDetails_uri",
+          "path": "/wm/structuredInventory/-1%2A%21D00000056ORS%2A%2100000776442003821453%2A%21S00000064330/pickedInventoryDetails?level=lodnum",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "uomQuantities_uri",
+          "path": "/wm/structuredInventory/-1%2A%21D00000056ORS%2A%2100000776442003821453%2A%21S00000064330/uomQuantities?level=lodnum&itemNumber=0113228000&itemClientId=----&warehouseId=SG",
+          "get_status": 400,
+          "options_status": 520,
+          "allow": null,
+          "kind": "unclear (400)"
+        }
+      ]
+    },
+    "appointments": {
+      "sampled_record": "APP0001855",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "appointmentNotes_uri",
+          "path": "/wm/appointments/APP0001855/appointmentNotes",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "carrier_uri",
+          "path": "/wm/appointments/APP0001855/carriers",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        },
+        {
+          "link": "inboundLoads_uri",
+          "path": "/wm/appointments/APP0001855/inboundLoads",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "trailer_uri",
+          "path": "/wm/trailers/TRL0082830",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    }
+  }
+}

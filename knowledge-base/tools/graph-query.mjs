@@ -91,6 +91,8 @@ function resource(name) {
     if (n.queryable.not_filterable.length) out(`  these return 200 and zero rows, which is NOT proof of absence: ${n.queryable.not_filterable.slice(0, 10).join(', ')}${n.queryable.not_filterable.length > 10 ? ' …' : ''}`);
     out(`  grammar: ${n.queryable.grammar}`);
   }
+  if (n.publishes) out(`\npublishes (links the record itself carries): ${n.publishes.join(', ')}`);
+  if (n.actions) for (const a of n.actions) out(`\nOPERATION on the record: ${a.name}  ${a.path}\n  ${a.note}`);
   if (n.state_vocabulary) {
     out('\nstates:');
     for (const [f, vals] of Object.entries(n.state_vocabulary)) out(`  ${f}: ${vals.join(', ')}`);

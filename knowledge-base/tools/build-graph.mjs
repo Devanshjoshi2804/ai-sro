@@ -376,6 +376,42 @@ if (exists(claimsPath)) {
 }
 
 /*
+ * PUBLISHED LINKS — the relationships the server itself declares.
+ *
+ * Every record carries `*_uri` fields pointing at its own neighbourhood: a shipment publishes its
+ * orders, picks, waves, shipmentLines, handlingUnits, crossdocks and manifestDetails. Those are the
+ * operational relationships this graph never had — its edges all came from Configuration flows —
+ * and they need no inference at all, because the server names them.
+ *
+ * A link whose GET answers 405 is not a collection but an OPERATION (trailers.closeWithWorkQueue,
+ * structuredInventory.editAsn). Those are recorded as actions, not traversals.
+ */
+{
+  const alPath = path.join(KG, 'index/action-links.json');
+  if (exists(alPath)) {
+    const al = readJSON(alPath).resources || {};
+    for (const [resource, spec] of Object.entries(al)) {
+      const from = `resource:${resource}`;
+      if (!nodes.has(from)) continue;
+      for (const c of spec.sub_collections || []) {
+        if (c.get_status !== 200) continue;
+        // The link name is usually the related resource; keep the path either way as the evidence.
+        const target = `resource:${c.link.replace(/_uri$/, '')}`;
+        if (nodes.has(target)) {
+          addEdge(from, target, 'publishes', { via: c.link, path: c.path, evidence: `index/action-links.json — GET ${c.path} returned 200` });
+        }
+        const n = nodes.get(from);
+        n.publishes = [...new Set([...(n.publishes || []), c.link.replace(/_uri$/, '')])];
+      }
+      for (const a of spec.actions || []) {
+        const n = nodes.get(from);
+        n.actions = [...(n.actions || []), { name: a.link.replace(/_uri$/, ''), path: a.path, note: 'GET answers 405 — this is an operation, and its verb is not recorded yet' }];
+      }
+    }
+  }
+}
+
+/*
  * PREREQUISITE EDGES, derived from values rather than names.
  *
  * The graph had two `requires` edges, both from old UI flows, while the write evidence quietly
@@ -519,6 +555,9 @@ graph.counts = {
   cascades: cascades.length,
   hazards: hazards.length,
   resources_with_behaviour_warnings: graph.nodes.filter((n) => n.behaviour_warnings).length,
+  publishes_edges: graph.edges.filter((e) => e.type === 'publishes').length,
+  resources_publishing_links: graph.nodes.filter((n) => n.publishes).length,
+  operations_found_on_records: graph.nodes.reduce((a, n) => a + (n.actions?.length || 0), 0),
   resources_with_a_filterability_map: graph.nodes.filter((n) => n.queryable).length,
   resources_that_cannot_be_filtered_at_all: graph.nodes.filter((n) => n.queryable && !n.queryable.filterable_columns.length).length,
   resources_with_a_state_vocabulary: graph.nodes.filter((n) => n.state_vocabulary).length,

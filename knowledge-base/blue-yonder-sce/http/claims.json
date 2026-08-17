@@ -640,6 +640,23 @@
       ],
       "consequence": "Verification can now ask the question that matters: not \"did the call return 200\" but \"is this thing in the state it should be\". The codes are short and unguessable — no automation would have invented OR for Open For Receiving — and they are what a post-condition has to assert against.",
       "evidence_level": "observed"
+    },
+    {
+      "id": "records-publish-their-own-relationships-and-operations",
+      "source": "tools/cdp/trace-entity.mjs and tools/cdp/probe-action-links.mjs — 2026-08-17",
+      "claim": "Every record carries *_uri links to its own neighbourhood, and some of those links are operations that appear in no endpoint catalogue.",
+      "verdict": "REPRODUCED",
+      "evidence": "index/action-links.json, index/entity-traces.json; http/exchanges/{trailers,shipments,outboundLoads,structuredInventory,appointments}.jsonl cases link-* and sub-collection-*",
+      "observed": [
+        "A shipment publishes 16 links: orders, outboundOrders, picks, waves, shipmentLines, handlingUnits, crossdocks, manifestDetails, destinationLocations, routeToAddress, structuredInventory, shippingProgressQuantities, pendingReplenishments, hasNotes — plus shorts and wavableShipmentLines, which answer 500.",
+        "A trailer publishes 16, including inboundLoads, outboundLoads, stagingLocations, suggestedStagingLanesForUnload, occupiedYardLocations, workflowResults.",
+        "Two links are OPERATIONS rather than collections, identified by GET answering 405: trailers.closeWithWorkQueue (/wm/trailers/closedTrailers/queue) and structuredInventory.editAsn. Neither appears in the 551-endpoint catalogue or in any screen map.",
+        "OPTIONS is useless here — it answers 520 on every path — so the verb behind a 405 link is still unknown. It was NOT probed by sending one.",
+        "53 sub-collection links and 2 operations found across five resources."
+      ],
+      "consequence": "This is the operational structure the graph never had: its relationships all came from Configuration flows. These are declared by the server per record, so they need no inference — and they are the route to the process view (shipment to its picks to its waves). The operations are the first sighting of how the operational verbs are addressed at all.",
+      "caution": "shipments.shipmentStatus is NOT filterable. The status vocabulary exists, but shipments cannot be queried by status — a filtered read on it returns 200 and nothing. Paging plus client-side selection is the only route today.",
+      "evidence_level": "observed"
     }
   ],
   "still_asserted_not_reproduced": [],

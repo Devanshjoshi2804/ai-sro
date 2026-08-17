@@ -11,13 +11,16 @@
   "counts": {
     "screens": 183,
     "resources": 296,
-    "edges": 291,
+    "edges": 303,
     "dataflow_edges": 13,
     "dataflow_strong": 3,
-    "requires_edges": 10,
+    "requires_edges": 11,
     "cascades": 1,
     "hazards": 8,
     "resources_with_behaviour_warnings": 69,
+    "publishes_edges": 11,
+    "resources_publishing_links": 5,
+    "operations_found_on_records": 2,
     "resources_with_a_filterability_map": 152,
     "resources_that_cannot_be_filtered_at_all": 43,
     "resources_with_a_state_vocabulary": 23,
@@ -574,10 +577,15 @@
       "operations": {
         "GET": {
           "statuses": [
-            200
+            200,
+            404
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "link-appointmentNotes": "200",
+            "link-carrier": "404",
+            "link-inboundLoads": "200",
+            "link-trailer": "200"
           }
         }
       },
@@ -592,7 +600,12 @@
         "status": 200,
         "fields": 70,
         "rows_in_sample": 7808
-      }
+      },
+      "publishes": [
+        "appointmentNotes",
+        "inboundLoads",
+        "trailer"
+      ]
     },
     {
       "id": "resource:areas",
@@ -8212,14 +8225,28 @@
       "operations": {
         "GET": {
           "statuses": [
-            200
+            200,
+            500
           ],
           "cases": {
             "read-shape": "200",
             "filter-by-trailerSafetyStatus": "200",
             "filter-by-trailerStatus": "200",
             "filter-by-warehouseStatus": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-crossdocks": "200",
+            "link-destinationLocations": "200",
+            "link-measures": "200",
+            "link-orders": "200",
+            "link-pendingReplenishments": "200",
+            "link-picks": "500",
+            "link-shipments": "200",
+            "link-shippingProgressQuantities": "200",
+            "link-shorts": "200",
+            "link-stops": "200",
+            "link-structuredInventory": "200",
+            "link-subResourceCounts": "200",
+            "link-waves": "200"
           }
         }
       },
@@ -8260,7 +8287,21 @@
         "warehouseStatus": [
           "WHCOMPLETE"
         ]
-      }
+      },
+      "publishes": [
+        "crossdocks",
+        "destinationLocations",
+        "measures",
+        "orders",
+        "pendingReplenishments",
+        "shipments",
+        "shippingProgressQuantities",
+        "shorts",
+        "stops",
+        "structuredInventory",
+        "subResourceCounts",
+        "waves"
+      ]
     },
     {
       "id": "resource:outboundOrders",
@@ -10693,11 +10734,28 @@
       "operations": {
         "GET": {
           "statuses": [
-            200
+            200,
+            500
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-crossdocks": "200",
+            "link-destinationLocations": "200",
+            "link-handlingUnits": "200",
+            "link-hasNotes": "200",
+            "link-manifestDetails": "200",
+            "link-orders": "200",
+            "link-outboundOrders": "200",
+            "link-pendingReplenishments": "200",
+            "link-picks": "200",
+            "link-routeToAddress": "200",
+            "link-shipmentLines": "200",
+            "link-shippingProgressQuantities": "200",
+            "link-shorts": "500",
+            "link-structuredInventory": "200",
+            "link-wavableShipmentLines": "500",
+            "link-waves": "200"
           }
         }
       },
@@ -10755,7 +10813,23 @@
           "S",
           "I"
         ]
-      }
+      },
+      "publishes": [
+        "crossdocks",
+        "destinationLocations",
+        "handlingUnits",
+        "hasNotes",
+        "manifestDetails",
+        "orders",
+        "outboundOrders",
+        "pendingReplenishments",
+        "picks",
+        "routeToAddress",
+        "shipmentLines",
+        "shippingProgressQuantities",
+        "structuredInventory",
+        "waves"
+      ]
     },
     {
       "id": "resource:shippedLpnActivities",
@@ -11300,14 +11374,25 @@
       "operations": {
         "GET": {
           "statuses": [
-            200
+            200,
+            400,
+            404,
+            405
           ],
           "cases": {
             "read-shape": "200",
             "filter-by-inventoryStatus": "200",
             "filter-by-locationStatus": "200",
             "filter-by-trailerStatus": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-editAsn": "405",
+            "link-hazardousItemQuantities": "200",
+            "link-inventoryHolds": "200",
+            "link-item": "200",
+            "link-location": "200",
+            "link-movePendingDetail": "404",
+            "link-pickedInventoryDetails": "200",
+            "link-uomQuantities": "400"
           }
         }
       },
@@ -11364,7 +11449,21 @@
           "D",
           "LDG"
         ]
-      }
+      },
+      "publishes": [
+        "hazardousItemQuantities",
+        "inventoryHolds",
+        "item",
+        "location",
+        "pickedInventoryDetails"
+      ],
+      "actions": [
+        {
+          "name": "editAsn",
+          "path": "/wm/inventory/asn/00000776442003821453",
+          "note": "GET answers 405 — this is an operation, and its verb is not recorded yet"
+        }
+      ]
     },
     {
       "id": "resource:supplierConsignments",
@@ -11455,7 +11554,8 @@
             "sub-resource-read": "200",
             "filter-by-receiveStatus": "200",
             "filter-by-state": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "join-from-trailers-via-supplierNumber": "200"
           }
         },
         "POST": {
@@ -11749,14 +11849,37 @@
       "operations": {
         "GET": {
           "statuses": [
-            200
+            200,
+            404,
+            405
           ],
           "cases": {
             "read-shape": "200",
             "sub-resource-read": "200",
             "filterable-columns": "200",
             "filter-by-safetyCheckStatus": "200",
-            "filter-by-trailerStatus": "200"
+            "filter-by-trailerStatus": "200",
+            "sub-collection-inboundLoads": "200",
+            "sub-collection-outboundLoads": "200",
+            "sub-collection-pendingMove": "200",
+            "sub-collection-stagingLocations": "200",
+            "sub-collection-suggestedStagingLanesForUnload": "200",
+            "sub-collection-transportationEquipmentNotes": "200",
+            "sub-collection-workflowResults": "200",
+            "link-checkIn": "404",
+            "link-closeWithWorkQueue": "405",
+            "link-close": "404",
+            "link-dispatch": "404",
+            "link-inboundLoads": "200",
+            "link-occupiedYardLocations": "404",
+            "link-orders": "404",
+            "link-outboundLoads": "200",
+            "link-pendingMove": "200",
+            "link-stagingLocations": "200",
+            "link-suggestedStagingLanesForUnload": "200",
+            "link-trailerMove": "404",
+            "link-transportationEquipmentNotes": "200",
+            "link-workflowResults": "200"
           }
         }
       },
@@ -11819,7 +11942,23 @@
         "yardStatus": [
           "FULL (Full)"
         ]
-      }
+      },
+      "publishes": [
+        "inboundLoads",
+        "outboundLoads",
+        "pendingMove",
+        "stagingLocations",
+        "suggestedStagingLanesForUnload",
+        "transportationEquipmentNotes",
+        "workflowResults"
+      ],
+      "actions": [
+        {
+          "name": "closeWithWorkQueue",
+          "path": "/wm/trailers/closedTrailers/queue",
+          "note": "GET answers 405 — this is an operation, and its verb is not recorded yet"
+        }
+      ]
     },
     {
       "id": "resource:transportEquipmentTypeAccesses",
@@ -18443,6 +18582,94 @@
       "evidence": "http/flows/readonly-subroutes-yard.json"
     },
     {
+      "from": "resource:trailers",
+      "to": "resource:inboundLoads",
+      "type": "publishes",
+      "via": "inboundLoads_uri",
+      "path": "/wm/trailers/TRL0157056/inboundLoads",
+      "evidence": "index/action-links.json — GET /wm/trailers/TRL0157056/inboundLoads returned 200"
+    },
+    {
+      "from": "resource:trailers",
+      "to": "resource:outboundLoads",
+      "type": "publishes",
+      "via": "outboundLoads_uri",
+      "path": "/wm/trailers/TRL0157056/outboundLoads",
+      "evidence": "index/action-links.json — GET /wm/trailers/TRL0157056/outboundLoads returned 200"
+    },
+    {
+      "from": "resource:shipments",
+      "to": "resource:outboundOrders",
+      "type": "publishes",
+      "via": "outboundOrders_uri",
+      "path": "/wm/shipments/SID0009108/outboundOrders",
+      "evidence": "index/action-links.json — GET /wm/shipments/SID0009108/outboundOrders returned 200"
+    },
+    {
+      "from": "resource:shipments",
+      "to": "resource:picks",
+      "type": "publishes",
+      "via": "picks_uri",
+      "path": "/wm/shipments/SID0009108/picks",
+      "evidence": "index/action-links.json — GET /wm/shipments/SID0009108/picks returned 200"
+    },
+    {
+      "from": "resource:shipments",
+      "to": "resource:structuredInventory",
+      "type": "publishes",
+      "via": "structuredInventory_uri",
+      "path": "/wm/shipments/SID0009108/structuredInventory",
+      "evidence": "index/action-links.json — GET /wm/shipments/SID0009108/structuredInventory returned 200"
+    },
+    {
+      "from": "resource:shipments",
+      "to": "resource:waves",
+      "type": "publishes",
+      "via": "waves_uri",
+      "path": "/wm/shipments/SID0009108/waves",
+      "evidence": "index/action-links.json — GET /wm/shipments/SID0009108/waves returned 200"
+    },
+    {
+      "from": "resource:outboundLoads",
+      "to": "resource:shipments",
+      "type": "publishes",
+      "via": "shipments_uri",
+      "path": "/wm/outboundLoads/LD00003073/shipments",
+      "evidence": "index/action-links.json — GET /wm/outboundLoads/LD00003073/shipments returned 200"
+    },
+    {
+      "from": "resource:outboundLoads",
+      "to": "resource:shorts",
+      "type": "publishes",
+      "via": "shorts_uri",
+      "path": "/wm/outboundLoads/LD00003073/shorts",
+      "evidence": "index/action-links.json — GET /wm/outboundLoads/LD00003073/shorts returned 200"
+    },
+    {
+      "from": "resource:outboundLoads",
+      "to": "resource:structuredInventory",
+      "type": "publishes",
+      "via": "structuredInventory_uri",
+      "path": "/wm/outboundLoads/LD00003073/structuredInventory",
+      "evidence": "index/action-links.json — GET /wm/outboundLoads/LD00003073/structuredInventory returned 200"
+    },
+    {
+      "from": "resource:outboundLoads",
+      "to": "resource:waves",
+      "type": "publishes",
+      "via": "waves_uri",
+      "path": "/wm/outboundLoads/LD00003073/waves",
+      "evidence": "index/action-links.json — GET /wm/outboundLoads/LD00003073/waves returned 200"
+    },
+    {
+      "from": "resource:appointments",
+      "to": "resource:inboundLoads",
+      "type": "publishes",
+      "via": "inboundLoads_uri",
+      "path": "/wm/appointments/APP0001855/inboundLoads",
+      "evidence": "index/action-links.json — GET /wm/appointments/APP0001855/inboundLoads returned 200"
+    },
+    {
       "from": "resource:carrierCrossReferences",
       "to": "resource:carriers",
       "type": "requires",
@@ -18494,6 +18721,15 @@
       "via": "allocationAssetGroup = \"PALLETS\"",
       "matches": "allocationHandlingUnitGroups.resourceId",
       "evidence": "http/exchanges/handlingUnitTypes.jsonl (payload) matched against http/exchanges/allocationHandlingUnitGroups.jsonl (recorded rows)",
+      "confidence": "value-match"
+    },
+    {
+      "from": "resource:locationTypes",
+      "to": "resource:structuredInventory",
+      "type": "requires",
+      "via": "locationTypeCategory = \"STORAGE\"",
+      "matches": "structuredInventory.locationTypeCategory",
+      "evidence": "http/exchanges/locationTypes.jsonl (payload) matched against http/exchanges/structuredInventory.jsonl (recorded rows)",
       "confidence": "value-match"
     },
     {

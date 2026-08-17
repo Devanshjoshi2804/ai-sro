@@ -407,6 +407,7 @@ function RunButton({
 }) {
   const queryClient = useQueryClient();
   const [finished, setFinished] = useState<RunModel | null>(null);
+  const [given, setGiven] = useState<Record<string, string>>({});
   // Already answered when the question was asked. Fetched rather than passed:
   // the reply is stored, and reopening the thread tomorrow should show what
   // the run found, not an empty card.
@@ -418,10 +419,14 @@ function RunButton({
 
   const run = useMutation({
     mutationFn: () =>
-      startRun(skillId, parameters, {
-        authorizedBy: env.NEXT_PUBLIC_PRINCIPAL_ID,
-        version: version.version,
-      }),
+      startRun(
+        skillId,
+        { ...parameters, ...given },
+        {
+          authorizedBy: env.NEXT_PUBLIC_PRINCIPAL_ID,
+          version: version.version,
+        },
+      ),
     onSuccess: (started) => {
       setFinished(started);
       void queryClient.invalidateQueries({ queryKey: runKeys.all });
@@ -440,32 +445,105 @@ function RunButton({
     return <Result run={done} subject={subject} onAsk={onAsk} />;
   }
 
-  const blocked = missing.length > 0 || version.stage === "recorded";
+  // What it still needs, asked for here rather than in the next sentence. Chat
+  // is the right shape for an open-ended request and the wrong one for four
+  // fields with a known shape: a form collects them without ambiguity, and the
+  // operator can see all of them at once instead of remembering which they
+  // have already given.
+  const plan = version.steps.find((step) => step.network_plan)?.network_plan ?? null;
+  const wanted = version.parameters.filter((parameter) => parameter.kind === "input");
+  const supplied = { ...parameters, ...given };
+  const stillMissing = wanted
+    .map((parameter) => parameter.name)
+    .filter((name) => !supplied[name]?.trim());
+
+  const blocked = stillMissing.length > 0 || version.stage === "recorded";
   return (
-    <button
-      onClick={() => run.mutate()}
-      disabled={blocked || run.isPending}
-      title={
-        missing.length > 0
-          ? `Still needs ${missing.join(", ")}`
-          : version.stage === "recorded"
-            ? "Nobody has reviewed this yet"
-            : `Runs as ${env.NEXT_PUBLIC_PRINCIPAL_ID}`
-      }
-      style={{
-        padding: "6px 12px",
-        borderRadius: 7,
-        border: "none",
-        background: blocked ? "#E7E7E4" : ink.accent,
-        color: blocked ? ink.textMuted : "#fff",
-        fontSize: 12,
-        fontWeight: 700,
-        cursor: blocked ? "not-allowed" : "pointer",
-      }}
-    >
-      {run.isPending ? "Running…" : "Run it"}
-    </button>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+      {missing.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {wanted.map((parameter) => (
+            <label
+              key={parameter.name}
+              style={{ display: "flex", flexDirection: "column", gap: 4 }}
+            >
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: ink.textMuted }}>
+                {parameter.name.replace(/_/g, " ")}
+              </span>
+              <input
+                value={supplied[parameter.name] ?? ""}
+                placeholder={parameter.observed_values[0] ?? ""}
+                onChange={(event) => setGiven({ ...given, [parameter.name]: event.target.value })}
+                style={{
+                  border: `1px solid ${ink.line}`,
+                  borderRadius: 7,
+                  padding: "7px 9px",
+                  fontSize: 12.5,
+                  fontFamily: mono,
+                  outline: "none",
+                }}
+              />
+              {parameter.description && (
+                <span style={{ fontSize: 10.5, color: ink.textMuted }}>
+                  {parameter.description}
+                </span>
+              )}
+            </label>
+          ))}
+        </div>
+      )}
+
+      {/* What will actually be sent, before it is sent. An operator approving
+          a write should be approving the request, not a sentence about it. */}
+      {!blocked && plan && (
+        <div
+          style={{
+            fontFamily: mono,
+            fontSize: 11,
+            color: ink.textSoft,
+            background: ink.infoWash,
+            borderRadius: 7,
+            padding: "8px 10px",
+            overflowX: "auto",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-all",
+          }}
+        >
+          {`${plan.method} ${render(plan.url, supplied)}`}
+          {plan.body ? `\n${render(plan.body, supplied)}` : ""}
+        </div>
+      )}
+
+      <button
+        onClick={() => run.mutate()}
+        disabled={blocked || run.isPending}
+        title={
+          stillMissing.length > 0
+            ? `Still needs ${stillMissing.join(", ")}`
+            : version.stage === "recorded"
+              ? "Nobody has reviewed this yet"
+              : `Runs as ${env.NEXT_PUBLIC_PRINCIPAL_ID}`
+        }
+        style={{
+          padding: "6px 12px",
+          borderRadius: 7,
+          border: "none",
+          background: blocked ? "#E7E7E4" : ink.accent,
+          color: blocked ? ink.textMuted : "#fff",
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: blocked ? "not-allowed" : "pointer",
+        }}
+      >
+        {run.isPending ? "Running…" : "Run it"}
+      </button>
+    </div>
   );
+}
+
+/** Fill a taught template with the values in hand, for the preview only. */
+function render(template: string, values: Record<string, string>): string {
+  return template.replace(/\$\{(\w+)\}/g, (whole, name: string) => values[name] ?? whole);
 }
 
 /**

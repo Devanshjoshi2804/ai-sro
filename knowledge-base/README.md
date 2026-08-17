@@ -177,6 +177,12 @@ Check it before trusting an empty result: on an unproven column, empty means unk
 | Adjustments ▸ Approve | `POST /wm/inventoryAdjustmentApprovals/async` |
 | Work Queue ▸ Suspend Work | `PUT /wm/work/suspendDirectedWorks/batch` |
 | Work Queue ▸ Resume Work | `PUT /wm/work/resumeDirectedWorks/batch` |
+| Work Queue ▸ Assign User | `PUT /wm/work/async` with `assignedTo: "ABELOT"` |
+| Work Queue ▸ Unassign | `PUT /wm/work/async` with `assignedTo: ""` |
+
+**Two shapes, and the endpoint does not tell you the action.** Suspend and Resume have dedicated verb
+routes; Assign and Unassign share one generic update route and differ only in the field they change.
+A replayed call is only as safe as the body it carries.
 
 Suspend/Resume is a reversible pair and was run as one: work 5490663 went PEND → SUSP → PEND, so the
 warehouse ended where it started. An executor must therefore read the record before writing it.

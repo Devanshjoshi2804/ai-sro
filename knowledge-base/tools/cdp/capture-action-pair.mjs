@@ -105,18 +105,73 @@ async function fireAction(frame, text) {
   return false;
 }
 
-/* Confirm whatever the action raises, and report what it said. */
+/*
+ * Confirm whatever the action raises.
+ *
+ * Some actions open a PICKER — Assign User shows a grid of every warehouse user — and there is no
+ * submit button until a row is chosen. So: select the first row of any grid inside the dialog, then
+ * look for the submit. Without this the run reported "dialog with no submit button" and moved on,
+ * leaving the picker open for the next action to misread.
+ */
 async function confirmDialog(frame) {
   await page.waitForTimeout(4000);
+  /*
+   * Select inside the picker and CONFIRM the selection took. Assign User's Select button is disabled
+   * until a row is chosen, and one earlier run selected into a grid that had not finished loading its
+   * 249 users — the button stayed disabled and the action looked impossible.
+   */
+  for (let i = 0; i < 5; i++) {
+    const sel = await frame.evaluate(() => {
+      const vis = (c) => { const d = c.getEl && c.getEl() && c.getEl().dom; const x = d && d.getBoundingClientRect(); return x && x.width > 0 && x.height > 0; };
+      const win = window.Ext.ComponentQuery.query('window,messagebox').filter(vis).pop();
+      if (!win) return 0;
+      const grid = win.query('grid').find((g) => g.getStore && g.getStore().getCount() > 0);
+      if (!grid) return 0;
+      grid.getSelectionModel().select(0);
+      return grid.getSelectionModel().getSelection().length;
+    }).catch(() => 0);
+    if (sel) break;
+    await page.waitForTimeout(2000);
+  }
+  await page.waitForTimeout(1500);
+  /*
+   * A picker with no submit button commits on DOUBLE-CLICK of the row. Assign User has no OK at all —
+   * the grid of users IS the control — so without this the action can only ever be cancelled.
+   */
+  const rowEl = await frame.evaluate(() => {
+    const vis = (c) => { const d = c.getEl && c.getEl() && c.getEl().dom; const x = d && d.getBoundingClientRect(); return x && x.width > 0 && x.height > 0; };
+    const win = window.Ext.ComponentQuery.query('window,messagebox').filter(vis).pop();
+    if (!win) return null;
+    const hasSubmit = win.query('button').some((b) => /^(yes|ok|apply|save|confirm|assign|suspend|resume|release)$/i.test(String(b.text || '').trim()));
+    if (hasSubmit) return null;
+    const grid = win.query('grid').find((g) => g.getStore && g.getStore().getCount() > 0);
+    if (!grid) return null;
+    const node = grid.getView().getNode(0);
+    return node && node.id ? { id: node.id, chose: grid.getStore().getAt(0).data } : null;
+  }).catch(() => null);
+  if (rowEl) {
+    console.log(`  picker has no submit button; double-clicking row: ${JSON.stringify(rowEl.chose).slice(0, 120)}`);
+    await frame.locator('#' + rowEl.id).dblclick({ timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(4000);
+  }
   return frame.evaluate(() => {
     const vis = (c) => { const d = c.getEl && c.getEl() && c.getEl().dom; const x = d && d.getBoundingClientRect(); return x && x.width > 0 && x.height > 0; };
     const win = window.Ext.ComponentQuery.query('window,messagebox').filter(vis).pop();
     const buttons = window.Ext.ComponentQuery.query('button').filter(vis);
     const fire = (b) => { b.fireHandler ? b.fireHandler() : b.handler && b.handler.call(b.scope || b, b); };
     const text = win && win.getEl && win.getEl() ? win.getEl().dom.innerText.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
-    const go = (win ? win.query('button') : buttons).find((b) => /^(yes|ok|apply|save|confirm|suspend|resume|release)$/i.test(String(b.text || '').trim()));
+    // "Select" belongs in this list: the picker dialogs commit through a Select button, not an OK.
+    const go = (win ? win.query('button') : buttons)
+      .filter((b) => !b.disabled)
+      .find((b) => /^(yes|ok|apply|save|confirm|select|assign|suspend|resume|release)$/i.test(String(b.text || '').trim()));
     if (go) { fire(go); return `submitted via "${String(go.text).trim()}" :: ${text}`; }
-    return win ? `dialog with no submit button :: ${text}` : 'no dialog — the action may have acted directly';
+    // Nothing to submit with: close it so the NEXT action does not inherit this dialog.
+    if (win) {
+      const shut = win.query('button').find((b) => /^(cancel|close|no)$/i.test(String(b.text || '').trim()));
+      if (shut) fire(shut); else win.close();
+      return `dialog with no submit button, closed :: ${text}`;
+    }
+    return 'no dialog — the action may have acted directly';
   }).catch(() => 'error');
 }
 

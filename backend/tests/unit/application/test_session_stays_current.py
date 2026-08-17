@@ -13,11 +13,12 @@ from datetime import UTC, datetime
 
 import pytest
 
+from sro.application.connection.check_session import CheckSession, SessionHealth
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.context import RequestContext
 from sro.domain.connection.connection import Connection, ConnectionId
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeCredentialVault, FakeUnitOfWork
+from tests.unit.fakes import FakeClock, FakeCredentialVault, FakeHttpCaller, FakeUnitOfWork
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
@@ -37,6 +38,7 @@ async def _connected(uow: FakeUnitOfWork) -> Connection:
         base_url=WMS,
         created_at=datetime(2026, 1, 1, tzinfo=UTC),
     )
+    connection.authenticated(datetime(2026, 1, 2, tzinfo=UTC))
     async with uow:
         await uow.connections.add(connection)
         await uow.commit()
@@ -103,3 +105,43 @@ async def test_a_capture_that_ended_logged_out_does_not_replace_a_working_sessio
 
     assert refreshed == 0
     assert await vault.get(connection.cookie_key) == "SESSIONID=good; CSRF=abc"
+
+
+@pytest.mark.asyncio
+async def test_a_dead_session_is_found_by_asking_not_by_waiting() -> None:
+    uow, vault, http = FakeUnitOfWork(), FakeCredentialVault(), FakeHttpCaller()
+    connection = await _connected(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=expired")
+    http.answer(status_code=302, headers={"location": "https://login.example.org/oauth2/authorize"})
+
+    (check,) = await CheckSession(uow, vault, http).execute(CTX)
+
+    assert check.health is SessionHealth.SIGNED_OUT
+    # The connection row still says connected. That is exactly why asking beats
+    # remembering.
+    assert http.sent[0]["headers"] == {"cookie": "SESSIONID=expired"}
+
+
+@pytest.mark.asyncio
+async def test_a_system_that_is_down_is_not_reported_as_a_bad_session() -> None:
+    uow, vault, http = FakeUnitOfWork(), FakeCredentialVault(), FakeHttpCaller()
+    connection = await _connected(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=fine")
+    http.unreachable = True
+
+    (check,) = await CheckSession(uow, vault, http).execute(CTX)
+
+    # Signing in again would not fix an outage, so it must not be asked for.
+    assert check.health is SessionHealth.UNREACHABLE
+
+
+@pytest.mark.asyncio
+async def test_a_redirect_inside_the_system_is_not_a_login_page() -> None:
+    uow, vault, http = FakeUnitOfWork(), FakeCredentialVault(), FakeHttpCaller()
+    connection = await _connected(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=fine")
+    http.answer(status_code=302, headers={"location": "https://wms.example.com/portal/home"})
+
+    (check,) = await CheckSession(uow, vault, http).execute(CTX)
+
+    assert check.health is SessionHealth.SIGNED_IN

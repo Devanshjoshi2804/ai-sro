@@ -1,0 +1,7089 @@
+{
+  "generated_by": "tools/cdp/capture-screen-network.mjs",
+  "what_this_is": "Every /data/WM call each screen issues on load, observed rather than inferred from store config. Screens whose resources were previously unknown get them from here.",
+  "totals": {
+    "screens": 162,
+    "resources_added_to_app_map": 8,
+    "new_response_bodies": 0
+  },
+  "screens": {
+    "#wm.config/wm.config.inventory.items.itemoverrides////": {
+      "label": "Item Overrides",
+      "area": "inventory",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/listInventoryRotationMethodsForWebDisplay",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemHierarchyLevels",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/agingProfiles",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/listMeasurementUnits",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uoms",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "codes",
+        "policies",
+        "uDIAConfigs",
+        "itemHierarchyLevels",
+        "agingProfiles",
+        "uoms"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inventory.inventorymoves.releaserules////": {
+      "label": "Inventory Move Release Rules",
+      "area": "inventory",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickReleaseRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventoryConsolidationCriteria",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "pickReleaseRules",
+        "inventoryConsolidationCriteria"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inventory.adjustments.thresholds////": {
+      "label": "Inventory Adjustment Thresholds",
+      "area": "inventory",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouses",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes/multiClients",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes/multiClients",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes/multiClients",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes/multiClients",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "warehouses",
+        "reasonCodes",
+        "policies"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inventory.counting.settings////": {
+      "label": "Count Settings",
+      "area": "inventory",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/countZones/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/countTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseUoms",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/countZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cycleCountABCConfig",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/releaseRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cycleCountPromptConfig",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cycleCountInventoryIdentifier",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cycleCountInventoryIdentifier",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cycleCountPromptConfig",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/countZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "countZones",
+        "countTypes",
+        "warehouseUoms",
+        "cycleCountABCConfig",
+        "releaseRules",
+        "cycleCountPromptConfig",
+        "cycleCountInventoryIdentifier",
+        "uDIAConfigs",
+        "pickZones",
+        "policies"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inventory.replenishments.searchpaths////": {
+      "label": "Replenishment Search Paths",
+      "area": "inventory",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/allocationSearchGroups",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseUoms",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/directedWorkOperations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMSearchPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/allocationSearchPathCriteria/inUsedSearchPathCriteria",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMSearchPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/replenishmentConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickMethods",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickMethods/replenishments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/allocationSearchPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/listInventoryStatusProgressions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/allocationSearchPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageSuffixes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "allocationSearchGroups",
+        "warehouseUoms",
+        "pickZones",
+        "directedWorkOperations",
+        "itemHierarchyLevelDescriptions",
+        "allocationSearchPathCriteria",
+        "replenishmentConfigurations",
+        "pickMethods",
+        "uDIAConfigs",
+        "codes",
+        "allocationSearchPaths",
+        "movementZones",
+        "storageSuffixes"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm-config-inventory-permanent-lpns////": {
+      "label": "Permanent LPNs",
+      "area": "inventory",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inventory.barcodes.templates////": {
+      "label": "Barcode Templates",
+      "area": "inventory",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMBarcodeTemplates",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMBarcodeTemplates",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/barcodeTemplates",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "barcodeTemplates"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.warehouse.warehouse////": {
+      "label": "Warehouse",
+      "area": "warehouse",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locales",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouses",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "devices",
+        "locales",
+        "movementZones",
+        "inboundOrderTypes",
+        "warehouses"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.work.work.zones////": {
+      "label": "Work Zones",
+      "area": "work",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMWorkZoneGrid",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMWorkZoneGrid",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildings",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "workZones",
+        "buildings"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.work.work.equipmentlimits////": {
+      "label": "Equipment Limits",
+      "area": "work",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMWorkArea",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMWorkArea",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMWorkZoneGrid",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMWorkZoneGrid",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workAreas",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "workAreas",
+        "workZones",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.config/wm.config.work.workflows.samplingconfiguration////": {
+      "label": "Sampling Configurations",
+      "area": "work",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowSamplingConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMWorkflowSamplingConfiguration",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMWorkflowSamplingConfiguration",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/masterWorkflows",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "workflowSamplingConfigurations",
+        "warehouseWorkflows",
+        "masterWorkflows"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm-config-work-warehouseworkflows-exitpoint////": {
+      "label": "Workflow Exit Points",
+      "area": "work",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.equipment.equipment.warehouseequipmenttype////": {
+      "label": "Warehouse Equipment Type",
+      "area": "equipment",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workAreas",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMEquipment",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/equipmentTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMEquipment",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseEquipmentAccesses",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/equipmentTypes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "workAreas",
+        "codes",
+        "equipmentTypes",
+        "workZones",
+        "warehouseEquipmentAccesses"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.equipment.hardware.voicedevices////": {
+      "label": "Voice Devices",
+      "area": "equipment",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/printers",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/rfVendors",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locales",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMHardwareVoiceDevice",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locales/userLocale",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workAreas",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMHardwareVoiceDevice",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "codes",
+        "printers",
+        "rfVendors",
+        "policies",
+        "locales",
+        "workAreas",
+        "devices"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.equipment.hardware.settings////": {
+      "label": "Hardware Settings",
+      "area": "equipment",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/rfVendors",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/printers",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locales/userLocale",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locales",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workAreas",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMVoiceLanguageCode",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "rfVendors",
+        "codes",
+        "printers",
+        "devices",
+        "locales",
+        "workAreas"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm-config-advanced-copylang-description////": {
+      "label": "Description",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm-config-advanced-copylang-mlscatalog////": {
+      "label": "MLS Catalog",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm-config-advanced-copylang-input////": {
+      "label": "Input",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm-config-advanced-copylang-itemdesc////": {
+      "label": "Item Description",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm-config-advanced-copylang-sysdesc////": {
+      "label": "System Description",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.advanced.reasons////": {
+      "label": "Reasons",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMReasonCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonGroups",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMReasonCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes/multiClients",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/clients",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "reasonGroups",
+        "reasonCodes",
+        "clients",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.config/wm.config.advanced.dataprotection////": {
+      "label": "Data Protection",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/dataProtectionConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/dataProtectionConfigs",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "dataProtectionConfigs"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm-config-advanced-velocitytype////": {
+      "label": "Velocity Type",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm-config-advanced-datasetdisplay////": {
+      "label": "Data Set Display",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm-config-advanced-itemvelocity////": {
+      "label": "Item Velocity",
+      "area": "advanced",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.movement.paths////": {
+      "label": "Movement Paths",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMMovementPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementPathCriterias",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMMovementPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "movementPathCriterias",
+        "movementPaths",
+        "movementZones"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.footprints////": {
+      "label": "Footprints",
+      "area": "other",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/stackMethods",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/loadAttributeConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uoms",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "stackMethods",
+        "loadAttributeConfigurations",
+        "uoms"
+      ],
+      "non_get": []
+    },
+    "#wm.config/Item-Family-Groups////": {
+      "label": "Item Family Groups",
+      "area": "other",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.movement.rules////": {
+      "label": "Movement Rules",
+      "area": "outbound",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.shipping.carriers////": {
+      "label": "Shipping Carriers",
+      "area": "outbound",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inbound.receiving.reversereceiving////": {
+      "label": "Reverse Receiving",
+      "area": "inbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inbound.storage.palletstackmethods////": {
+      "label": "Pallet Stack Methods",
+      "area": "inbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMStackMethod",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildingInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/overrideLocationCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageZoneInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locationConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMStackMethod",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes/velocityZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/availableInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildingInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "buildingInventoryMixingRules",
+        "overrideLocationCodes",
+        "storageZoneInventoryMixingRules",
+        "locationConfigs",
+        "storageZones",
+        "warehouseInventoryMixingRules",
+        "codes",
+        "storageConfigurations",
+        "availableInventoryMixingRules",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.config/wm.config.inbound.storage.velocity////": {
+      "label": "Storage Velocity",
+      "area": "inbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMVelocityZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMVelocityZones",
+          "status": 200
+        }
+      ],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.orderprocessing.ordertypes////": {
+      "label": "Outbound Order Types",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/orderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/noteTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMOrderTypes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "orderTypes",
+        "noteTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.orderprocessing.notetypes////": {
+      "label": "Outbound Note Types",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMNoteTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMNoteTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/noteTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/orderTypes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "noteTypes",
+        "orderTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.allocation.pickzones////": {
+      "label": "Pick Zones",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMPickZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/allocationSearchPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMPickZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "allocationSearchPaths",
+        "pickZones"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.allocation.manual////": {
+      "label": "Manual Allocation",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/listInventoryStatusProgressions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commandConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commandConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies/orderTypeOrderDestinations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/allocationSearchPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commands/listDescriptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns/waveRuleFields",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "commandConfigurations",
+        "pickZones",
+        "policies",
+        "allocationSearchPaths",
+        "commands",
+        "movementZones",
+        "tableColumns"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.allocation.postallocation////": {
+      "label": "Post Allocation",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/allocationSearchPaths",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/listInventoryStatusProgressions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "allocationSearchPaths",
+        "pickZones",
+        "inboundOrderTypes",
+        "movementZones",
+        "uDIAConfigs"
+      ],
+      "non_get": []
+    },
+    "#wm.config/Allocation-Rules////": {
+      "label": "Allocation Rules",
+      "area": "other",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/Allocation-Rules---Order-Lines////": {
+      "label": "Order Line Allocation Rules",
+      "area": "other",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/Allocation-Rules---Work-Order-Details////": {
+      "label": "Work Order Line Allocation Rules",
+      "area": "other",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/Allocation-Rules---BOM-Details////": {
+      "label": "BOM Allocation Rules",
+      "area": "other",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.picking.labels////": {
+      "label": "Pick Labels",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cartons/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickMethods",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workAssignmentRuleExceptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickReleaseRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/combinedPickingPolicies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commandConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/printers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones",
+        "cartons",
+        "codes",
+        "pickMethods",
+        "workAssignmentRuleExceptions",
+        "pickReleaseRules",
+        "combinedPickingPolicies",
+        "commandConfigurations",
+        "printers"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.picking.cartonization////": {
+      "label": "Pick Cartonization",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cartons/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cartonRouteGroupCriteria",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/rfForms",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/availablePickCartonizationCriteria",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/orderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/customsOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/customerTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/directedWorkOperations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemFamilies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/carrierServiceLevels",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/clients",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemFamilies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildings",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildings",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commands/listDescriptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/carriers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "cartons",
+        "cartonRouteGroupCriteria",
+        "rfForms",
+        "availablePickCartonizationCriteria",
+        "codes",
+        "orderTypes",
+        "customsOrderTypes",
+        "customerTypes",
+        "directedWorkOperations",
+        "itemFamilies",
+        "carrierServiceLevels",
+        "clients",
+        "workZones",
+        "movementZones",
+        "pickZones",
+        "buildings",
+        "commands",
+        "carriers"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.picking.verification////": {
+      "label": "Pick Verification",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZonePickDeductions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/rolePickDeductions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/orderTypePickDeductions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAFlagConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/rolePickVerifications",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/orderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/orderTypePickVerifications",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickingVerifications",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/availablePickDeductionSequences",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "codes",
+        "pickZonePickDeductions",
+        "rolePickDeductions",
+        "pickZones",
+        "orderTypePickDeductions",
+        "uDIAFlagConfigs",
+        "uDIAConfigs",
+        "rolePickVerifications",
+        "orderTypes",
+        "orderTypePickVerifications",
+        "pickingVerifications",
+        "availablePickDeductionSequences"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm-config-outbound-packing-serialcommunicationmaint////": {
+      "label": "Serial Communication",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.distribution.rulesets////": {
+      "label": "Distribution Rule Sets",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/routes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/distributionTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMDistributionRuleSets",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/ruleSetCommands/batch",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMDistributionRuleSets",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commandConfigurationArguments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commandConfigurations",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "routes",
+        "distributionTypes",
+        "policies",
+        "ruleSetCommands",
+        "commandConfigurationArguments",
+        "commandConfigurations"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.distribution.types////": {
+      "label": "Distribution Types",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/routes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/ruleSetCommands/batch",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/distributionTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMDistributionType",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMDistributionType",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "routes",
+        "ruleSetCommands",
+        "policies",
+        "distributionTypes",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.config/wm-config-outbound-shipping-breakstopsequence////": {
+      "label": "Break Stop Sequence",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.integration.reportlabel.doctypes////": {
+      "label": "Document Types",
+      "area": "integration",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseLabelFormats",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/printers",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/printers",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMDocumentType",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/labelFormats",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMDocumentType",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/documentTypes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "warehouseLabelFormats",
+        "printers",
+        "labelFormats",
+        "documentTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.integration.host.movement////": {
+      "label": "Movement Transaction",
+      "area": "integration",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/description",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMMovementTransactionPolicy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/clients",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/wcsEvents",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/areas",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/hostSystems",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMMovementTransactionPolicy",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/wcsEvents",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemLots",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/availableTransactionGroupingAttributes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "clients",
+        "wcsEvents",
+        "areas",
+        "hostSystems",
+        "itemLots",
+        "availableTransactionGroupingAttributes"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.integration.host.grouping////": {
+      "label": "Transaction Grouping",
+      "area": "integration",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/description",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/hostSystems",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/areas",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/wcsEvents",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMAvailableAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/clients",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/wcsEvents",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemLots",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/availableTransactionGroupingAttributes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "hostSystems",
+        "areas",
+        "wcsEvents",
+        "clients",
+        "itemLots",
+        "availableTransactionGroupingAttributes"
+      ],
+      "non_get": []
+    },
+    "#/wm.workstation": {
+      "label": "Workstation",
+      "area": "systemAdmin",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#/refs-Site": {
+      "label": "SG",
+      "area": "systemAdmin",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.receiving/wm.receiving.dashboard////": {
+      "label": "Dashboard",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/receivingDashboardStatistic/listReceivingDashboardSnapShot",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/receivingDashboardStatistic/receivingAppointmentsStatistic",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundQualityIssues",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/receivingDashboardStatistic/receivingDoorsStatistic",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/hotItemsByLoc",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/receivingDashboardStatistic/receivingIssuesStatistic",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/receivingDashboardStatistic/receivingStagingStatistic",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "receivingDashboardStatistic",
+        "inboundOrderTypes",
+        "inboundQualityIssues",
+        "hotItemsByLoc"
+      ],
+      "non_get": []
+    },
+    "#wm.receiving/wm.staging////": {
+      "label": "Staging",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMStagingDoors",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMStaging",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMStagingDoors",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMStaging",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/stagingLanes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/doorsWithTrailers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "stagingLanes",
+        "doorsWithTrailers"
+      ],
+      "non_get": []
+    },
+    "#wm.receiving/wm.dooractivity////": {
+      "label": "Door Activity",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMDoorActivity",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailerAuditWork/locationsForAudit",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMDoorActivity",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMDoorActivity",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMDoorActivity",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers/occupiedYardLocations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/doorsWithAppointments",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "trailerAuditWork",
+        "trailers",
+        "doorsWithAppointments"
+      ],
+      "non_get": []
+    },
+    "#wm.receiving/wm.appointments////": {
+      "label": "Appointments",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/description",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/dockLocationSchedules",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "dockLocationSchedules"
+      ],
+      "non_get": []
+    },
+    "#wm.receiving/wm.receiving.inboundloads////": {
+      "label": "Inbound Shipments",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commands/checkAssetCategoryEnabled",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/clients",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/orderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/customerDistributionSettings",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundLoads",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "commands",
+        "codes",
+        "uDIAConfigs",
+        "inventory",
+        "clients",
+        "orderTypes",
+        "customerDistributionSettings",
+        "itemHierarchyLevelDescriptions",
+        "inboundLoads"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.receiving/wm.transportequipment////": {
+      "label": "Transport Equipment",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/powerUnits/statusCount",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/powerUnits",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers/statusCounts",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "powerUnits",
+        "trailers"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.receiving/wm.workqueue////": {
+      "label": "Work Queue",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/consolidatedWork",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "policies",
+        "work"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.receiving/wm.workflowhistory////": {
+      "label": "Workflows",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundWorkflowPlans/consolidatedPlans",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/services/backgroundServices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "inboundWorkflowPlans",
+        "services",
+        "workflowOperations",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.receiving/wm.printcompliantlabels////": {
+      "label": "Print Compliant Labels",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/complianceLabelFormats/exitPoints",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/printers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "complianceLabelFormats",
+        "printers"
+      ],
+      "non_get": []
+    },
+    "#wm.receiving/wm.inventorydisplay////": {
+      "label": "Inventory",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/loadAttributeConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "policies",
+        "itemHierarchyLevelDescriptions",
+        "uDIAConfigs",
+        "inventory",
+        "loadAttributeConfigurations",
+        "reasonCodes"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.receiving/wm.rfmessage////": {
+      "label": "Send RF Message",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones"
+      ],
+      "non_get": []
+    },
+    "#wm.receiving/wm.lmindirect////": {
+      "label": "Log Indirect Work",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/lmIndirectWorkTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "lmIndirectWorkTypes",
+        "devices"
+      ],
+      "non_get": []
+    },
+    "#wm.receiving/Receiving-Assets-Display-Serialized////": {
+      "label": "Receiving Assets Display Serialized",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.receiving/Receiving-Assets-Display-Non-Serialized////": {
+      "label": "Receiving Assets Display Non Serialized",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.receiving/Transport-Equipment-User-Assignment////": {
+      "label": "Transport Equipment User Assignment",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.receiving/RFT-Display////": {
+      "label": "RF Display",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.receiving/wm.equipment.warehouseequipmentoperational////": {
+      "label": "Warehouse Equipment Operations",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workAreas",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/equipmentTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseEquipmentAccesses",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseEquipment",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "codes",
+        "workAreas",
+        "equipmentTypes",
+        "warehouseEquipmentAccesses",
+        "workZones",
+        "warehouseEquipment",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201",
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.receiving/wm.common.workoperationoverride////": {
+      "label": "Work Operation Override",
+      "area": "receiving",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workOperators",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "workOperators"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.shipping.dashboard////": {
+      "label": "Dashboard",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMShippingProgress3PL",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shippingProgressEach",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMShippingProgress3PL",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shippingDashboard/listShippedTodayInformation",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shippingDashboard/shippingdoors",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shippingDashboard/shippingappointments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shippingDashboard/stagingLanesIssues",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shippingProgressEach",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shippingDashboard/shippingissues",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes",
+        "shippingProgressEach",
+        "shippingDashboard"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.staging////": {
+      "label": "Staging",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMStagingDoors",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMStaging",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMStaging",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMStagingDoors",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/stagingLanes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/doorsWithTrailers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "stagingLanes",
+        "doorsWithTrailers"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.appointments////": {
+      "label": "Appointments",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/description",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/dockLocationSchedules",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "dockLocationSchedules"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.shipping.parcel////": {
+      "label": "Parcel",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMParcelPackage",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMParcelManifest",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMParcelManifest",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/parcelPackages",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMParcelShipment",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/serverStatus",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/serverStatus",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMParcelManifest",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMParcelPackage",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/userLocaleWeightUom",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMParcelShipment",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMParcelManifest",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "parcelPackages",
+        "serverStatus",
+        "userLocaleWeightUom"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/serverStatus -> 200",
+        "POST /data/WM/wm/serverStatus -> 200"
+      ]
+    },
+    "#wm.shipping/wm.shipping.parcelauditlog////": {
+      "label": "Parcel Audit Log",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.checkin////": {
+      "label": "Check In",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMCheckin",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMCheckin",
+          "status": 200
+        }
+      ],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.shipping/wm.transportequipment////": {
+      "label": "Transport Equipment",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/powerUnits/statusCount",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/powerUnits",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers/statusCounts",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "powerUnits",
+        "trailers"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.shipping/wm.shipping.manifesting////": {
+      "label": "Manifesting",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cartons",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/paymentTerms",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/carrierServiceLevels",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/serverStatus",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/carriers",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/customers",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/carrierServiceLevels",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "cartons",
+        "codes",
+        "paymentTerms",
+        "carrierServiceLevels",
+        "serverStatus",
+        "carriers",
+        "customers",
+        "devices"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/serverStatus -> 200"
+      ]
+    },
+    "#wm.shipping/wm.workqueue////": {
+      "label": "Work Queue",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/consolidatedWork",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "work",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201",
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.shipping/wm.workflowhistory////": {
+      "label": "Workflows",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/services/backgroundServices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundWorkflowPlans/consolidatedPlans",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "services",
+        "inboundWorkflowPlans",
+        "workflowOperations"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.printcompliantlabels////": {
+      "label": "Print Compliant Labels",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/complianceLabelFormats/exitPoints",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/printers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "complianceLabelFormats",
+        "printers"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.inventorydisplay////": {
+      "label": "Inventory",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/loadAttributeConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "policies",
+        "itemHierarchyLevelDescriptions",
+        "loadAttributeConfigurations",
+        "uDIAConfigs",
+        "inventory",
+        "reasonCodes"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.shipping/wm.shipping.delivery////": {
+      "label": "Shipment Delivery",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMShipments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMShipments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shipments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shipments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMShipments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMShipments",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "shipments"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.dailytransaction////": {
+      "label": "History",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/loadAttributeConfigurations",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "loadAttributeConfigurations"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.rfmessage////": {
+      "label": "Send RF Message",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.orderlinemassupdate////": {
+      "label": "Order Line Mass Update",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/listInventoryRotationMethodsForWebDisplay",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "codes",
+        "locations"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.lmindirect////": {
+      "label": "Log Indirect Work",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/lmIndirectWorkTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "lmIndirectWorkTypes",
+        "devices"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.shipmentmassupdate////": {
+      "label": "Shipment Mass Update",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "codes"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.shipping.shippedlpns////": {
+      "label": "Shipped LPN Activity",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shippedLpnActivities",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "shippedLpnActivities",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.shipping/wm.parcel.bundling////": {
+      "label": "Bundling",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.shipping/RFT-Display////": {
+      "label": "RF Display",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.shipping/wm.equipment.warehouseequipmentoperational////": {
+      "label": "Warehouse Equipment Operations",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workAreas",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/equipmentTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseEquipmentAccesses",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseEquipment",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "workAreas",
+        "codes",
+        "equipmentTypes",
+        "warehouseEquipmentAccesses",
+        "workZones",
+        "warehouseEquipment"
+      ],
+      "non_get": []
+    },
+    "#wm.shipping/wm.common.workoperationoverride////": {
+      "label": "Work Operation Override",
+      "area": "shipping",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workOperators",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "workOperators"
+      ],
+      "non_get": []
+    },
+    "#wm.picking/wm.outbounddashboard////": {
+      "label": "Dashboard",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMOBPDashboardWaves",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/picking/replenishments/pendingReplenishments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMShorts",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMReplenishments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMReplenishments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMShorts",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMOBPDashboardWaves",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/outboundOrders/statistics",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/picks/statistics",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickingSummary/waves",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickingSummary",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickingSummary/workZonePickingSummary",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "picking",
+        "movementZones",
+        "inventory",
+        "inboundOrderTypes",
+        "outboundOrders",
+        "picks",
+        "pickingSummary"
+      ],
+      "non_get": []
+    },
+    "#wm.picking/wm.wavesandpicks////": {
+      "label": "Waves and Picks",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMPicks",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMPicks",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/waves/statusCount",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/picks/statusCount",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "uDIAConfigs",
+        "waves",
+        "picks"
+      ],
+      "non_get": []
+    },
+    "#wm.picking/wm.inventorydisplay////": {
+      "label": "Inventory",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/loadAttributeConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shorts",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "policies",
+        "itemHierarchyLevelDescriptions",
+        "loadAttributeConfigurations",
+        "inventory",
+        "uDIAConfigs",
+        "shorts",
+        "reasonCodes"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.picking/wm.workflowhistory////": {
+      "label": "Workflows",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/services/backgroundServices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundWorkflowPlans/consolidatedPlans",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "services",
+        "inboundWorkflowPlans",
+        "workflowOperations",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.picking/wm.printcompliantlabels////": {
+      "label": "Print Compliant Labels",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/complianceLabelFormats/exitPoints",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/printers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "complianceLabelFormats",
+        "printers"
+      ],
+      "non_get": []
+    },
+    "#wm.picking/wm.workqueue////": {
+      "label": "Work Queue",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/consolidatedWork",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "work"
+      ],
+      "non_get": []
+    },
+    "#wm.picking/wm.picking.pickconfirmation////": {
+      "label": "Pick Confirmation",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMPickConfirmation",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMPickConfirmation",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMPickConfirmation",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMPickConfirmation",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/handlingUnitCategories",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cartons",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/handlingUnitTypes",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "inventory",
+        "handlingUnitCategories",
+        "cartons",
+        "handlingUnitTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.picking/wm.picking.listsforsequenceorders////": {
+      "label": "Order Sequence Processing",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/ListsForSequenceOrdersFilter",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/ListsForSequenceOrdersFilter",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/listsForSequenceOrders",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "listsForSequenceOrders"
+      ],
+      "non_get": []
+    },
+    "#wm.picking/wm.rfmessage////": {
+      "label": "Send RF Message",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "devices",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.picking/wm.lmindirect////": {
+      "label": "Log Indirect Work",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/lmIndirectWorkTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "lmIndirectWorkTypes",
+        "devices"
+      ],
+      "non_get": []
+    },
+    "#wm.picking/wm.picking.voicetrace////": {
+      "label": "Voice Tracing",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/listVoiceTrace",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "listVoiceTrace",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.picking/RFT-Display////": {
+      "label": "RF Display",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.picking/wm.equipment.warehouseequipmentoperational////": {
+      "label": "Warehouse Equipment Operations",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workAreas",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/equipmentTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseEquipmentAccesses",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseEquipment",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "workAreas",
+        "codes",
+        "equipmentTypes",
+        "warehouseEquipmentAccesses",
+        "workZones",
+        "warehouseEquipment"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.picking/wm.common.workoperationoverride////": {
+      "label": "Work Operation Override",
+      "area": "picking",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workOperators",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "workOperators"
+      ],
+      "non_get": []
+    },
+    "#wm.inventory/wm.inventorydisplay////": {
+      "label": "Inventory",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/loadAttributeConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "itemHierarchyLevelDescriptions",
+        "uDIAConfigs",
+        "loadAttributeConfigurations",
+        "inventory",
+        "movementZones",
+        "inboundOrderTypes",
+        "reasonCodes"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.inventory/wm.inventory.holds////": {
+      "label": "Holds",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/holdDefinitions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/holdsHistory",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/holdDefinitions",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "holdDefinitions",
+        "holdsHistory"
+      ],
+      "non_get": []
+    },
+    "#wm.inventory/wm.inventory.adjustments////": {
+      "label": "Adjustments",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventoryAdjustmentApprovals",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commands/generateNextNumber",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventoryAdjustmentApprovals/history",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "policies",
+        "inventoryAdjustmentApprovals",
+        "commands"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.inventory/wm.inventory.counts////": {
+      "label": "Counts",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryCounts",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventoryCounts/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMCountTemplates",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryCountBatches",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryCountBatches",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMCountsHistory",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMCountTemplates",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMCountsHistory",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/countZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryCountBatches",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryCountBatches",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryCounts",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventoryCounts/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventoryCounts",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/countBatches/history",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/countBatches",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "inventoryCounts",
+        "countZones",
+        "countBatches"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.inventory/wm.inventory.locationaudit////": {
+      "label": "Location Audit",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.inventory/wm.workqueue////": {
+      "label": "Work Queue",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/consolidatedWork",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "work"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201",
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.inventory/wm.workflowhistory////": {
+      "label": "Workflows",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/services/backgroundServices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundWorkflowPlans/consolidatedPlans",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "services",
+        "inboundWorkflowPlans",
+        "workflowOperations"
+      ],
+      "non_get": []
+    },
+    "#wm.inventory/wm.printcompliantlabels////": {
+      "label": "Print Compliant Labels",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/printers",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/complianceLabelFormats/exitPoints",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "printers",
+        "complianceLabelFormats"
+      ],
+      "non_get": []
+    },
+    "#wm.inventory/wm.rfmessage////": {
+      "label": "Send RF Message",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "devices",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.inventory/wm.lmindirect////": {
+      "label": "Log Indirect Work",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/lmIndirectWorkTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "lmIndirectWorkTypes",
+        "devices"
+      ],
+      "non_get": []
+    },
+    "#wm.inventory/wm-inventory-Itemnotassignedtoalocation////": {
+      "label": "Items Not Assigned To A Location",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.inventory/Non-Serialized-Handling-Unit-Adjustment-Operations////": {
+      "label": "Non Serialized Handling Unit Adjustment ",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.inventory/RFT-Display////": {
+      "label": "RF Display",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.inventory/WCS-Inventory-Discrepancy-Display////": {
+      "label": "WCS Inventory Discrepancy Display",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.inventory/WCS-Inventory-Snapshot////": {
+      "label": "WCS Inventory Snapshot",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.inventory/Distribution-Status-Display////": {
+      "label": "Distribution Status Display",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.inventory/Distribution-Status-Store-Schedule////": {
+      "label": "Distribution Status Store Schedule",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.inventory/BY-GO-Inventory-Recon-YhpDFJGpR4CKx8Wj_1Px5g////": {
+      "label": "BY GO Inventory Recon",
+      "area": "inventory",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.outboundplanner/wm.outbounddashboard////": {
+      "label": "Dashboard",
+      "area": "outboundPlanner",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMOBPDashboardWaves",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/picking/replenishments/pendingReplenishments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMShorts",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMReplenishments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/picks/statistics",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMOBPDashboardWaves",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMShorts",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMReplenishments",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/outboundOrders/statistics",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickingSummary/waves",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickingSummary",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "picking",
+        "movementZones",
+        "inboundOrderTypes",
+        "picks",
+        "inventory",
+        "outboundOrders",
+        "pickingSummary"
+      ],
+      "non_get": []
+    },
+    "#wm.outboundplanner/wm.wavesandpicks////": {
+      "label": "Waves and Picks",
+      "area": "outboundPlanner",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickingSummary/workZonePickingSummary",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMPicks",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMPicks",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/picks/statusCount",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/waves/statusCount",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "pickingSummary",
+        "uDIAConfigs",
+        "picks",
+        "waves"
+      ],
+      "non_get": []
+    },
+    "#wm.outboundplanner/wm.inventorydisplay////": {
+      "label": "Inventory",
+      "area": "outboundPlanner",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/loadAttributeConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/shorts",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "itemHierarchyLevelDescriptions",
+        "uDIAConfigs",
+        "inventory",
+        "loadAttributeConfigurations",
+        "reasonCodes",
+        "shorts"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.outboundplanner/wm.workqueue////": {
+      "label": "Work Queue",
+      "area": "outboundPlanner",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/consolidatedWork",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "work"
+      ],
+      "non_get": []
+    },
+    "#wm.outboundplanner/wm.rfmessage////": {
+      "label": "Send RF Message",
+      "area": "outboundPlanner",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.outboundplanner/wm.lmindirect////": {
+      "label": "Log Indirect Work",
+      "area": "outboundPlanner",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/lmIndirectWorkTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "lmIndirectWorkTypes",
+        "devices"
+      ],
+      "non_get": []
+    },
+    "#wm.outboundplanner/RFT-Display////": {
+      "label": "RF Display",
+      "area": "outboundPlanner",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.outboundplanner/Plannable-Order-Details////": {
+      "label": "Plannable Order Details",
+      "area": "outboundPlanner",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.yard/wm.dooractivity////": {
+      "label": "Door Activity",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMDoorActivity",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMDoorActivity",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailerAuditWork/locationsForAudit",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMDoorActivity",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMDoorActivity",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers/occupiedYardLocations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/doorsWithAppointments",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "trailerAuditWork",
+        "inboundOrderTypes",
+        "movementZones",
+        "trailers",
+        "doorsWithAppointments"
+      ],
+      "non_get": []
+    },
+    "#wm.yard/wm.appointments////": {
+      "label": "Appointments",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/description",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/dockLocationSchedules",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "dockLocationSchedules"
+      ],
+      "non_get": []
+    },
+    "#wm.yard/wm.checkin////": {
+      "label": "Check In",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMCheckin",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMCheckin",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.yard/wm.transportequipment////": {
+      "label": "Transport Equipment",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/powerUnits/statusCount",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/powerUnits",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers/statusCounts",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "powerUnits",
+        "trailers"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.yard/wm.yard.checkout////": {
+      "label": "Check Out",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMYardCheckOut",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMYardCheckOut",
+          "status": 200
+        }
+      ],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.yard/wm.workflowhistory////": {
+      "label": "Workflows",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/services/backgroundServices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMOutboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMUserWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInboundWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundWorkflowPlans/consolidatedPlans",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMEquipmentWorkflows",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workflowOperations/paged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "services",
+        "inboundWorkflowPlans",
+        "workflowOperations"
+      ],
+      "non_get": []
+    },
+    "#wm.yard/wm.workqueue////": {
+      "label": "Work Queue",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/consolidatedWork",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "policies",
+        "work"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#wm.yard/wm.dailytransaction////": {
+      "label": "History",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/loadAttributeConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/wm/webPerformanceEntries/batch",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "inventory",
+        "loadAttributeConfigurations",
+        "policies",
+        "webPerformanceEntries"
+      ],
+      "non_get": [
+        "POST /data/WM/wm/webPerformanceEntries/batch -> 200"
+      ]
+    },
+    "#wm.yard/wm.yard.traileractivity////": {
+      "label": "Transport Activity",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "non_get": []
+    },
+    "#wm.yard/wm.rfmessage////": {
+      "label": "Send RF Message",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones"
+      ],
+      "non_get": []
+    },
+    "#wm.yard/RFT-Display////": {
+      "label": "RF Display",
+      "area": "yard",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#Special-Pack-rGOeUWX9SnSGderdweJ-og/Special-Pack-Operations-V01////": {
+      "label": "GMI Special Pack Operations",
+      "area": "specialPack",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.wavesandpicks////": {
+      "label": "Waves and Picks",
+      "area": "specialPack",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMPicks",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMPicks",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/waves/statusCount",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/picks/statusCount",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "inventory",
+        "movementZones",
+        "inboundOrderTypes",
+        "uDIAConfigs",
+        "waves",
+        "picks"
+      ],
+      "non_get": []
+    },
+    "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.outboundplanner.outbounddisplay////": {
+      "label": "Outbound",
+      "area": "specialPack",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/devices",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundOrderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "uDIAConfigs",
+        "inboundOrderTypes",
+        "inventory"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.receiving.inboundloads////": {
+      "label": "Inbound Shipments",
+      "area": "specialPack",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commands/checkAssetCategoryEnabled",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/clients",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/orderTypes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/customerDistributionSettings",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemHierarchyLevelDescriptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inboundLoads",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "commands",
+        "codes",
+        "uDIAConfigs",
+        "clients",
+        "orderTypes",
+        "customerDistributionSettings",
+        "itemHierarchyLevelDescriptions",
+        "inboundLoads"
+      ],
+      "non_get": []
+    },
+    "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.workqueue////": {
+      "label": "Work Queue",
+      "area": "specialPack",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/consolidatedWork",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/manualSequenceWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/directedWork/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/work/undirectedWork/count",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "work"
+      ],
+      "non_get": []
+    },
+    "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.inventorydisplay////": {
+      "label": "Inventory",
+      "area": "specialPack",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/loadAttributeConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/inventory/inventoryUdiaFields",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMInventoryView",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/reasonCodes",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        }
+      ],
+      "resources": [
+        "loadAttributeConfigurations",
+        "inventory",
+        "reasonCodes"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.staging////": {
+      "label": "Staging",
+      "area": "specialPack",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMStaging",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMStagingDoors",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMStaging",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMStagingDoors",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/stagingLanes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/doorsWithTrailers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "stagingLanes",
+        "doorsWithTrailers"
+      ],
+      "non_get": []
+    },
+    "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.transportequipment////": {
+      "label": "Transport Equipment",
+      "area": "specialPack",
+      "tier": "operational",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/powerUnits",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/powerUnits/statusCount",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers/statusCounts",
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "url": "/data/WM/rpux/persistence/",
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/trailers",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "powerUnits",
+        "trailers"
+      ],
+      "non_get": [
+        "POST /data/WM/rpux/persistence/ -> 201"
+      ]
+    },
+    "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/GMI-Trailer-KPI-Exclude-Operations-aNz8Q7ZCQZST0v_clpA2sg////": {
+      "label": "GMI Trailer KPI Exclude Operations",
+      "area": "operationsAdmin",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/Reset-User-Account-XONli7jZQpi1WTzmnoJDCg////": {
+      "label": "Reset User Account",
+      "area": "operationsAdmin",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#mcs-SystemAdmin/Deferred-Executions-2019-1-0////": {
+      "label": "Deferred Executions",
+      "area": "systemAdmin",
+      "tier": "operational",
+      "calls": [],
+      "resources": [],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inbound.receiving.identification////": {
+      "label": "Inbound Identification",
+      "area": "inbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/receivingHistoryConfiguration",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/receivableInboundOrderStatuses",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/receivingMovementZoneResourceCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemLotExpirationDateValidation",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/receivingHistoryConfiguration",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/rfForms",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/itemLotExpirationDateValidation",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "receivingHistoryConfiguration",
+        "receivableInboundOrderStatuses",
+        "movementZones",
+        "itemLotExpirationDateValidation",
+        "rfForms",
+        "locations",
+        "tableColumns"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inbound.receiving.inboundpalletbuild////": {
+      "label": "Inbound Pallet Build",
+      "area": "inbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMReceivingPalletBuild",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMReceivingPalletBuild",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tablesForPalletBuildCriteria",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/movementZones/nonpaged",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/receivingPalletBuildRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "codes",
+        "tablesForPalletBuildCriteria",
+        "movementZones",
+        "locations",
+        "tableColumns",
+        "receivingPalletBuildRules"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inbound.storage.zones////": {
+      "label": "Storage Zones",
+      "area": "inbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/overrideLocationCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/locationConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/stackMethods",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes/velocityZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageZoneInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildingInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/availableInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/uDIAConfigs/guiAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMStorageZone",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMStorageZone",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/floorPlan",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildingInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/warehouseInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildings",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "overrideLocationCodes",
+        "storageZones",
+        "warehouseInventoryMixingRules",
+        "locationConfigs",
+        "stackMethods",
+        "codes",
+        "storageZoneInventoryMixingRules",
+        "buildingInventoryMixingRules",
+        "availableInventoryMixingRules",
+        "uDIAConfigs",
+        "floorPlan",
+        "storageConfigurations",
+        "buildings",
+        "tableColumns"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.inbound.storage.mixingrestrictions////": {
+      "label": "Storage Mixing Restrictions",
+      "area": "inbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/default/WMLPNMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageZones",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMAvailableInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMAvailableInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMLPNMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMAvailableInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/rpux/filter/columns/WMAvailableInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/lpnInventoryMixingRules/availableColumns",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildings",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/storageZoneInventoryMixingRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/buildingInventoryMixingRules",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "storageZones",
+        "lpnInventoryMixingRules",
+        "buildings",
+        "storageZoneInventoryMixingRules",
+        "buildingInventoryMixingRules"
+      ],
+      "non_get": []
+    },
+    "#wm.config/wm.config.outbound.picking.voice////": {
+      "label": "Voice Picking",
+      "area": "outbound",
+      "tier": "configuration",
+      "calls": [
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/policies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cartons/count",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/workAssignmentRuleExceptions",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickMethods",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pickReleaseRules",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/combinedPickingPolicies",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/voiceAssignmentSummaryConfigs",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/codes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/directedWorkOperations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/cancelCodes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/pndLocations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/commandConfigurations",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/tableColumns/availableAssignmentSummaryAttributes",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "url": "/data/WM/wm/voiceAssignmentSummaryConfigs",
+          "status": 200
+        }
+      ],
+      "resources": [
+        "policies",
+        "cartons",
+        "workAssignmentRuleExceptions",
+        "codes",
+        "pickMethods",
+        "pickReleaseRules",
+        "combinedPickingPolicies",
+        "voiceAssignmentSummaryConfigs",
+        "directedWorkOperations",
+        "cancelCodes",
+        "pndLocations",
+        "commandConfigurations",
+        "tableColumns"
+      ],
+      "non_get": []
+    }
+  }
+}

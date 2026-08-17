@@ -23,7 +23,7 @@ const wanted = process.argv.slice(2);
 const targets = screens.filter((s) => wanted.includes(s.label));
 if (!targets.length) { console.error('no matching screens'); process.exit(1); }
 
-const browser = await chromium.connectOverCDP('http://localhost:9222');
+const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const ctx = browser.contexts()[0];
 const page = await ctx.newPage();
 const out = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : { screens: {} };

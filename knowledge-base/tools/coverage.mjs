@@ -43,6 +43,14 @@ const formModels = loadJSON(path.join(IDX, 'form-models-all.json'), { forms: [] 
 const formsByHash = new Map((formModels.forms || []).map((f) => [f.hash, f]));
 
 const writeEndpoints = loadJSON(path.join(IDX, 'write-endpoints.json'), []);
+/*
+ * Screens observed to issue NO /data/WM call at all, checked twice — once in a warm session and
+ * again after a full reload, so a loaded-store false negative is ruled out. They are not missing a
+ * read; they have none, and scoring them `false` forever would mean the tracker can never be right.
+ */
+const screenNetwork = loadJSON(path.join(IDX, 'screen-network.json'), { screens: {} }).screens || {};
+const observedSilent = new Set(Object.entries(screenNetwork)
+  .filter(([, v]) => Array.isArray(v.calls) && v.calls.length === 0).map(([hash]) => hash));
 const writeByResource = new Map(); // resource -> { verifiedWithPayload: bool, endpoints: [...] }
 for (const e of writeEndpoints) {
   if (!e.resource) continue;
@@ -62,11 +70,16 @@ if (fs.existsSync(exchangesDir)) {
     const rows = loadJSONL(path.join(exchangesDir, file)) || [];
     const cases = new Set();
     let hasGetBody = false;
+    // A resource the API refuses to read at all cannot owe us a response body.
+    // `serverStatus` answers GET with 405 "The GET request method is not supported for this
+    // resource" — it is written to and never read, and it blocked 14 screens as a phantom gap.
+    let writeOnly = false;
     for (const r of rows) {
       if (r.case) cases.add(r.case);
-      if (r.request?.method === 'GET' && r.response?.body != null) hasGetBody = true;
+      if (r.request?.method === 'GET' && r.response?.body != null && r.response?.status < 300) hasGetBody = true;
+      if (r.request?.method === 'GET' && r.response?.status === 405) writeOnly = true;
     }
-    exchangesByResource.set(resource, { hasGetBody, cases });
+    exchangesByResource.set(resource, { hasGetBody, cases, writeOnly });
   }
 }
 
@@ -92,7 +105,7 @@ function computeScreen(s) {
   }
 
   // 3. read_apis
-  const read_apis = resources.length > 0;
+  const read_apis = resources.length > 0 ? true : (observedSilent.has(s.hash) ? 'n/a' : false);
 
   // 4. read_shapes: per-resource, do we have a recorded GET response body?
   let read_shapes;
@@ -101,9 +114,10 @@ function computeScreen(s) {
     read_shapes = 'n/a';
   } else {
     for (const r of resources) {
-      read_shapes_detail[r] = !!exchangesByResource.get(r)?.hasGetBody;
+      const e = exchangesByResource.get(r);
+      read_shapes_detail[r] = e?.writeOnly ? 'n/a (write-only: GET returns 405)' : !!e?.hasGetBody;
     }
-    read_shapes = Object.values(read_shapes_detail).every(Boolean);
+    read_shapes = Object.values(read_shapes_detail).every((v) => v === true || typeof v === 'string');
   }
 
   // resources this screen actually WRITES to (read-resources ∩ known write-endpoint resources)
@@ -196,7 +210,7 @@ const coverage = {
     'Six booleans per screen measure how complete our recorded knowledge is, not how good the screen/feature is. ' +
     'structure: grid columns, forms, or actions were captured off the live UI. ' +
     'form_model: for create-capable screens, the Add form fields were captured with no error and at least one field (n/a if the screen has no create). ' +
-    'read_apis: the screen is known to call at least one read (GET) resource. ' +
+    'read_apis: the screen is known to call at least one read (GET) resource. n/a means the screen was OBSERVED to issue no /data/WM call at all, checked in a warm session and again after a full reload, so there is nothing to record rather than something missing. ' +
     'read_shapes: for every resource the screen reads, we have a recorded GET response body in http/exchanges (n/a if it reads no resources). ' +
     'write_apis: for every resource the screen actually writes to (its read resources intersected with write-endpoints.json), the write endpoint is verified and has a captured payload (n/a if the screen has neither create nor delete). ' +
     'failure_modes: for every write resource, http/exchanges/<resource>.jsonl has create-duplicate, create-empty, and confirm-gone cases recorded (n/a if the screen has neither create nor delete). ' +

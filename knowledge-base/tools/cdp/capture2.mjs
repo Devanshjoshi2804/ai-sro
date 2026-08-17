@@ -207,7 +207,7 @@ const applyFields = (page, fields, pickFirst) => page.evaluate(({ fields, pickFi
 export async function run(key) {
   const spec = SPECS[key];
   if (!spec) throw new Error('unknown spec: ' + key);
-  const browser = await chromium.connectOverCDP('http://localhost:9222');
+  const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
   const page = browser.contexts()[0].pages().find((p) => p.url().includes('jdadelivers'))
     || browser.contexts()[0].pages()[0];
   const out = { spec: key, resource: spec.resource, requests: [] };

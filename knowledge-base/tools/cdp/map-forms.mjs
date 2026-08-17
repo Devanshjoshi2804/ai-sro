@@ -118,7 +118,7 @@ async function readForm(page, routeHint, timeoutMs = 14000) {
   return best;
 }
 
-const browser = await chromium.connectOverCDP('http://localhost:9222');
+const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const ctx = browser.contexts()[0];
 let page = ctx.pages().find((p) => p.url().includes('jdadelivers')) || ctx.pages()[0];
 

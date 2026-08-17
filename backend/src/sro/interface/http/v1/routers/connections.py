@@ -16,6 +16,7 @@ from sro.interface.http.schemas import (
     ConnectionModel,
     ConnectSystemRequest,
     OpenedConnectionResponse,
+    SessionCheckModel,
     SessionHeadersRequest,
     SessionHeadersResponse,
 )
@@ -41,6 +42,26 @@ async def list_connections(container: ContainerDep, ctx: ContextDep) -> list[Con
     async with uow as unit:
         connections = await unit.connections.list_for_tenant(ctx.tenant_id)
     return [_model(connection) for connection in connections]
+
+
+@router.get("/health")
+async def check_sessions(container: ContainerDep, ctx: ContextDep) -> list[SessionCheckModel]:
+    """Whether each stored session still works, asked of the systems themselves.
+
+    Live rather than remembered: a session that expired an hour ago still looks
+    connected in the database, and the operator finds out inside a
+    demonstration. This is what lets the app say it first.
+    """
+    checks = await container.check_session().execute(ctx)
+    return [
+        SessionCheckModel(
+            connection_id=check.connection_id,
+            target_system=check.target_system,
+            health=check.health.value,
+            detail=check.detail,
+        )
+        for check in checks
+    ]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

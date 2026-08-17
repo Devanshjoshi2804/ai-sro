@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_threads import ReadThreads
+from sro.application.connection.check_session import CheckSession
 from sro.application.connection.connect_system import (
     ConnectSystem,
     LoadSession,
@@ -145,6 +146,9 @@ class Container:
 
     def store_session(self) -> StoreSession:
         return StoreSession(self.unit_of_work(), self.vault, self.clock, self.browser)
+
+    def check_session(self) -> CheckSession:
+        return CheckSession(self.unit_of_work(), self.vault, self.http)
 
     def refresh_session(self) -> RefreshSession:
         return RefreshSession(self.unit_of_work(), self.vault, self.clock)

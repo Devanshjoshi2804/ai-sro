@@ -7,7 +7,7 @@ import { goto, resetToGrid, clickButton, setFields } from './ext.mjs';
 import { SPECS } from './capture2.mjs';
 const key = process.argv[2];
 const spec = SPECS[key];
-const b = await chromium.connectOverCDP('http://localhost:9222');
+const b = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const page = b.contexts()[0].pages().find(p=>p.url().includes('jdadelivers')) || b.contexts()[0].pages()[0];
 const reqs = [];
 page.on('request', r => { if (/\/data\/WM\/wm\//.test(r.url()) && !/webPerformance/.test(r.url())) reqs.push(r.method()+' '+r.url().split('/wm/')[1].split('?')[0]); });

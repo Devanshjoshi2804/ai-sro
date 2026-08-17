@@ -1,7 +1,7 @@
 /* Recover a wedged screen: dismissing the modal is not enough, the masks survive it. */
 import { chromium } from 'playwright';
 import { dismissBlocking, goto } from './ext.mjs';
-const b = await chromium.connectOverCDP('http://localhost:9222');
+const b = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const page = b.contexts()[0].pages().find(p=>p.url().includes('jdadelivers')) || b.contexts()[0].pages()[0];
 const before = await dismissBlocking(page);
 // Masks outlive the modal on this screen, so force-remove them, then leave via the hash router.

@@ -8,7 +8,7 @@ const routes = {
   voiceDevices: '#wm.config/wm.config.equipment.hardware.voicedevices////',
   customerTypes: '#wm.config/wm.config.partners.customers.types////',
 };
-const b = await chromium.connectOverCDP('http://localhost:9222');
+const b = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const page = b.contexts()[0].pages().find(p=>p.url().includes('jdadelivers')) || b.contexts()[0].pages()[0];
 const out = {};
 for (const [name, route] of Object.entries(routes)) {

@@ -73,7 +73,7 @@ export const SCREENS = {
 };
 
 const connect = async () => {
-  const browser = await chromium.connectOverCDP('http://localhost:9222');
+  const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
   const ctx = browser.contexts()[0];
   const page = ctx.pages().find((p) => p.url().includes('jdadelivers')) || ctx.pages()[0];
   return { browser, page };

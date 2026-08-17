@@ -87,6 +87,16 @@ class ConnectionModel(BaseModel):
     last_error: str | None
 
 
+class SessionCheckModel(BaseModel):
+    connection_id: str
+    target_system: str
+    health: str
+    """signed_in | signed_out | never_connected | unreachable. Unreachable is
+    not a bad session: signing in again would not fix an outage."""
+
+    detail: str
+
+
 class OpenedConnectionResponse(BaseModel):
     connection_id: str
     live_view_url: str

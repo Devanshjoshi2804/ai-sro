@@ -1,7 +1,7 @@
 /* Recover from a crashed/overloaded page by opening a fresh tab in the SAME browser context,
  * which keeps the session cookies and avoids another manual login. */
 import { chromium } from 'playwright';
-const b = await chromium.connectOverCDP('http://localhost:9222');
+const b = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const ctx = b.contexts()[0];
 console.log('pages before:', ctx.pages().length);
 const page = await ctx.newPage();

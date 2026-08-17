@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { dismissBlocking } from './ext.mjs';
-const b = await chromium.connectOverCDP('http://localhost:9222');
+const b = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const page = b.contexts()[0].pages().find(p=>p.url().includes('jdadelivers')) || b.contexts()[0].pages()[0];
 const routes = JSON.parse((await import('node:fs')).readFileSync('tools/cdp/tier2-routes.json','utf8'));
 const target = routes.receiving.find(r=>/Inbound Shipments|Appointments|Work Queue/i.test(r.text)) || routes.receiving[1];

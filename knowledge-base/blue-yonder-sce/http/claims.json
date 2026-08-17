@@ -305,14 +305,18 @@
       "id": "referer-required-for-api-auth",
       "source": "AI-SRO commit 620697e — a live L1 executor run, not this base",
       "claim": "Blue Yonder's auth filter rejects a same-origin API call that carries no Referer, answering 302 to the login page whatever session cookie the call carries. An executor that correctly declines to replay a captured Referer therefore gets 302 on every read.",
-      "verdict": "ASSERTED ELSEWHERE — NOT YET REPRODUCED IN THIS BASE",
-      "evidence": "none stored here yet; tools/cdp/probe-referer.mjs written to test it, blocked on a logged-in browser",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/businessUnits.jsonl — cases referer-default, referer-none, referer-target, out-of-page-no-referer, out-of-page-with-referer",
       "observed": [
-        "Reported: every read returned 302 to the login page until the executor sent a Referer derived from the target URL.",
-        "This base cannot confirm or deny it from its own 266 exchanges: every one of them was issued from INSIDE the page, where the browser attaches a same-origin Referer automatically. The instrument hid the variable."
+        "In-page fetch with the browser-supplied Referer: 200.",
+        "In-page fetch with referrerPolicy no-referrer: type opaqueredirect, status 0 — the browser blocked a redirect, so the call was 3xx.",
+        "Out of the page, same cookie jar, no Referer, maxRedirects 0: 302 Location https://bf56-kms-wms-web-np2.jdadelivers.com/portal.",
+        "Out of the page with Referer set to the portal origin: 200.",
+        "A Referer derived from the target rather than replayed from the demonstration works — the value is not checked against the page that was originally open."
       ],
-      "why_it_matters": "It is the difference between a captured call being replayable out of the browser and not. It also means header classification cannot be settled by diffing alone: Referer varies per demonstration, so a differ marks it client-managed, and dropping it breaks authentication.",
-      "evidence_level": "asserted"
+      "why_it_matters": "Confirmed as reported by the AI-SRO executor. Two consequences for anyone replaying these calls: (1) an executor that follows redirects would receive 200 and an HTML login page, which passes any check that looks only at the status code — this failure is silent by default; (2) Referer must be SYNTHESISED from the target URL, not replayed, and not dropped. It is neither a semantic parameter nor a safely-omitted client header, which is a third category the diffing model did not have.",
+      "evidence_level": "reproduced",
+      "instrument_note": "This base could not have found it: all 266 prior exchanges were issued in-page, where Chrome attaches the header automatically. It took an out-of-page request to vary the variable."
     },
     {
       "id": "operational-writes-queue-for-approval",
@@ -326,6 +330,281 @@
       ],
       "why_it_matters": "A post-condition of \"the number changed\" is wrong for the operational tier. The correct post-condition is that an approval row exists. A verifier written against the Configuration-tier contract would fail every correct operational run — or, worse, one that checks only HTTP 200 would pass a run whose effect is queued and may still be rejected.",
       "evidence_level": "asserted"
+    },
+    {
+      "id": "workOperations-delete-is-a-silent-noop",
+      "source": "tools/cdp/write-battery.mjs, tools/cdp/cleanup-marks.mjs, tools/cdp/ui-delete-row.mjs — 2026-08-14",
+      "claim": "DELETE on /wm/workOperations answers 200 with an empty body and does not delete the record. The application itself cannot delete it either.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/workOperations.jsonl — cases cleanup-delete and cleanup-confirm-gone, repeated; http/ui-actions.jsonl",
+      "observed": [
+        "DELETE /wm/workOperations/ZV614*!SG -> 200, empty body. GET the same id immediately after -> 200 with the full record.",
+        "Repeated four times across three id spellings (raw, percent-encoded, with siteId and subsites params). Same result each time.",
+        "Driving the grid Delete button through the UI produced NO request at all: the plugin removes the record from the store client-side.",
+        "Forcing the store to sync made the application send its own request - DELETE /data/WM/wm/workOperations/ZV614*!SG?siteId=SG&subsites=---- -> 200 - and the record still survives. The proxy is rpRest with autoSync false.",
+        "The record therefore cannot be removed by any mechanism the application exposes."
+      ],
+      "consequence": "A verifier that accepts 200 on DELETE as proof of deletion is wrong on this resource, and the 404-taxonomy check is what catches it: confirm-gone returns 200, not RECORD-MISSING. It also means a create on this resource is effectively irreversible through the API.",
+      "outstanding": "One throwaway row remains in Work Operations: operationCode ZV614, basePriority 1, longDescription ZV614, site SG. It was created by a write battery and cannot be deleted. It needs removing by a DBA or by whatever admin path the application does not expose.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "limit-parameter-is-not-universally-honoured",
+      "source": "tools/cdp/capture-read-shapes.mjs + tools/trim-exchanges.mjs — 2026-08-14",
+      "claim": "Eleven collection resources ignore the limit query parameter and return the entire table.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/{appointments,footprints,userOperations,...}.jsonl — each record carries response.body_truncated with the real row count",
+      "observed": [
+        "Every collection was read with the same query: query=[]&offset=0&limit=2&siteId=SG&subsites=----.",
+        "appointments returned 7808 rows, footprints 13069, userOperations 13883. One response was 32 MB.",
+        "The full list of offenders: appointments, carrierDetails, carrierServiceLevels, devices, doorsWithAppointments, doorsWithTrailers, footprints, integratorTransactions, storageConfigurationRules, storageTemplateHeaders, userOperations.",
+        "They are marked honours_limit:false in index/read-shapes.json."
+      ],
+      "consequence": "A cheap-looking probe is not cheap on these resources: an agent reading one row to check a post-condition can pull tens of thousands. Anything issuing reads against this API needs a response-size guard rather than trusting limit, and a verifier that times out here is not evidence the write failed.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "pickMethods-create-is-composite",
+      "source": "tools/cdp/capture-ui-save.mjs + tools/cdp/create-composite.mjs — 2026-08-14",
+      "claim": "A pick method cannot be created as a flat row. It requires a nested pickReleaseRules array, and the UI refuses to send anything without one.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/pickMethods.jsonl (create-valid-composite and the earlier refusals); images/ui-save-pick-methods-after-save.png",
+      "observed": [
+        "Filling the Add screen from the form model and clicking Save produced ZERO requests. The app raised a dialog: \"Release rules are required for a pick method\". Client-side validation, nothing reached the server.",
+        "Every flat generated payload was refused: required-only 422, full form model 422, discriminators borrowed from a real row 500.",
+        "A body modelled on an existing record - server ids removed, pickMethodName and description replaced, and its pickReleaseRules array carried over with pickReleaseRuleId and pickMethodId stripped - returned 201.",
+        "The nested rule persisted: read-created returned pickReleaseRules with 1 entry.",
+        "Full round trip clean: 201 -> GET 200 -> DELETE 200 -> GET 404 RECORD-MISSING."
+      ],
+      "second_finding": "create-duplicate returned 201, NOT 409. pickMethodName carries no uniqueness constraint - the same body twice produces two pick methods with different pickMethodId. The duplicate was found by a paged marker scan and deleted.",
+      "consequence": "Two things for an executor. A create payload for this resource is a tree, not a row, so a diff that only parameterises scalars will not reproduce it. And a retried POST here silently doubles the record, so the idempotency key is the only protection - the server offers none.",
+      "evidence_level": "round-trip"
+    },
+    {
+      "id": "releaseRules-create-needs-its-compound-key-intact",
+      "source": "tools/cdp/create-composite.mjs — 2026-08-14",
+      "claim": "releaseRules creates cleanly once the compound key is respected: countZoneId and warehouseId must be real, only releaseTypeId may vary.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/releaseRules.jsonl — create-valid-composite through confirm-gone",
+      "observed": [
+        "resourceId is the compound countZoneId*!releaseTypeId*!warehouseId (observed: -10000*!AA*!SG).",
+        "The generic battery kept failing with 422 Missing argument: Warehouse ID (wh_id) because its own rule - never copy the sampled row identity - dropped warehouseId, which is both a key part AND required.",
+        "Copying a real rule and varying only releaseTypeId returned 201. create-duplicate 409. Round trip clean, confirm-gone RECORD-MISSING."
+      ],
+      "consequence": "A compound key is not a single opaque id. Some of its parts are foreign keys that must be preserved verbatim and one part is the record identity that must vary. Any generic create strategy needs that distinction per resource; it cannot be inferred from the id string alone.",
+      "evidence_level": "round-trip"
+    },
+    {
+      "id": "create-201-with-empty-body-returns-no-id",
+      "source": "tools/cdp/write-battery.mjs, tools/cdp/failure-battery.mjs — 2026-08-14",
+      "claim": "Four resources answer a successful create with 201 and an EMPTY body. No resourceId is returned; the id is the natural key that was sent.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/{itemClasses,itemStyleAttributes,workOperations,customers}.jsonl",
+      "observed": [
+        "itemClasses -> id is itemClassName (ZV19401). itemStyleAttributes -> compound ZV20920*!prtcolor. customers -> compound ----*!ZV31968, where the first part is the client scope. workOperations -> ZV614*!SG.",
+        "The id can be recovered by reading the collection back and matching the value that was sent; it cannot be assumed, because the compound separator and the order of parts differ per resource.",
+        "This caused two real leaks in this session. A battery treated the missing resourceId as a failed create and walked away from records that existed - itemClasses, itemStyleAttributes and workOperations the first time, customers the second. All were found by a paged marker scan; all but workOperations were deleted."
+      ],
+      "consequence": "An executor that reads the created id from the create response will get nothing on these resources and cannot verify, retry-guard, or roll back. A read-back keyed on the value it SENT is the only reliable way to address a new record here - which is also why an idempotency key cannot be derived from the response.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "failure-modes-closed-except-four-refusals",
+      "source": "tools/cdp/failure-battery.mjs — 2026-08-14",
+      "claim": "The failure-mode dimension is closed on every resource where exercising it is safe. Four resources are refused, with reasons recorded rather than gaps left unexplained.",
+      "verdict": "RECORDED",
+      "evidence": "http/exchanges/*.jsonl case create-empty on ten resources; full cycles on itemClasses, itemStyleAttributes, uoms, customers; case failure-battery-refused on the four",
+      "observed": [
+        "create-empty returns 400 on all ten resources tested - the server enforces a non-empty body universally.",
+        "create-duplicate is 409 on itemClasses, itemStyleAttributes and uoms; it is 201 on pickMethods, which has no uniqueness constraint at all.",
+        "uoms could only be exercised through /wm/codes, the partition it is a view over.",
+        "customers refused a flat {customerNumber, customerName} with Invalid argument: client_id, and accepted a body modelled on a real customer with only the number varied.",
+        "Refused: warehouses (the site record this session runs inside), locations (61,912 live rows, wizard create), buildings (parent of every location), workOperations (its DELETE does not delete, so a duplicate would be permanent)."
+      ],
+      "consequence": "failure_modes went from 43 to 54 of 316 screens and fully complete screens from 127 to 137. The four refusals block 5 screens and are the honest floor: closing them would mean damaging the instance the rest of the base depends on.",
+      "evidence_level": "observed"
+    },
+    {
+      "id": "screen-reads-must-be-observed-not-inferred",
+      "source": "tools/cdp/capture-screen-network.mjs — 2026-08-14",
+      "claim": "157 screens looked unmapped because their reads were inferred from ExtJS store configuration. Watching the wire found them.",
+      "verdict": "REPRODUCED",
+      "evidence": "index/screen-network.json; 35 new response bodies in http/exchanges",
+      "observed": [
+        "88 screens had NO known read resource and 69 more named resources whose body was never recorded. Both numbers came from reading store configs, which miss anything fetched at runtime - most of the operational tier.",
+        "Navigating each screen with a network listener added 204 resource links to app-map and 35 recorded response bodies.",
+        "read_apis went 228 -> 270 and read_shapes 159 -> 270, with ZERO screens now failing read_shapes.",
+        "Three phantom gaps were also removed, each a measurement bug rather than missing knowledge: 42 screens issue no /data/WM call at all (verified twice, warm and after a full reload); serverStatus answers GET with 405 and is written to but never read; and a stored 422 error body was being counted as a recorded shape, which made the capture skip the real 200 on tableColumns and shippingProgressEach."
+      ],
+      "consequence": "A screen map built from client configuration understates what a screen touches. Anything deciding which resources a task depends on should use the observed set, not the declared one.",
+      "evidence_level": "observed"
+    },
+    {
+      "id": "some-screens-save-through-a-batch-endpoint",
+      "source": "tools/cdp/capture-ui-save.mjs — 2026-08-14",
+      "claim": "Hold Types does not POST a record. It posts an ARRAY to /wm/codes/batch, an endpoint no screen map or read shape would ever reveal.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/codes.jsonl, case create-valid-ui-captured",
+      "observed": [
+        "Filling the Add form and clicking Save produced exactly one request: POST /data/WM/wm/codes/batch -> 201.",
+        "The body is a JSON ARRAY of one code object: [{codeValue, longDescription, shortDescription, columnName: \"hldtyp\", columnDescription, sortSequence, requiredFlag}].",
+        "The same session also captured Serial Number Types saving normally to POST /wm/serialNumberTypes with a flat body, so this is per-screen and not a global convention."
+      ],
+      "consequence": "Three create shapes now exist in this app: a flat row, a row with a nested array (pickMethods), and an array posted to a /batch route (Hold Types). A generic create strategy derived from form models alone will produce the first shape every time and be wrong on the other two. Where a screen refuses every generated body, capturing its Save is the fastest route to the truth — it took one run per screen here.",
+      "evidence_level": "observed"
+    },
+    {
+      "id": "composite-create-screens-refuse-to-save-until-sub-editors-are-configured",
+      "source": "tools/cdp/capture-ui-save.mjs across 12 screens — 2026-08-14",
+      "claim": "A class of Configuration screens cannot create anything from their main form alone. Their Save is blocked client-side until one or more sub-editors have been configured, and no request is ever sent.",
+      "verdict": "REPRODUCED",
+      "evidence": "images/ui-save-*.png; the button inventories recorded in the run output; http/exchanges for the seven screens that did save",
+      "observed": [
+        "Five screens behave this way: Pick Methods (\"Release rules are required for a pick method\"), Handling Units (a \"features\" card, Save disabled), Existing Customers (three cards: items, shipping, distribution — Save fires but sends nothing), Inbound Pallet Build (receiving resource code + pallet build criteria, Save disabled), Item Class Levels (Save disabled with the form filled).",
+        "Seven others saved normally in the same sweep and their real payloads are now recorded: areas, barcodeTemplates, codes (Hold Types and Storage Velocity), noteTypes, orderTypes, pickPreValidationSchemes, serialNumberTypes.",
+        "The tell is a `wm-cardDeck-back-button` beside one or more descriptive buttons (\"Select the values used to reserve a pallet position...\") and a disabled saveButton."
+      ],
+      "consequence": "For these screens no payload can be derived, and none should be guessed: the record does not exist as a flat row. They need either a UI plan that walks the sub-editors, or a create body reverse-engineered from an existing record the way pickMethods was — which worked, and produced a nested array the form model never showed.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "packingConfigurations-create-succeeds-into-nothing",
+      "source": "tools/cdp/replay-battery.mjs — 2026-08-14, and an earlier battery on 2026-08-12",
+      "claim": "POST /wm/packingConfigurations answers 201, but the created record cannot be read back by any means the API offers.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/packingConfigurations.jsonl — create-valid (2026-08-12) and create-valid-replay (2026-08-14), both 201",
+      "observed": [
+        "Both creates used clientId ZVPC252, a client that does not exist.",
+        "The collection returns exactly one row, `----*!SG`, the site default — the new record is not in it.",
+        "GET /wm/packingConfigurations/ZVPC252*!SG answers 500, not 404: \"The system failed to perform the requested action\".",
+        "The site default record itself is unchanged: a field-by-field diff against the 2026-08-12 read shows no difference, so the create did not overwrite it."
+      ],
+      "consequence": "A 201 is not proof that a record exists. Here the server accepts a create whose parent client is absent and produces something the API can neither list nor fetch nor delete. Any verifier that treats 2xx as success would record this as a successful write; only the read-back catches it. The resource is now on the do-not-replay list beside workOperations.",
+      "outstanding": "One or two unreadable packingConfigurations rows bound to client ZVPC252 may exist. They cannot be removed through the API.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "holdDefinitions-can-be-created-but-not-removed",
+      "source": "tools/cdp/create-composite.mjs — 2026-08-14",
+      "claim": "holdDefinitions accepts a create and then refuses every attempt to remove or relabel it: DELETE is 422 on a permission check, and a PUT answers 200 without persisting.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/holdDefinitions.jsonl",
+      "observed": [
+        "POST -> 201. The server assigned holdNumber 86092 and coerced holdTypeDescription back to \"QA Hold\", so the run marker never survived — a marker scan across 400 rows found nothing.",
+        "DELETE -> 422 \"Invalid Hold Transaction. (Hold Definition with type () not editable by (USER))\", with and without site parameters.",
+        "PUT to disable and relabel -> 200, and a fresh GET shows the description unchanged. The 200 is not a persistence guarantee.",
+        "create-duplicate -> 422."
+      ],
+      "consequence": "This resource is create-only for this user: a write here cannot be undone through the API, and neither the create response nor the PUT response can be trusted to describe what the record now holds. Anything automating holds needs a read-back after every write, and no throwaway record should ever be created here.",
+      "outstanding": "One hold definition remains: resourceId 86092*!92*!SG, holdType Q, enabledFlag false. It cannot be deleted or renamed through the API and needs a DBA or an admin role.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "not-every-resource-accepts-creates",
+      "source": "tools/cdp/create-composite.mjs across six resources — 2026-08-14",
+      "claim": "Three resources refuse creates outright, each in a different way, and the refusal is part of the contract rather than a failed payload.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/{loadAttributeConfigurations,handlingUnitCategories,warehouseUoms}.jsonl",
+      "observed": [
+        "loadAttributeConfigurations -> 405 \"The POST request method is not supported for this resource.\" It is read-and-update only.",
+        "handlingUnitCategories -> 422 \"Invalid Handling Unit Category.\" The category must already exist as a code; the record is a link, not a new value.",
+        "warehouseUoms -> 422 \"Invalid code value [20] for uomcod\". Same pattern: the UoM must exist in the codes partition first.",
+        "Both 422s came from copying a real record and varying its identity, which is the strategy that succeeded on rfVendors, workOrderTypes and handlingUnitTypes — so the refusal is about referential validity, not about the body shape."
+      ],
+      "consequence": "A creatable-looking screen does not imply a creatable resource. Two of these three are join tables whose \"create\" means \"point at an existing code\", so the prerequisite is a codes create — which is exactly the dependency a flow graph should carry.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "screens-write-to-resources-they-never-read",
+      "source": "tools/cdp/capture-ui-save.mjs — 2026-08-14",
+      "claim": "A screen's write target is not always among the resources it reads, so a write endpoint cannot be inferred from a screen's read set.",
+      "verdict": "REPRODUCED",
+      "evidence": "http/exchanges/{codes,billingFilters,warehouseControlSystems}.jsonl, case create-valid-ui-captured",
+      "observed": [
+        "Storage Velocity reads none of `codes` and saves to POST /wm/codes.",
+        "Billing saves to POST /wm/billingFilters and WCS Integration to POST /wm/warehouseControlSystems — two resources that appear in no read shape and in no screen's resource list, so nothing short of watching a Save would have found them.",
+        "Both were then taken through a full replay battery: 201, duplicate 409, empty 400, delete 200, confirm-gone RECORD-MISSING.",
+        "The screen map now records the observed write target on the screen itself (`writes_observed`), because coverage was scoring these screens as having no known write endpoint while their captured payload sat in the store."
+      ],
+      "consequence": "Read set and write set are different sets. Any dependency graph or permission model built from reads alone will miss the resource a screen actually mutates.",
+      "evidence_level": "round-trip"
+    },
+    {
+      "id": "voice-screens-never-send-a-create",
+      "source": "tools/cdp/capture-ui-save.mjs across five Voice screens — 2026-08-14",
+      "claim": "Voice Counting, Voice Replenishments, Voice Putaway, Voice Distribution and Voice Loading fill and Save without producing a single request.",
+      "verdict": "REPRODUCED",
+      "evidence": "the run log for each screen; no create appears in any exchange file for them",
+      "observed": [
+        "Each screen accepted the generated values and its Save fired, and the network listener recorded nothing at all.",
+        "They behave like the other composite screens (Pick Methods, Handling Units, Inbound Pallet Build): the commit is refused client-side before any request is built."
+      ],
+      "consequence": "Their write contract stays unproven and is not guessed. These five plus Item Class Levels and Movement Path Criteria are the remaining write gap, and every one of them needs a UI plan that walks the sub-editors rather than an API payload.",
+      "evidence_level": "observed"
+    },
+    {
+      "id": "handling-units-is-blocked-by-a-data-precondition",
+      "source": "tools/cdp/walk-subeditors.mjs — 2026-08-14",
+      "claim": "The Handling Units screen cannot create anything in this instance because no serialized handling unit type exists, and creating one did not unblock it within the same session.",
+      "verdict": "PARTLY EXPLAINED",
+      "evidence": "images/walk-handling-units-before-save.png; http/exchanges/handlingUnitTypes.jsonl case create-valid-prerequisite",
+      "observed": [
+        "The Add form marks Handling Unit Type required and renders it red and empty. Its help text says only SERIALIZED types are listed.",
+        "GET /wm/handlingUnitTypes returns 27 rows and serialized=true on none of them, so the combo genuinely had nothing to offer.",
+        "Creating a serialized type succeeded and persisted (verified by a read: serialized=true), and the combo was STILL empty on a fresh load of the Add screen. Something further gates that list — a cache, or a condition beyond the serialized flag.",
+        "The throwaway type was deleted and confirmed RECORD-MISSING.",
+        "Its \"features\" sub-editor is a filter box over an empty list, not a required step: Save stayed disabled with the type missing, which is the real blocker."
+      ],
+      "consequence": "Not every unproven write is a missing payload. This one is a missing PREREQUISITE RECORD, which is a different repair: no automation can create a handling unit here until the instance has a serialized type the combo accepts. A capture that only recorded \"Save is disabled\" would have hidden that distinction.",
+      "evidence_level": "observed"
+    },
+    {
+      "id": "prerequisites-derived-from-values-not-names",
+      "source": "tools/build-graph.mjs — 2026-08-14",
+      "claim": "Ordering constraints between resources can be derived from the evidence store by matching the VALUES in a proven create payload against the values in recorded read samples.",
+      "verdict": "RECORDED",
+      "evidence": "http/graph.json — requires edges, each carrying the field, the value and both files it was matched from",
+      "observed": [
+        "The graph carried 2 requires edges, both from old UI flows. Value matching produced 10, among them customers -> customerTypes, pickMethods -> pickPreValidationSchemes, carrierProNumbers -> carriers, devices -> locales, handlingUnitTypes -> allocationHandlingUnitGroups.",
+        "The first pass was full of nonsense — movementPaths requires items, handlingUnitTypes requires structuredInventory — because it matched on any shared value. Three filters fixed it: never match a description-like field on either side, never match a bare number unless the key ends in Id, and rank candidates so the resource where the value IS the record id beats one where it is merely a foreign key.",
+        "Every surviving edge names the field, the value and the two files the match came from, so any of them can be re-checked or thrown out."
+      ],
+      "consequence": "This is inference, not observation, and it is labelled `confidence: value-match` to keep it distinct from the dataflow edges that come from a recorded request following a recorded response. It answers \"what must exist before I can create this\" well enough to plan with, and badly enough that a plan should still be verified before it runs.",
+      "evidence_level": "observed"
+    },
+    {
+      "id": "the-query-dsl-is-still-unknown",
+      "source": "tools/cdp/probe-query-dsl.mjs — 2026-08-14",
+      "claim": "This base can list and page every collection but cannot ASK either of them a question. The filter grammar behind `query=` is not yet established.",
+      "verdict": "RESOLVED — superseded by query-dsl-is-column-operator-value",
+      "evidence": "index/query-dsl.json; http/exchanges/{areas,carriers}.jsonl cases query-form-*",
+      "observed": [
+        "Of 298 recorded calls carrying `query=`, 295 sent `query=[]`. Every read in this base is \"give me the first N rows\".",
+        "Ten filter spellings were tried against areas and carriers with a field and value taken from a row that definitely exists. Nine returned 200 with ZERO rows; `column-comparison` returned 500 and a SQL-ish string returned 422.",
+        "Zero rows is not \"ignored\" — an ignored filter would return the unfiltered page. The server parses these and matches nothing, which points at a different vocabulary: most likely the DB column names its 422s speak (lngdsc, wh_id, car_cod) rather than the camelCase JSON keys.",
+        "/rpux/filter/columns/<Entity> answers 200 and describes filterable columns as {columnName, dataType, filterType, funcGroup} — but in camelCase (areaCode, businessUnit), and those did not work either. Most entities return zero columns.",
+        "Trying to capture the syntax from the application instead produced no request at all: the Carriers grid filtered client-side over already-loaded rows."
+      ],
+      "consequence": "An agent verifying a post-condition on a 61,912-row table has to page the table. Until the grammar is known, every targeted read is either a full scan or a fetch by id. The next step is not more guessing — it is watching a screen whose grid is server-side paged (carriers is 1,581 rows across 64 pages) apply a filter, or reading the request the search box builds.",
+      "evidence_level": "observed",
+      "resolution": "The grammar was found by reading the application's own request, not by more guessing: query=[{\"column\",\"operator\",\"value\"}]. Eighteen hand-invented spellings had failed first."
+    },
+    {
+      "id": "query-dsl-is-column-operator-value",
+      "source": "tools/cdp/probe-query-dsl.mjs and the app's own locations request — 2026-08-14",
+      "claim": "Collections can be filtered server-side with query=[{\"column\",\"operator\",\"value\"}], ANDed across clauses, using the camelCase JSON field names.",
+      "verdict": "REPRODUCED",
+      "evidence": "index/query-dsl.json; http/exchanges/carriers.jsonl cases query-dsl-*",
+      "observed": [
+        "The app itself sends: /wm/locations?query=[{\"column\":\"locationTypeCategory\",\"operator\":\"EQ\",\"value\":\"STORAGE\"}].",
+        "Verified on carriers (1,581 rows): EQ carrierCode=0000 returns exactly 1 matching row; NE returns 25 none of which match; two clauses AND to 1 row.",
+        "Accepted operators: EQ, NE, GT, GE, LT, LE. Rejected with 422: LIKE, CONTAINS, IN, BETWEEN, BEGINS, STARTSWITH, NOT_NULL, IS_NULL, and lowercase \"eq\" — the vocabulary is upper-case and small.",
+        "There is no LIKE, but a % wildcard inside an EQ value works: carrierCode EQ \"00%\" returned 3 rows.",
+        "Columns are the camelCase JSON names, NOT the DB column names the 422 errors quote — which is why every earlier guess based on those failed."
+      ],
+      "consequence": "Targeted reads are now possible, which is what verification needs: a post-condition on a 61,912-row table no longer means paging it. The caution is that a parseable but wrong clause returns 200 with ZERO rows, indistinguishable from a genuine no-match, so a filtered read that comes back empty must be re-checked against an unfiltered count before concluding a record is absent.",
+      "method_note": "Eighteen hand-invented spellings were tried first and every one failed. What worked was reading the grid store proxy (RPUX.rest.RestProxy) and then watching a server-paged screen make its own call — the same lesson as payloads: the application already knows, so watch it.",
+      "evidence_level": "reproduced"
     }
   ],
   "still_asserted_not_reproduced": [],

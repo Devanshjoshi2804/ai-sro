@@ -229,7 +229,220 @@
       "label": "Clients",
       "area": "partners",
       "tier": "configuration",
-      "error": "Error: no Add button found in any frame"
+      "create_via": "toolbar Add button",
+      "field_count": 28,
+      "fields": [
+        {
+          "field": "clientId",
+          "label": "Name",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 32
+        },
+        {
+          "field": "addressName",
+          "label": "Address",
+          "required": true,
+          "type": "combo",
+          "maxLength": 40
+        },
+        {
+          "field": "firstName",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 30
+        },
+        {
+          "field": "lastName",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 30
+        },
+        {
+          "field": "addressLine1",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 40
+        },
+        {
+          "field": "addressLine2",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 40
+        },
+        {
+          "field": "addressCity",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 70
+        },
+        {
+          "field": "addressState",
+          "required": false,
+          "type": "combo",
+          "maxLength": 40
+        },
+        {
+          "field": "addressPostalCode",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 20
+        },
+        {
+          "field": "countryName",
+          "required": false,
+          "type": "combo",
+          "maxLength": 60
+        },
+        {
+          "field": "lotFormatId",
+          "label": "Lot Format",
+          "required": false,
+          "type": "combo"
+        },
+        {
+          "field": "assigned",
+          "label": "Enabled for SG",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "autoPopulateSupplierLotNum",
+          "label": "Auto Populated Supplier Lot Number",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "allowSupplierLotChange",
+          "label": "Allow Supplier Lot Change",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "packAtInventoryArrivalFlag",
+          "label": "Prevent Packing",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "captureItemPerSerialNumberFlag",
+          "label": "Capture Serialized Inventory",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "inboundTransFullValidationFlag",
+          "label": "Full Validation Of Inbound Transactions",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "translatedWarehouseId",
+          "label": "Translated Warehouse",
+          "required": false,
+          "type": "wmWarehouse",
+          "options": [
+            "AZ01",
+            "CD01",
+            "CA01",
+            "NH01",
+            "GA01",
+            "SG",
+            "TN03",
+            "WMD1"
+          ]
+        },
+        {
+          "field": "dateWindow",
+          "label": "Outbound Date Window",
+          "required": false,
+          "type": "duration",
+          "maxLength": 20
+        },
+        {
+          "field": "inventoryRotationMethod",
+          "label": "Inventory Rotation Method",
+          "required": false,
+          "type": "combo",
+          "options": [
+            "FEFO-ORDER-BY",
+            "FEFO-ORDER-BY-ABSOLUTE",
+            "FIFO-ORDER-BY",
+            "FIFO-ORDER-BY-ABSOLUTE",
+            "LEFO-ORDER-BY",
+            "LEFO-ORDER-BY-ABSOLUTE",
+            "LIFO-ORDER-BY",
+            "LIFO-ORDER-BY-ABSOLUTE",
+            "LOCATION-ORDER-BY"
+          ]
+        },
+        {
+          "field": "deliverySequenceLoadingOrder",
+          "label": "Delivery Sequence Loading Order",
+          "required": false,
+          "type": "combo"
+        },
+        {
+          "field": "minExtremeTolerancePercent",
+          "label": "Minimum Extreme Tolerance (%)",
+          "required": false,
+          "type": "numberfield",
+          "maxLength": 3
+        },
+        {
+          "field": "maxExtremeTolerancePercent",
+          "label": "Maximum Extreme Tolerance (%)",
+          "required": false,
+          "type": "numberfield",
+          "maxLength": 3
+        },
+        {
+          "field": "promptFlag",
+          "label": "Suppress Out of Tolerance Prompt",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "caseLevelCaptureFlag",
+          "label": "Require Sub-LPN Capture",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "delayCaptureFlag",
+          "label": "Delay Capture Until Loading",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "allowCancelFlag",
+          "label": "Allow Cancel Capture",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "approvalRequiredFlag",
+          "label": "Require Out of Tolerance Approval",
+          "required": false,
+          "type": "rpToggle"
+        }
+      ],
+      "required": [
+        {
+          "field": "clientId",
+          "label": "Name",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 32
+        },
+        {
+          "field": "addressName",
+          "label": "Address",
+          "required": true,
+          "type": "combo",
+          "maxLength": 40
+        }
+      ]
     },
     {
       "hash": "#wm.config/wm.config.partners.customers.main////",
@@ -2896,7 +3109,99 @@
       "label": "Buildings",
       "area": "warehouse",
       "tier": "configuration",
-      "error": "Error: no Add button found in any frame"
+      "create_via": "toolbar Add button",
+      "field_count": 11,
+      "fields": [
+        {
+          "field": "buildingId",
+          "label": "Building Name",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 10
+        },
+        {
+          "field": "addressDetails",
+          "label": "Building Address",
+          "required": true,
+          "type": "wmAddress",
+          "maxLength": 40
+        },
+        {
+          "field": "hostExternalId",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 40
+        },
+        {
+          "field": "addressLine1",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 40
+        },
+        {
+          "field": "addressLine2",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 40
+        },
+        {
+          "field": "addressLine3",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 40
+        },
+        {
+          "field": "addressCity",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 70
+        },
+        {
+          "field": "addressState",
+          "required": false,
+          "type": "combo",
+          "maxLength": 40
+        },
+        {
+          "field": "addressPostalCode",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 20
+        },
+        {
+          "field": "countryName",
+          "required": false,
+          "type": "combo",
+          "maxLength": 60
+        },
+        {
+          "field": "mediaId",
+          "required": false,
+          "type": "textfield"
+        }
+      ],
+      "required": [
+        {
+          "field": "buildingId",
+          "label": "Building Name",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 10
+        },
+        {
+          "field": "addressDetails",
+          "label": "Building Address",
+          "required": true,
+          "type": "wmAddress",
+          "maxLength": 40
+        },
+        {
+          "field": "hostExternalId",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 40
+        }
+      ]
     },
     {
       "hash": "#wm.config/wm.config.warehouse.businessunits////",
@@ -3015,7 +3320,28 @@
       "label": "Aisles",
       "area": "warehouse",
       "tier": "configuration",
-      "error": "no form rendered after Add"
+      "create_via": "toolbar Add button",
+      "field_count": 3,
+      "fields": [
+        {
+          "field": "startingRange",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 20
+        },
+        {
+          "field": "endingRange",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 20
+        },
+        {
+          "field": "searchFilter",
+          "required": false,
+          "type": "textfield"
+        }
+      ],
+      "required": []
     },
     {
       "hash": "#wm.config/wm.config.warehouse.locations.leveltypes////",
@@ -8447,6 +8773,141 @@
         }
       ],
       "required": []
+    },
+    {
+      "hash": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/wm.config.partners.carriers.main////",
+      "label": "Configuration/Carriers",
+      "area": "operationsAdmin",
+      "tier": "operational",
+      "create_via": "toolbar Add button",
+      "field_count": 16,
+      "fields": [
+        {
+          "field": "carrierCode",
+          "label": "Carrier",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 10
+        },
+        {
+          "field": "carrierName",
+          "label": "Carrier Name",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 30
+        },
+        {
+          "field": "scacCode",
+          "label": "SCAC",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 10
+        },
+        {
+          "field": "addressName",
+          "label": "Carrier Address",
+          "required": false,
+          "type": "wmAddress",
+          "maxLength": 40
+        },
+        {
+          "field": "firstName",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 30
+        },
+        {
+          "field": "lastName",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 30
+        },
+        {
+          "field": "addressLine1",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 40
+        },
+        {
+          "field": "addressLine2",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 40
+        },
+        {
+          "field": "addressCity",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 70
+        },
+        {
+          "field": "addressState",
+          "required": false,
+          "type": "combo",
+          "maxLength": 40
+        },
+        {
+          "field": "addressPostalCode",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 20
+        },
+        {
+          "field": "countryName",
+          "required": false,
+          "type": "combo",
+          "maxLength": 60
+        },
+        {
+          "field": "accountNumber",
+          "label": "Account",
+          "required": false,
+          "type": "textfield",
+          "maxLength": 30
+        },
+        {
+          "field": "autoCloseShipments",
+          "label": "Automatically Close Shipments",
+          "required": false,
+          "type": "rpToggle"
+        },
+        {
+          "field": "timeToWait",
+          "label": "Wait Time",
+          "required": false,
+          "type": "numberfield",
+          "maxLength": 8
+        },
+        {
+          "field": "manifestStatusForAutoClose",
+          "label": "Manifest Status",
+          "required": false,
+          "type": "combo",
+          "options": [
+            "M",
+            "H",
+            "R",
+            "S",
+            "V"
+          ]
+        }
+      ],
+      "required": [
+        {
+          "field": "carrierCode",
+          "label": "Carrier",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 10
+        },
+        {
+          "field": "carrierName",
+          "label": "Carrier Name",
+          "required": true,
+          "type": "textfield",
+          "maxLength": 30
+        }
+      ]
     }
   ]
 }

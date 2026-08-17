@@ -2592,7 +2592,15 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "agingProfiles",
+        "policies",
+        "itemHierarchyLevels",
+        "codes",
+        "uDIAConfigs",
+        "uoms"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -3006,7 +3014,12 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "pickReleaseRules",
+        "inventoryConsolidationCriteria"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -3639,7 +3652,12 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "warehouses",
+        "reasonCodes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -4536,8 +4554,11 @@
         "cycleCountPromptConfig",
         "pickZones",
         "uDIAConfigs",
-        "cycleCountInventoryIdentifier"
-      ]
+        "cycleCountInventoryIdentifier",
+        "warehouseUoms",
+        "policies"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -5138,8 +5159,14 @@
         "pickZones",
         "codes",
         "warehouseUoms",
-        "allocationSearchPathCriteria"
-      ]
+        "allocationSearchPathCriteria",
+        "directedWorkOperations",
+        "storageSuffixes",
+        "uDIAConfigs",
+        "itemHierarchyLevelDescriptions",
+        "movementZones"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -5894,14 +5921,68 @@
       "tier": "configuration",
       "reads": [],
       "title": "Permanent LPNs",
-      "grids": [],
+      "grids": [
+        {
+          "columns": [
+            "hmeloc",
+            "lodnum",
+            "mvlflg",
+            "stoloc",
+            "wh_id"
+          ],
+          "rows": 4
+        }
+      ],
       "forms": [],
-      "actions": [],
+      "actions": [
+        {
+          "label": "",
+          "itemId": "exportAction",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "refreshAction",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "refreshIntervalButton",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "filterMenu",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "first",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "prev",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "next",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "last",
+          "disabled": true
+        }
+      ],
       "kind": "dashboard",
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs",
+      "structure_recaptured_by": "tools/cdp/recapture-screens.mjs"
     },
     {
       "app": "configuration",
@@ -6436,8 +6517,10 @@
       "can_delete": true,
       "can_copy": true,
       "resources": [
-        "barcodeTemplates"
-      ]
+        "barcodeTemplates",
+        "policies"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -6475,7 +6558,15 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "devices",
+        "locales",
+        "movementZones",
+        "inboundOrderTypes",
+        "warehouses"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -8589,7 +8680,8 @@
       "resources": [
         "buildings",
         "workZones"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -8681,8 +8773,10 @@
       "can_copy": false,
       "resources": [
         "workAreas",
-        "workZones"
-      ]
+        "workZones",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -9391,7 +9485,12 @@
       "can_create": true,
       "can_delete": true,
       "can_copy": true,
-      "resources": []
+      "resources": [
+        "workflowSamplingConfigurations",
+        "warehouseWorkflows",
+        "masterWorkflows"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -10220,14 +10319,73 @@
       "tier": "configuration",
       "reads": [],
       "title": "Workflow Exit Points",
-      "grids": [],
+      "grids": [
+        {
+          "columns": [
+            "exitpnt_typ",
+            "exitpnt",
+            "lngdsc",
+            "last_upd_dt",
+            "last_upd_user_id",
+            "tblnme",
+            "moddte",
+            "ins_dt",
+            "ins_user_id",
+            "mod_usr_id"
+          ],
+          "rows": 25
+        }
+      ],
       "forms": [],
-      "actions": [],
+      "actions": [
+        {
+          "label": "",
+          "itemId": "exportAction",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "refreshAction",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "refreshIntervalButton",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "filterMenu",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "first",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "prev",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "next",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "last",
+          "disabled": false
+        }
+      ],
       "kind": "dashboard",
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs",
+      "structure_recaptured_by": "tools/cdp/recapture-screens.mjs"
     },
     {
       "app": "configuration",
@@ -10456,7 +10614,8 @@
         "warehouseEquipmentAccesses",
         "equipmentTypes",
         "codes"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -11112,7 +11271,16 @@
       "can_create": true,
       "can_delete": true,
       "can_copy": true,
-      "resources": []
+      "resources": [
+        "codes",
+        "printers",
+        "rfVendors",
+        "policies",
+        "locales",
+        "workAreas",
+        "devices"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -11297,7 +11465,16 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "rfVendors",
+        "codes",
+        "printers",
+        "devices",
+        "locales",
+        "workAreas"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -11420,7 +11597,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -11568,7 +11746,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -11706,7 +11885,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -11829,7 +12009,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -11957,7 +12138,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -12064,7 +12246,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "reasonGroups",
+        "reasonCodes",
+        "clients",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -12171,7 +12359,11 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "dataProtectionConfigs"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -12261,7 +12453,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -12352,7 +12545,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -12492,7 +12686,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -12812,7 +13007,12 @@
       "can_create": true,
       "can_delete": true,
       "can_copy": true,
-      "resources": []
+      "resources": [
+        "movementPathCriterias",
+        "movementPaths",
+        "movementZones"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -13049,7 +13249,12 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "stackMethods",
+        "loadAttributeConfigurations",
+        "uoms"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -13135,7 +13340,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "label": "Movement Rules",
@@ -13148,7 +13354,11 @@
       "kind": "dashboard",
       "can_create": false,
       "can_delete": false,
-      "can_copy": false
+      "can_copy": false,
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs",
+      "structure_recaptured_by": "tools/cdp/recapture-screens.mjs",
+      "structure_empty_confirmed": true
     },
     {
       "label": "Shipping Carriers",
@@ -13161,7 +13371,11 @@
       "kind": "dashboard",
       "can_create": false,
       "can_delete": false,
-      "can_copy": false
+      "can_copy": false,
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs",
+      "structure_recaptured_by": "tools/cdp/recapture-screens.mjs",
+      "structure_empty_confirmed": true
     },
     {
       "app": "configuration",
@@ -13932,7 +14146,8 @@
         "receivableInboundOrderStatuses",
         "rfForms",
         "locations"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -14215,7 +14430,10 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -14713,8 +14931,10 @@
         "movementZones",
         "tablesForPalletBuildCriteria",
         "tableColumns",
-        "receivingPalletBuildRules"
-      ]
+        "receivingPalletBuildRules",
+        "locations"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -14971,8 +15191,10 @@
         "codes",
         "stackMethods",
         "availableInventoryMixingRules",
-        "floorPlan"
-      ]
+        "floorPlan",
+        "uDIAConfigs"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -15146,7 +15368,8 @@
         "buildings",
         "storageZoneInventoryMixingRules",
         "buildingInventoryMixingRules"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -15719,7 +15942,19 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "buildingInventoryMixingRules",
+        "overrideLocationCodes",
+        "storageZoneInventoryMixingRules",
+        "locationConfigs",
+        "storageZones",
+        "warehouseInventoryMixingRules",
+        "codes",
+        "storageConfigurations",
+        "availableInventoryMixingRules",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -15913,7 +16148,13 @@
       "can_create": true,
       "can_delete": true,
       "can_copy": true,
-      "resources": []
+      "resources": [
+        "codes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs",
+      "writes_observed": [
+        "codes"
+      ]
     },
     {
       "app": "configuration",
@@ -16699,7 +16940,11 @@
       "can_create": true,
       "can_delete": true,
       "can_copy": true,
-      "resources": []
+      "resources": [
+        "orderTypes",
+        "noteTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -16784,7 +17029,11 @@
       "can_create": true,
       "can_delete": true,
       "can_copy": true,
-      "resources": []
+      "resources": [
+        "noteTypes",
+        "orderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -16919,7 +17168,8 @@
         "pickZones",
         "allocationSearchPaths",
         "uDIAConfigs"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -17313,8 +17563,12 @@
         "policies",
         "commands",
         "commandConfigurations",
-        "movementZones"
-      ]
+        "movementZones",
+        "tableColumns",
+        "pickZones",
+        "allocationSearchPaths"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -17660,7 +17914,16 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "allocationSearchPaths",
+        "pickZones",
+        "inboundOrderTypes",
+        "movementZones",
+        "uDIAConfigs"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -17798,7 +18061,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -18776,7 +19040,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -19229,7 +19494,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -19507,7 +19773,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -19917,8 +20184,19 @@
       "can_copy": false,
       "resources": [
         "cartons",
-        "printers"
-      ]
+        "printers",
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones",
+        "codes",
+        "pickMethods",
+        "workAssignmentRuleExceptions",
+        "pickReleaseRules",
+        "combinedPickingPolicies",
+        "commandConfigurations"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -20583,8 +20861,11 @@
         "orderTypes",
         "carrierServiceLevels",
         "directedWorkOperations",
-        "pickZones"
-      ]
+        "pickZones",
+        "cartons",
+        "carriers"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -21211,7 +21492,8 @@
         "availablePickDeductionSequences",
         "rolePickDeductions",
         "pickZonePickDeductions"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -21717,8 +21999,17 @@
         "pndLocations",
         "cancelCodes",
         "tableColumns",
-        "voiceAssignmentSummaryConfigs"
-      ]
+        "voiceAssignmentSummaryConfigs",
+        "policies",
+        "cartons",
+        "workAssignmentRuleExceptions",
+        "pickMethods",
+        "pickReleaseRules",
+        "combinedPickingPolicies",
+        "directedWorkOperations",
+        "commandConfigurations"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -22339,9 +22630,102 @@
       "tier": "configuration",
       "reads": [],
       "title": "Serial Communication",
-      "grids": [],
+      "grids": [
+        {
+          "columns": [
+            "ser_dev_id",
+            "wh_id",
+            "ser_dev_typ",
+            "baudrate",
+            "databits",
+            "parity",
+            "scanner_delay_time",
+            "scanner_encoding",
+            "scanner_wait_time",
+            "ser_port",
+            "stopbits",
+            "ins_dt",
+            "ins_user_id",
+            "last_upd_dt",
+            "last_upd_user_id",
+            "lngdsc",
+            "resourceId"
+          ],
+          "rows": 0
+        },
+        {
+          "columns": [
+            "devcod",
+            "ser_dev_id",
+            "wh_id",
+            "resourceId"
+          ],
+          "rows": 0
+        }
+      ],
       "forms": [],
-      "actions": [],
+      "actions": [
+        {
+          "label": "",
+          "itemId": "exportAction",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "refreshAction",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "refreshIntervalButton",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "filterMenu",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "first",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "prev",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "next",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "last",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "first",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "prev",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "next",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "last",
+          "disabled": true
+        }
+      ],
       "content_changed": true,
       "unverified": false,
       "route_dead": false,
@@ -22349,7 +22733,9 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs",
+      "structure_recaptured_by": "tools/cdp/recapture-screens.mjs"
     },
     {
       "app": "configuration",
@@ -22684,7 +23070,8 @@
         "policies",
         "commandConfigurationArguments",
         "commandConfigurations"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -22759,7 +23146,14 @@
       "can_create": true,
       "can_delete": true,
       "can_copy": true,
-      "resources": []
+      "resources": [
+        "routes",
+        "ruleSetCommands",
+        "policies",
+        "distributionTypes",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -25823,9 +26217,59 @@
       "tier": "configuration",
       "reads": [],
       "title": "Break Stop Sequence",
-      "grids": [],
+      "grids": [
+        {
+          "columns": [
+            "brk_stop_seq_cod",
+            "seqnum",
+            "lngdsc"
+          ],
+          "rows": 4
+        }
+      ],
       "forms": [],
-      "actions": [],
+      "actions": [
+        {
+          "label": "",
+          "itemId": "exportAction",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "refreshAction",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "refreshIntervalButton",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "filterMenu",
+          "disabled": false
+        },
+        {
+          "label": "",
+          "itemId": "first",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "prev",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "next",
+          "disabled": true
+        },
+        {
+          "label": "",
+          "itemId": "last",
+          "disabled": true
+        }
+      ],
       "content_changed": true,
       "unverified": false,
       "route_dead": false,
@@ -25833,7 +26277,9 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs",
+      "structure_recaptured_by": "tools/cdp/recapture-screens.mjs"
     },
     {
       "app": "configuration",
@@ -27024,7 +27470,13 @@
       "can_create": true,
       "can_delete": true,
       "can_copy": true,
-      "resources": []
+      "resources": [
+        "warehouseLabelFormats",
+        "printers",
+        "labelFormats",
+        "documentTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -28777,7 +29229,16 @@
       "can_create": true,
       "can_delete": true,
       "can_copy": true,
-      "resources": []
+      "resources": [
+        "policies",
+        "clients",
+        "wcsEvents",
+        "areas",
+        "hostSystems",
+        "itemLots",
+        "availableTransactionGroupingAttributes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -28847,7 +29308,16 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "hostSystems",
+        "areas",
+        "wcsEvents",
+        "clients",
+        "itemLots",
+        "availableTransactionGroupingAttributes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "configuration",
@@ -29121,7 +29591,11 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "systemAdmin",
@@ -29213,7 +29687,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -29320,8 +29795,13 @@
       "resources": [
         "receivingDashboardStatistic",
         "hotItemsByLoc",
-        "inboundQualityIssues"
-      ]
+        "inboundQualityIssues",
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -29454,7 +29934,8 @@
       "resources": [
         "doorsWithTrailers",
         "stagingLanes"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -29600,7 +30081,8 @@
         "trailers",
         "trailerAuditWork",
         "doorsWithAppointments"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -29695,7 +30177,8 @@
       "can_copy": false,
       "resources": [
         "dockLocationSchedules"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -30000,8 +30483,10 @@
         "clients",
         "customerDistributionSettings",
         "orderTypes",
-        "itemHierarchyLevelDescriptions"
-      ]
+        "itemHierarchyLevelDescriptions",
+        "inboundLoads"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -30478,7 +30963,8 @@
       "resources": [
         "trailers",
         "powerUnits"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -30890,7 +31376,8 @@
       "resources": [
         "policies",
         "work"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -31167,8 +31654,10 @@
       "resources": [
         "services",
         "inboundWorkflowPlans",
-        "workflowOperations"
-      ]
+        "workflowOperations",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -31273,7 +31762,8 @@
       "resources": [
         "printers",
         "complianceLabelFormats"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -31583,8 +32073,11 @@
         "inventory",
         "loadAttributeConfigurations",
         "policies",
-        "reasonCodes"
-      ]
+        "reasonCodes",
+        "itemHierarchyLevelDescriptions",
+        "uDIAConfigs"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -31906,7 +32399,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -32011,7 +32510,8 @@
       "resources": [
         "lmIndirectWorkTypes",
         "devices"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -32161,7 +32661,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -32276,7 +32777,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -32401,7 +32903,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -32566,7 +33069,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -32768,8 +33272,10 @@
         "warehouseEquipmentAccesses",
         "equipmentTypes",
         "codes",
-        "warehouseEquipment"
-      ]
+        "warehouseEquipment",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "receiving",
@@ -32899,7 +33405,8 @@
       "can_copy": false,
       "resources": [
         "workOperators"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -33029,8 +33536,13 @@
       "can_copy": false,
       "resources": [
         "shippingDashboard",
-        "shippingProgressEach"
-      ]
+        "shippingProgressEach",
+        "policies",
+        "devices",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -33173,7 +33685,8 @@
       "resources": [
         "doorsWithTrailers",
         "stagingLanes"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -33398,7 +33911,8 @@
       "can_copy": false,
       "resources": [
         "dockLocationSchedules"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -33678,7 +34192,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "parcelPackages",
+        "serverStatus",
+        "userLocaleWeightUom"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -33848,7 +34368,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -33940,7 +34466,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -34292,7 +34819,8 @@
       "resources": [
         "trailers",
         "powerUnits"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -34526,7 +35054,17 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "cartons",
+        "codes",
+        "paymentTerms",
+        "carrierServiceLevels",
+        "serverStatus",
+        "carriers",
+        "customers",
+        "devices"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -34922,8 +35460,11 @@
       "can_delete": false,
       "can_copy": false,
       "resources": [
-        "work"
-      ]
+        "work",
+        "policies",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -35098,7 +35639,12 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "services",
+        "inboundWorkflowPlans",
+        "workflowOperations"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -35190,7 +35736,11 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "complianceLabelFormats",
+        "printers"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -35425,7 +35975,15 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "itemHierarchyLevelDescriptions",
+        "loadAttributeConfigurations",
+        "uDIAConfigs",
+        "inventory",
+        "reasonCodes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -35525,7 +36083,10 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "shipments"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -35755,7 +36316,10 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "loadAttributeConfigurations"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -35830,7 +36394,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -36130,7 +36700,11 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "codes",
+        "locations"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -36205,7 +36779,11 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "lmIndirectWorkTypes",
+        "devices"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -36505,7 +37083,10 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "codes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -36720,7 +37301,11 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "shippedLpnActivities",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -36913,7 +37498,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -37078,7 +37664,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -37235,8 +37822,12 @@
       "resources": [
         "warehouseEquipmentAccesses",
         "codes",
-        "warehouseEquipment"
-      ]
+        "warehouseEquipment",
+        "workAreas",
+        "equipmentTypes",
+        "workZones"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "shipping",
@@ -37366,7 +37957,8 @@
       "can_copy": false,
       "resources": [
         "workOperators"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -37581,8 +38173,10 @@
         "inventory",
         "outboundOrders",
         "picks",
-        "inboundOrderTypes"
-      ]
+        "inboundOrderTypes",
+        "pickingSummary"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -37947,7 +38541,8 @@
         "waves",
         "picks",
         "pickingSummary"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -38263,8 +38858,10 @@
         "loadAttributeConfigurations",
         "uDIAConfigs",
         "policies",
-        "reasonCodes"
-      ]
+        "reasonCodes",
+        "shorts"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -38531,8 +39128,10 @@
       "resources": [
         "services",
         "inboundWorkflowPlans",
-        "workflowOperations"
-      ]
+        "workflowOperations",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -38637,7 +39236,8 @@
       "resources": [
         "printers",
         "complianceLabelFormats"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -39039,7 +39639,8 @@
       "resources": [
         "policies",
         "work"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -39491,7 +40092,8 @@
         "handlingUnitCategories",
         "handlingUnitTypes",
         "policies"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -39667,7 +40269,8 @@
       "can_copy": false,
       "resources": [
         "listsForSequenceOrders"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -39991,7 +40594,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "devices",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -40418,7 +41027,8 @@
       "resources": [
         "lmIndirectWorkTypes",
         "devices"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -40844,8 +41454,10 @@
       "can_delete": false,
       "can_copy": false,
       "resources": [
-        "listVoiceTrace"
-      ]
+        "listVoiceTrace",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -41010,7 +41622,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -41196,7 +41809,8 @@
         "equipmentTypes",
         "codes",
         "warehouseEquipment"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "picking",
@@ -41316,7 +41930,8 @@
       "can_copy": false,
       "resources": [
         "workOperators"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -41820,8 +42435,12 @@
         "loadAttributeConfigurations",
         "uDIAConfigs",
         "policies",
-        "reasonCodes"
-      ]
+        "reasonCodes",
+        "devices",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -42330,7 +42949,8 @@
       "resources": [
         "holdDefinitions",
         "holdsHistory"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -42700,7 +43320,8 @@
         "policies",
         "inventoryAdjustmentApprovals",
         "commands"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -43029,7 +43650,8 @@
         "inventoryCounts",
         "countZones",
         "countBatches"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -43202,7 +43824,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -43604,7 +44232,8 @@
       "resources": [
         "policies",
         "work"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -43872,7 +44501,8 @@
         "services",
         "inboundWorkflowPlans",
         "workflowOperations"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -43982,7 +44612,8 @@
       "resources": [
         "printers",
         "complianceLabelFormats"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -44311,7 +44942,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "policies",
+        "devices",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -44421,7 +45058,8 @@
       "resources": [
         "lmIndirectWorkTypes",
         "devices"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -44986,7 +45624,10 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -45121,7 +45762,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -45286,7 +45928,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -45428,7 +46071,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -46068,7 +46712,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -46510,7 +47155,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -46892,7 +47538,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "inventory",
@@ -47022,7 +47669,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "outboundPlanner",
@@ -47237,8 +47885,10 @@
         "inventory",
         "outboundOrders",
         "picks",
-        "inboundOrderTypes"
-      ]
+        "inboundOrderTypes",
+        "pickingSummary"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "outboundPlanner",
@@ -47871,8 +48521,11 @@
       "can_copy": false,
       "resources": [
         "waves",
-        "picks"
-      ]
+        "picks",
+        "pickingSummary",
+        "uDIAConfigs"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "outboundPlanner",
@@ -48188,8 +48841,10 @@
         "loadAttributeConfigurations",
         "uDIAConfigs",
         "policies",
-        "reasonCodes"
-      ]
+        "reasonCodes",
+        "shorts"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "outboundPlanner",
@@ -48591,7 +49246,8 @@
       "resources": [
         "policies",
         "work"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "outboundPlanner",
@@ -48656,7 +49312,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "outboundPlanner",
@@ -49046,7 +49708,8 @@
       "resources": [
         "lmIndirectWorkTypes",
         "devices"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "outboundPlanner",
@@ -49518,7 +50181,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "outboundPlanner",
@@ -49618,7 +50282,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -49808,8 +50473,10 @@
         "movementZones",
         "inboundOrderTypes",
         "trailers",
-        "trailerAuditWork"
-      ]
+        "trailerAuditWork",
+        "doorsWithAppointments"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -49911,7 +50578,8 @@
       "can_copy": false,
       "resources": [
         "dockLocationSchedules"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -50020,7 +50688,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -50379,7 +51053,8 @@
       "resources": [
         "trailers",
         "powerUnits"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -50501,7 +51176,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -50789,7 +51465,8 @@
         "services",
         "inboundWorkflowPlans",
         "workflowOperations"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -51211,7 +51888,8 @@
       "resources": [
         "policies",
         "work"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -51490,8 +52168,10 @@
       "resources": [
         "inventory",
         "loadAttributeConfigurations",
-        "policies"
-      ]
+        "policies",
+        "webPerformanceEntries"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -51641,7 +52321,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "inboundOrderTypes"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -51726,7 +52412,13 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "inboundOrderTypes",
+        "movementZones"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "yard",
@@ -51891,7 +52583,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "specialPack",
@@ -52118,7 +52811,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "specialPack",
@@ -52550,7 +53244,8 @@
         "uDIAConfigs",
         "waves",
         "picks"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "specialPack",
@@ -52818,7 +53513,15 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [
+        "devices",
+        "policies",
+        "movementZones",
+        "uDIAConfigs",
+        "inboundOrderTypes",
+        "inventory"
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "specialPack",
@@ -53131,7 +53834,8 @@
         "orderTypes",
         "itemHierarchyLevelDescriptions",
         "inboundLoads"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "specialPack",
@@ -53533,7 +54237,8 @@
       "resources": [
         "policies",
         "work"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "specialPack",
@@ -53819,7 +54524,8 @@
         "inventory",
         "loadAttributeConfigurations",
         "reasonCodes"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "specialPack",
@@ -53952,7 +54658,8 @@
       "resources": [
         "doorsWithTrailers",
         "stagingLanes"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "specialPack",
@@ -54308,7 +55015,8 @@
       "resources": [
         "trailers",
         "powerUnits"
-      ]
+      ],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "specialPack",
@@ -54836,7 +55544,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "operationsAdmin",
@@ -55064,7 +55773,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "systemAdmin",
@@ -55204,7 +55914,8 @@
       "can_create": false,
       "can_delete": false,
       "can_copy": false,
-      "resources": []
+      "resources": [],
+      "resources_observed_by": "tools/cdp/capture-screen-network.mjs"
     },
     {
       "app": "systemAdmin",

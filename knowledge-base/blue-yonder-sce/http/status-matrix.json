@@ -3,9 +3,22 @@
   "generated_by": "tools/cdp/build-matrix.mjs",
   "note": "Derived view. Every cell is backed by a stored request/response pair; nothing here is asserted.",
   "resources": {
+    "activityCodes": {
+      "evidence": "http/exchanges/activityCodes.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/activityCodes"
+        }
+      }
+    },
     "addresses": {
       "evidence": "http/exchanges/addresses.jsonl",
-      "exchanges": 24,
+      "exchanges": 26,
       "cases": {
         "route-exists": {
           "observations": 2,
@@ -93,12 +106,411 @@
           "method": "GET",
           "url": "/wm/addresses/A000365892",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/addresses"
+        }
+      }
+    },
+    "agingProfiles": {
+      "evidence": "http/exchanges/agingProfiles.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/agingProfiles"
+        }
+      }
+    },
+    "aisleStagingLocationAssociations": {
+      "evidence": "http/exchanges/aisleStagingLocationAssociations.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "GET",
+          "url": "/wm/aisleStagingLocationAssociations",
+          "userMessage": "Missing argument: Dock Mode (dckmode)"
+        }
+      }
+    },
+    "aisles": {
+      "evidence": "http/exchanges/aisles.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/aisles"
+        }
+      }
+    },
+    "allocationHandlingUnitGroups": {
+      "evidence": "http/exchanges/allocationHandlingUnitGroups.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/allocationHandlingUnitGroups"
+        }
+      }
+    },
+    "allocationSearchGroups": {
+      "evidence": "http/exchanges/allocationSearchGroups.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/allocationSearchGroups"
+        }
+      }
+    },
+    "allocationSearchPathCriteria": {
+      "evidence": "http/exchanges/allocationSearchPathCriteria.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/allocationSearchPathCriteria"
+        }
+      }
+    },
+    "allocationSearchPathRules": {
+      "evidence": "http/exchanges/allocationSearchPathRules.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/allocationSearchPathRules"
+        }
+      }
+    },
+    "allocationSearchPaths": {
+      "evidence": "http/exchanges/allocationSearchPaths.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/allocationSearchPaths"
+        }
+      }
+    },
+    "appointments": {
+      "evidence": "http/exchanges/appointments.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/appointments"
+        }
+      }
+    },
+    "areas": {
+      "evidence": "http/exchanges/areas.jsonl",
+      "exchanges": 11,
+      "cases": {
+        "read-shape": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/areas"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/areas"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/areas",
+          "userMessage": "Area name has been used as an inventory identifier."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/areas",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/areas/ZV95720*!SG"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/areas/ZV95720*!SG"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/areas/ZV95720*!SG"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/areas/ZV95720*!SG"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/areas/ZV95720*!SG"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/areas/ZV95720*!SG",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "autoAllocationMethods": {
+      "evidence": "http/exchanges/autoAllocationMethods.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/autoAllocationMethods"
+        }
+      }
+    },
+    "autoAllocationValues": {
+      "evidence": "http/exchanges/autoAllocationValues.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/autoAllocationValues"
+        }
+      }
+    },
+    "autoStagingMovementZones": {
+      "evidence": "http/exchanges/autoStagingMovementZones.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/autoStagingMovementZones"
+        }
+      }
+    },
+    "availableAutoStagingMovementZones": {
+      "evidence": "http/exchanges/availableAutoStagingMovementZones.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/availableAutoStagingMovementZones"
+        }
+      }
+    },
+    "availableInventoryMixingRules": {
+      "evidence": "http/exchanges/availableInventoryMixingRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/availableInventoryMixingRules"
+        }
+      }
+    },
+    "availablePickCartonizationCriteria": {
+      "evidence": "http/exchanges/availablePickCartonizationCriteria.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/availablePickCartonizationCriteria"
+        }
+      }
+    },
+    "availablePickDeductionSequences": {
+      "evidence": "http/exchanges/availablePickDeductionSequences.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/availablePickDeductionSequences"
+        }
+      }
+    },
+    "availableTransactionGroupingAttributes": {
+      "evidence": "http/exchanges/availableTransactionGroupingAttributes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/availableTransactionGroupingAttributes"
+        }
+      }
+    },
+    "availableWorkListGroupCriterias": {
+      "evidence": "http/exchanges/availableWorkListGroupCriterias.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/availableWorkListGroupCriterias"
+        }
+      }
+    },
+    "billOfMaterials": {
+      "evidence": "http/exchanges/billOfMaterials.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/billOfMaterials"
+        }
+      }
+    },
+    "billingFilters": {
+      "evidence": "http/exchanges/billingFilters.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/billingFilters"
+        }
+      }
+    },
+    "breakStopSequenceCodeses": {
+      "evidence": "http/exchanges/breakStopSequenceCodeses.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/breakStopSequenceCodeses"
+        }
+      }
+    },
+    "buildingInventoryMixingRules": {
+      "evidence": "http/exchanges/buildingInventoryMixingRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/buildingInventoryMixingRules"
+        }
+      }
+    },
+    "buildings": {
+      "evidence": "http/exchanges/buildings.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/buildings"
+        }
+      }
+    },
+    "bundleRules": {
+      "evidence": "http/exchanges/bundleRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/bundleRules"
         }
       }
     },
     "businessUnits": {
       "evidence": "http/exchanges/businessUnits.jsonl",
-      "exchanges": 13,
+      "exchanges": 22,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -195,12 +607,80 @@
           "method": "GET",
           "url": "/wm/businessUnits/ZV224234*!SG",
           "userMessage": "The requested web resource was not found."
+        },
+        "referer-default": {
+          "observations": 2,
+          "status": 200,
+          "kind": null,
+          "method": "GET",
+          "url": "/wm/businessUnits"
+        },
+        "referer-none": {
+          "observations": 2,
+          "status": 0,
+          "kind": null,
+          "method": "GET",
+          "url": "/wm/businessUnits"
+        },
+        "referer-target": {
+          "observations": 2,
+          "status": 200,
+          "kind": null,
+          "method": "GET",
+          "url": "/wm/businessUnits"
+        },
+        "out-of-page-no-referer": {
+          "observations": 1,
+          "status": 302,
+          "kind": null,
+          "method": "GET",
+          "url": "/wm/businessUnits"
+        },
+        "out-of-page-with-referer": {
+          "observations": 1,
+          "status": 200,
+          "kind": null,
+          "method": "GET",
+          "url": "/wm/businessUnits"
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/businessUnits"
+        }
+      }
+    },
+    "calendarExceptionDays": {
+      "evidence": "http/exchanges/calendarExceptionDays.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/calendarExceptionDays"
+        }
+      }
+    },
+    "cancelCodes": {
+      "evidence": "http/exchanges/cancelCodes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/cancelCodes"
         }
       }
     },
     "carrierCrossReferences": {
       "evidence": "http/exchanges/carrierCrossReferences.jsonl",
-      "exchanges": 12,
+      "exchanges": 13,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -289,12 +769,45 @@
           "method": "GET",
           "url": "/wm/carrierCrossReferences/0000*!TANDATA*!ZV3999",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierCrossReferences"
+        }
+      }
+    },
+    "carrierDetails": {
+      "evidence": "http/exchanges/carrierDetails.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierDetails"
+        }
+      }
+    },
+    "carrierMatrices": {
+      "evidence": "http/exchanges/carrierMatrices.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierMatrices"
         }
       }
     },
     "carrierProNumbers": {
       "evidence": "http/exchanges/carrierProNumbers.jsonl",
-      "exchanges": 12,
+      "exchanges": 13,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -383,12 +896,32 @@
           "method": "GET",
           "url": "/wm/carrierProNumbers/A000278094*!0000*!ZV345068",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierProNumbers"
+        }
+      }
+    },
+    "carrierServiceLevels": {
+      "evidence": "http/exchanges/carrierServiceLevels.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carrierServiceLevels"
         }
       }
     },
     "carriers": {
       "evidence": "http/exchanges/carriers.jsonl",
-      "exchanges": 13,
+      "exchanges": 14,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -485,6 +1018,65 @@
           "method": "GET",
           "url": "/wm/carriers/ZV183603",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/carriers"
+        }
+      }
+    },
+    "cartonRouteGroupCriteria": {
+      "evidence": "http/exchanges/cartonRouteGroupCriteria.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/cartonRouteGroupCriteria"
+        }
+      }
+    },
+    "catchQuantityConfigs": {
+      "evidence": "http/exchanges/catchQuantityConfigs.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/catchQuantityConfigs"
+        }
+      }
+    },
+    "categoryCounts": {
+      "evidence": "http/exchanges/categoryCounts.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/categoryCounts"
+        }
+      }
+    },
+    "clientCountTypes": {
+      "evidence": "http/exchanges/clientCountTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientCountTypes"
         }
       }
     },
@@ -590,9 +1182,22 @@
         }
       }
     },
+    "clientInventoryIdentifierSummary": {
+      "evidence": "http/exchanges/clientInventoryIdentifierSummary.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientInventoryIdentifierSummary"
+        }
+      }
+    },
     "clientWarehouse": {
       "evidence": "http/exchanges/clientWarehouse.jsonl",
-      "exchanges": 12,
+      "exchanges": 13,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -682,12 +1287,19 @@
           "method": "GET",
           "url": "/wm/clientWarehouse/ZVCW375*!SG",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clientWarehouse"
         }
       }
     },
     "clients": {
       "evidence": "http/exchanges/clients.jsonl",
-      "exchanges": 10,
+      "exchanges": 11,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -764,12 +1376,431 @@
           "method": "GET",
           "url": "/wm/clients/ZV097223",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/clients"
+        }
+      }
+    },
+    "codes": {
+      "evidence": "http/exchanges/codes.jsonl",
+      "exchanges": 15,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/codes"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/codes"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/codes/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "read-by-compound-id": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/codes/AIR*!trlr_typ"
+        },
+        "read-no-columnname": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/codes"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/codes"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/codes",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/codes",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/codes/ZV794*!locacc"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/codes/ZV794*!locacc"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/codes/ZV794*!locacc"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/codes/ZV794*!locacc"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/codes/ZV794*!locacc"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/codes/ZV794*!locacc",
+          "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/codes"
+        }
+      }
+    },
+    "columnEntities": {
+      "evidence": "http/exchanges/columnEntities.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "GET",
+          "url": "/wm/columnEntities",
+          "userMessage": "Missing argument:  ^argdsc^ [tableNames]."
+        }
+      }
+    },
+    "combinedPickingPolicies": {
+      "evidence": "http/exchanges/combinedPickingPolicies.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/combinedPickingPolicies"
+        }
+      }
+    },
+    "commandConfigurationArguments": {
+      "evidence": "http/exchanges/commandConfigurationArguments.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/commandConfigurationArguments"
+        }
+      }
+    },
+    "commandConfigurations": {
+      "evidence": "http/exchanges/commandConfigurations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/commandConfigurations"
+        }
+      }
+    },
+    "commodities": {
+      "evidence": "http/exchanges/commodities.jsonl",
+      "exchanges": 10,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/commodities"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/commodities"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/commodities",
+          "userMessage": "Commodity exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/commodities",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/commodities/ZV90015"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/commodities/ZV90015"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/commodities/ZV90015"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/commodities/ZV90015"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/commodities/ZV90015"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/commodities/ZV90015",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "consolidationRules": {
+      "evidence": "http/exchanges/consolidationRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/consolidationRules"
+        }
+      }
+    },
+    "countTypes": {
+      "evidence": "http/exchanges/countTypes.jsonl",
+      "exchanges": 13,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/countTypes"
+        },
+        "create-valid": {
+          "observations": 3,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/countTypes",
+          "userMessage": "Missing argument: Different User (diff_usr_flg)"
+        },
+        "create-valid-full-model": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/countTypes"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/countTypes",
+          "userMessage": "Missing argument: Different User (diff_usr_flg)"
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/countTypes",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/countTypes/ZV0"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/countTypes/ZV0"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/countTypes/ZV0"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/countTypes/ZV0"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/countTypes/ZV0"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/countTypes/ZV0",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "countUnitOfMeasures": {
+      "evidence": "http/exchanges/countUnitOfMeasures.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/countUnitOfMeasures"
+        }
+      }
+    },
+    "countZones": {
+      "evidence": "http/exchanges/countZones.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/countZones"
+        }
+      }
+    },
+    "customerDistributionSettings": {
+      "evidence": "http/exchanges/customerDistributionSettings.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customerDistributionSettings"
+        }
+      }
+    },
+    "customerDistributionStagingLocations": {
+      "evidence": "http/exchanges/customerDistributionStagingLocations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customerDistributionStagingLocations"
+        }
+      }
+    },
+    "customerDistributionStorageRules": {
+      "evidence": "http/exchanges/customerDistributionStorageRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customerDistributionStorageRules"
         }
       }
     },
     "customerTypes": {
       "evidence": "http/exchanges/customerTypes.jsonl",
-      "exchanges": 13,
+      "exchanges": 14,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -866,12 +1897,19 @@
           "method": "GET",
           "url": "/wm/customerTypes/ZV10",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customerTypes"
         }
       }
     },
     "customers": {
       "evidence": "http/exchanges/customers.jsonl",
-      "exchanges": 6,
+      "exchanges": 7,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -917,12 +1955,149 @@
           "method": "POST",
           "url": "/wm/customers",
           "userMessage": "Bad Request"
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customers"
+        }
+      }
+    },
+    "customsConsignments": {
+      "evidence": "http/exchanges/customsConsignments.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customsConsignments"
+        }
+      }
+    },
+    "customsItemTypes": {
+      "evidence": "http/exchanges/customsItemTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customsItemTypes"
+        }
+      }
+    },
+    "customsOrderTypeRules": {
+      "evidence": "http/exchanges/customsOrderTypeRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customsOrderTypeRules"
+        }
+      }
+    },
+    "customsOrderTypes": {
+      "evidence": "http/exchanges/customsOrderTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/customsOrderTypes"
+        }
+      }
+    },
+    "cycleCountABCConfig": {
+      "evidence": "http/exchanges/cycleCountABCConfig.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/cycleCountABCConfig"
+        }
+      }
+    },
+    "cycleCountInventoryIdentifier": {
+      "evidence": "http/exchanges/cycleCountInventoryIdentifier.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/cycleCountInventoryIdentifier"
+        }
+      }
+    },
+    "cycleCountPromptConfig": {
+      "evidence": "http/exchanges/cycleCountPromptConfig.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/cycleCountPromptConfig"
+        }
+      }
+    },
+    "dataProtectionConfigs": {
+      "evidence": "http/exchanges/dataProtectionConfigs.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/dataProtectionConfigs"
+        }
+      }
+    },
+    "deviceClassFunctionDetails": {
+      "evidence": "http/exchanges/deviceClassFunctionDetails.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/deviceClassFunctionDetails"
+        }
+      }
+    },
+    "deviceClassFunctions": {
+      "evidence": "http/exchanges/deviceClassFunctions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/deviceClassFunctions"
         }
       }
     },
     "devices": {
       "evidence": "http/exchanges/devices.jsonl",
-      "exchanges": 12,
+      "exchanges": 19,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -1011,12 +2186,185 @@
           "method": "GET",
           "url": "/wm/devices/ZV231196*!SG",
           "userMessage": "The requested web resource was not found."
+        },
+        "voice-create-len4": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "POST",
+          "url": "/wm/devices",
+          "userMessage": "no rows affected"
+        },
+        "voice-create-len5": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "POST",
+          "url": "/wm/devices",
+          "userMessage": "no rows affected"
+        },
+        "voice-create-len6": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "POST",
+          "url": "/wm/devices",
+          "userMessage": "no rows affected"
+        },
+        "voice-create-len7": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "POST",
+          "url": "/wm/devices",
+          "userMessage": "no rows affected"
+        },
+        "voice-create-noterm-len6": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "POST",
+          "url": "/wm/devices",
+          "userMessage": "no rows affected"
+        },
+        "voice-create-noterm-len7": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "POST",
+          "url": "/wm/devices",
+          "userMessage": "no rows affected"
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/devices"
+        }
+      }
+    },
+    "directedWorkOperations": {
+      "evidence": "http/exchanges/directedWorkOperations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/directedWorkOperations"
+        }
+      }
+    },
+    "distributionTypes": {
+      "evidence": "http/exchanges/distributionTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/distributionTypes"
+        }
+      }
+    },
+    "dockDoorAreas": {
+      "evidence": "http/exchanges/dockDoorAreas.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/dockDoorAreas"
+        }
+      }
+    },
+    "dockDoors": {
+      "evidence": "http/exchanges/dockDoors.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/dockDoors"
+        }
+      }
+    },
+    "dockSlots": {
+      "evidence": "http/exchanges/dockSlots.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/dockSlots"
+        }
+      }
+    },
+    "dockStagingLocationAssociations": {
+      "evidence": "http/exchanges/dockStagingLocationAssociations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "GET",
+          "url": "/wm/dockStagingLocationAssociations",
+          "userMessage": "Missing argument: Dock Mode (dckmode)"
+        }
+      }
+    },
+    "documentTypes": {
+      "evidence": "http/exchanges/documentTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/documentTypes"
+        }
+      }
+    },
+    "doorsWithAppointments": {
+      "evidence": "http/exchanges/doorsWithAppointments.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/doorsWithAppointments"
+        }
+      }
+    },
+    "doorsWithTrailers": {
+      "evidence": "http/exchanges/doorsWithTrailers.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/doorsWithTrailers"
         }
       }
     },
     "equipmentTypes": {
       "evidence": "http/exchanges/equipmentTypes.jsonl",
-      "exchanges": 13,
+      "exchanges": 14,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -1113,12 +2461,519 @@
           "method": "GET",
           "url": "/wm/equipmentTypes/ZV347737",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/equipmentTypes"
+        }
+      }
+    },
+    "escalationCommand": {
+      "evidence": "http/exchanges/escalationCommand.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/escalationCommand"
+        }
+      }
+    },
+    "exitPoints": {
+      "evidence": "http/exchanges/exitPoints.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/exitPoints"
+        }
+      }
+    },
+    "floorPlan": {
+      "evidence": "http/exchanges/floorPlan.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/floorPlan"
+        }
+      }
+    },
+    "footprints": {
+      "evidence": "http/exchanges/footprints.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/footprints"
+        }
+      }
+    },
+    "generateResourceTypes": {
+      "evidence": "http/exchanges/generateResourceTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/generateResourceTypes"
+        }
+      }
+    },
+    "handlingUnitCategories": {
+      "evidence": "http/exchanges/handlingUnitCategories.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/handlingUnitCategories"
+        }
+      }
+    },
+    "handlingUnitSlots": {
+      "evidence": "http/exchanges/handlingUnitSlots.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/handlingUnitSlots"
+        }
+      }
+    },
+    "handlingUnitTypes": {
+      "evidence": "http/exchanges/handlingUnitTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/handlingUnitTypes"
+        }
+      }
+    },
+    "holdDefinitionNotes": {
+      "evidence": "http/exchanges/holdDefinitionNotes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/holdDefinitionNotes"
+        }
+      }
+    },
+    "holdDefinitions": {
+      "evidence": "http/exchanges/holdDefinitions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/holdDefinitions"
+        }
+      }
+    },
+    "hostSystems": {
+      "evidence": "http/exchanges/hostSystems.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/hostSystems"
+        }
+      }
+    },
+    "hotItemsByLoc": {
+      "evidence": "http/exchanges/hotItemsByLoc.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/hotItemsByLoc"
+        }
+      }
+    },
+    "inboundDockConfigurations": {
+      "evidence": "http/exchanges/inboundDockConfigurations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/inboundDockConfigurations"
+        }
+      }
+    },
+    "inboundOrderTypes": {
+      "evidence": "http/exchanges/inboundOrderTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/inboundOrderTypes"
+        }
+      }
+    },
+    "inboundQualityIssues": {
+      "evidence": "http/exchanges/inboundQualityIssues.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/inboundQualityIssues"
+        }
+      }
+    },
+    "integratorTransactions": {
+      "evidence": "http/exchanges/integratorTransactions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/integratorTransactions"
+        }
+      }
+    },
+    "inventoryConsolidationCriteria": {
+      "evidence": "http/exchanges/inventoryConsolidationCriteria.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/inventoryConsolidationCriteria"
+        }
+      }
+    },
+    "itemClassLevels": {
+      "evidence": "http/exchanges/itemClassLevels.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemClassLevels"
+        }
+      }
+    },
+    "itemClasses": {
+      "evidence": "http/exchanges/itemClasses.jsonl",
+      "exchanges": 4,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemClasses"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/itemClasses"
+        },
+        "cleanup-delete": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/itemClasses/{id}"
+        },
+        "cleanup-confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/itemClasses/{id}",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "itemFamilies": {
+      "evidence": "http/exchanges/itemFamilies.jsonl",
+      "exchanges": 10,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemFamilies"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/itemFamilies"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 409,
+          "kind": "HTTP-409",
+          "method": "POST",
+          "url": "/wm/itemFamilies",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/itemFamilies",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemFamilies/ZV87212"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/itemFamilies/ZV87212"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemFamilies/ZV87212"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/itemFamilies/ZV87212"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/itemFamilies/ZV87212"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/itemFamilies/ZV87212",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "itemFamilyGroups": {
+      "evidence": "http/exchanges/itemFamilyGroups.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemFamilyGroups"
+        }
+      }
+    },
+    "itemFamilySets": {
+      "evidence": "http/exchanges/itemFamilySets.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemFamilySets"
+        }
+      }
+    },
+    "itemHierarchyLevelDescriptions": {
+      "evidence": "http/exchanges/itemHierarchyLevelDescriptions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemHierarchyLevelDescriptions"
+        }
+      }
+    },
+    "itemHierarchyLevels": {
+      "evidence": "http/exchanges/itemHierarchyLevels.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemHierarchyLevels"
+        }
+      }
+    },
+    "itemLotExpirationDateValidation": {
+      "evidence": "http/exchanges/itemLotExpirationDateValidation.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemLotExpirationDateValidation"
+        }
+      }
+    },
+    "itemLots": {
+      "evidence": "http/exchanges/itemLots.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemLots"
+        }
+      }
+    },
+    "itemStyleAttributes": {
+      "evidence": "http/exchanges/itemStyleAttributes.jsonl",
+      "exchanges": 4,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/itemStyleAttributes"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/itemStyleAttributes"
+        },
+        "cleanup-delete": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/itemStyleAttributes/{id}"
+        },
+        "cleanup-confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/itemStyleAttributes/{id}",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "items": {
+      "evidence": "http/exchanges/items.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/items"
+        }
+      }
+    },
+    "jobDefinitions": {
+      "evidence": "http/exchanges/jobDefinitions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/jobDefinitions"
+        }
+      }
+    },
+    "labelFormats": {
+      "evidence": "http/exchanges/labelFormats.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/labelFormats"
         }
       }
     },
     "levelTypes": {
       "evidence": "http/exchanges/levelTypes.jsonl",
-      "exchanges": 13,
+      "exchanges": 14,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -1215,12 +3070,136 @@
           "method": "GET",
           "url": "/wm/levelTypes/000000000000026*!SG",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/levelTypes"
+        }
+      }
+    },
+    "levelWithLevelType": {
+      "evidence": "http/exchanges/levelWithLevelType.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/levelWithLevelType"
+        }
+      }
+    },
+    "lmDiscreteProcedures": {
+      "evidence": "http/exchanges/lmDiscreteProcedures.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/lmDiscreteProcedures"
+        }
+      }
+    },
+    "lmUserFieldOptions": {
+      "evidence": "http/exchanges/lmUserFieldOptions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/lmUserFieldOptions"
+        }
+      }
+    },
+    "lmWorkTypes": {
+      "evidence": "http/exchanges/lmWorkTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/lmWorkTypes"
+        }
+      }
+    },
+    "loadAttributeConfigurations": {
+      "evidence": "http/exchanges/loadAttributeConfigurations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/loadAttributeConfigurations"
+        }
+      }
+    },
+    "locales": {
+      "evidence": "http/exchanges/locales.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locales"
+        }
+      }
+    },
+    "locationAssetCapacitys": {
+      "evidence": "http/exchanges/locationAssetCapacitys.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locationAssetCapacitys"
+        }
+      }
+    },
+    "locationConfigs": {
+      "evidence": "http/exchanges/locationConfigs.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locationConfigs"
+        }
+      }
+    },
+    "locationForProblemInventorys": {
+      "evidence": "http/exchanges/locationForProblemInventorys.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locationForProblemInventorys"
         }
       }
     },
     "locationTypes": {
       "evidence": "http/exchanges/locationTypes.jsonl",
-      "exchanges": 13,
+      "exchanges": 14,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -1317,12 +3296,369 @@
           "method": "GET",
           "url": "/wm/locationTypes/10683",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locationTypes"
+        }
+      }
+    },
+    "locations": {
+      "evidence": "http/exchanges/locations.jsonl",
+      "exchanges": 6,
+      "cases": {
+        "route-exists": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locations"
+        },
+        "read-collection": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locations"
+        },
+        "read-missing": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/locations/ZZDOESNOTEXIST0001",
+          "userMessage": "Bad Request"
+        },
+        "read-batch-route": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "GET",
+          "url": "/wm/locations/batch",
+          "userMessage": "Bad Request"
+        },
+        "count": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locations/count"
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/locations"
+        }
+      }
+    },
+    "lotFormats": {
+      "evidence": "http/exchanges/lotFormats.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/lotFormats"
+        }
+      }
+    },
+    "lpnInventoryMixingRules": {
+      "evidence": "http/exchanges/lpnInventoryMixingRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/lpnInventoryMixingRules"
+        }
+      }
+    },
+    "masterWorkflows": {
+      "evidence": "http/exchanges/masterWorkflows.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/masterWorkflows"
+        }
+      }
+    },
+    "movementPathCriterias": {
+      "evidence": "http/exchanges/movementPathCriterias.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/movementPathCriterias"
+        }
+      }
+    },
+    "movementPathDetails": {
+      "evidence": "http/exchanges/movementPathDetails.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/movementPathDetails"
+        }
+      }
+    },
+    "movementPaths": {
+      "evidence": "http/exchanges/movementPaths.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/movementPaths"
+        }
+      }
+    },
+    "movementRestrictions": {
+      "evidence": "http/exchanges/movementRestrictions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/movementRestrictions"
+        }
+      }
+    },
+    "movementZoneNextMoves": {
+      "evidence": "http/exchanges/movementZoneNextMoves.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/movementZoneNextMoves"
+        }
+      }
+    },
+    "movementZones": {
+      "evidence": "http/exchanges/movementZones.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/movementZones"
+        }
+      }
+    },
+    "movementZonesWithResourceCode": {
+      "evidence": "http/exchanges/movementZonesWithResourceCode.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/movementZonesWithResourceCode"
+        }
+      }
+    },
+    "noteTypeExitPoints": {
+      "evidence": "http/exchanges/noteTypeExitPoints.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/noteTypeExitPoints"
+        }
+      }
+    },
+    "noteTypes": {
+      "evidence": "http/exchanges/noteTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/noteTypes"
+        }
+      }
+    },
+    "orderTypePickDeductions": {
+      "evidence": "http/exchanges/orderTypePickDeductions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/orderTypePickDeductions"
+        }
+      }
+    },
+    "orderTypePickVerifications": {
+      "evidence": "http/exchanges/orderTypePickVerifications.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/orderTypePickVerifications"
+        }
+      }
+    },
+    "orderTypes": {
+      "evidence": "http/exchanges/orderTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/orderTypes"
+        }
+      }
+    },
+    "outboundLoads": {
+      "evidence": "http/exchanges/outboundLoads.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/outboundLoads"
+        }
+      }
+    },
+    "overrideLocationCodes": {
+      "evidence": "http/exchanges/overrideLocationCodes.jsonl",
+      "exchanges": 10,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/overrideLocationCodes"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/overrideLocationCodes"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/overrideLocationCodes",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/overrideLocationCodes",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/overrideLocationCodes/ZV6085"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/overrideLocationCodes/ZV6085"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/overrideLocationCodes/ZV6085"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/overrideLocationCodes/ZV6085"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/overrideLocationCodes/ZV6085"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/overrideLocationCodes/ZV6085",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "packStationFields": {
+      "evidence": "http/exchanges/packStationFields.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/packStationFields"
         }
       }
     },
     "packingConfigurations": {
       "evidence": "http/exchanges/packingConfigurations.jsonl",
-      "exchanges": 6,
+      "exchanges": 7,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -1368,12 +3704,209 @@
           "method": "POST",
           "url": "/wm/packingConfigurations",
           "userMessage": "Bad Request"
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/packingConfigurations"
+        }
+      }
+    },
+    "palletPositions": {
+      "evidence": "http/exchanges/palletPositions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/palletPositions"
+        }
+      }
+    },
+    "parcelPackageCodes": {
+      "evidence": "http/exchanges/parcelPackageCodes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/parcelPackageCodes"
+        }
+      }
+    },
+    "parcelPaymentTerms": {
+      "evidence": "http/exchanges/parcelPaymentTerms.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/parcelPaymentTerms"
+        }
+      }
+    },
+    "parcelUserField": {
+      "evidence": "http/exchanges/parcelUserField.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/parcelUserField"
+        }
+      }
+    },
+    "paymentTerms": {
+      "evidence": "http/exchanges/paymentTerms.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/paymentTerms"
+        }
+      }
+    },
+    "pickMethods": {
+      "evidence": "http/exchanges/pickMethods.jsonl",
+      "exchanges": 3,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/pickMethods"
+        },
+        "create-valid": {
+          "observations": 2,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/pickMethods",
+          "userMessage": "Missing argument: Warehouse ID (wh_id)"
+        }
+      }
+    },
+    "pickPreValidationSchemes": {
+      "evidence": "http/exchanges/pickPreValidationSchemes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/pickPreValidationSchemes"
+        }
+      }
+    },
+    "pickReleaseRules": {
+      "evidence": "http/exchanges/pickReleaseRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/pickReleaseRules"
+        }
+      }
+    },
+    "pickZonePickDeductions": {
+      "evidence": "http/exchanges/pickZonePickDeductions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/pickZonePickDeductions"
+        }
+      }
+    },
+    "pickingSummary": {
+      "evidence": "http/exchanges/pickingSummary.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/pickingSummary"
+        }
+      }
+    },
+    "pickingVerifications": {
+      "evidence": "http/exchanges/pickingVerifications.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/pickingVerifications"
+        }
+      }
+    },
+    "pndLocations": {
+      "evidence": "http/exchanges/pndLocations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/pndLocations"
+        }
+      }
+    },
+    "policies": {
+      "evidence": "http/exchanges/policies.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/policies"
+        }
+      }
+    },
+    "postalCodes": {
+      "evidence": "http/exchanges/postalCodes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/postalCodes"
         }
       }
     },
     "printers": {
       "evidence": "http/exchanges/printers.jsonl",
-      "exchanges": 12,
+      "exchanges": 13,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -1462,12 +3995,680 @@
           "method": "GET",
           "url": "/wm/printers/ZV269737*!SG",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/printers"
+        }
+      }
+    },
+    "problemInventoryLocations": {
+      "evidence": "http/exchanges/problemInventoryLocations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/problemInventoryLocations"
+        }
+      }
+    },
+    "processingFieldsForPackout": {
+      "evidence": "http/exchanges/processingFieldsForPackout.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/processingFieldsForPackout"
+        }
+      }
+    },
+    "productionLines": {
+      "evidence": "http/exchanges/productionLines.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/productionLines"
+        }
+      }
+    },
+    "progressions": {
+      "evidence": "http/exchanges/progressions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/progressions"
+        }
+      }
+    },
+    "reasonCodes": {
+      "evidence": "http/exchanges/reasonCodes.jsonl",
+      "exchanges": 7,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/reasonCodes"
+        },
+        "create-valid": {
+          "observations": 3,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/reasonCodes",
+          "userMessage": "Missing argument: Reason Group (reagrp)"
+        },
+        "create-valid-full-model": {
+          "observations": 3,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/reasonCodes",
+          "userMessage": "Missing argument: Reason Group (reagrp)"
+        }
+      }
+    },
+    "reasonGroups": {
+      "evidence": "http/exchanges/reasonGroups.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/reasonGroups"
+        }
+      }
+    },
+    "receivableInboundOrderStatuses": {
+      "evidence": "http/exchanges/receivableInboundOrderStatuses.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/receivableInboundOrderStatuses"
+        }
+      }
+    },
+    "receivingHistoryConfiguration": {
+      "evidence": "http/exchanges/receivingHistoryConfiguration.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/receivingHistoryConfiguration"
+        }
+      }
+    },
+    "receivingPalletBuildRules": {
+      "evidence": "http/exchanges/receivingPalletBuildRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/receivingPalletBuildRules"
+        }
+      }
+    },
+    "releaseRules": {
+      "evidence": "http/exchanges/releaseRules.jsonl",
+      "exchanges": 3,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/releaseRules"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/releaseRules",
+          "userMessage": "Missing argument: Warehouse ID (wh_id)"
+        },
+        "create-valid-full-model": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/releaseRules",
+          "userMessage": "Missing argument: Warehouse ID (wh_id)"
+        }
+      }
+    },
+    "replenishmentConfigurations": {
+      "evidence": "http/exchanges/replenishmentConfigurations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/replenishmentConfigurations"
+        }
+      }
+    },
+    "reprocessableTransactions": {
+      "evidence": "http/exchanges/reprocessableTransactions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/reprocessableTransactions"
+        }
+      }
+    },
+    "resourceTypeCommands": {
+      "evidence": "http/exchanges/resourceTypeCommands.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/resourceTypeCommands"
+        }
+      }
+    },
+    "rfForms": {
+      "evidence": "http/exchanges/rfForms.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rfForms"
+        }
+      }
+    },
+    "rfOutboundAuditClientMaxuom": {
+      "evidence": "http/exchanges/rfOutboundAuditClientMaxuom.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rfOutboundAuditClientMaxuom"
+        }
+      }
+    },
+    "rfOutboundAuditConfig": {
+      "evidence": "http/exchanges/rfOutboundAuditConfig.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rfOutboundAuditConfig"
+        }
+      }
+    },
+    "rfOutboundAuditError": {
+      "evidence": "http/exchanges/rfOutboundAuditError.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rfOutboundAuditError"
+        }
+      }
+    },
+    "rfOutboundAuditMovementZone": {
+      "evidence": "http/exchanges/rfOutboundAuditMovementZone.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rfOutboundAuditMovementZone"
+        }
+      }
+    },
+    "rfSummaryDisplayConfig": {
+      "evidence": "http/exchanges/rfSummaryDisplayConfig.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rfSummaryDisplayConfig"
+        }
+      }
+    },
+    "rfVendors": {
+      "evidence": "http/exchanges/rfVendors.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rfVendors"
+        }
+      }
+    },
+    "rolePickDeductions": {
+      "evidence": "http/exchanges/rolePickDeductions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rolePickDeductions"
+        }
+      }
+    },
+    "rolePickVerifications": {
+      "evidence": "http/exchanges/rolePickVerifications.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rolePickVerifications"
+        }
+      }
+    },
+    "routes": {
+      "evidence": "http/exchanges/routes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/routes"
+        }
+      }
+    },
+    "ruleParameters": {
+      "evidence": "http/exchanges/ruleParameters.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/ruleParameters"
+        }
+      }
+    },
+    "rules": {
+      "evidence": "http/exchanges/rules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/rules"
+        }
+      }
+    },
+    "serialNumberTypes": {
+      "evidence": "http/exchanges/serialNumberTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/serialNumberTypes"
+        }
+      }
+    },
+    "serializedHandlingUnits": {
+      "evidence": "http/exchanges/serializedHandlingUnits.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/serializedHandlingUnits"
+        }
+      }
+    },
+    "shipmentStatusChangeNotifications": {
+      "evidence": "http/exchanges/shipmentStatusChangeNotifications.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/shipmentStatusChangeNotifications"
+        }
+      }
+    },
+    "shipments": {
+      "evidence": "http/exchanges/shipments.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/shipments"
+        }
+      }
+    },
+    "shipperRules": {
+      "evidence": "http/exchanges/shipperRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/shipperRules"
+        }
+      }
+    },
+    "shippingProgressCase": {
+      "evidence": "http/exchanges/shippingProgressCase.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "GET",
+          "url": "/wm/shippingProgressCase",
+          "userMessage": "Missing argument: ^argdsc^ (start_date_time)"
+        }
+      }
+    },
+    "shippingProgressEach": {
+      "evidence": "http/exchanges/shippingProgressEach.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "GET",
+          "url": "/wm/shippingProgressEach",
+          "userMessage": "Missing argument: ^argdsc^ (start_date_time)"
+        }
+      }
+    },
+    "shippingProgressLoads": {
+      "evidence": "http/exchanges/shippingProgressLoads.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "GET",
+          "url": "/wm/shippingProgressLoads",
+          "userMessage": "Missing argument: ^argdsc^ (start_date_time)"
+        }
+      }
+    },
+    "shippingProgressPallet": {
+      "evidence": "http/exchanges/shippingProgressPallet.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "GET",
+          "url": "/wm/shippingProgressPallet",
+          "userMessage": "Missing argument: ^argdsc^ (start_date_time)"
+        }
+      }
+    },
+    "shippingProgressShipments": {
+      "evidence": "http/exchanges/shippingProgressShipments.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "GET",
+          "url": "/wm/shippingProgressShipments",
+          "userMessage": "Missing argument: ^argdsc^ (start_date_time)"
+        }
+      }
+    },
+    "shorts": {
+      "evidence": "http/exchanges/shorts.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/shorts"
+        }
+      }
+    },
+    "stackMethods": {
+      "evidence": "http/exchanges/stackMethods.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/stackMethods"
+        }
+      }
+    },
+    "storageConfigurationRules": {
+      "evidence": "http/exchanges/storageConfigurationRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/storageConfigurationRules"
+        }
+      }
+    },
+    "storageConfigurations": {
+      "evidence": "http/exchanges/storageConfigurations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/storageConfigurations"
+        }
+      }
+    },
+    "storageSuffixes": {
+      "evidence": "http/exchanges/storageSuffixes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/storageSuffixes"
+        }
+      }
+    },
+    "storageTemplateHeaders": {
+      "evidence": "http/exchanges/storageTemplateHeaders.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/storageTemplateHeaders"
+        }
+      }
+    },
+    "storageUoms": {
+      "evidence": "http/exchanges/storageUoms.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/storageUoms"
+        }
+      }
+    },
+    "storageZoneInventoryMixingRules": {
+      "evidence": "http/exchanges/storageZoneInventoryMixingRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/storageZoneInventoryMixingRules"
+        }
+      }
+    },
+    "storageZones": {
+      "evidence": "http/exchanges/storageZones.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/storageZones"
+        }
+      }
+    },
+    "structuredInventory": {
+      "evidence": "http/exchanges/structuredInventory.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/structuredInventory"
+        }
+      }
+    },
+    "supplierConsignments": {
+      "evidence": "http/exchanges/supplierConsignments.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/supplierConsignments"
+        }
+      }
+    },
+    "supplierFootprints": {
+      "evidence": "http/exchanges/supplierFootprints.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/supplierFootprints"
+        }
+      }
+    },
+    "supplierItems": {
+      "evidence": "http/exchanges/supplierItems.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/supplierItems"
         }
       }
     },
     "suppliers": {
       "evidence": "http/exchanges/suppliers.jsonl",
-      "exchanges": 12,
+      "exchanges": 13,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -1556,6 +4757,66 @@
           "method": "GET",
           "url": "/wm/suppliers/----*!ZV021231",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/suppliers"
+        }
+      }
+    },
+    "tableColumns": {
+      "evidence": "http/exchanges/tableColumns.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "GET",
+          "url": "/wm/tableColumns",
+          "userMessage": "Command ^verb^ ^noun^: Arg ^argname^ is required"
+        }
+      }
+    },
+    "tablesForPalletBuildCriteria": {
+      "evidence": "http/exchanges/tablesForPalletBuildCriteria.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/tablesForPalletBuildCriteria"
+        }
+      }
+    },
+    "trailers": {
+      "evidence": "http/exchanges/trailers.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/trailers"
+        }
+      }
+    },
+    "transportEquipmentTypeAccesses": {
+      "evidence": "http/exchanges/transportEquipmentTypeAccesses.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/transportEquipmentTypeAccesses"
         }
       }
     },
@@ -1615,7 +4876,7 @@
     },
     "transportModes": {
       "evidence": "http/exchanges/transportModes.jsonl",
-      "exchanges": 13,
+      "exchanges": 14,
       "cases": {
         "route-exists": {
           "observations": 1,
@@ -1712,11 +4973,745 @@
           "method": "GET",
           "url": "/wm/transportModes/ZV1",
           "userMessage": "The requested web resource was not found."
+        },
+        "read-shape": {
+          "observations": 1,
+          "status": 500,
+          "kind": "HTTP-500",
+          "method": "GET",
+          "url": "/wm/transportModes",
+          "userMessage": "Server error."
+        }
+      }
+    },
+    "uDIAConfigs": {
+      "evidence": "http/exchanges/uDIAConfigs.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/uDIAConfigs"
+        }
+      }
+    },
+    "uDIAFlagConfigs": {
+      "evidence": "http/exchanges/uDIAFlagConfigs.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/uDIAFlagConfigs"
+        }
+      }
+    },
+    "uoms": {
+      "evidence": "http/exchanges/uoms.jsonl",
+      "exchanges": 3,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/uoms"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/uoms",
+          "userMessage": "Missing argument: Column (colnam)"
+        },
+        "create-valid-full-model": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/uoms",
+          "userMessage": "Missing argument: Column (colnam)"
+        }
+      }
+    },
+    "userOperations": {
+      "evidence": "http/exchanges/userOperations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/userOperations"
+        }
+      }
+    },
+    "voiceAssignmentSummaryConfigs": {
+      "evidence": "http/exchanges/voiceAssignmentSummaryConfigs.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/voiceAssignmentSummaryConfigs"
+        }
+      }
+    },
+    "voiceRegions": {
+      "evidence": "http/exchanges/voiceRegions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/voiceRegions"
+        }
+      }
+    },
+    "warehouseControlSystems": {
+      "evidence": "http/exchanges/warehouseControlSystems.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouseControlSystems"
+        }
+      }
+    },
+    "warehouseEquipmentAccesses": {
+      "evidence": "http/exchanges/warehouseEquipmentAccesses.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouseEquipmentAccesses"
+        }
+      }
+    },
+    "warehouseInventoryMixingRules": {
+      "evidence": "http/exchanges/warehouseInventoryMixingRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouseInventoryMixingRules"
+        }
+      }
+    },
+    "warehouseLabelFormats": {
+      "evidence": "http/exchanges/warehouseLabelFormats.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouseLabelFormats"
+        }
+      }
+    },
+    "warehouseTransportModes": {
+      "evidence": "http/exchanges/warehouseTransportModes.jsonl",
+      "exchanges": 3,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouseTransportModes"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/warehouseTransportModes",
+          "userMessage": "Missing argument: Warehouse ID (wh_id)"
+        },
+        "create-valid-full-model": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/warehouseTransportModes",
+          "userMessage": "Missing argument: Warehouse ID (wh_id)"
+        }
+      }
+    },
+    "warehouseUoms": {
+      "evidence": "http/exchanges/warehouseUoms.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouseUoms"
+        }
+      }
+    },
+    "warehouseWorkflows": {
+      "evidence": "http/exchanges/warehouseWorkflows.jsonl",
+      "exchanges": 19,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouseWorkflows"
+        },
+        "create-valid": {
+          "observations": 2,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/warehouseWorkflows"
+        },
+        "create-duplicate": {
+          "observations": 2,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/warehouseWorkflows",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 2,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/warehouseWorkflows",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouseWorkflows/SG*!CAPTURE-TRLR-TEMP"
+        },
+        "update-valid": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/warehouseWorkflows/SG*!CAPTURE-TRLR-TEMP"
+        },
+        "read-updated": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouseWorkflows/SG*!CAPTURE-TRLR-TEMP"
+        },
+        "delete-valid": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/warehouseWorkflows/SG*!CAPTURE-TRLR-TEMP"
+        },
+        "delete-again": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/warehouseWorkflows/SG*!CAPTURE-TRLR-TEMP"
+        },
+        "confirm-gone": {
+          "observations": 2,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/warehouseWorkflows/SG*!CAPTURE-TRLR-TEMP",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "warehouses": {
+      "evidence": "http/exchanges/warehouses.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/warehouses"
+        }
+      }
+    },
+    "waveRules": {
+      "evidence": "http/exchanges/waveRules.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/waveRules"
+        }
+      }
+    },
+    "wcsEvents": {
+      "evidence": "http/exchanges/wcsEvents.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/wcsEvents"
+        }
+      }
+    },
+    "workAreaMove": {
+      "evidence": "http/exchanges/workAreaMove.jsonl",
+      "exchanges": 2,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workAreaMove"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/workAreaMove",
+          "userMessage": "Missing argument: Warehouse ID (wh_id)"
+        }
+      }
+    },
+    "workAreas": {
+      "evidence": "http/exchanges/workAreas.jsonl",
+      "exchanges": 10,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workAreas"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/workAreas"
+        },
+        "create-duplicate": {
+          "observations": 1,
+          "status": 422,
+          "kind": "HTTP-422",
+          "method": "POST",
+          "url": "/wm/workAreas",
+          "userMessage": "Record already exists."
+        },
+        "create-empty": {
+          "observations": 1,
+          "status": 400,
+          "kind": "HTTP-400",
+          "method": "POST",
+          "url": "/wm/workAreas",
+          "userMessage": "Bad Request"
+        },
+        "read-created": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workAreas/SG*!ZV98223"
+        },
+        "update-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "PUT",
+          "url": "/wm/workAreas/SG*!ZV98223"
+        },
+        "read-updated": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workAreas/SG*!ZV98223"
+        },
+        "delete-valid": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/workAreas/SG*!ZV98223"
+        },
+        "delete-again": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/workAreas/SG*!ZV98223"
+        },
+        "confirm-gone": {
+          "observations": 1,
+          "status": 404,
+          "kind": "RECORD-MISSING",
+          "method": "GET",
+          "url": "/wm/workAreas/SG*!ZV98223",
+          "userMessage": "The requested web resource was not found."
+        }
+      }
+    },
+    "workAssignmentRuleExceptions": {
+      "evidence": "http/exchanges/workAssignmentRuleExceptions.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workAssignmentRuleExceptions"
+        }
+      }
+    },
+    "workListGroupCriteria": {
+      "evidence": "http/exchanges/workListGroupCriteria.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workListGroupCriteria"
+        }
+      }
+    },
+    "workOperations": {
+      "evidence": "http/exchanges/workOperations.jsonl",
+      "exchanges": 6,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workOperations"
+        },
+        "create-valid": {
+          "observations": 1,
+          "status": 201,
+          "kind": "OK",
+          "method": "POST",
+          "url": "/wm/workOperations"
+        },
+        "cleanup-delete": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "DELETE",
+          "url": "/wm/workOperations/{id}"
+        },
+        "cleanup-confirm-gone": {
+          "observations": 2,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workOperations/{id}"
+        }
+      }
+    },
+    "workOrderTypes": {
+      "evidence": "http/exchanges/workOrderTypes.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workOrderTypes"
+        }
+      }
+    },
+    "workflowSamplingConfigurations": {
+      "evidence": "http/exchanges/workflowSamplingConfigurations.jsonl",
+      "exchanges": 1,
+      "cases": {
+        "read-shape": {
+          "observations": 1,
+          "status": 200,
+          "kind": "OK",
+          "method": "GET",
+          "url": "/wm/workflowSamplingConfigurations"
         }
       }
     }
   },
   "by_case": {
+    "read-shape": {
+      "activityCodes": "200",
+      "addresses": "200",
+      "agingProfiles": "200",
+      "aisleStagingLocationAssociations": "422/HTTP-422",
+      "aisles": "200",
+      "allocationHandlingUnitGroups": "200",
+      "allocationSearchGroups": "200",
+      "allocationSearchPathCriteria": "200",
+      "allocationSearchPathRules": "200",
+      "allocationSearchPaths": "200",
+      "appointments": "200",
+      "areas": "200",
+      "autoAllocationMethods": "200",
+      "autoAllocationValues": "200",
+      "autoStagingMovementZones": "200",
+      "availableAutoStagingMovementZones": "200",
+      "availableInventoryMixingRules": "200",
+      "availablePickCartonizationCriteria": "200",
+      "availablePickDeductionSequences": "200",
+      "availableTransactionGroupingAttributes": "200",
+      "availableWorkListGroupCriterias": "200",
+      "billOfMaterials": "200",
+      "billingFilters": "200",
+      "breakStopSequenceCodeses": "200",
+      "buildingInventoryMixingRules": "200",
+      "buildings": "200",
+      "bundleRules": "200",
+      "businessUnits": "200",
+      "calendarExceptionDays": "200",
+      "cancelCodes": "200",
+      "carrierCrossReferences": "200",
+      "carrierDetails": "200",
+      "carrierMatrices": "200",
+      "carrierProNumbers": "200",
+      "carrierServiceLevels": "200",
+      "carriers": "200",
+      "cartonRouteGroupCriteria": "200",
+      "catchQuantityConfigs": "200",
+      "categoryCounts": "200",
+      "clientCountTypes": "200",
+      "clientInventoryIdentifierSummary": "200",
+      "clientWarehouse": "200",
+      "clients": "200",
+      "codes": "200",
+      "columnEntities": "422/HTTP-422",
+      "combinedPickingPolicies": "200",
+      "commandConfigurationArguments": "200",
+      "commandConfigurations": "200",
+      "commodities": "200",
+      "consolidationRules": "200",
+      "countTypes": "200",
+      "countUnitOfMeasures": "200",
+      "countZones": "200",
+      "customerDistributionSettings": "200",
+      "customerDistributionStagingLocations": "200",
+      "customerDistributionStorageRules": "200",
+      "customerTypes": "200",
+      "customers": "200",
+      "customsConsignments": "200",
+      "customsItemTypes": "200",
+      "customsOrderTypeRules": "200",
+      "customsOrderTypes": "200",
+      "cycleCountABCConfig": "200",
+      "cycleCountInventoryIdentifier": "200",
+      "cycleCountPromptConfig": "200",
+      "dataProtectionConfigs": "200",
+      "deviceClassFunctionDetails": "200",
+      "deviceClassFunctions": "200",
+      "devices": "200",
+      "directedWorkOperations": "200",
+      "distributionTypes": "200",
+      "dockDoorAreas": "200",
+      "dockDoors": "200",
+      "dockSlots": "200",
+      "dockStagingLocationAssociations": "422/HTTP-422",
+      "documentTypes": "200",
+      "doorsWithAppointments": "200",
+      "doorsWithTrailers": "200",
+      "equipmentTypes": "200",
+      "escalationCommand": "200",
+      "exitPoints": "200",
+      "floorPlan": "200",
+      "footprints": "200",
+      "generateResourceTypes": "200",
+      "handlingUnitCategories": "200",
+      "handlingUnitSlots": "200",
+      "handlingUnitTypes": "200",
+      "holdDefinitionNotes": "200",
+      "holdDefinitions": "200",
+      "hostSystems": "200",
+      "hotItemsByLoc": "200",
+      "inboundDockConfigurations": "200",
+      "inboundOrderTypes": "200",
+      "inboundQualityIssues": "200",
+      "integratorTransactions": "200",
+      "inventoryConsolidationCriteria": "200",
+      "itemClassLevels": "200",
+      "itemClasses": "200",
+      "itemFamilies": "200",
+      "itemFamilyGroups": "200",
+      "itemFamilySets": "200",
+      "itemHierarchyLevelDescriptions": "200",
+      "itemHierarchyLevels": "200",
+      "itemLotExpirationDateValidation": "200",
+      "itemLots": "200",
+      "itemStyleAttributes": "200",
+      "items": "200",
+      "jobDefinitions": "200",
+      "labelFormats": "200",
+      "levelTypes": "200",
+      "levelWithLevelType": "200",
+      "lmDiscreteProcedures": "200",
+      "lmUserFieldOptions": "200",
+      "lmWorkTypes": "200",
+      "loadAttributeConfigurations": "200",
+      "locales": "200",
+      "locationAssetCapacitys": "200",
+      "locationConfigs": "200",
+      "locationForProblemInventorys": "200",
+      "locationTypes": "200",
+      "locations": "200",
+      "lotFormats": "200",
+      "lpnInventoryMixingRules": "200",
+      "masterWorkflows": "200",
+      "movementPathCriterias": "200",
+      "movementPathDetails": "200",
+      "movementPaths": "200",
+      "movementRestrictions": "200",
+      "movementZoneNextMoves": "200",
+      "movementZones": "200",
+      "movementZonesWithResourceCode": "200",
+      "noteTypeExitPoints": "200",
+      "noteTypes": "200",
+      "orderTypePickDeductions": "200",
+      "orderTypePickVerifications": "200",
+      "orderTypes": "200",
+      "outboundLoads": "200",
+      "overrideLocationCodes": "200",
+      "packStationFields": "200",
+      "packingConfigurations": "200",
+      "palletPositions": "200",
+      "parcelPackageCodes": "200",
+      "parcelPaymentTerms": "200",
+      "parcelUserField": "200",
+      "paymentTerms": "200",
+      "pickMethods": "200",
+      "pickPreValidationSchemes": "200",
+      "pickReleaseRules": "200",
+      "pickZonePickDeductions": "200",
+      "pickingSummary": "200",
+      "pickingVerifications": "200",
+      "pndLocations": "200",
+      "policies": "200",
+      "postalCodes": "200",
+      "printers": "200",
+      "problemInventoryLocations": "200",
+      "processingFieldsForPackout": "200",
+      "productionLines": "200",
+      "progressions": "200",
+      "reasonCodes": "200",
+      "reasonGroups": "200",
+      "receivableInboundOrderStatuses": "200",
+      "receivingHistoryConfiguration": "200",
+      "receivingPalletBuildRules": "200",
+      "releaseRules": "200",
+      "replenishmentConfigurations": "200",
+      "reprocessableTransactions": "200",
+      "resourceTypeCommands": "200",
+      "rfForms": "200",
+      "rfOutboundAuditClientMaxuom": "200",
+      "rfOutboundAuditConfig": "200",
+      "rfOutboundAuditError": "200",
+      "rfOutboundAuditMovementZone": "200",
+      "rfSummaryDisplayConfig": "200",
+      "rfVendors": "200",
+      "rolePickDeductions": "200",
+      "rolePickVerifications": "200",
+      "routes": "200",
+      "ruleParameters": "200",
+      "rules": "200",
+      "serialNumberTypes": "200",
+      "serializedHandlingUnits": "200",
+      "shipmentStatusChangeNotifications": "200",
+      "shipments": "200",
+      "shipperRules": "200",
+      "shippingProgressCase": "422/HTTP-422",
+      "shippingProgressEach": "422/HTTP-422",
+      "shippingProgressLoads": "422/HTTP-422",
+      "shippingProgressPallet": "422/HTTP-422",
+      "shippingProgressShipments": "422/HTTP-422",
+      "shorts": "200",
+      "stackMethods": "200",
+      "storageConfigurationRules": "200",
+      "storageConfigurations": "200",
+      "storageSuffixes": "200",
+      "storageTemplateHeaders": "200",
+      "storageUoms": "200",
+      "storageZoneInventoryMixingRules": "200",
+      "storageZones": "200",
+      "structuredInventory": "200",
+      "supplierConsignments": "200",
+      "supplierFootprints": "200",
+      "supplierItems": "200",
+      "suppliers": "200",
+      "tableColumns": "422/HTTP-422",
+      "tablesForPalletBuildCriteria": "200",
+      "trailers": "200",
+      "transportEquipmentTypeAccesses": "200",
+      "transportModes": "500/HTTP-500",
+      "uDIAConfigs": "200",
+      "uDIAFlagConfigs": "200",
+      "uoms": "200",
+      "userOperations": "200",
+      "voiceAssignmentSummaryConfigs": "200",
+      "voiceRegions": "200",
+      "warehouseControlSystems": "200",
+      "warehouseEquipmentAccesses": "200",
+      "warehouseInventoryMixingRules": "200",
+      "warehouseLabelFormats": "200",
+      "warehouseTransportModes": "200",
+      "warehouseUoms": "200",
+      "warehouseWorkflows": "200",
+      "warehouses": "200",
+      "waveRules": "200",
+      "wcsEvents": "200",
+      "workAreaMove": "200",
+      "workAreas": "200",
+      "workAssignmentRuleExceptions": "200",
+      "workListGroupCriteria": "200",
+      "workOperations": "200",
+      "workOrderTypes": "200",
+      "workflowSamplingConfigurations": "200"
+    },
     "route-exists": {
       "addresses": "200",
       "businessUnits": "200",
@@ -1726,12 +5721,14 @@
       "clientGroups": "200",
       "clientWarehouse": "200",
       "clients": "200",
+      "codes": "200",
       "customerTypes": "200",
       "customers": "200",
       "devices": "200",
       "equipmentTypes": "200",
       "levelTypes": "200",
       "locationTypes": "200",
+      "locations": "200",
       "packingConfigurations": "200",
       "printers": "200",
       "suppliers": "200",
@@ -1747,12 +5744,14 @@
       "clientGroups": "200",
       "clientWarehouse": "200",
       "clients": "200",
+      "codes": "200",
       "customerTypes": "200",
       "customers": "200",
       "devices": "200",
       "equipmentTypes": "200",
       "levelTypes": "200",
       "locationTypes": "200",
+      "locations": "200",
       "packingConfigurations": "200",
       "printers": "200",
       "suppliers": "200",
@@ -1768,12 +5767,14 @@
       "clientGroups": "404/RECORD-MISSING",
       "clientWarehouse": "400/HTTP-400",
       "clients": "404/RECORD-MISSING",
+      "codes": "400/HTTP-400",
       "customerTypes": "404/RECORD-MISSING",
       "customers": "400/HTTP-400",
       "devices": "400/HTTP-400",
       "equipmentTypes": "404/RECORD-MISSING",
       "levelTypes": "400/HTTP-400",
       "locationTypes": "400/HTTP-400",
+      "locations": "400/HTTP-400",
       "packingConfigurations": "400/HTTP-400",
       "printers": "400/HTTP-400",
       "suppliers": "400/HTTP-400",
@@ -1782,6 +5783,7 @@
     },
     "create-valid": {
       "addresses": "201",
+      "areas": "201",
       "businessUnits": "201",
       "carrierCrossReferences": "201",
       "carrierProNumbers": "201",
@@ -1789,20 +5791,37 @@
       "clientGroups": "201",
       "clientWarehouse": "201",
       "clients": "201",
+      "codes": "201",
+      "commodities": "201",
+      "countTypes": "422/HTTP-422",
       "customerTypes": "201",
       "customers": "201",
       "devices": "201",
       "equipmentTypes": "201",
+      "itemClasses": "201",
+      "itemFamilies": "201",
+      "itemStyleAttributes": "201",
       "levelTypes": "201",
       "locationTypes": "201",
+      "overrideLocationCodes": "201",
       "packingConfigurations": "201",
+      "pickMethods": "422/HTTP-422",
       "printers": "201",
+      "reasonCodes": "422/HTTP-422",
+      "releaseRules": "422/HTTP-422",
       "suppliers": "201",
       "transportEquipmentTypes": "404/ROUTE-MISSING",
-      "transportModes": "201"
+      "transportModes": "201",
+      "uoms": "422/HTTP-422",
+      "warehouseTransportModes": "422/HTTP-422",
+      "warehouseWorkflows": "201",
+      "workAreaMove": "422/HTTP-422",
+      "workAreas": "201",
+      "workOperations": "201"
     },
     "create-duplicate": {
       "addresses": "201",
+      "areas": "422/HTTP-422",
       "businessUnits": "409/HTTP-409",
       "carrierCrossReferences": "409/HTTP-409",
       "carrierProNumbers": "422/HTTP-422",
@@ -1810,20 +5829,28 @@
       "clientGroups": "409/HTTP-409",
       "clientWarehouse": "409/HTTP-409",
       "clients": "422/HTTP-422",
+      "codes": "409/HTTP-409",
+      "commodities": "422/HTTP-422",
+      "countTypes": "422/HTTP-422",
       "customerTypes": "422/HTTP-422",
       "customers": "409/HTTP-409",
       "devices": "409/HTTP-409",
       "equipmentTypes": "409/HTTP-409",
+      "itemFamilies": "409/HTTP-409",
       "levelTypes": "409/HTTP-409",
       "locationTypes": "409/HTTP-409",
+      "overrideLocationCodes": "422/HTTP-422",
       "packingConfigurations": "409/HTTP-409",
       "printers": "409/HTTP-409",
       "suppliers": "409/HTTP-409",
       "transportEquipmentTypes": "404/ROUTE-MISSING",
-      "transportModes": "409/HTTP-409"
+      "transportModes": "409/HTTP-409",
+      "warehouseWorkflows": "422/HTTP-422",
+      "workAreas": "422/HTTP-422"
     },
     "create-empty": {
       "addresses": "400/HTTP-400",
+      "areas": "400/HTTP-400",
       "businessUnits": "400/HTTP-400",
       "carrierCrossReferences": "400/HTTP-400",
       "carrierProNumbers": "400/HTTP-400",
@@ -1831,20 +5858,28 @@
       "clientGroups": "400/HTTP-400",
       "clientWarehouse": "400/HTTP-400",
       "clients": "400/HTTP-400",
+      "codes": "400/HTTP-400",
+      "commodities": "400/HTTP-400",
+      "countTypes": "400/HTTP-400",
       "customerTypes": "400/HTTP-400",
       "customers": "400/HTTP-400",
       "devices": "400/HTTP-400",
       "equipmentTypes": "400/HTTP-400",
+      "itemFamilies": "400/HTTP-400",
       "levelTypes": "400/HTTP-400",
       "locationTypes": "400/HTTP-400",
+      "overrideLocationCodes": "400/HTTP-400",
       "packingConfigurations": "400/HTTP-400",
       "printers": "400/HTTP-400",
       "suppliers": "400/HTTP-400",
       "transportEquipmentTypes": "404/ROUTE-MISSING",
-      "transportModes": "400/HTTP-400"
+      "transportModes": "400/HTTP-400",
+      "warehouseWorkflows": "400/HTTP-400",
+      "workAreas": "400/HTTP-400"
     },
     "read-created": {
       "addresses": "200",
+      "areas": "200",
       "businessUnits": "200",
       "carrierCrossReferences": "200",
       "carrierProNumbers": "200",
@@ -1852,51 +5887,75 @@
       "clientGroups": "200",
       "clientWarehouse": "200",
       "clients": "404/RECORD-MISSING",
+      "codes": "200",
+      "commodities": "200",
+      "countTypes": "200",
       "customerTypes": "200",
       "devices": "200",
       "equipmentTypes": "200",
+      "itemFamilies": "200",
       "levelTypes": "200",
       "locationTypes": "200",
+      "overrideLocationCodes": "200",
       "printers": "200",
       "suppliers": "200",
-      "transportModes": "200"
+      "transportModes": "200",
+      "warehouseWorkflows": "200",
+      "workAreas": "200"
     },
     "update-valid": {
       "addresses": "200",
+      "areas": "200",
       "businessUnits": "200",
       "carrierCrossReferences": "200",
       "carrierProNumbers": "200",
       "carriers": "200",
       "clientGroups": "200",
       "clientWarehouse": "200",
+      "codes": "200",
+      "commodities": "200",
+      "countTypes": "200",
       "customerTypes": "200",
       "devices": "200",
       "equipmentTypes": "200",
+      "itemFamilies": "200",
       "levelTypes": "200",
       "locationTypes": "200",
+      "overrideLocationCodes": "200",
       "printers": "200",
       "suppliers": "200",
-      "transportModes": "200"
+      "transportModes": "200",
+      "warehouseWorkflows": "200",
+      "workAreas": "200"
     },
     "read-updated": {
       "addresses": "200",
+      "areas": "200",
       "businessUnits": "200",
       "carrierCrossReferences": "200",
       "carrierProNumbers": "200",
       "carriers": "200",
       "clientGroups": "200",
       "clientWarehouse": "200",
+      "codes": "200",
+      "commodities": "200",
+      "countTypes": "200",
       "customerTypes": "200",
       "devices": "200",
       "equipmentTypes": "200",
+      "itemFamilies": "200",
       "levelTypes": "200",
       "locationTypes": "200",
+      "overrideLocationCodes": "200",
       "printers": "200",
       "suppliers": "200",
-      "transportModes": "200"
+      "transportModes": "200",
+      "warehouseWorkflows": "200",
+      "workAreas": "200"
     },
     "delete-valid": {
       "addresses": "200",
+      "areas": "200",
       "businessUnits": "200",
       "carrierCrossReferences": "200",
       "carrierProNumbers": "200",
@@ -1904,17 +5963,25 @@
       "clientGroups": "200",
       "clientWarehouse": "200",
       "clients": "200",
+      "codes": "200",
+      "commodities": "200",
+      "countTypes": "200",
       "customerTypes": "200",
       "devices": "200",
       "equipmentTypes": "200",
+      "itemFamilies": "200",
       "levelTypes": "200",
       "locationTypes": "200",
+      "overrideLocationCodes": "200",
       "printers": "200",
       "suppliers": "200",
-      "transportModes": "200"
+      "transportModes": "200",
+      "warehouseWorkflows": "200",
+      "workAreas": "200"
     },
     "delete-again": {
       "addresses": "200",
+      "areas": "200",
       "businessUnits": "200",
       "carrierCrossReferences": "200",
       "carrierProNumbers": "200",
@@ -1922,17 +5989,25 @@
       "clientGroups": "200",
       "clientWarehouse": "422/HTTP-422",
       "clients": "404/RECORD-MISSING",
+      "codes": "200",
+      "commodities": "200",
+      "countTypes": "200",
       "customerTypes": "200",
       "devices": "200",
       "equipmentTypes": "200",
+      "itemFamilies": "200",
       "levelTypes": "200",
       "locationTypes": "200",
+      "overrideLocationCodes": "200",
       "printers": "200",
       "suppliers": "200",
-      "transportModes": "200"
+      "transportModes": "200",
+      "warehouseWorkflows": "200",
+      "workAreas": "200"
     },
     "confirm-gone": {
       "addresses": "404/RECORD-MISSING",
+      "areas": "404/RECORD-MISSING",
       "businessUnits": "404/RECORD-MISSING",
       "carrierCrossReferences": "404/RECORD-MISSING",
       "carrierProNumbers": "404/RECORD-MISSING",
@@ -1940,14 +6015,21 @@
       "clientGroups": "404/RECORD-MISSING",
       "clientWarehouse": "404/RECORD-MISSING",
       "clients": "404/RECORD-MISSING",
+      "codes": "404/RECORD-MISSING",
+      "commodities": "404/RECORD-MISSING",
+      "countTypes": "404/RECORD-MISSING",
       "customerTypes": "404/RECORD-MISSING",
       "devices": "404/RECORD-MISSING",
       "equipmentTypes": "404/RECORD-MISSING",
+      "itemFamilies": "404/RECORD-MISSING",
       "levelTypes": "404/RECORD-MISSING",
       "locationTypes": "404/RECORD-MISSING",
+      "overrideLocationCodes": "404/RECORD-MISSING",
       "printers": "404/RECORD-MISSING",
       "suppliers": "404/RECORD-MISSING",
-      "transportModes": "404/RECORD-MISSING"
+      "transportModes": "404/RECORD-MISSING",
+      "warehouseWorkflows": "404/RECORD-MISSING",
+      "workAreas": "404/RECORD-MISSING"
     },
     "update-missing": {
       "businessUnits": "400/HTTP-400",
@@ -1958,6 +6040,68 @@
       "levelTypes": "400/HTTP-400",
       "locationTypes": "400/HTTP-400",
       "transportModes": "404/RECORD-MISSING"
+    },
+    "referer-default": {
+      "businessUnits": "200"
+    },
+    "referer-none": {
+      "businessUnits": "0"
+    },
+    "referer-target": {
+      "businessUnits": "200"
+    },
+    "out-of-page-no-referer": {
+      "businessUnits": "302"
+    },
+    "out-of-page-with-referer": {
+      "businessUnits": "200"
+    },
+    "read-by-compound-id": {
+      "codes": "200"
+    },
+    "read-no-columnname": {
+      "codes": "200"
+    },
+    "create-valid-full-model": {
+      "countTypes": "201",
+      "reasonCodes": "422/HTTP-422",
+      "releaseRules": "422/HTTP-422",
+      "uoms": "422/HTTP-422",
+      "warehouseTransportModes": "422/HTTP-422"
+    },
+    "voice-create-len4": {
+      "devices": "404/RECORD-MISSING"
+    },
+    "voice-create-len5": {
+      "devices": "404/RECORD-MISSING"
+    },
+    "voice-create-len6": {
+      "devices": "404/RECORD-MISSING"
+    },
+    "voice-create-len7": {
+      "devices": "404/RECORD-MISSING"
+    },
+    "voice-create-noterm-len6": {
+      "devices": "404/RECORD-MISSING"
+    },
+    "voice-create-noterm-len7": {
+      "devices": "404/RECORD-MISSING"
+    },
+    "cleanup-delete": {
+      "itemClasses": "200",
+      "itemStyleAttributes": "200",
+      "workOperations": "200"
+    },
+    "cleanup-confirm-gone": {
+      "itemClasses": "404/RECORD-MISSING",
+      "itemStyleAttributes": "404/RECORD-MISSING",
+      "workOperations": "200"
+    },
+    "read-batch-route": {
+      "locations": "400/HTTP-400"
+    },
+    "count": {
+      "locations": "200"
     }
   }
 }

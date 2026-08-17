@@ -62,6 +62,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/connections/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check Sessions
+         * @description Whether each stored session still works, asked of the systems themselves.
+         *
+         *     Live rather than remembered: a session that expired an hour ago still looks
+         *     connected in the database, and the operator finds out inside a
+         *     demonstration. This is what lets the app say it first.
+         */
+        get: operations["check_sessions_v1_connections_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/connections/{connection_id}/session": {
         parameters: {
             query?: never;
@@ -1094,6 +1118,17 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** SessionCheckModel */
+        SessionCheckModel: {
+            /** Connection Id */
+            connection_id: string;
+            /** Target System */
+            target_system: string;
+            /** Health */
+            health: string;
+            /** Detail */
+            detail: string;
+        };
         /** SessionHeadersRequest */
         SessionHeadersRequest: {
             /** Facility */
@@ -1462,6 +1497,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpenedConnectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_sessions_v1_connections_health_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionCheckModel"][];
                 };
             };
             /** @description Validation Error */

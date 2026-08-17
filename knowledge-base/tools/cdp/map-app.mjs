@@ -231,7 +231,7 @@ const [mode, filter] = process.argv.slice(2);
 const list = targets(mode || 'config', filter);
 console.error(`mapping ${list.length} screens (mode=${mode || 'config'}${filter ? ', filter=' + filter : ''})`);
 
-const browser = await chromium.connectOverCDP('http://localhost:9222');
+const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const page = browser.contexts()[0].pages().find((p) => p.url().includes('jdadelivers')) || browser.contexts()[0].pages()[0];
 
 const existing = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : { screens: [] };

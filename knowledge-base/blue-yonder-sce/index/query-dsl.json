@@ -1,0 +1,50 @@
+{
+  "generated_by": "tools/cdp/probe-query-dsl.mjs + tools/cdp/_dsl2 probes, 2026-08-14",
+  "what_this_is": "The filter grammar behind the `query=` parameter every collection read accepts. Established from the application's own request, then mapped by probing operators against a known row.",
+  "grammar": {
+    "parameter": "query",
+    "shape": "[{\"column\":\"<jsonFieldName>\",\"operator\":\"<OP>\",\"value\":\"<value>\"}]",
+    "example_from_the_app": "/wm/locations?query=[{\"column\":\"locationTypeCategory\",\"operator\":\"EQ\",\"value\":\"STORAGE\"}]&storageArea=true&buildingId=&offset=0&limit=100",
+    "column_names": "the camelCase JSON field names the resource returns — NOT the DB column names its 422 errors quote",
+    "multiple_clauses": "ANDed. [{...},{...}] returned the intersection.",
+    "empty": "query=[] means no filter; 295 of 298 recorded calls before this used exactly that."
+  },
+  "operators": {
+    "accepted": [
+      "EQ",
+      "NE",
+      "GT",
+      "GE",
+      "LT",
+      "LE"
+    ],
+    "rejected_422": [
+      "LIKE",
+      "CONTAINS",
+      "IN",
+      "BETWEEN",
+      "BEGINS",
+      "STARTSWITH",
+      "BEGINS_WITH",
+      "SW",
+      "NOT_NULL",
+      "IS_NULL",
+      "lowercase eq"
+    ],
+    "pattern_matching": "There is no LIKE. A `%` wildcard inside an EQ value works: carrierCode EQ \"00%\" returned 3 rows where EQ \"0000\" returned 1.",
+    "case": "Operators are case-sensitive and upper-case. \"eq\" is a 422."
+  },
+  "verification": {
+    "resource": "carriers (1,581 rows)",
+    "EQ carrierCode=0000": "200, 1 row, every row matches",
+    "NE carrierCode=0000": "200, 25 rows, none is 0000",
+    "EQ carrierCode=00%": "200, 3 rows",
+    "two clauses ANDed": "200, 1 row",
+    "malformed shapes": "422 \"Could not parse filter query string: [...]\""
+  },
+  "caution": "A wrong-but-parseable clause returns 200 with ZERO rows rather than an error. That is indistinguishable from \"no matches\", so a filtered read that returns nothing must be re-checked against an unfiltered count before concluding the record does not exist.",
+  "related": {
+    "filter_param": "The grids also carry an Ext-style `filter` param, but RPUX.rest.RestProxy.getParams() deletes it whenever remoteFiltering is false — which is the case on every Configuration grid, so those filter client-side over an already-loaded page.",
+    "filter_columns_endpoint": "/rpux/filter/columns/<Entity> lists the columns a grid offers in its filter UI. Most entities return an empty list; it is not a reliable source for what `query` accepts."
+  }
+}

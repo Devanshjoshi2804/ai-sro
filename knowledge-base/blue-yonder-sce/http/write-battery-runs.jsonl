@@ -1,0 +1,44 @@
+{"ts":"2026-08-14T06:55:45.550Z","screen":"Count Types","resource":"countTypes","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:56:46.201Z","screen":"Count Types","resource":"countTypes","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:57:47.583Z","screen":"Count Types","resource":"countTypes","id":"ZV0","verdict":"PASS"}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Transport Modes","resource":"warehouseTransportModes","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Units of Measure","resource":"uoms","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Item Classes","resource":"itemClasses","verdict":"CREATE-FAILED","status":201}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Item Families","resource":"itemFamilies","id":"ZV87212","verdict":"PASS"}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Item Style Attributes","resource":"itemStyleAttributes","verdict":"CREATE-FAILED","status":201}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Commodities","resource":"commodities","id":"ZV90015","verdict":"PASS"}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Adjustments Reasons","resource":"reasonCodes","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Approval Reasons","resource":"reasonCodes","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Count Release Rules","resource":"releaseRules","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Pick Methods","resource":"pickMethods","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Hold Reasons","resource":"reasonCodes","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Areas","resource":"areas","id":"ZV95720*!SG","verdict":"PASS"}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Work Areas","resource":"workAreas","id":"SG*!ZV98223","verdict":"PASS"}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Work Operations","resource":"workOperations","verdict":"CREATE-FAILED","status":201}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Work Area Associations","resource":"workAreaMove","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Warehouse Equipment Workflows","resource":"warehouseWorkflows","id":"SG*!ELEC-EQUI-SAFE-CHECK","verdict":"PASS"}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Transport Equipment Workflows","resource":"warehouseWorkflows","id":"SG*!CAPTURE-TRLR-TEMP","verdict":"PASS"}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Storage Override Reasons","resource":"overrideLocationCodes","id":"ZV6085","verdict":"PASS"}
+{"ts":"2026-08-14T06:58:28.875Z","screen":"Pick Methods","resource":"pickMethods","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T07:12:39.153Z","screen":"Units of Measure","resource":"uoms","verdict":"CREATE-FAILED","status":500}
+{"ts":"2026-08-14T07:13:21.834Z","screen":"Units of Measure","resource":"uoms","verdict":"CREATE-FAILED","status":500}
+{"ts":"2026-08-14T07:14:57.281Z","screen":"Units of Measure","resource":"uoms","backing":"codes:uomcod","verdict":"PASS"}
+{"ts":"2026-08-14T07:15:11.432Z","screen":"Adjustments Reasons","resource":"reasonCodes","id":"----*!ZV7927*!ADJAPP","verdict":"PASS"}
+{"ts":"2026-08-14T07:15:25.361Z","screen":"Transport Modes","resource":"warehouseTransportModes","id":"ZV22078*!SG","verdict":"PASS"}
+{"ts":"2026-08-14T07:15:37.410Z","screen":"Count Release Rules","resource":"releaseRules","verdict":"CREATE-FAILED","status":409}
+{"ts":"2026-08-14T07:15:49.828Z","screen":"Pick Methods","resource":"pickMethods","verdict":"CREATE-FAILED","status":409}
+{"ts":"2026-08-14T07:15:49.828Z","screen":"Pick Methods","resource":"pickMethods","verdict":"CREATE-FAILED","status":409}
+{"ts":"2026-08-14T07:16:03.079Z","screen":"Work Area Associations","resource":"workAreaMove","id":"ZV60597*!ZV60597*!SG","verdict":"PASS"}
+{"ts":"2026-08-14T07:16:33.374Z","screen":"Count Release Rules","resource":"releaseRules","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T07:16:45.880Z","screen":"Pick Methods","resource":"pickMethods","verdict":"CREATE-FAILED","status":500}
+{"ts":"2026-08-14T07:16:45.880Z","screen":"Pick Methods","resource":"pickMethods","verdict":"CREATE-FAILED","status":500}
+{"ts":"2026-08-14T07:17:16.439Z","screen":"Count Release Rules","resource":"releaseRules","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T07:17:16.439Z","screen":"Pick Methods","resource":"pickMethods","verdict":"CREATE-FAILED","status":500}
+{"ts":"2026-08-14T07:17:16.439Z","screen":"Pick Methods","resource":"pickMethods","verdict":"CREATE-FAILED","status":500}
+{"ts":"2026-08-14T09:06:24.270Z","screen":"Sampling Configurations","resource":"workflowSamplingConfigurations","id":"ZV76473","verdict":"PASS"}
+{"ts":"2026-08-14T09:06:24.270Z","screen":"Movement Paths","resource":"movementPaths","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T09:06:24.270Z","screen":"Distribution Types","resource":"distributionTypes","id":"DT00000001","verdict":"PASS"}
+{"ts":"2026-08-14T09:06:24.270Z","screen":"Document Types","resource":"documentTypes","id":"ZV81956","verdict":"PASS"}
+{"ts":"2026-08-14T09:07:44.808Z","screen":"Movement Paths","resource":"movementPaths","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T09:08:27.265Z","screen":"Movement Paths","resource":"movementPaths","verdict":"CREATE-FAILED","status":422}
+{"ts":"2026-08-14T09:09:23.246Z","screen":"Movement Paths","resource":"movementPaths","verdict":"CREATE-FAILED","status":422}

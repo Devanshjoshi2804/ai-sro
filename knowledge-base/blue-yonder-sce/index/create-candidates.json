@@ -1,0 +1,1461 @@
+{
+  "generated_by": "tools/cdp/gen-payload.mjs",
+  "warning": "These are CANDIDATE payloads derived from form models. None is verified. A payload is proven only by an executed create -> read-back -> delete cycle recorded in http/exchanges.",
+  "candidates": [
+    {
+      "screen": "Suppliers",
+      "area": "partners",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.partners.suppliers////",
+      "required_count": 3,
+      "payload": {
+        "supplierNumber": "ZV001",
+        "clientId": "----"
+      },
+      "unresolved": [
+        {
+          "field": "addressName",
+          "label": "Supplier Address",
+          "type": "wmAddress",
+          "why": "UNRESOLVED: address composite — value is a full Address record, and creating one first orphans it if the parent create fails"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Clients",
+      "area": "partners",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.partners.clients////",
+      "required_count": 2,
+      "payload": {
+        "clientId": "ZV001"
+      },
+      "unresolved": [
+        {
+          "field": "addressName",
+          "label": "Address",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Existing Customers",
+      "area": "partners",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.partners.customers.main////",
+      "required_count": 3,
+      "payload": {
+        "customerNumber": "ZV001",
+        "clientId": "----"
+      },
+      "unresolved": [
+        {
+          "field": "addressName",
+          "label": "Customer Address",
+          "type": "wmAddress",
+          "why": "UNRESOLVED: address composite — value is a full Address record, and creating one first orphans it if the parent create fails"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Customer Types",
+      "area": "partners",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.partners.customers.types////",
+      "required_count": 2,
+      "payload": {
+        "customerType": "ZV00",
+        "longDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": [
+        "customerType maxLength 4 — codes must stay short"
+      ]
+    },
+    {
+      "screen": "Existing Carriers",
+      "area": "partners",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.partners.carriers.main////",
+      "required_count": 2,
+      "payload": {
+        "carrierCode": "ZV001",
+        "carrierName": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Transport Modes",
+      "area": "partners",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.partners.carriers.transportmodes////",
+      "required_count": 2,
+      "payload": {
+        "transportMode": "ZV001",
+        "transportModeDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Carrier PRO Number",
+      "area": "partners",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.partners.carriers.carrierpronumber////",
+      "required_count": 2,
+      "payload": {},
+      "unresolved": [
+        {
+          "field": "carrier",
+          "label": "Carrier",
+          "type": "carrierLookup",
+          "why": "UNRESOLVED: lookup whose store is empty until searched; typed text never binds"
+        },
+        {
+          "field": "addressName",
+          "label": "Carrier Facility Address",
+          "type": "wmAddress",
+          "why": "UNRESOLVED: address composite — value is a full Address record, and creating one first orphans it if the parent create fails"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Carrier Cross Reference",
+      "area": "partners",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.partners.carriers.crossreferences////",
+      "required_count": 3,
+      "payload": {
+        "destinationName": "TANDATA"
+      },
+      "unresolved": [
+        {
+          "field": "carrier",
+          "label": "Carrier",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        },
+        {
+          "field": "serviceLevel",
+          "label": "Service Level",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Units of Measure",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.uom////",
+      "required_count": 3,
+      "payload": {
+        "codeValue": "ZV",
+        "longDescription": "ZV002",
+        "shortDescription": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": [
+        "codeValue maxLength 2 — codes must stay short"
+      ]
+    },
+    {
+      "screen": "Inventory Statuses",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.statuses.statuses////",
+      "required_count": 3,
+      "payload": {
+        "codeValue": "ZV00",
+        "longDescription": "ZV002",
+        "shortDescription": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": [
+        "codeValue maxLength 4 — codes must stay short"
+      ]
+    },
+    {
+      "screen": "Item Classes",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.items.itemclasses////",
+      "required_count": 2,
+      "payload": {
+        "itemClassName": "ZV001",
+        "longDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Item Class Levels",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.items.itemclasslevels////",
+      "required_count": 2,
+      "payload": {
+        "itemClassName": "ZV001",
+        "itemClassLevel": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Item Families",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.items.itemfamilies////",
+      "required_count": 2,
+      "payload": {
+        "itemFamily": "ZV001",
+        "longDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Item Style Attributes",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.items.itemstyleattributes////",
+      "required_count": 3,
+      "payload": {
+        "attributeColumnName": "prtcolor",
+        "attributeCodeName": "ZV002",
+        "longDescription": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Alternate Item Types",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.items.alternateitemtypes////",
+      "required_count": 2,
+      "payload": {
+        "codeValue": "ZV001",
+        "longDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Commodities",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.items.commodities////",
+      "required_count": 2,
+      "payload": {
+        "commodityCode": "ZV001",
+        "longDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Serial Number Types",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.items.serialnumbertypes////",
+      "required_count": 3,
+      "payload": {
+        "serialNumberTypeId": "ZV001",
+        "description": "ZV002",
+        "sortSequence": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Adjustments Reasons",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.adjustments.adjustmentreasons////",
+      "required_count": 2,
+      "payload": {
+        "reasonCode": "ZV001",
+        "reasonCodeDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Approval Reasons",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.adjustments.approvalreasons////",
+      "required_count": 2,
+      "payload": {
+        "reasonCode": "ZV001",
+        "reasonCodeDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Count Types",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.counting.types////",
+      "required_count": 4,
+      "payload": {
+        "countType": "ZV0",
+        "longDescription": "ZV002",
+        "baseCountType": "A",
+        "closeLocationCountMethod": "A"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": [
+        "countType maxLength 3 — codes must stay short"
+      ]
+    },
+    {
+      "screen": "Count Release Rules",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.counting.releaserules////",
+      "required_count": 3,
+      "payload": {
+        "releaseTypeId": "A",
+        "releaseCommand": "CREATE WORK",
+        "priorityCode": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Voice Counting",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.counting.voicecounting////",
+      "required_count": 2,
+      "payload": {
+        "regionDescription": "ZV001",
+        "regionNumber": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": [
+        "regionNumber maxLength 5 — codes must stay short"
+      ]
+    },
+    {
+      "screen": "Pick Methods",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.replenishments.pickmethods////",
+      "required_count": 6,
+      "payload": {
+        "pickMethodName": "ZV001",
+        "description": "ZV002",
+        "pickPreValidationScheme": "DEF_PROMPT",
+        "listFlag": "ZV004",
+        "cartonFlag": "ZV005",
+        "inlineReplenishmentFlag": "ZV006"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Replenishment Search Paths",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.replenishments.searchpaths////",
+      "required_count": 2,
+      "payload": {
+        "priority": 1,
+        "searchPathName": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Voice Replenishments",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.replenishments.voicereplenishments////",
+      "required_count": 5,
+      "payload": {
+        "regionDescription": "ZV001",
+        "regionNumber": 1,
+        "voiceSpokenLicenseLength": 1,
+        "spokenLocationLength": 1,
+        "checkDigitLength": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": [
+        "regionNumber maxLength 5 — codes must stay short"
+      ]
+    },
+    {
+      "screen": "Handling Units",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.lpnhandling.handlingunits////",
+      "required_count": 6,
+      "payload": {
+        "assetId": "ZV001",
+        "assetStatus": "ACT",
+        "clientId": "----",
+        "storageLocation": "ZV005",
+        "trailerNumber": "ZV006"
+      },
+      "unresolved": [
+        {
+          "field": "assetType",
+          "label": "Handling Unit Type",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Hold Types",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.holds.types////",
+      "required_count": 3,
+      "payload": {
+        "codeValue": "ZV00",
+        "longDescription": "ZV002",
+        "shortDescription": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": [
+        "codeValue maxLength 4 — codes must stay short"
+      ]
+    },
+    {
+      "screen": "Hold Reasons",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.holds.reasons////",
+      "required_count": 2,
+      "payload": {
+        "reasonCode": "ZV001",
+        "reasonCodeDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Barcode Templates",
+      "area": "inventory",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inventory.barcodes.templates////",
+      "required_count": 2,
+      "payload": {
+        "barCodeTemplateId": "ZV001",
+        "longDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Buildings",
+      "area": "warehouse",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.warehouse.buildings////",
+      "required_count": 3,
+      "payload": {
+        "buildingId": "ZV001",
+        "hostExternalId": "ZV003"
+      },
+      "unresolved": [
+        {
+          "field": "addressDetails",
+          "label": "Building Address",
+          "type": "wmAddress",
+          "why": "UNRESOLVED: address composite — value is a full Address record, and creating one first orphans it if the parent create fails"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Business Units",
+      "area": "warehouse",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.warehouse.businessunits////",
+      "required_count": 2,
+      "payload": {
+        "businessUnit": "ZV001",
+        "businessUnitDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Areas",
+      "area": "warehouse",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.warehouse.areas////",
+      "required_count": 3,
+      "payload": {
+        "areaCode": "ZV001",
+        "longDescription": "ZV002",
+        "buildingId": "B1"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Aisles",
+      "area": "warehouse",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.warehouse.locations.aisles////",
+      "required_count": 0,
+      "payload": {},
+      "unresolved": [],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Level Types",
+      "area": "warehouse",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.warehouse.locations.leveltypes////",
+      "required_count": 3,
+      "payload": {
+        "levelTypeName": "ZV001",
+        "levelTypeDescription": "ZV002",
+        "totalLevelUnits": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Dock Access Groups",
+      "area": "warehouse",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.warehouse.locations.dockaccess////",
+      "required_count": 3,
+      "payload": {
+        "codeValue": "ZV001",
+        "longDescription": "ZV002",
+        "shortDescription": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Work Areas",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.work.areas////",
+      "required_count": 2,
+      "payload": {
+        "workArea": "ZV001",
+        "workAreaDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Work Operations",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.work.operations////",
+      "required_count": 3,
+      "payload": {
+        "operationCode": "ZV001",
+        "basePriority": 1,
+        "longDescription": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Work Activities",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.work.activities////",
+      "required_count": 3,
+      "payload": {
+        "activityCode": "ZV001",
+        "description": "ZV002"
+      },
+      "unresolved": [
+        {
+          "field": "workType",
+          "label": "Work Type",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Work Area Associations",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.work.workareamoves////",
+      "required_count": 3,
+      "payload": {
+        "currentWorkArea": "ZV001",
+        "moveWorkArea": "ZV002",
+        "moveSequence": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Master Workflows",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.workflows.masterworkflows////",
+      "required_count": 4,
+      "payload": {
+        "workflowId": "ZV001",
+        "workflowIdLongDescription": "ZV003",
+        "workflowType": "BCKSERV"
+      },
+      "unresolved": [
+        {
+          "field": "activityCode",
+          "label": "Activity Code",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Sampling Configurations",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.workflows.samplingconfiguration////",
+      "required_count": 2,
+      "payload": {
+        "workflowRateId": "ZV001",
+        "longDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Inbound Workflows",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.warehouseworkflows.inbound////",
+      "required_count": 1,
+      "payload": {
+        "workflowId": "APPLY-PALLBL"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Outbound Workflows",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.warehouseworkflows.outbound////",
+      "required_count": 1,
+      "payload": {},
+      "unresolved": [
+        {
+          "field": "workflowId",
+          "label": "Master Workflow",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Production Workflows",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.warehouseworkflows.production////",
+      "required_count": 1,
+      "payload": {},
+      "unresolved": [
+        {
+          "field": "workflowId",
+          "label": "Master Workflow",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Warehouse Equipment Workflows",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.warehouseworkflows.warehouseequipment////",
+      "required_count": 1,
+      "payload": {
+        "workflowId": "ELEC-EQUI-SAFE-CHECK"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Transport Equipment Workflows",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.warehouseworkflows.transportequipment////",
+      "required_count": 1,
+      "payload": {
+        "workflowId": "CAPTURE-TRLR-TEMP"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "RF Operator Workflows",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.warehouseworkflows.rfoperator////",
+      "required_count": 2,
+      "payload": {
+        "loadLevel": "L"
+      },
+      "unresolved": [
+        {
+          "field": "workflowId",
+          "label": "Master Workflow",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Background Workflows",
+      "area": "work",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.work.warehouseworkflows.background////",
+      "required_count": 1,
+      "payload": {},
+      "unresolved": [
+        {
+          "field": "workflowId",
+          "label": "Master Workflow",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Warehouse Equipment Type",
+      "area": "equipment",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.equipment.equipment.warehouseequipmenttype////",
+      "required_count": 4,
+      "payload": {
+        "vehicleTypeId": "ZV001",
+        "longDescription": "ZV002",
+        "voiceCode": 1,
+        "vehicleLimit": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Location Access Groups",
+      "area": "equipment",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.equipment.equipment.locationaccessgroups////",
+      "required_count": 3,
+      "payload": {
+        "codeValue": "ZV001",
+        "longDescription": "ZV002",
+        "shortDescription": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Transport Equipment Type",
+      "area": "equipment",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.equipment.equipment.transportequipmenttype////",
+      "required_count": 3,
+      "payload": {
+        "trailerType": "ZV001",
+        "longDescription": "ZV002",
+        "shortDescription": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": [
+        "trailerType maxLength 5 — codes must stay short"
+      ]
+    },
+    {
+      "screen": "Printers",
+      "area": "equipment",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.equipment.hardware.printers////",
+      "required_count": 3,
+      "payload": {
+        "printerAddress": "ZV001",
+        "printerType": "i4440",
+        "printerName": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "RF Devices",
+      "area": "equipment",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.equipment.hardware.rfdevices////",
+      "required_count": 8,
+      "payload": {
+        "deviceCode": "ZV001",
+        "localeId": "DUTCH_HOLLAND",
+        "deviceName": "ZV003",
+        "rfVendorName": "ANY",
+        "terminalID": "ZV005",
+        "terminalType": "handheld",
+        "displayWidth": 1,
+        "displayHeight": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Voice Devices",
+      "area": "equipment",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.equipment.hardware.voicedevices////",
+      "required_count": 3,
+      "payload": {
+        "deviceCode": "ZV001",
+        "localeId": "DUTCH_HOLLAND",
+        "deviceName": "ZV003"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Workstations",
+      "area": "equipment",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.equipment.hardware.workstations////",
+      "required_count": 2,
+      "payload": {
+        "deviceCode": "ZV001",
+        "deviceName": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Movement Path Criteria",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.movement.pathcriteria////",
+      "required_count": 2,
+      "payload": {
+        "criteriaIdentifier": "ZV001",
+        "longDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Movement Paths",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.movement.paths////",
+      "required_count": 4,
+      "payload": {
+        "movementPathName": "ZV001",
+        "loadLevel": false,
+        "sourceMovementZoneCode": "ZV003",
+        "destinationMovementZoneCode": "ZV004"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Inbound Optimal Door Assignment",
+      "area": "inbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inbound.receiving.optimaldoorassignment////",
+      "required_count": 1,
+      "payload": {
+        "thresholdPercentage": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Inbound Pallet Build",
+      "area": "inbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inbound.receiving.inboundpalletbuild////",
+      "required_count": 4,
+      "payload": {
+        "putawayType": "XDOCK",
+        "palletVolume": "ZV004"
+      },
+      "unresolved": [
+        {
+          "field": "sourceMovementZone",
+          "label": "Source Movement Zone",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        },
+        {
+          "field": "palletBuildMoveZone",
+          "label": "Pallet Build Movement Zone",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Storage Search Paths",
+      "area": "inbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inbound.storage.searchpaths////",
+      "required_count": 2,
+      "payload": {
+        "sortSequence": 1,
+        "longDescription": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Location Preference Rules",
+      "area": "inbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inbound.storage.locationpreferencerules////",
+      "required_count": 10,
+      "payload": {
+        "policyVariable": "CLIENT_ID",
+        "supplierNumber": "ZV002",
+        "itemNumber": "ZV003",
+        "itemFamily": "ZV004",
+        "itemClass": "ZV005",
+        "clientId": "----",
+        "sortSequence": 1,
+        "beginLocation": "ZV009",
+        "endLocation": "ZV010"
+      },
+      "unresolved": [
+        {
+          "field": "assetType",
+          "label": "Handling Unit",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Storage Override Reasons",
+      "area": "inbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inbound.storage.overridereasons////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Storage Velocity",
+      "area": "inbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inbound.storage.velocity////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Voice Putaway",
+      "area": "inbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.inbound.storage.voiceputaway////",
+      "required_count": 2,
+      "payload": {
+        "regionDescription": "ZV001",
+        "regionNumber": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Outbound Order Types",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.orderprocessing.ordertypes////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Outbound Note Types",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.orderprocessing.notetypes////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Allocation Search Paths",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.allocation.searchpaths////",
+      "required_count": 2,
+      "payload": {
+        "priority": 1,
+        "searchPathName": "ZV002"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Pick Pre-Validation Scheme",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.picking.prevalidation////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Pick Methods",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.picking.methods////",
+      "required_count": 6,
+      "payload": {
+        "pickMethodName": "ZV001",
+        "description": "ZV002",
+        "pickPreValidationScheme": "DEF_PROMPT",
+        "listFlag": "ZV004",
+        "cartonFlag": "ZV005",
+        "inlineReplenishmentFlag": "ZV006"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Distribution Rule Sets",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.distribution.rulesets////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Distribution Types",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.distribution.types////",
+      "required_count": 4,
+      "payload": {
+        "longDescription": "ZV001",
+        "distributionRuleSet": "rs_fix_qty",
+        "distributionTiming": "IDFY",
+        "distroLeadTimeHours": 1
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Outbound Routes",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.distribution.routes////",
+      "required_count": 9,
+      "payload": {
+        "routeId": "ZV001",
+        "advancedAllocationFlag": "ZV004",
+        "advancedAllocationHours": 1,
+        "beginDay": "1",
+        "displayBeginTime": "ZV007",
+        "endDay": "1",
+        "displayEndTime": "ZV009"
+      },
+      "unresolved": [
+        {
+          "field": "carrierCode",
+          "label": "Carrier",
+          "type": "carrierLookup",
+          "why": "UNRESOLVED: lookup whose store is empty until searched; typed text never binds"
+        },
+        {
+          "field": "serviceLevel",
+          "label": "Carrier Service Level",
+          "type": "combobox",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Voice Distribution",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.distribution.voice////",
+      "required_count": 7,
+      "payload": {
+        "regionDescription": "ZV001",
+        "regionNumber": 1,
+        "maxLicenses": 1,
+        "spokenLocationLength": 1,
+        "checkDigitLength": 1,
+        "confirmLicense": "ZV007"
+      },
+      "unresolved": [
+        {
+          "field": "expectedResidualLocation",
+          "label": "Expected Residual Location",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Outbound Staging",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.shipping.staging////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Carrier Selection",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.shipping.carrierselection////",
+      "required_count": 3,
+      "payload": {
+        "sequenceNumber": 1
+      },
+      "unresolved": [
+        {
+          "field": "carrier",
+          "label": "Carrier",
+          "type": "carrierLookup",
+          "why": "UNRESOLVED: lookup whose store is empty until searched; typed text never binds"
+        },
+        {
+          "field": "serviceLevel",
+          "label": "Service Level",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Voice Loading",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.shipping.voiceloading////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "LPN Mixing Restrictions",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.shipping.lpnmixingrestrictions////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Production Lines",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.production.lines////",
+      "required_count": 3,
+      "payload": {
+        "productionLine": "ZV001",
+        "planType": "PRI"
+      },
+      "unresolved": [
+        {
+          "field": "productionArea",
+          "label": "Production Area",
+          "type": "combo",
+          "why": "UNRESOLVED: combo with no captured options — needs a real value from its bound resource"
+        }
+      ],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Work Order Types",
+      "area": "outbound",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.outbound.production.workordertypes////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Label Formats",
+      "area": "integration",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.integration.reportlabel.formats////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Document Types",
+      "area": "integration",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.integration.reportlabel.doctypes////",
+      "required_count": 4,
+      "payload": {
+        "documentType": "ZV001",
+        "description": "ZV002",
+        "documentTypeCode": "L",
+        "dataCommand": "ZV004"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Movement Transaction",
+      "area": "integration",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.integration.host.movement////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Billing",
+      "area": "integration",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.integration.billing////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "WCS Integration",
+      "area": "integration",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.integration.wcsintegration////",
+      "required_count": 4,
+      "payload": {
+        "overrideLocationCode": "ZV001",
+        "overrideLocationCodeDescription": "ZV002",
+        "cycleCountCode": "N",
+        "locationStatus": "E"
+      },
+      "unresolved": [],
+      "ready": true,
+      "notes": []
+    },
+    {
+      "screen": "Yard Locations",
+      "area": "warehouse",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.warehouse.locations.yard////",
+      "required_count": 0,
+      "payload": {},
+      "unresolved": [],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Dock Locations",
+      "area": "warehouse",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.warehouse.locations.dock////",
+      "required_count": 0,
+      "payload": {},
+      "unresolved": [],
+      "ready": false,
+      "notes": []
+    },
+    {
+      "screen": "Storage Locations",
+      "area": "warehouse",
+      "tier": "configuration",
+      "hash": "#wm.config/wm.config.warehouse.locations.storage////",
+      "required_count": 0,
+      "payload": {},
+      "unresolved": [],
+      "ready": false,
+      "notes": []
+    }
+  ]
+}

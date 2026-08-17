@@ -73,6 +73,9 @@ if (exists(EXCH)) {
     const ops = {};
     let alive = true;
     for (const r of recs) {
+      // Some records are notes rather than exchanges — `failure-battery-refused` carries a reason
+      // and no request, deliberately, so that a gap has an explanation attached in the store.
+      if (!r.request?.method) continue;
       const m = r.request.method;
       const st = r.response?.status;
       const kind = r.response?.kind;
@@ -297,6 +300,178 @@ if (exists(claimsPath)) {
   }
 }
 
+/*
+ * BEHAVIOUR ANNOTATIONS
+ *
+ * The catalogue answers "what can I call". An agent also has to answer "what happens if this goes
+ * wrong", and this session proved several resources where the obvious assumption is false: a DELETE
+ * that answers 200 and deletes nothing, creates that succeed twice, a create whose record cannot be
+ * read back, resources that ignore `limit`. Those live on the resource node, each derived from the
+ * stored cases rather than from any claim's prose.
+ */
+{
+  const shapes = exists(path.join(KG, 'index/read-shapes.json'))
+    ? readJSON(path.join(KG, 'index/read-shapes.json')).resources : {};
+  for (const n of nodes.values()) {
+    if (n.type !== 'resource') continue;
+    const cases = { ...(n.operations?.GET?.cases || {}), ...(n.operations?.POST?.cases || {}), ...(n.operations?.DELETE?.cases || {}), ...(n.operations?.PUT?.cases || {}) };
+    const w = [];
+    const dup = cases['create-duplicate'];
+    if (dup && /^2/.test(dup)) w.push({ hazard: 'duplicate-create-succeeds', detail: `create-duplicate answered ${dup}: a retried POST is a second record, so an idempotency key is the only protection.` });
+    const gone = cases['confirm-gone'] || cases['cleanup-confirm-gone'];
+    if (gone && !/RECORD-MISSING/.test(gone)) w.push({ hazard: 'delete-unconfirmed', detail: `confirm-gone answered ${gone} instead of RECORD-MISSING — the delete is not proven.` });
+    if (cases['delete-valid'] && /^2/.test(cases['delete-valid']) && gone && /^200/.test(gone)) {
+      w.push({ hazard: 'delete-is-a-noop', detail: 'DELETE answers 2xx and the record is still readable afterwards.' });
+    }
+    if (shapes[n.resource]?.honours_limit === false) {
+      w.push({ hazard: 'ignores-limit', detail: 'This collection returns the whole table regardless of the limit parameter; a sampling read can pull tens of thousands of rows.' });
+    }
+    if (/^2/.test(cases['create-valid-via-codes'] || '')) w.push({ hazard: 'creates-through-another-resource', detail: 'This is a view: its create goes to /wm/codes in the partition it reads.' });
+    /*
+     * Only a SUCCESSFUL composite create says anything about the body shape. Keying on the case
+     * name alone tagged handlingUnitCategories, warehouseUoms and loadAttributeConfigurations as
+     * composite when in fact they had refused the attempt outright — the opposite conclusion.
+     */
+    if (/^2/.test(cases['create-valid-composite'] || '')) {
+      w.push({ hazard: 'create-modelled-on-existing-record', detail: 'A generated body was refused; what worked was a copy of an existing record with its identity varied and server-owned ids removed.' });
+    }
+    for (const [caseName, status] of Object.entries(cases)) {
+      if (!/^create-valid/.test(caseName) || /^2/.test(status)) continue;
+      if (Object.entries(cases).some(([k, v]) => /^create-valid/.test(k) && /^2/.test(v))) continue;
+      w.push({ hazard: 'create-refused', detail: `Every recorded create attempt failed; the last answered ${status}. This resource may not be creatable at all — loadAttributeConfigurations answers 405, and join tables answer 422 until the code they point at exists.` });
+      break;
+    }
+    if (w.length) n.behaviour_warnings = w;
+    if (shapes[n.resource]) {
+      n.read_shape = { status: shapes[n.resource].status, fields: shapes[n.resource].field_count, rows_in_sample: shapes[n.resource].rows_returned };
+    }
+  }
+}
+
+/*
+ * PREREQUISITE EDGES, derived from values rather than names.
+ *
+ * The graph had two `requires` edges, both from old UI flows, while the write evidence quietly
+ * contains many more: a create body that carries `columnName: "uomcod"` or
+ * `sourceMovementZone: 10002` is naming a record in another resource. Match the VALUES in every
+ * proven create payload against the values in every recorded read sample, and each hit is a
+ * prerequisite with the exact field and value as its evidence.
+ *
+ * Values that identify nothing are excluded: booleans, nulls, short tokens, the site code, the
+ * blank client, and the run markers this capture itself invented.
+ */
+{
+  const byValue = new Map();          // value -> Set of "resource.field"
+  const boring = new Set(['SG', '----', '', 'true', 'false', '0', '1', 'ACT', 'INV']);
+  const useless = (v) => v === null || typeof v === 'boolean' || typeof v === 'object'
+    || boring.has(String(v)) || String(v).length < 3
+    // Anything this capture invented is not evidence of a relationship with anything.
+    || /Z[VSQ]\d|battery|probe/i.test(String(v));
+  /*
+   * A shared VALUE only implies a relationship when it is being used as an identifier. Descriptions
+   * collide constantly — "LPN", "CREATE WORK" and "ABC Audit Count" appear across a dozen unrelated
+   * resources — and matching them produced edges like `movementPaths requires items`, which is
+   * nonsense. So: never match on a description-like field, and require the target side to be an
+   * identifier, either `resourceId`, an `*Id` field, or the identically-named field.
+   */
+  const descriptive = (k) => /description|name|text|comment|label|title/i.test(k);
+
+  for (const f of fs.readdirSync(EXCH).filter((x) => x.endsWith('.jsonl'))) {
+    const resource = f.replace('.jsonl', '');
+    for (const line of fs.readFileSync(path.join(EXCH, f), 'utf8').split('\n').filter(Boolean)) {
+      let r; try { r = JSON.parse(line); } catch { continue; }
+      if (r.request?.method !== 'GET' || !(r.response?.status < 300)) continue;
+      const rows = Array.isArray(r.response?.body?.data) ? r.response.body.data
+        : r.response?.body?.data ? [r.response.body.data] : [];
+      for (const row of rows.slice(0, 2)) {
+        for (const [k, v] of Object.entries(row || {})) {
+          if (useless(v) || k === 'self_uri' || k.endsWith('_uri')) continue;
+          const key = String(v);
+          if (!byValue.has(key)) byValue.set(key, new Set());
+          byValue.get(key).add(`${resource}.${k}`);
+        }
+      }
+    }
+  }
+
+  const we2 = exists(path.join(KG, 'index/write-endpoints.json')) ? readJSON(path.join(KG, 'index/write-endpoints.json')) : [];
+  for (const e of we2) {
+    if (e.method !== 'POST' || !e.payload) continue;
+    const body = Array.isArray(e.payload) ? e.payload[0] || {} : e.payload;
+    const seen = new Set();
+    for (const [k, v] of Object.entries(body)) {
+      if (useless(v)) continue;
+      if (descriptive(k)) continue;
+      // A number is only an identifier when the key says so; `assetHeight = 5.56` matched a row in
+      // structuredInventory by pure coincidence and read as a dependency.
+      if (typeof v === 'number' && !/Id$/.test(k)) continue;
+      if (typeof v === 'string' && v.length < 4 && !/Id$/.test(k)) continue;
+
+      /*
+       * One value can appear in several resources — a movement zone id shows up in the zone itself
+       * and in every rule that points at it. Rank the candidates and keep only the best: the
+       * resource where the value IS the record's id beats one where it is a foreign key, and an
+       * identically-named field beats a merely id-shaped one.
+       */
+      const ranked = [...(byValue.get(String(v)) || [])]
+        .map((hit) => { const [target, field] = hit.split('.'); return { target, field }; })
+        .filter((x) => x.target !== e.resource && !descriptive(x.field))
+        .map((x) => ({ ...x, score: x.field === 'resourceId' ? 3 : x.field === k ? 2 : /Id$/.test(x.field) ? 1 : 0 }))
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score);
+      // Take the best candidate that is not already linked from this payload, rather than only the
+      // single top one — otherwise a key whose winner was already seen drops a real edge silently,
+      // which is how `movementPaths requires movementZones` vanished.
+      for (const { target, field } of ranked.filter((x) => !seen.has(x.target)).slice(0, 1)) {
+        seen.add(target);
+        if (!nodes.has(`resource:${target}`)) continue;
+        addEdge(`resource:${e.resource}`, `resource:${target}`, 'requires', {
+          via: `${k} = ${JSON.stringify(v)}`,
+          matches: `${target}.${field}`,
+          evidence: `${e.evidence} (payload) matched against http/exchanges/${target}.jsonl (recorded rows)`,
+          confidence: 'value-match',
+        });
+      }
+    }
+  }
+}
+
+/*
+ * WRITE CONTRACT + observed write edges.
+ *
+ * The graph carried ten `writes` edges while the store held proven creates for seventy-odd
+ * resources, because write edges only came from recorded flows. Take them from the derived write
+ * catalogue instead, and record on each screen the resource its Save was actually seen to hit —
+ * which is not always a resource the screen reads.
+ */
+{
+  const wePath = path.join(KG, 'index/write-endpoints.json');
+  const mapPath = path.join(KG, 'index/app-map.json');
+  const we = exists(wePath) ? readJSON(wePath) : [];
+  for (const e of we) {
+    const rid = `resource:${e.resource}`;
+    const n = nodes.get(rid);
+    if (!n) continue;
+    n.write_contract = n.write_contract || {};
+    n.write_contract[e.method] = {
+      path: e.pathPattern,
+      proof: e.proof || 'asserted',
+      evidence: e.evidence || null,
+      creates_through: e.creates_through || undefined,
+      payload_keys: e.payload && typeof e.payload === 'object' ? Object.keys(Array.isArray(e.payload) ? e.payload[0] || {} : e.payload) : undefined,
+    };
+  }
+  if (exists(mapPath)) {
+    for (const sc of readJSON(mapPath).screens) {
+      for (const r of sc.writes_observed || []) {
+        const sid = `screen:${sc.label}`;
+        if (!nodes.has(sid)) nodes.set(sid, { id: sid, type: 'screen', label: sc.label, area: sc.area, tier: sc.tier });
+        addEdge(sid, `resource:${r}`, 'writes', { evidence: 'observed on the wire while saving the screen (tools/cdp/capture-ui-save.mjs)' });
+      }
+    }
+  }
+}
+
 const graph = {
   generated_by: 'tools/build-graph.mjs',
   generated_from: ['http/flows/*.json', 'http/exchanges/*.jsonl', 'index/form-models.json', 'index/write-endpoints.json', 'http/claims.json'],
@@ -316,6 +491,9 @@ graph.counts = {
   requires_edges: graph.edges.filter((e) => e.type === 'requires').length,
   cascades: cascades.length,
   hazards: hazards.length,
+  resources_with_behaviour_warnings: graph.nodes.filter((n) => n.behaviour_warnings).length,
+  resources_with_a_write_contract: graph.nodes.filter((n) => n.write_contract).length,
+  write_contracts_proven_round_trip: graph.nodes.filter((n) => n.write_contract && Object.values(n.write_contract).some((w) => w.proof === 'round-trip')).length,
 };
 fs.writeFileSync(OUT, JSON.stringify(graph, null, 2) + '\n');
 console.log(JSON.stringify(graph.counts, null, 1));

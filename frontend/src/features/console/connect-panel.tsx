@@ -21,9 +21,21 @@ import { ink, mono } from "@/features/console/theme";
 export type Connection = Schemas["ConnectionModel"];
 type Opened = Schemas["OpenedConnectionResponse"];
 
-export const connectionKeys = { all: ["connections"] as const };
+export type SessionCheck = Schemas["SessionCheckModel"];
+
+export const connectionKeys = {
+  all: ["connections"] as const,
+  health: ["connections", "health"] as const,
+};
 
 export const listConnections = () => api.get<Connection[]>("/v1/connections");
+
+/**
+ * Whether each stored session still works — asked of the systems, not read off
+ * a database row. A session that expired an hour ago still says "connected"
+ * there, and the operator finds out three clicks into a demonstration.
+ */
+export const checkSessions = () => api.get<SessionCheck[]>("/v1/connections/health");
 
 export function ConnectPanel({ onDone }: { onDone: () => void }) {
   const queryClient = useQueryClient();

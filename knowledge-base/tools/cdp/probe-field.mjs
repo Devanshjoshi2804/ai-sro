@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { goto, resetToGrid, clickButton } from './ext.mjs';
 const [route, fieldName] = process.argv.slice(2);
-const b = await chromium.connectOverCDP('http://localhost:9222');
+const b = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const page = b.contexts()[0].pages().find(p=>p.url().includes('jdadelivers')) || b.contexts()[0].pages()[0];
 const frame = await goto(page, route);
 await resetToGrid(page, frame); await page.waitForTimeout(1200);

@@ -1,0 +1,149 @@
+{
+  "generated_by": "tools/cdp/capture-subresources.mjs",
+  "endpoints": {
+    "/admin/tasks": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 0,
+      "fields": 0
+    },
+    "/listActiveUsers": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 608,
+      "fields": 1
+    },
+    "/listAreasForPickupAndDeposit": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 94,
+      "fields": 17
+    },
+    "/listAreasForProcessing": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 94,
+      "fields": 17
+    },
+    "/listAreasForStaging": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 94,
+      "fields": 21
+    },
+    "/listBarcodeTemplatesBySupplier": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 3,
+      "fields": 5
+    },
+    "/listBuildingMediaLinks": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 0,
+      "fields": 0
+    },
+    "/listCarrierForLookup": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 1582,
+      "fields": 17
+    },
+    "/listComponentValues": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 471,
+      "fields": 7
+    },
+    "/listCountries": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 2,
+      "fields": 16
+    },
+    "/listCurrencyCodes": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 2,
+      "fields": 14
+    },
+    "/listDistinctReagrps": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 456,
+      "fields": 3
+    },
+    "/listInventoryRotationMethodsForWebDisplay": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 9,
+      "fields": 1
+    },
+    "/listInventoryStatusProgressions": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 34,
+      "fields": 4
+    },
+    "/listLocationNameTemplates": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 4,
+      "fields": 10
+    },
+    "/listMeasurementUnits": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 2,
+      "fields": 14
+    },
+    "/listPmShippingLocations": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 1,
+      "fields": 1
+    },
+    "/listStates": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 2,
+      "fields": 8
+    },
+    "/listStorageAreas": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 94,
+      "fields": 17
+    },
+    "/listUsers": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 2,
+      "fields": 59
+    },
+    "/listWebShippingParcelHandlerPolicies": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 1,
+      "fields": 8
+    },
+    "/listWebShippingPolicies": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 1,
+      "fields": 44
+    },
+    "/listYards": {
+      "status": 200,
+      "kind": "OK",
+      "rows": 94,
+      "fields": 17
+    }
+  },
+  "totals": {
+    "probed": 23,
+    "ok": 23,
+    "needs_a_parameter": 0,
+    "not_a_route": 0
+  }
+}

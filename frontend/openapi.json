@@ -168,6 +168,64 @@
         }
       }
     },
+    "/v1/connections/health": {
+      "get": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Check Sessions",
+        "description": "Whether each stored session still works, asked of the systems themselves.\n\nLive rather than remembered: a session that expired an hour ago still looks\nconnected in the database, and the operator finds out inside a\ndemonstration. This is what lets the app say it first.",
+        "operationId": "check_sessions_v1_connections_health_get",
+        "parameters": [
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionCheckModel"
+                  },
+                  "title": "Response Check Sessions V1 Connections Health Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/connections/{connection_id}/session": {
       "post": {
         "tags": [
@@ -3654,6 +3712,34 @@
           "text"
         ],
         "title": "SayRequest"
+      },
+      "SessionCheckModel": {
+        "properties": {
+          "connection_id": {
+            "type": "string",
+            "title": "Connection Id"
+          },
+          "target_system": {
+            "type": "string",
+            "title": "Target System"
+          },
+          "health": {
+            "type": "string",
+            "title": "Health"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connection_id",
+          "target_system",
+          "health",
+          "detail"
+        ],
+        "title": "SessionCheckModel"
       },
       "SessionHeadersRequest": {
         "properties": {

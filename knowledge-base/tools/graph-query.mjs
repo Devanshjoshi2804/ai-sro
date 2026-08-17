@@ -69,6 +69,23 @@ function resource(name) {
   if (n.id_shape) out(`id shape: ${n.id_shape}`);
   if (n.payload) out(`payload: ${JSON.stringify(n.payload)}`);
   if (n.gotcha) out(`GOTCHA: ${n.gotcha}`);
+  /*
+   * The warnings go first, above the status tables. They are the answers to "is this safe to
+   * retry", "does a 200 on DELETE mean anything here", "will a sampling read pull the whole table" —
+   * questions a caller needs before it reads any of the detail below.
+   */
+  if (n.behaviour_warnings) {
+    out('\n!! BEHAVIOUR WARNINGS');
+    for (const w of n.behaviour_warnings) out(`   [${w.hazard}] ${w.detail}`);
+  }
+  if (n.write_contract) {
+    out('\nwrite contract:');
+    for (const [m, w] of Object.entries(n.write_contract)) {
+      out(`  ${m.padEnd(6)} ${w.path}   (${w.proof})${w.creates_through ? '  -> actually posts to ' + w.creates_through : ''}`);
+      if (w.payload_keys) out(`         keys: ${w.payload_keys.join(', ')}`);
+    }
+  }
+  if (n.read_shape) out(`\nread shape: ${n.read_shape.fields} fields, ${n.read_shape.rows_in_sample} rows in the recorded sample (status ${n.read_shape.status})`);
   if (n.operations) {
     out('\nobserved behaviour:');
     for (const [m, v] of Object.entries(n.operations)) {

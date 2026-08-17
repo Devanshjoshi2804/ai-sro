@@ -19,7 +19,7 @@ import { chromium } from 'playwright';
 const MARKERS = /\bZV[A-Z]{0,3}\d*\b|ZZVER|ZZAUDIT|ZV [Cc]ap/;
 
 export async function withPage(fn) {
-  const browser = await chromium.connectOverCDP('http://localhost:9222');
+  const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
   const page = browser.contexts()[0].pages().find((p) => p.url().includes('jdadelivers/portal'))
     || browser.contexts()[0].pages().find((p) => p.url().includes('jdadelivers'))
     || browser.contexts()[0].pages()[0];

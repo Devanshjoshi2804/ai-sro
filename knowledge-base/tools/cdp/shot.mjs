@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const b = await chromium.connectOverCDP('http://localhost:9222');
+const b = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const page = b.contexts()[0].pages().find(p=>p.url().includes('jdadelivers')) || b.contexts()[0].pages()[0];
 await page.screenshot({ path: 'tmp-shots/current.png', fullPage: false });
 const info = await page.evaluate(() => {

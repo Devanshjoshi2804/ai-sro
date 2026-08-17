@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const b = await chromium.connectOverCDP('http://localhost:9222');
+const b = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const ctx = b.contexts()[0];
 for (const p of ctx.pages()) {
   console.log('URL:', p.url().slice(0, 130));

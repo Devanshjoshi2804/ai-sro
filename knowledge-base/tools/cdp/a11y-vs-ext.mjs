@@ -19,7 +19,7 @@ const PORTAL = 'https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG&su
 const hash = process.argv[2] || '#wm.config/wm.config.inbound.storage.locationpreferencerules////';
 const OUT = 'knowlegde_graph/blue-yonder-sce/index/a11y-vs-ext.json';
 
-const browser = await chromium.connectOverCDP('http://localhost:9222');
+const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const ctx = browser.contexts()[0];
 const page = await ctx.newPage();
 try {

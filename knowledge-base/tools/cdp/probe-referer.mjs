@@ -33,7 +33,7 @@ const CASES = [
   ['referer-target', 'target', 'A Referer derived from the call being made rather than replayed from the demonstration.'],
 ];
 
-const browser = await chromium.connectOverCDP('http://localhost:9222');
+const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const ctx = browser.contexts()[0];
 const page = await ctx.newPage();
 try {
@@ -71,6 +71,30 @@ try {
     results.push({ name, ...r });
     const n = Array.isArray(r.body?.data) ? r.body.data.length : 0;
     console.log(`  ${name.padEnd(18)} -> status=${r.status ?? 'ERR'} type=${r.type} rows=${n} login=${r.looksLikeLogin}`);
+  }
+
+  /*
+   * The in-page cases prove the difference but hide the shape of it: a blocked redirect surfaces as
+   * `type: opaqueredirect` with status 0, so the status code and Location never reach us. Repeat the
+   * pair OUT of the page, through the context's request API — same cookie jar, no browser attaching
+   * anything on our behalf. This is what the AI-SRO executor actually is.
+   */
+  for (const [name, headers, notes] of [
+    ['out-of-page-no-referer', {}, 'An external executor sending no Referer at all.'],
+    ['out-of-page-with-referer', { Referer: PORTAL }, 'The same call with a Referer derived from the target origin.'],
+  ]) {
+    const res = await ctx.request.get(BASE + URL_PATH, {
+      headers: { Accept: 'application/json', ...headers }, maxRedirects: 0, failOnStatusCode: false,
+    }).catch((e) => ({ error: String(e).slice(0, 200) }));
+    const rec = {
+      ts: new Date().toISOString(), tool: 'tools/cdp/probe-referer.mjs', case: name,
+      request: { method: 'GET', url: URL_PATH.split('?')[0], headers: { accept: 'application/json', referer: headers.Referer ? '<target origin>' : undefined } },
+      response: res.error ? { error: res.error }
+        : { status: res.status(), headers: { location: res.headers().location, 'content-type': res.headers()['content-type'] } },
+      notes,
+    };
+    fs.appendFileSync(path.join(HTTP_DIR, 'exchanges', 'businessUnits.jsonl'), JSON.stringify(rec) + '\n');
+    console.log(`  ${name.padEnd(26)} -> ${res.error ? res.error : res.status() + ' ' + (res.headers().location ? '-> ' + res.headers().location.slice(0, 60) : '')}`);
   }
 
   const withRef = results.find((x) => x.name === 'referer-default');

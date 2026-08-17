@@ -19,7 +19,13 @@ import { SkillCard } from "@/features/console/skill-card";
 import { TeachPanel } from "@/features/console/teach-panel";
 import { useThread } from "@/features/console/thread-store";
 import { TopBar } from "@/features/console/top-bar";
-import { ConnectPanel, connectionKeys, listConnections } from "@/features/console/connect-panel";
+import {
+  ConnectPanel,
+  checkSessions,
+  connectionKeys,
+  listConnections,
+  type SessionCheck,
+} from "@/features/console/connect-panel";
 import {
   getThread,
   say,
@@ -59,6 +65,15 @@ export function Console() {
 
   const skills = useQuery({ queryKey: skillKeys.all, queryFn: listSkills });
   const connections = useQuery({ queryKey: connectionKeys.all, queryFn: listConnections });
+  // Asked of the systems themselves, and asked again while the console is open:
+  // a session dies on the system's schedule, not on ours, and the whole point is
+  // to say so before a demonstration walks into a login page.
+  const health = useQuery({
+    queryKey: connectionKeys.health,
+    queryFn: checkSessions,
+    refetchInterval: 60_000,
+    enabled: (connections.data ?? []).length > 0,
+  });
   const recordings = useQuery({ queryKey: recordingKeys.all, queryFn: listRecordings });
 
   // The conversation lives server-side: a reload used to lose it, and what was
@@ -235,19 +250,11 @@ export function Console() {
                   }}
                 >
                   <span style={{ fontSize: 12.5, fontWeight: 600 }}>{connection.name}</span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        background: connection.status === "connected" ? ink.goodDot : ink.textMuted,
-                      }}
-                    />
-                    <span style={{ fontSize: 11, color: ink.textSoft }}>
-                      {connection.status === "connected" ? "session held" : connection.status}
-                    </span>
-                  </span>
+                  <SessionState
+                    check={(health.data ?? []).find((c) => c.connection_id === connection.id)}
+                    status={connection.status}
+                    onReconnect={() => setConnecting(true)}
+                  />
                 </div>
               ))}
               {(connections.data ?? []).length === 0 && (
@@ -894,9 +901,7 @@ function ChatTurn({ message }: { message: ChatMessage }) {
           </div>
         )}
 
-        {decision.note && (
-          <div style={{ fontSize: 12, color: ink.textSoft }}>{decision.note}</div>
-        )}
+        {decision.note && <div style={{ fontSize: 12, color: ink.textSoft }}>{decision.note}</div>}
 
         {decision.matched_skill_id && items.length > 0 && (
           <BatchCard
@@ -916,5 +921,60 @@ function ChatTurn({ message }: { message: ChatMessage }) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * What the stored session is actually worth, right now.
+ *
+ * The row used to read "session held" whenever the database said connected,
+ * which stayed true for weeks after the system had forgotten the session. An
+ * operator only found out by being shown a login page inside a demonstration.
+ * Now a dead session says so here, with the one action that fixes it.
+ */
+function SessionState({
+  check,
+  status,
+  onReconnect,
+}: {
+  check?: SessionCheck;
+  status: string;
+  onReconnect: () => void;
+}) {
+  const state = check?.health ?? (status === "connected" ? "checking" : "never_connected");
+  const { dot, label } = {
+    signed_in: { dot: ink.goodDot, label: "signed in" },
+    signed_out: { dot: "#C0392B", label: "signed out" },
+    never_connected: { dot: ink.textMuted, label: "not connected" },
+    // An outage is not a bad session, and asking for a password would not fix
+    // one. Say what is true: we could not ask.
+    unreachable: { dot: "#B7791F", label: "system not answering" },
+    checking: { dot: ink.textMuted, label: "checking…" },
+  }[state] ?? { dot: ink.textMuted, label: state };
+
+  return (
+    <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ width: 5, height: 5, borderRadius: "50%", background: dot }} />
+        <span style={{ fontSize: 11, color: ink.textSoft }}>{label}</span>
+      </span>
+      {(state === "signed_out" || state === "never_connected") && (
+        <button
+          onClick={onReconnect}
+          style={{
+            alignSelf: "flex-start",
+            padding: 0,
+            border: "none",
+            background: "transparent",
+            fontSize: 11,
+            fontWeight: 700,
+            color: ink.accent,
+            cursor: "pointer",
+          }}
+        >
+          Sign in once more
+        </button>
+      )}
+    </span>
   );
 }

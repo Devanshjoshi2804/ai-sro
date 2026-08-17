@@ -104,10 +104,21 @@ stripped or ignored on the way to disk. So this base can say what the server doe
 and a *route*. It cannot, from its own evidence, say which of those ambient headers the server
 actually requires.
 
-That is not hypothetical. The AI-SRO executor — replaying these calls from outside a browser —
-found that omitting `Referer` returns **302 to the login page on every read**, with a valid session
-cookie attached. Nothing in 266 exchanges could have predicted that, because the variable was never
-varied.
+That is not hypothetical, and it is now reproduced here rather than taken on report
+(`http/exchanges/businessUnits.jsonl`, cases `referer-*` and `out-of-page-*`):
+
+| call | result |
+|---|---|
+| in-page, browser's own Referer | **200** |
+| in-page, `referrerPolicy: no-referrer` | **opaqueredirect** — the browser blocked a 3xx |
+| out-of-page, no Referer, `maxRedirects: 0` | **302 → `/portal`** |
+| out-of-page, Referer set to the portal origin | **200** |
+| in-page, Referer derived from the target URL | **200** — the value is not checked against the page actually open |
+
+Two things follow. **The failure is silent by default**: an executor that follows redirects gets 200
+and an HTML login page, which passes any check reading only the status code. And **`Referer` must be
+synthesised from the target, not replayed and not dropped** — it is neither a semantic parameter nor
+a safely-omitted client header, which is a category a two-run diff cannot discover.
 
 **Standing rule: an exchange recorded in-page proves the route and the payload, not the header
 set.** A claim that a call is replayable out-of-browser needs a probe that varies the ambient
@@ -131,6 +142,25 @@ It is **derived, never authored**. An edge exists only because a recorded exchan
 each edge carries the evidence file it came from. Nothing is inferred from naming or convention —
 that inference is precisely what produced the four false claims this knowledge base was rebuilt to
 correct.
+
+### Node annotations
+
+Resource nodes carry three derived blocks beside their raw operation table. All three are computed
+from the stored cases, never from a claim's prose:
+
+| field | what it answers |
+|---|---|
+| `behaviour_warnings` | is this safe to retry, does a 200 on DELETE mean anything here, will a sampling read pull the whole table |
+| `write_contract` | per method: the real path, the proof level, and the payload keys that worked — plus `creates_through` where a view's create goes somewhere else |
+| `read_shape` | field count, rows in the recorded sample, and the status of that read |
+
+The warning set is small and each member was earned by something that went wrong in capture:
+`duplicate-create-succeeds` (3 resources), `ignores-limit` (11), `delete-unconfirmed` (2),
+`create-refused` (4), `create-modelled-on-existing-record` (7), `creates-through-another-resource`.
+
+A warning is only raised from a case that SUCCEEDED where success is the claim. Keying on the case
+name alone once tagged three resources as composite-create when they had in fact refused the attempt
+outright — the opposite conclusion from the same record.
 
 ### Node types
 

@@ -122,7 +122,7 @@ const isEntry = process.argv[1] && process.argv[1].endsWith('trace-readonly.mjs'
 const arg = process.argv[2];
 const names = !arg || arg === 'all' ? Object.keys(SCREENS) : [arg];
 if (!isEntry) { /* imported for SCREENS only */ } else {
-const browser = await chromium.connectOverCDP('http://localhost:9222');
+const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const page = browser.contexts()[0].pages().find((p) => p.url().includes('jdadelivers')) || browser.contexts()[0].pages()[0];
 const summary = {};
 for (const n of names) {

@@ -36,18 +36,21 @@ Every claim carries one. They are not decoration; the lower two do not support a
 ```
 blue-yonder-sce/
   http/                 THE canonical evidence. Everything else is derived.
-    exchanges/*.jsonl   266 full request/response records over 21 resources
-    status-matrix.json  13 test cases × 19 resources, every cell backed by an exchange
-    claims.json         19 claims with verdicts, including the falsified ones
+    exchanges/*.jsonl   1,074 full request/response records; every WM data endpoint called at least once
+    status-matrix.json  every test case × resource cell, each backed by a stored exchange
+    claims.json         23 claims with verdicts, including the falsified ones
     flows/*.json        35 multi-call flows with the value edges between them
     recipe-audit.json   the written recipes checked against the evidence
   index/
     app-map.json        316 screens: routes, 3,412 grid columns, toolbar actions
     form-models-all.json 84 captured Add-form field models: JSON key, label, required, type, maxLength
-    field-dictionary.json 204 payload keys, 185 joined to their business meaning (96%)
+    field-dictionary.json 382 payload keys, 340 joined to their business meaning (96%)
     api-endpoints.json  551 endpoints with the screens each is seen on
+    read-shapes.json    what 232 resources RETURN: 2,032 distinct fields, typed, with examples
+    a11y-map.json       ARIA graph vs component model for all 316 screens
+    a11y-trees.jsonl    the full ARIA snapshot of every screen
+    write-endpoints.json the write catalogue, derived from the exchanges rather than hand-kept
     coverage.json       six completeness dimensions per screen — measured, not asserted
-    a11y-vs-ext.json    accessibility tree vs component model, measured on four screens
     wizards.json        multi-step Add dialogs, step by step
   md/                   the vendor help corpus converted to markdown, 587 pages, 1:1 with raw/
   raw/content/          the crawl verbatim: 585 help pages as fetched, unmodified
@@ -85,7 +88,7 @@ What the extraction produced:
 **Why this half matters.** The live capture knows `supplierNumber` is a required 32-character
 textfield; it does not know what a supplier *is*. The help corpus explains suppliers thoroughly and
 never once mentions `supplierNumber`, because user documentation speaks in labels. Joining the two on
-the normalised visible label connects them: **185 of 204 captured payload keys (96 %) now carry a
+the normalised visible label connects them: **340 of 382 captured payload keys (96 %) now carry a
 business description, the help page that defines them, and the procedures that use them** —
 `index/field-dictionary.json`, built by `tools/build-dictionary.mjs`.
 
@@ -94,7 +97,7 @@ That join is what makes the base usable for intent resolution rather than only f
 ## What is deliberately not here
 
 - **Credentials, cookies, CSRF tokens.** Stripped at write time by the recorder. Verified: the only
-  request headers stored across all 266 exchanges are `accept` and `content-type`.
+  request headers stored across all 682 exchanges are `accept` and `content-type`.
 
 ## Honest coverage
 
@@ -102,19 +105,77 @@ That join is what makes the base usable for intent resolution rather than only f
 
 | dimension | complete |
 |---|---|
-| structure (columns, actions) | 310 / 316 |
-| read APIs identified | 228 / 316 |
-| **read shapes recorded** | **4 / 316** |
-| form model captured (creatable screens) | 84 |
-| **write APIs proven** | **9 / 85 creatable** |
-| failure modes recorded | 8 / 85 |
-| **screens complete on all six** | **0** |
+| structure (columns, actions) | 314 / 316 |
+| read APIs identified | 273 / 316 (40 n/a — screens observed to issue no call at all) |
+| read shapes recorded | 273 / 316 — **nothing outstanding** |
+| form model captured (creatable screens) | 85 / 85 — **complete** |
+| write APIs proven | 73 / 85 creatable |
+| failure modes recorded | 72 / 85 creatable |
+| **screens complete on all six** | **298 / 316** |
 
-The two bold gaps are the honest state of it: this knowledge base proves *how a small set of
-resources behaves under write*, and *what every screen looks like*. It does not yet prove what most
-GETs return. Reading that table as "20 % done" is right; reading it as "nothing usable" is wrong —
-the write contract that is proven is the part Phase 1 needs, and resources are shared across screens,
-so recording one GET per resource closes the read-shape dimension broadly rather than screen by screen.
+**API surface: 338 of 338 WM data endpoints have at least one stored call.** What is left out is
+deliberate: 166 `/data/WM/rpux/*` and 45 `/refs/pageBuilder/*` endpoints, which serve grid columns
+and page layout to the UI rather than warehouse data.
+
+What remains open is stated in the same spirit. `pickMethods` and `releaseRules` are proven, but only
+as composites — see the claims of the same name. `workOperations` remains unfixable: its DELETE answers 200 and does not delete, and one
+throwaway row is stuck there.
+
+Reads are done: every screen that issues a call has its resources and a recorded response body. The
+remaining work is a short list: 11 creatable screens with no proven create, 2 screens that render
+nothing at all (confirmed empty on a second look), and 3 operational screens whose reads were never
+seen. Every Add form in the application has now been captured.
+
+**Not every unproven write is a missing payload.** Handling Units is blocked by a missing
+PREREQUISITE RECORD: its type combo lists only serialized handling unit types and this instance has
+none. That is a different repair from a wrong body, and only walking the screen revealed it.
+
+**A screen's write target is not always in its read set.** Billing saves to `billingFilters` and WCS
+Integration to `warehouseControlSystems` — resources that appear in no read shape and no screen's
+resource list. Only watching a Save found them.
+
+**Five screens cannot create from their main form at all.** Pick Methods, Handling Units, Existing
+Customers, Inbound Pallet Build and Item Class Levels block Save client-side until their sub-editors
+are configured, and send no request. Their record is not a flat row, so no payload can be derived
+from the form model — see the `composite-create-screens` claim.
+
+**There are three create shapes in this app, not one:** a flat row; a row with a nested array
+(`pickMethods` carries its `pickReleaseRules[]`); and an array posted to a `/batch` route (Hold Types
+saves through `POST /wm/codes/batch`). A create strategy derived from form models alone produces the
+first shape every time and is wrong on the other two. Where a screen refuses every generated body,
+capture its Save — `tools/cdp/capture-ui-save.mjs` found both exceptions in one run each.
+
+The failure-mode dimension is closed on every resource where exercising it is safe. Four are
+refused on purpose and 5 screens stay incomplete because of it: `warehouses` (the site record this
+capture runs inside), `locations` (61,912 live rows, wizard create), `buildings` (parent of every
+location), `workOperations`, `packingConfigurations` — whose create answers 201 while producing a
+record the API can neither list, fetch nor delete — and `holdDefinitions`, which accepts a create and
+then refuses to delete it (422 on a permission check) or relabel it (PUT 200 that does not persist).
+That is the honest floor — closing those numbers would mean damaging
+the instance everything else depends on.
+
+## How to filter a collection
+
+`query=[{"column":"<jsonFieldName>","operator":"EQ","value":"<v>"}]`, ANDed across clauses. Operators
+are upper-case and few: `EQ NE GT GE LT LE`. There is no `LIKE` — a `%` wildcard inside an `EQ`
+value does prefix matching. Columns are the camelCase JSON names the resource returns, **not** the DB
+column names its 422 errors quote. Full spec in `index/query-dsl.json`.
+
+The trap: a parseable but wrong clause returns **200 with zero rows**, which is indistinguishable
+from a genuine no-match. A filtered read that comes back empty must be re-checked against an
+unfiltered count before concluding the record is absent.
+
+## Two findings worth reading before writing any client
+
+**The accessibility tree cannot drive this app.** Measured across all 316 screens: 3,699 visible
+ExtJS buttons, **0 reachable by ARIA role and name**; 260 screens expose no `button` role at all, and
+51,176 of ~80,000 nodes are grid cells. Payload keys never appear. See
+`blue-yonder-sce/md/why-not-accessibility-tree.md`.
+
+**`limit` is not universally honoured.** Eleven resources ignore it and return the whole table — the
+same `limit=2` request that gives two rows elsewhere returned 7,808 rows from `appointments` and
+13,883 from `userOperations`. They are marked `honours_limit: false` in `read-shapes.json`. Any
+client needs a response-size guard rather than trust in the parameter.
 
 ## Reproducing any of it
 

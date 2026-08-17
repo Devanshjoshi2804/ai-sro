@@ -138,7 +138,7 @@ if (mode !== 'read' && mode !== 'write') { console.error('usage: read|write <res
 const plan = mode === 'read' ? READ_PLANS[resource] : WRITE_PLANS[resource];
 if (!plan) { console.error(`no ${mode} plan for`, resource); process.exit(1); }
 
-const browser = await chromium.connectOverCDP('http://localhost:9222');
+const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const ctx = browser.contexts()[0];
 const page = await ctx.newPage();            // isolated: never touches another run's tab
 try {

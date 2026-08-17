@@ -46,7 +46,7 @@ const readForm = (fr) => fr.evaluate(() => {
   }));
 }).catch(() => null);
 
-const browser = await chromium.connectOverCDP('http://localhost:9222');
+const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const ctx = browser.contexts()[0];
 const page = await ctx.newPage();
 const store = JSON.parse(fs.readFileSync(OUT, 'utf8'));
@@ -82,7 +82,26 @@ try {
         }).catch(() => null);
         if (hit) { await fr.locator('#' + hit).click({ timeout: 5000 }).catch(() => {}); opened = true; break; }
       }
-      if (!opened) throw new Error('no enabled Add inside any Actions menu');
+      /*
+       * Fall back to a toolbar Add. map-forms navigates by changing location.hash on a long-lived
+       * page, and on Clients, Buildings and Aisles that reliably reported "no Add button" while a
+       * fresh load showed an enabled `addButton`. This script loads each screen from scratch, so it
+       * is the right place to capture those — the control is ordinary, the navigation was not.
+       */
+      if (!opened) {
+        for (const fr of page.frames()) {
+          const id = await fr.evaluate(() => {
+            if (!window.Ext) return null;
+            const vis = (c) => { const d = c.getEl && c.getEl() && c.getEl().dom; const r = d && d.getBoundingClientRect(); return r && r.width > 0 && r.height > 0; };
+            const b = window.Ext.ComponentQuery.query('button')
+              .filter((x) => !x.isDestroyed && !x.disabled && vis(x) && x.itemId === 'addButton').pop();
+            return b && b.getEl() ? b.getEl().dom.id : null;
+          }).catch(() => null);
+          if (id) { await fr.locator('#' + id).click({ timeout: 5000 }).catch(() => {}); opened = 'toolbar'; break; }
+        }
+      }
+      if (!opened) throw new Error('no enabled Add in an Actions menu or on the toolbar');
+      rec.create_via = opened === 'toolbar' ? 'toolbar Add button' : 'Actions menu > Add';
       await page.waitForTimeout(5000);
 
       let fields = null;

@@ -4,7 +4,7 @@ const targets = [
   ['Allocation Rules', '#wm.config/Allocation-Rules////'],
   ['MLS Catalog', '#wm.config/wm.config.advanced.mlscatalog////'],
 ];
-const b = await chromium.connectOverCDP('http://localhost:9222');
+const b = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const page = b.contexts()[0].pages().find(p=>p.url().includes('jdadelivers')) || b.contexts()[0].pages()[0];
 for (const [label, hash] of targets) {
   await dismissBlocking(page);

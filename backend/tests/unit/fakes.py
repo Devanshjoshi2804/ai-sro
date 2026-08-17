@@ -381,8 +381,12 @@ class FakeHttpCaller:
         self.responses: list[HttpResponse] = []
         self.unreachable = False
 
-    def answer(self, status_code: int = 200, text: str = "{}") -> None:
-        self.responses.append(HttpResponse(status_code=status_code, headers={}, text=text))
+    def answer(
+        self, status_code: int = 200, text: str = "{}", headers: dict[str, str] | None = None
+    ) -> None:
+        self.responses.append(
+            HttpResponse(status_code=status_code, headers=headers or {}, text=text)
+        )
 
     async def send(
         self,

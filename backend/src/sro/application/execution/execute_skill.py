@@ -532,9 +532,11 @@ class ExecuteStep:
                 FailureKind.UNREACHABLE,
             )
 
-        # What it found, not only that it answered. A read whose records are
-        # discarded leaves the person who asked looking at a status code.
-        answer = read_answer(response.text) if not mutating else None
+        # What it found, not only that it answered -- and for a write, what it
+        # created. A create returns the record it made, which is the one thing
+        # the person who asked wants to see, and discarding it left them
+        # looking at a status code for that too.
+        answer = read_answer(response.text)
 
         failures = check(step.assertions, response, values=values)
         if plan.expected_status is not None and response.status_code != plan.expected_status:

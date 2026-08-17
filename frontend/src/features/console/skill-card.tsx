@@ -572,7 +572,18 @@ function Result({
 }) {
   const [page, setPage] = useState(0);
   const perPage = 8;
-  const read = run.steps.find((step) => step.found_rows !== null && step.found_rows !== undefined);
+  // The last step that found anything, not the first. A create opens by
+  // reading the screen's policies, and showing that as the answer told an
+  // operator who had just made a transport mode that three consolidation rules
+  // were found. What a task did is what its last step did.
+  const read = [...run.steps]
+    .reverse()
+    .find(
+      (step) =>
+        step.disposition === "performed" &&
+        step.found_rows !== null &&
+        step.found_rows !== undefined,
+    );
   const failed = run.status !== "succeeded";
 
   if (failed) {

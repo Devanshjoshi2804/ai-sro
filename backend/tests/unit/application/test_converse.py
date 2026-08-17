@@ -10,6 +10,7 @@ from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.thread import Speaker
 from sro.domain.shared.identifiers import SkillId
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.template import Template
 from tests import factories as f
 from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
 
@@ -101,3 +102,46 @@ async def test_a_thread_is_titled_by_what_was_asked_first() -> None:
 
     assert thread.title == "adjust inventory at SG"
     assert len(thread.messages) == 4, "nothing is edited; everything is appended"
+
+
+def test_a_read_is_answered_from_the_system_not_from_the_recording() -> None:
+    """What the demonstration saw is a description of that afternoon.
+
+    Showing it as though it were current is how a console says there are sixteen
+    when there are twenty-three.
+    """
+    from sro.application.intent.match import writes
+
+    reading = f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                network_plan=f.network_plan(
+                    method="GET", url=Template("https://wms.test/data/x"), body=None
+                ),
+            ),
+        ),
+        parameters=(),
+    )
+
+    assert not writes(reading)
+
+
+def test_a_write_still_waits_to_be_told_to_go() -> None:
+    """Running it because somebody described it would make the confirmation an
+    assisted run records meaningless."""
+    from sro.application.intent.match import writes
+
+    writing = f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                network_plan=f.network_plan(
+                    method="POST", url=Template("https://wms.test/data/x"), body=None
+                ),
+            ),
+        ),
+        parameters=(),
+    )
+
+    assert writes(writing)

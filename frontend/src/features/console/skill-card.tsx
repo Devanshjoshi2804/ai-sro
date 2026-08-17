@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { toast } from "sonner";
 import { describeSkill, getSkill, skillKeys, type SkillVersionModel } from "@/features/skill/api";
-import { runKeys, startRun, type RunModel } from "@/features/run/api";
+import { getRun, runKeys, startRun, type RunModel } from "@/features/run/api";
 import { ApiError } from "@/lib/api/client";
 import { env } from "@/lib/env";
 import { ink, mono } from "@/features/console/theme";
@@ -22,6 +22,7 @@ export function SkillCard({
   parameters,
   missing = [],
   onAsk,
+  answeredBy,
 }: {
   skillId: string;
   parameters?: Record<string, string>;
@@ -29,6 +30,11 @@ export function SkillCard({
   /** Put a sentence in the composer. What follows a result is the operator's
    * next question, so the suggestions write it rather than act on it. */
   onAsk?: (text: string) => void;
+  /** A run that already answered this, made the moment the question was asked.
+   * A read is safe and it is the whole point of asking, so it does not wait
+   * behind a button — and what it shows is the system now, not what the
+   * demonstration saw. */
+  answeredBy?: string;
 }) {
   const [open, setOpen] = useState(false);
   const skill = useQuery({ queryKey: skillKeys.detail(skillId), queryFn: () => getSkill(skillId) });
@@ -229,6 +235,7 @@ export function SkillCard({
             missing={missing}
             subject={skill.data.objective_key.entity_type.replace(/_/g, " ")}
             onAsk={onAsk}
+            answeredBy={answeredBy}
           />
         )}
         <span style={{ fontSize: 11 }}>
@@ -388,7 +395,9 @@ function RunButton({
   missing,
   subject,
   onAsk,
+  answeredBy,
 }: {
+  answeredBy?: string;
   subject: string;
   onAsk?: (text: string) => void;
   skillId: string;
@@ -398,6 +407,14 @@ function RunButton({
 }) {
   const queryClient = useQueryClient();
   const [finished, setFinished] = useState<RunModel | null>(null);
+  // Already answered when the question was asked. Fetched rather than passed:
+  // the reply is stored, and reopening the thread tomorrow should show what
+  // the run found, not an empty card.
+  const already = useQuery({
+    queryKey: runKeys.detail(answeredBy ?? ""),
+    queryFn: () => getRun(answeredBy as string),
+    enabled: Boolean(answeredBy) && !finished,
+  });
 
   const run = useMutation({
     mutationFn: () =>
@@ -418,8 +435,9 @@ function RunButton({
       }),
   });
 
-  if (finished) {
-    return <Result run={finished} subject={subject} onAsk={onAsk} />;
+  const done = finished ?? already.data;
+  if (done) {
+    return <Result run={done} subject={subject} onAsk={onAsk} />;
   }
 
   const blocked = missing.length > 0 || version.stage === "recorded";
@@ -468,6 +486,11 @@ function Result({
   run: RunModel;
   subject: string;
   onAsk?: (text: string) => void;
+  /** A run that already answered this, made the moment the question was asked.
+   * A read is safe and it is the whole point of asking, so it does not wait
+   * behind a button — and what it shows is the system now, not what the
+   * demonstration saw. */
+  answeredBy?: string;
 }) {
   const [page, setPage] = useState(0);
   const perPage = 8;

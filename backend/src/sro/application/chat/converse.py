@@ -13,11 +13,20 @@ the authorisation an assisted run records.
 
 from __future__ import annotations
 
+import logging
+
 from sro.application.context import RequestContext
+from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
+from sro.application.intent.match import writes
 from sro.application.intent.resolve import Resolution, ResolveIntent
+from sro.application.ports.http import TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.thread import Message, Speaker, Thread, ThreadId
+from sro.domain.execution.run import Run
+from sro.domain.shared.errors import DomainError
+
+logger = logging.getLogger(__name__)
 
 
 class StartThread:
@@ -41,12 +50,18 @@ class StartThread:
 
 class Converse:
     def __init__(
-        self, uow: UnitOfWork, resolver: ResolveIntent, clock: Clock, ids: IdFactory
+        self,
+        uow: UnitOfWork,
+        resolver: ResolveIntent,
+        clock: Clock,
+        ids: IdFactory,
+        execute: ExecuteSkill | None = None,
     ) -> None:
         self._uow = uow
         self._resolver = resolver
         self._clock = clock
         self._ids = ids
+        self._execute = execute
 
     async def note(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
         """Write something into the thread that nobody asked a question for.
@@ -94,6 +109,16 @@ class Converse:
             pinned=_awaiting(thread),
         )
 
+        # A question is answered from the system, now. The taught skill knows
+        # which call answers it; what it saw when it was taught is a description
+        # of that afternoon, and showing it as though it were current is how a
+        # console tells somebody there are sixteen when there are twenty-three.
+        #
+        # Only reads, and only when nothing is missing. A write still waits for
+        # the operator to say go -- that confirmation is what an assisted run
+        # records as its authorisation, and it is not ours to assume.
+        run = await self._answer_now(ctx, resolution)
+
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
             now = self._clock.now()
@@ -111,12 +136,38 @@ class Converse:
                     speaker=Speaker.ASSISTANT,
                     text=_reply(resolution),
                     said_at=self._clock.now(),
-                    decision=_decision(resolution),
+                    decision=_decision(resolution, run),
                 )
             )
             await uow.threads.save(thread)
             await uow.commit()
         return thread
+
+    async def _answer_now(self, ctx: RequestContext, resolution: Resolution) -> Run | None:
+        """Run a read the moment it is asked for, and answer with what came back."""
+        matched = resolution.matched
+        if self._execute is None or matched is None:
+            return None
+        if resolution.missing_parameters or not resolution.runnable:
+            return None
+        if writes(matched.version):
+            return None
+
+        try:
+            return await self._execute.execute(
+                ctx,
+                ExecutionRequest(
+                    skill_id=matched.skill.id,
+                    parameters=dict(resolution.items[0]) if resolution.items else {},
+                    version=matched.version.version,
+                ),
+            )
+        except (DomainError, TargetUnreachable) as refusal:
+            # A refused read is worth saying out loud, and worth saying in the
+            # reply rather than as an empty answer: the breaker being open is a
+            # fact about the system, not an absence of transport modes.
+            logger.info("could not answer from the system: %s", refusal)
+            return None
 
 
 def _reply(resolution: Resolution) -> str:
@@ -148,7 +199,7 @@ def _reply(resolution: Resolution) -> str:
     return resolution.question or "I do not know how to do that yet."
 
 
-def _decision(resolution: Resolution) -> dict[str, object]:
+def _decision(resolution: Resolution, run: Run | None = None) -> dict[str, object]:
     """The structured half of the reply, kept for the audit trail."""
     return {
         "matched_skill_id": (resolution.matched.skill.id.value if resolution.matched else None),
@@ -163,6 +214,8 @@ def _decision(resolution: Resolution) -> dict[str, object]:
         "items": [dict(item) for item in resolution.items],
         "note": resolution.note,
         "proposal_sources": (list(resolution.proposal.sources) if resolution.proposal else []),
+        # The answer, from the system, at the moment it was asked.
+        "run_id": run.id.value if run else None,
     }
 
 

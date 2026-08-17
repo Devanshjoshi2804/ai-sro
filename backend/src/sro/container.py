@@ -308,7 +308,13 @@ class Container:
         return StartThread(self.unit_of_work(), self.clock, self.ids)
 
     def converse(self) -> Converse:
-        return Converse(self.unit_of_work(), self.resolve_intent(), self.clock, self.ids)
+        return Converse(
+            self.unit_of_work(),
+            self.resolve_intent(),
+            self.clock,
+            self.ids,
+            self.execute_skill(),
+        )
 
     def read_threads(self) -> ReadThreads:
         return ReadThreads(self.unit_of_work())

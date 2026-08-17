@@ -463,6 +463,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/knowledge/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open Questions
+         * @description Everything the system knows it does not know.
+         *
+         *     The places where the next confident answer would be a guess. Cheap to
+         *     settle while somebody still remembers the context, and expensive to leave:
+         *     an unanswered ambiguity is answered eventually by whichever evidence
+         *     happened to arrive first.
+         */
+        get: operations["open_questions_v1_knowledge_questions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/knowledge/questions/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Question
+         * @description Settle one, for everybody. Recorded with who said it.
+         */
+        post: operations["answer_question_v1_knowledge_questions_answer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/knowledge/summary": {
         parameters: {
             query?: never;
@@ -690,6 +735,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnswerQuestionRequest */
+        AnswerQuestionRequest: {
+            /** System */
+            system: string;
+            /** Key */
+            key: string;
+            /** Chosen */
+            chosen: string;
+        };
         /**
          * ArtifactKind
          * @enum {string}
@@ -853,7 +907,7 @@ export interface components {
          * EntryKind
          * @enum {string}
          */
-        EntryKind: "screen" | "endpoint" | "field" | "form" | "flow" | "status" | "quirk";
+        EntryKind: "screen" | "endpoint" | "field" | "form" | "flow" | "status" | "quirk" | "question";
         /**
          * EvidenceLevel
          * @enum {string}
@@ -1053,6 +1107,19 @@ export interface components {
             facility: string;
             direction: components["schemas"]["Direction"];
         };
+        /** OpenQuestionModel */
+        OpenQuestionModel: {
+            /** System */
+            system: string;
+            /** Key */
+            key: string;
+            /** Question */
+            question: string;
+            /** Options */
+            options: string[];
+            /** Because */
+            because: string[];
+        };
         /** OpenedConnectionResponse */
         OpenedConnectionResponse: {
             /** Connection Id */
@@ -1139,6 +1206,16 @@ export interface components {
             detail: string;
             /** Landed At */
             landed_at: string;
+            /**
+             * Recording Id
+             * @default
+             */
+            recording_id: string;
+            /**
+             * Skill Id
+             * @default
+             */
+            skill_id: string;
         };
         /** RecordingDetail */
         RecordingDetail: {
@@ -2428,6 +2505,72 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ResolutionModel"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    open_questions_v1_knowledge_questions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenQuestionModel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_question_v1_knowledge_questions_answer_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerQuestionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

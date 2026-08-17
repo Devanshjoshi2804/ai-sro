@@ -918,6 +918,7 @@ function ChatTurn({ message, onAsk }: { message: ChatMessage; onAsk?: (text: str
 
   const decision = message.decision as {
     matched_skill_id?: string | null;
+    run_id?: string | null;
     matched_version?: number | null;
     confident?: boolean;
     runnable?: boolean;
@@ -965,6 +966,7 @@ function ChatTurn({ message, onAsk }: { message: ChatMessage; onAsk?: (text: str
             parameters={items.length === 1 ? items[0] : {}}
             missing={items.length ? [] : (decision.missing_parameters ?? [])}
             onAsk={onAsk}
+            answeredBy={decision.run_id ?? undefined}
           />
         )}
       </div>

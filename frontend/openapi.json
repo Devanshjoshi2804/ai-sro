@@ -1619,6 +1619,121 @@
         }
       }
     },
+    "/v1/knowledge/questions": {
+      "get": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Open Questions",
+        "description": "Everything the system knows it does not know.\n\nThe places where the next confident answer would be a guess. Cheap to\nsettle while somebody still remembers the context, and expensive to leave:\nan unanswered ambiguity is answered eventually by whichever evidence\nhappened to arrive first.",
+        "operationId": "open_questions_v1_knowledge_questions_get",
+        "parameters": [
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OpenQuestionModel"
+                  },
+                  "title": "Response Open Questions V1 Knowledge Questions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/knowledge/questions/answer": {
+      "post": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Answer Question",
+        "description": "Settle one, for everybody. Recorded with who said it.",
+        "operationId": "answer_question_v1_knowledge_questions_answer_post",
+        "parameters": [
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerQuestionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/knowledge/summary": {
       "get": {
         "tags": [
@@ -2495,6 +2610,29 @@
   },
   "components": {
     "schemas": {
+      "AnswerQuestionRequest": {
+        "properties": {
+          "system": {
+            "type": "string",
+            "title": "System"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "chosen": {
+            "type": "string",
+            "title": "Chosen"
+          }
+        },
+        "type": "object",
+        "required": [
+          "system",
+          "key",
+          "chosen"
+        ],
+        "title": "AnswerQuestionRequest"
+      },
       "ArtifactKind": {
         "type": "string",
         "enum": [
@@ -2962,7 +3100,8 @@
           "form",
           "flow",
           "status",
-          "quirk"
+          "quirk",
+          "question"
         ],
         "title": "EntryKind"
       },
@@ -3497,6 +3636,45 @@
         ],
         "title": "ObjectiveKeyModel"
       },
+      "OpenQuestionModel": {
+        "properties": {
+          "system": {
+            "type": "string",
+            "title": "System"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "because": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Because"
+          }
+        },
+        "type": "object",
+        "required": [
+          "system",
+          "key",
+          "question",
+          "options",
+          "because"
+        ],
+        "title": "OpenQuestionModel"
+      },
       "OpenedConnectionResponse": {
         "properties": {
           "connection_id": {
@@ -3714,6 +3892,16 @@
           "landed_at": {
             "type": "string",
             "title": "Landed At"
+          },
+          "recording_id": {
+            "type": "string",
+            "title": "Recording Id",
+            "default": ""
+          },
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id",
+            "default": ""
           }
         },
         "type": "object",

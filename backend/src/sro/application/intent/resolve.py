@@ -11,7 +11,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from sro.application.context import RequestContext
-from sro.application.intent.match import FLOOR, Candidate, ambiguous, asks, rank, refers_back
+from sro.application.intent.match import (
+    FLOOR,
+    Candidate,
+    ambiguous,
+    asks,
+    rank,
+    refers_back,
+    writes,
+)
 from sro.application.intent.plan_task import PlanTask, Proposal
 from sro.application.intent.pursue import Pursuit, compose
 from sro.application.ports.intent import IntentParser
@@ -108,7 +116,18 @@ class ResolveIntent:
         pending = next((s for s in skills if pinned and s.id.value == pinned), None)
 
         candidates = rank(skills, utterance)
-        carrying_on = pending is not None and not _names_another(candidates, pending)
+        # A question is never an answer. "How many transport modes are there,
+        # list them all" was swallowed by the create skill that was waiting for
+        # a code and a description, because it named no other task confidently
+        # -- so the operator asked for a list and was shown a form twice.
+        #
+        # Being asked something is the clearest possible signal that the last
+        # question is no longer what is being talked about, and a pinned skill
+        # that writes has no business answering one.
+        interrupted = asks(utterance) and pending is not None and writes(pending.versions[-1])
+        carrying_on = (
+            pending is not None and not interrupted and not _names_another(candidates, pending)
+        )
         if pending is not None and carrying_on:
             candidates = (
                 _pinned_candidate(pending),

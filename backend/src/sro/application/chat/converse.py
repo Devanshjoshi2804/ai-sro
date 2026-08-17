@@ -216,6 +216,9 @@ def _decision(resolution: Resolution, run: Run | None = None) -> dict[str, objec
         "proposal_sources": (list(resolution.proposal.sources) if resolution.proposal else []),
         # The answer, from the system, at the moment it was asked.
         "run_id": run.id.value if run else None,
+        # The name, not only the id: a sidebar reading "ran skl_a6f7b33c" tells
+        # nobody anything.
+        "matched_skill_name": resolution.matched.skill.name if resolution.matched else None,
     }
 
 

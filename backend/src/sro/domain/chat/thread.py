@@ -69,11 +69,25 @@ class Thread:
 
     @property
     def title(self) -> str:
-        """What the operator asked for first. Threads are found by what they
-        were about, and a title anybody typed separately is a title nobody
-        typed."""
+        """What this conversation was about, and what came of it.
+
+        The first sentence alone left six conversations in the sidebar all
+        called "how many transport modes a…", indistinguishable from each
+        other. What tells them apart is what was done in them, so the last task
+        that actually ran is added when there was one.
+        """
         first = next((m for m in self._messages if m.speaker is Speaker.OPERATOR), None)
-        return (first.text[:80] if first else "New thread").strip()
+        asked = (first.text[:60] if first else "New thread").strip()
+        return f"{asked} · {done}" if (done := self._what_was_done()) else asked
+
+    def _what_was_done(self) -> str:
+        """The last thing this conversation actually performed, if anything."""
+        for message in reversed(self._messages):
+            decision = message.decision or {}
+            if decision.get("run_id"):
+                matched = decision.get("matched_skill_name") or decision.get("matched_skill_id")
+                return f"ran {matched}" if matched else "ran"
+        return ""
 
     def say(self, message: Message) -> Message:
         """Append. Nothing in a thread is ever edited or removed."""

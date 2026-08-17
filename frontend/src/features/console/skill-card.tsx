@@ -431,7 +431,13 @@ function RunButton({
       setFinished(started);
       void queryClient.invalidateQueries({ queryKey: runKeys.all });
       toast.success(`Run ${started.status}`, {
-        description: started.failure ?? `${started.steps.length} steps, over ${started.medium}`,
+        // What was sent, not how many steps a demonstration had. Four of the
+        // six are the operator's typing, which produces no call at L1 because
+        // the WMS sends everything at Save — true, and it reads as though
+        // two-thirds of the task did not happen.
+        description:
+          started.failure ??
+          `${started.steps.filter((step) => step.disposition === "performed").length} calls, over ${started.medium}`,
       });
     },
     onError: (error) =>

@@ -164,3 +164,29 @@ async def test_changing_your_mind_is_still_allowed() -> None:
 
     assert resolution.matched is not None
     assert resolution.matched.skill.name == "List transport modes"
+
+
+@pytest.mark.asyncio
+async def test_a_question_is_never_swallowed_by_a_skill_waiting_for_values() -> None:
+    """What the operator saw: asked for a list, shown a create form. Twice.
+
+    "How many transport modes are there, list them all" names no other task
+    *confidently* — it never does, it is a question — so the create skill that
+    was waiting for a code and a description answered it. Being asked something
+    is the clearest signal that the previous question is over.
+    """
+    uow = FakeUnitOfWork()
+    creating = _creating()
+    async with uow:
+        await uow.skills.add(_listing())
+        await uow.skills.add(creating)
+        await uow.commit()
+
+    resolution = await _resolver(uow).execute(
+        CTX,
+        utterance="how many transport modes are there list them all",
+        pinned=creating.id.value,
+    )
+
+    assert resolution.matched is not None
+    assert resolution.matched.skill.name == "List transport modes"

@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, status
 
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import BrowserSessionId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -22,6 +23,7 @@ from sro.interface.http.schemas import (
     SessionHeadersRequest,
     SessionHeadersResponse,
     SignedInResponse,
+    TokenEstablishedResponse,
 )
 
 router = APIRouter(prefix="/connections", tags=["connections"])
@@ -143,6 +145,38 @@ async def sign_in(
         landed_at=signed_in.landed_at,
         steps=list(signed_in.steps),
     )
+
+
+@router.post("/{connection_id}/token")
+async def establish_token(
+    connection_id: str, body: CredentialsRequest, container: ContainerDep, ctx: ContextDep
+) -> TokenEstablishedResponse:
+    """Exchange one login for a credential that outlives the browser.
+
+    Everything else here replays a human's browser session, which works and
+    expires on the identity provider's schedule. An offline token is not bound
+    to that session at all: it survives the operator logging out and going
+    home, and refreshing it on a schedule keeps it alive indefinitely.
+
+    The password is used to make the exchange and is not what gets kept -- the
+    token is, and the identity provider can revoke it without anybody changing
+    a password.
+    """
+    if container.tokens is None:
+        raise NotFound(
+            "this deployment has no identity provider configured, so it cannot hold a "
+            "credential of its own"
+        )
+    async with container.unit_of_work() as uow:
+        connection = await uow.connections.get(ctx.tenant_id, ConnectionId(connection_id))
+
+    await container.tokens.establish(
+        tenant=ctx.tenant_id.value,
+        system=connection.target_system,
+        username=body.username,
+        password=body.password,
+    )
+    return TokenEstablishedResponse(target_system=connection.target_system, held=True)
 
 
 @router.post("/{connection_id}/resume")

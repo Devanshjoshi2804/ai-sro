@@ -14,6 +14,7 @@ What this is careful about, in order of how much damage the alternative does:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
@@ -27,6 +28,7 @@ from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.application.ports.token import TokenRefused, TokenSource
 from sro.application.ports.ui import ResolvedLocator, UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
 from sro.domain.execution.escalation import FailureKind, next_medium
@@ -45,6 +47,8 @@ from sro.domain.shared.identifiers import PrincipalId, SkillId
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillStep, SkillVersion
+
+logger = logging.getLogger(__name__)
 
 
 class NotRunnable(DomainError):
@@ -150,6 +154,7 @@ class ExecuteStep:
         ui: UiDriver | None = None,
         vision: PerformWithVision | None = None,
         heal: SelfHeal | None = None,
+        tokens: TokenSource | None = None,
     ) -> None:
         self._uow = uow
         self._http = http
@@ -157,6 +162,7 @@ class ExecuteStep:
         self._ui = ui
         self._vision = vision
         self._heal_with = heal
+        self._tokens = tokens
         self._budgets: dict[str, HealBudget] = {}
 
     async def execute(self, ctx: RequestContext, *, run_id: RunId, index: int) -> StepOutcome:
@@ -260,6 +266,19 @@ class ExecuteStep:
     def _budget_for(self, run: Run) -> HealBudget:
         """One budget per run, so a repair that did not take is not repeated."""
         return self._budgets.setdefault(run.id.value, HealBudget())
+
+    async def _bearer(self, tenant: str, session_scope: str) -> str | None:
+        """An access token for this system, if one has been established."""
+        if self._tokens is None:
+            return None
+        system = session_scope.split("/", 1)[0]
+        try:
+            return await self._tokens.access_token(tenant=tenant, system=system)
+        except TokenRefused as refusal:
+            # Worth a line, not a failure: the run falls back to the session
+            # cookies and says so if those are gone too.
+            logger.info("no access token for %s: %s", system, refusal)
+            return None
 
     async def _perform_in_ui(
         self, run: Run, step: SkillStep, *, values: dict[str, str]
@@ -491,6 +510,7 @@ class ExecuteStep:
             vault=self._vault,
             scope=scope,
             session_scope=session_scope,
+            bearer=await self._bearer(scope, session_scope),
         )
         if resolved.missing:
             return (

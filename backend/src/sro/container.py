@@ -59,6 +59,7 @@ from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.sign_in import SignInDriver
 from sro.application.ports.system import Clock, IdFactory
+from sro.application.ports.token import TokenSource
 from sro.application.ports.transcription import Transcriber
 from sro.application.ports.ui import UiDriver
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
@@ -75,6 +76,7 @@ from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.config import Settings, get_settings
+from sro.infrastructure.auth.keycloak import KeycloakTokens
 from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.session import create_engine, create_session_factory
@@ -119,6 +121,7 @@ class Container:
     http: HttpCaller
     ui: UiDriver
     sign_in_driver: SignInDriver
+    tokens: TokenSource | None
     durable: DurableExecution
     session_factory: async_sessionmaker[AsyncSession]
 
@@ -284,6 +287,7 @@ class Container:
             self.ui,
             self.perform_with_vision(),
             self.self_heal(),
+            self.tokens,
         )
 
     def finish_run(self) -> FinishRun:
@@ -436,10 +440,19 @@ def build_container(settings: Settings | None = None) -> Container:
         vision=_build_vision(settings),
         interpreter=_build_interpreter(settings),
         intent_parser=_build_intent_parser(settings),
-        vault=_build_vault(settings),
+        vault=(built_vault := _build_vault(settings)),
         http=HttpxCaller(),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
         sign_in_driver=PlaywrightSignIn(),
+        tokens=(
+            KeycloakTokens(
+                built_vault,
+                realm_url=settings.keycloak_realm_url,
+                client_id=settings.keycloak_client_id,
+            )
+            if settings.keycloak_realm_url and settings.keycloak_client_id
+            else None
+        ),
         durable=TemporalDurableExecution(
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),

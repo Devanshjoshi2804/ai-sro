@@ -33,6 +33,7 @@ async def resolve_headers(
     vault: CredentialVault,
     scope: str,
     session_scope: str,
+    bearer: str | None = None,
 ) -> ResolvedHeaders:
     """``scope`` is the tenant whose session is used, prefixed onto every key.
 
@@ -51,6 +52,14 @@ async def resolve_headers(
     headers: dict[str, str] = {}
     missing: list[str] = []
 
+    # A credential built to be held, where one exists. The cookies below are a
+    # human's browser session: they work, and they expire on the identity
+    # provider's schedule rather than on anything this system controls. An
+    # offline token outlives the session that created it, so where there is one
+    # it is what authenticates the call.
+    if bearer:
+        _put(headers, "Authorization", f"Bearer {bearer}")
+
     for plan in plans:
         if plan.managed and plan.name.lower() == "referer":
             # The page the application makes its calls from, when the session
@@ -68,6 +77,11 @@ async def resolve_headers(
             continue  # the HTTP client owns these
 
         if plan.credential_ref is not None:
+            if bearer and plan.name.lower() == "cookie":
+                # Both would be sent otherwise, and a stale session cookie
+                # beside a good token is how a call gets refused for the reason
+                # that was just fixed.
+                continue
             secret = await vault.get(f"{scope}/{plan.credential_ref}")
             if secret is None:
                 # A skill names `<system>/<site>/cookie`; a login is to a

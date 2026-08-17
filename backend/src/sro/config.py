@@ -105,6 +105,14 @@ class Settings(BaseSettings):
     parameters."""
 
     vision_enabled: bool = False
+
+    keycloak_realm_url: str = ""
+    """The realm that issues offline tokens for the connected system.
+
+    Empty means no token source: runs authenticate with the session cookies,
+    which work and expire on the identity provider's schedule."""
+
+    keycloak_client_id: str = ""
     """The L3 rung sends a screenshot of a customer's live WMS to Google.
 
     Off by default and separate from the key, like every other egress here. With

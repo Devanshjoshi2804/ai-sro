@@ -181,6 +181,13 @@ class AnswerQuestionRequest(BaseModel):
     chosen: str
 
 
+class TokenEstablishedResponse(BaseModel):
+    target_system: str
+    held: bool
+    """That one exists, never what it is. A token that reached a response body
+    would be in every proxy log between here and the caller."""
+
+
 class ResumeRequest(BaseModel):
     reason: str
     """Why it is safe to carry on. Kept, because a breaker anybody can clear

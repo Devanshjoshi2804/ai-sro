@@ -33,6 +33,7 @@ from sro.application.execution.execute_skill import (
     FinishRun,
     StartRun,
 )
+from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.read_runs import GetRun, ListRuns
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.vision_step import PerformWithVision
@@ -240,6 +241,18 @@ class Container:
 
     def start_run(self) -> StartRun:
         return StartRun(self.unit_of_work(), self.clock, self.ids)
+
+    def pursue_goal(self) -> PursueGoal:
+        return PursueGoal(
+            self.unit_of_work(),
+            self.vault,
+            self.browser,
+            self.ui,
+            self.vision,
+            self.clock,
+            egress_enabled=self.settings.vision_enabled,
+            model=self.settings.gemini_vision_model,
+        )
 
     def self_heal(self) -> SelfHeal:
         return SelfHeal(

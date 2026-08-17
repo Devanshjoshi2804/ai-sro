@@ -113,6 +113,29 @@ class SignedInResponse(BaseModel):
     that stalled without recording what was typed."""
 
 
+class PursueRequest(BaseModel):
+    """What the operator confirmed before anything is driven."""
+
+    intent: str
+    target_system: str
+    values: dict[str, str] = {}
+    """The values they gave for the fields the screen needs. Given rather than
+    guessed: a model asked to work out a code on screen will invent one."""
+
+    start_url: str | None = None
+
+
+class PursuedResponse(BaseModel):
+    goal: str
+    reached: bool
+    """What the model claimed, never what the system verified: a pursuit has no
+    demonstration to assert against."""
+
+    gestures: list[str]
+    landed_at: str
+    detail: str
+
+
 class ResumeRequest(BaseModel):
     reason: str
     """Why it is safe to carry on. Kept, because a breaker anybody can clear

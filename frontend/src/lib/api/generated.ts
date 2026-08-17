@@ -535,6 +535,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/threads/{thread_id}/pursue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pursue
+         * @description Say go: work a task out on the screen, when nobody has demonstrated it.
+         *
+         *     The rung of last resort, and the one with the least behind it -- so it is
+         *     reached only after the operator has read the goal and the values, and said
+         *     to go ahead.
+         */
+        post: operations["pursue_v1_threads__thread_id__pursue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/threads/{thread_id}/messages": {
         parameters: {
             query?: never;
@@ -1060,6 +1084,38 @@ export interface components {
             source: string;
             /** Evidence */
             evidence: string;
+        };
+        /**
+         * PursueRequest
+         * @description What the operator confirmed before anything is driven.
+         */
+        PursueRequest: {
+            /** Intent */
+            intent: string;
+            /** Target System */
+            target_system: string;
+            /**
+             * Values
+             * @default {}
+             */
+            values: {
+                [key: string]: string;
+            };
+            /** Start Url */
+            start_url?: string | null;
+        };
+        /** PursuedResponse */
+        PursuedResponse: {
+            /** Goal */
+            goal: string;
+            /** Reached */
+            reached: boolean;
+            /** Gestures */
+            gestures: string[];
+            /** Landed At */
+            landed_at: string;
+            /** Detail */
+            detail: string;
         };
         /** RecordingDetail */
         RecordingDetail: {
@@ -2511,6 +2567,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ThreadDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pursue_v1_threads__thread_id__pursue_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PursueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PursuedResponse"];
                 };
             };
             /** @description Validation Error */

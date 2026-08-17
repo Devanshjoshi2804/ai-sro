@@ -440,24 +440,24 @@ function RunButton({
 /**
  * What the run found, where the question was asked.
  *
- * A run that reported `GET … → 200` and a link to a page of URLs answered
- * nothing: somebody asked how many transport modes there are, the number came
- * back in the response, and they were shown a status code. The records are
- * already on the step; this puts them in front of the person who asked.
+ * A table rather than a paragraph, because the answer to "how many transport
+ * modes" is sixteen rows with columns, and prose is where structure goes to
+ * die. Sixteen fits; four thousand does not, so what is shown is a window onto
+ * the result with the total said plainly above it — the row count is the
+ * answer, the rows are the evidence, and the rest stays where it is rather than
+ * being poured through a chat message.
  */
 function Result({ run }: { run: RunModel }) {
+  const [expanded, setExpanded] = useState(false);
   const read = run.steps.find((step) => step.found_rows !== null && step.found_rows !== undefined);
   const failed = run.status !== "succeeded";
 
   if (failed) {
+    const explained = run.steps.find((step) => step.detail);
     return (
       <span style={{ fontSize: 12.5, color: ink.danger }}>
         {run.failure ?? "It did not finish"}
-        {/* The detail says what was tried and repaired, which is the only
-            useful thing to read when something did not work. */}
-        {run.steps.find((step) => step.detail) && (
-          <span style={{ color: ink.textSoft }}> — {run.steps.find((s) => s.detail)?.detail}</span>
-        )}
+        {explained?.detail && <span style={{ color: ink.textSoft }}> — {explained.detail}</span>}
       </span>
     );
   }
@@ -466,29 +466,85 @@ function Result({ run }: { run: RunModel }) {
     return <span style={{ fontSize: 12.5, color: ink.textSoft }}>Done.</span>;
   }
 
+  // Every column any sampled row declares, in the order the ranking put them.
+  const columns = Array.from(new Set(read.found.flatMap((row) => Object.keys(row))));
+  const shown = expanded ? read.found : read.found.slice(0, 5);
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
-      <div style={{ fontSize: 13, fontWeight: 700 }}>{read.found_rows} found</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {(read.found_labels.length
-          ? read.found_labels
-          : read.found.map((row) => Object.values(row)[0])
-        )
-          .slice(0, 24)
-          .map((label, index) => (
-            <span
-              key={index}
-              style={{
-                border: `1px solid ${ink.line}`,
-                borderRadius: 6,
-                padding: "4px 8px",
-                fontSize: 12,
-                fontFamily: mono,
-              }}
-            >
-              {label}
-            </span>
-          ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>{read.found_rows}</span>
+        <span style={{ fontSize: 12.5, color: ink.textSoft }}>
+          found{read.found.length < read.found_rows ? `, showing ${shown.length}` : ""}
+        </span>
+        <span style={{ flex: 1 }} />
+        {read.found.length > 5 && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            style={{
+              border: "none",
+              background: "transparent",
+              color: ink.accentDeep,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {expanded ? "Show less" : `Show all ${read.found.length}`}
+          </button>
+        )}
+      </div>
+
+      {/* Its own scroll container: a wide result must never make the whole
+          conversation scroll sideways. */}
+      <div style={{ overflowX: "auto", border: `1px solid ${ink.line}`, borderRadius: 8 }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th
+                  key={column}
+                  style={{
+                    textAlign: "left",
+                    padding: "7px 10px",
+                    borderBottom: `1px solid ${ink.line}`,
+                    color: ink.textMuted,
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    letterSpacing: ".04em",
+                    textTransform: "uppercase",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {column.replace(/([a-z])([A-Z])/g, "$1 $2")}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((row, index) => (
+              <tr
+                key={index}
+                style={{ borderTop: index ? `1px solid ${ink.lineSoft}` : undefined }}
+              >
+                {columns.map((column) => (
+                  <td
+                    key={column}
+                    style={{
+                      padding: "7px 10px",
+                      fontFamily: mono,
+                      whiteSpace: "nowrap",
+                      color: row[column] ? ink.text : ink.textMuted,
+                    }}
+                  >
+                    {row[column] ?? "—"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

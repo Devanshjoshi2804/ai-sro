@@ -1970,6 +1970,79 @@
         }
       }
     },
+    "/v1/threads/{thread_id}/pursue": {
+      "post": {
+        "tags": [
+          "threads"
+        ],
+        "summary": "Pursue",
+        "description": "Say go: work a task out on the screen, when nobody has demonstrated it.\n\nThe rung of last resort, and the one with the least behind it -- so it is\nreached only after the operator has read the goal and the values, and said\nto go ahead.",
+        "operationId": "pursue_v1_threads__thread_id__pursue_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Thread Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PursueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/threads/{thread_id}/messages": {
       "post": {
         "tags": [
@@ -3502,6 +3575,80 @@
           "evidence"
         ],
         "title": "ProposedStepModel"
+      },
+      "PursueRequest": {
+        "properties": {
+          "intent": {
+            "type": "string",
+            "title": "Intent"
+          },
+          "target_system": {
+            "type": "string",
+            "title": "Target System"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Values",
+            "default": {}
+          },
+          "start_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "intent",
+          "target_system"
+        ],
+        "title": "PursueRequest",
+        "description": "What the operator confirmed before anything is driven."
+      },
+      "PursuedResponse": {
+        "properties": {
+          "goal": {
+            "type": "string",
+            "title": "Goal"
+          },
+          "reached": {
+            "type": "boolean",
+            "title": "Reached"
+          },
+          "gestures": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Gestures"
+          },
+          "landed_at": {
+            "type": "string",
+            "title": "Landed At"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "goal",
+          "reached",
+          "gestures",
+          "landed_at",
+          "detail"
+        ],
+        "title": "PursuedResponse"
       },
       "RecordingDetail": {
         "properties": {

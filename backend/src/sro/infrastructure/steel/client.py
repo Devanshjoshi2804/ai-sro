@@ -299,6 +299,10 @@ class SteelClient:
 
         return found
 
+    async def live_sessions(self) -> tuple[BrowserSessionId, ...]:
+        """Every session Steel currently has a browser for."""
+        return tuple(BrowserSessionId(str(held["id"])) for held in await self._live_sessions())
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         """Ask Steel where the session can be driven.
 

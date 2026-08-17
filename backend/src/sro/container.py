@@ -183,7 +183,13 @@ class Container:
         return AcknowledgeFailures(self.unit_of_work(), self.clock)
 
     def check_session(self) -> CheckSession:
-        return CheckSession(self.unit_of_work(), self.vault, self.http)
+        return CheckSession(
+            self.unit_of_work(),
+            self.vault,
+            self.http,
+            self.browser,
+            self.refresh_session(),
+        )
 
     def refresh_session(self) -> RefreshSession:
         return RefreshSession(self.unit_of_work(), self.vault, self.clock)

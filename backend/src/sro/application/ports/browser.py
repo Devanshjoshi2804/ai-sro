@@ -65,6 +65,13 @@ class BrowserProvider(Protocol):
         """
         ...
 
+    async def live_sessions(self) -> tuple[BrowserSessionId, ...]:
+        """Browsers this deployment has open right now.
+
+        So a login somebody completed in one of them is not lost because
+        nothing happened to be watching that window."""
+        ...
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         """Where a human drives this session, asked for after the fact.
 

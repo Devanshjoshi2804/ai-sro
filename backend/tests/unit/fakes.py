@@ -163,6 +163,9 @@ class FakeBrowserProvider:
     async def restore(self, session_id: BrowserSessionId, cookies: list[dict[str, object]]) -> None:
         self.restored = list(cookies)
 
+    async def live_sessions(self) -> tuple[BrowserSessionId, ...]:
+        return tuple(s for s in self.opened if s not in self.closed)
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         if session_id in self.closed:
             return None

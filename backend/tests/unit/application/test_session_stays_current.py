@@ -18,7 +18,13 @@ from sro.application.connection.connect_system import RefreshSession
 from sro.application.context import RequestContext
 from sro.domain.connection.connection import Connection, ConnectionId
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeCredentialVault, FakeHttpCaller, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeBrowserProvider,
+    FakeClock,
+    FakeCredentialVault,
+    FakeHttpCaller,
+    FakeUnitOfWork,
+)
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
@@ -145,3 +151,56 @@ async def test_a_redirect_inside_the_system_is_not_a_login_page() -> None:
     (check,) = await CheckSession(uow, vault, http).execute(CTX)
 
     assert check.health is SessionHealth.SIGNED_IN
+
+
+@pytest.mark.asyncio
+async def test_a_login_nobody_was_watching_is_adopted() -> None:
+    """Three times in one afternoon a good session was thrown away.
+
+    An operator signed in inside a browser this deployment had open, and the
+    console reported them signed out because nothing happened to be polling
+    that particular window. Signing in is the whole job; noticing is ours.
+    """
+    uow, vault, browser, http = (
+        FakeUnitOfWork(),
+        FakeCredentialVault(),
+        FakeBrowserProvider(),
+        FakeHttpCaller(),
+    )
+    connection = await _connected(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=expired")
+    http.answer(status_code=302, headers={"location": "https://login.example.org/authorize"})
+
+    # A browser this deployment opened, in which somebody has signed in.
+    await browser.open()
+    browser.cookies = ({"name": "SESSIONID", "value": "signed-in", "domain": "wms.example.com"},)
+
+    check = CheckSession(uow, vault, http, browser, RefreshSession(uow, vault, FakeClock()))
+    (found,) = await check.execute(CTX)
+
+    assert found.health is SessionHealth.SIGNED_IN
+    assert await vault.get(connection.cookie_key) == "SESSIONID=signed-in"
+
+
+@pytest.mark.asyncio
+async def test_nothing_is_adopted_from_a_browser_holding_nothing() -> None:
+    """An open browser is not a signed-in one, and an empty one must not
+    overwrite a session that is merely expired."""
+    uow, vault, browser, http = (
+        FakeUnitOfWork(),
+        FakeCredentialVault(),
+        FakeBrowserProvider(),
+        FakeHttpCaller(),
+    )
+    connection = await _connected(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=expired")
+    http.answer(status_code=302, headers={"location": "https://login.example.org/authorize"})
+
+    await browser.open()
+    browser.cookies = ({"name": "x-ms-cpim-csrf", "value": "n", "domain": ".login.example.org"},)
+
+    check = CheckSession(uow, vault, http, browser, RefreshSession(uow, vault, FakeClock()))
+    (found,) = await check.execute(CTX)
+
+    assert found.health is SessionHealth.SIGNED_OUT
+    assert await vault.get(connection.cookie_key) == "SESSIONID=expired"

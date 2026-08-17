@@ -138,6 +138,10 @@ class PursuitProgressModel(BaseModel):
     detail: str
     landed_at: str
 
+    recording_id: str = ""
+    skill_id: str = ""
+    """What it left behind, and what was induced from it."""
+
     @classmethod
     def of(cls, progress: PursuitProgress) -> PursuitProgressModel:
         return cls(
@@ -147,6 +151,8 @@ class PursuitProgressModel(BaseModel):
             gestures=list(progress.gestures),
             detail=progress.detail,
             landed_at=progress.landed_at,
+            recording_id=progress.recording_id,
+            skill_id=progress.skill_id,
         )
 
 

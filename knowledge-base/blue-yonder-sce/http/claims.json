@@ -740,6 +740,23 @@
       ],
       "consequence": "A UI plan cannot be written per-verb from a template. Each action needs its rendering shape recorded, and \"did a window appear\" is not a usable signal for whether an action ran — only observed traffic is. The 95-verb inventory therefore needs 95 individual readings, and this tool does them one at a time without side effects.",
       "evidence_level": "observed"
+    },
+    {
+      "id": "operational-forms-use-db-column-names-not-camelcase",
+      "source": "tools/cdp/read-action-form.mjs — 2026-08-17",
+      "claim": "Operational action forms are built on DB column names, unlike the Configuration forms, which use the camelCase JSON keys.",
+      "verdict": "REPRODUCED",
+      "evidence": "index/operational-forms.json — \"Waves and Picks > Plan Wave\"",
+      "observed": [
+        "Plan Wave has 22 fields and their names are DB columns: dest_num, dlvnum, from_late_shpdte, to_late_shpdte, l_ordnum, l_ordtyp, from_prcpri, to_prcpri, prtnum, supnum, totpcs, rush_flg, wave_set, l_btcust, l_rtcust, l_stcust, l_carcod, l_srvlvl, client_id, prt_client_id.",
+        "Only ruleName and savedFilter are camelCase. ruleName is required and defaults to STD-ORDERSELECTION, with 2 options.",
+        "Its buttons are Save, Search, Clear and Plan Wave — a search form and an action in one, so \"fill and submit\" is not the interaction; you filter first, then act on the result.",
+        "The field types are the app's own lookups: customerlookup, orderNumberLookup, itemLookup, rpDateTime, rpToggle. Three of the 22 are date/range pairs (from_/to_), which is what the range operators in the query grammar are for.",
+        "Six action forms read so far without side effects: Adjustments>Approve (3), Inventory>Apply Hold (3), Inventory>Release Hold (5), Inventory>Inventory Mass Update (4), Work Queue>Ineligible Work (4), Waves and Picks>Plan Wave (22)."
+      ],
+      "consequence": "The three vocabularies problem is worse than recorded. A Configuration create needs camelCase (businessUnitDescription), the API error quotes the DB column (lngdsc), and now an operational form is ADDRESSED in DB columns (dlvnum). A UI plan for the operational tier and a payload for the Configuration tier cannot share a field dictionary.",
+      "method_note": "Four readings were dropped rather than kept: an untitled window with no fields, closed with an error, is the signature of reading the PREVIOUS action's leftover dialog. Recording those as \"this action takes no input\" would have been worse than recording nothing. Seven more actions were present and enabled but their handler did not fire — the tool records that as not-fired rather than guessing.",
+      "evidence_level": "observed"
     }
   ],
   "still_asserted_not_reproduced": [],

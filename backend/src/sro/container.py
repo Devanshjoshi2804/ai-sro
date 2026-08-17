@@ -256,6 +256,10 @@ class Container:
             self.ui,
             self.vision,
             self.clock,
+            self.capture,
+            self.start_recording(),
+            self.finish_recording(),
+            self.understand_recording(),
             egress_enabled=self.settings.vision_enabled,
             model=self.settings.gemini_vision_model,
         )

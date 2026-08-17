@@ -67,6 +67,8 @@ async def pursue(
             progress.state = PursuitState.REACHED if pursued.reached else PursuitState.STOPPED
             progress.detail = pursued.detail
             progress.landed_at = pursued.landed_at
+            progress.recording_id = pursued.recording_id
+            progress.skill_id = pursued.skill_id
         except Exception as error:
             progress.state = PursuitState.FAILED
             progress.detail = str(error)
@@ -98,6 +100,12 @@ def _pursuit_note(progress: PursuitProgress) -> str:
         f"{progress.state} — {progress.detail}" if progress.detail else str(progress.state),
     ]
     lines.extend(f"· {gesture}" for gesture in progress.gestures)
+    if progress.skill_id:
+        lines.append(
+            f"Kept as a skill ({progress.skill_id}) — the same request runs over the API now."
+        )
+    elif progress.recording_id:
+        lines.append(f"Recorded as {progress.recording_id}.")
     return "\n".join(lines)
 
 

@@ -45,8 +45,14 @@ const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://loc
 const ctx = browser.contexts()[0];
 const page = await ctx.newPage();
 let writes = [];
+/*
+ * Telemetry is not a write. The portal POSTs webPerformanceEntries and rpux/persistence constantly —
+ * grid layout, timings — and counting those as "this action submitted something" would cry wolf on
+ * every reading.
+ */
+const TELEMETRY = /webPerformanceEntries|rpux\/persistence|serverStatus/;
 page.on('requestfinished', (req) => {
-  if (req.method() !== 'GET' && /\/data\/WM\//.test(req.url())) {
+  if (req.method() !== 'GET' && /\/data\/WM\//.test(req.url()) && !TELEMETRY.test(req.url())) {
     writes.push(`${req.method()} ${req.url().replace(/^https?:\/\/[^/]+/, '').split('?')[0]}`);
   }
 });
@@ -57,11 +63,23 @@ const store = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : { 
 try {
   for (const item of items) {
     writes = [];
+    /*
+     * Land somewhere neutral first. Navigating straight back to the same route let the SPA restore
+     * whatever card the previous action had left open.
+     */
+    await page.goto(PORTAL + '#wm.config/wm.config.warehouse.warehouse////', { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+    await page.waitForTimeout(6000);
     await page.goto(PORTAL + route, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
     await page.waitForTimeout(15000);
 
-    /* Select a row — most actions stay disabled without one — then open the Actions menu. */
+    /*
+     * Poll for the Actions button. A single pass right after navigation found it on the first action
+     * and missed it on the next two — the screen had not finished attaching its frame yet, which read
+     * as "no Actions button" and hid two perfectly readable forms.
+     */
     let frame = null;
+    for (let attempt = 0; attempt < 6 && !frame; attempt++) {
+    if (attempt) await page.waitForTimeout(4000);
     for (const fr of page.frames()) {
       const ok = await fr.evaluate(() => {
         if (!window.Ext) return false;
@@ -81,10 +99,18 @@ try {
       if (ok === true) { frame = fr; break; }
       if (ok && ok.domId) { await fr.locator('#' + ok.domId).click({ timeout: 5000 }).catch(() => {}); frame = fr; break; }
     }
-    if (!frame) { console.log(`  ${item.clean}: no Actions button`); continue; }
+    }
+    if (!frame) { console.log(`  ${item.clean}: no Actions button after 6 attempts`); continue; }
     await page.waitForTimeout(2000);
 
-    const fired = await frame.evaluate((text) => {
+    /*
+     * Poll for the item. The diagnostic kept reporting the target present and enabled a few seconds
+     * after the finder had already given up — the menu simply had not rendered yet at 2s.
+     */
+    let fired = false;
+    for (let attempt = 0; attempt < 6 && !fired; attempt++) {
+    if (attempt) await page.waitForTimeout(2000);
+    fired = await frame.evaluate((text) => {
       const vis = (c) => { const d = c.getEl && c.getEl() && c.getEl().dom; const x = d && d.getBoundingClientRect(); return x && x.width > 0 && x.height > 0; };
       const strip = (s) => String(s || '').replace(/<[^>]*>/g, ' ').replace(/&#160;/g, ' ').replace(/\s+/g, ' ').trim();
       const it = window.Ext.ComponentQuery.query('menu').filter(vis).flatMap((m) => m.query('menuitem'))
@@ -93,15 +119,23 @@ try {
       it.fireHandler ? it.fireHandler() : it.handler && it.handler.call(it.scope || it, it);
       return true;
     }, item.clean).catch(() => false);
+    }
     if (!fired) {
       // Say WHY. "not found or disabled" hid whether the menu even opened.
-      const seen = await frame.evaluate(() => {
+      const seen = await frame.evaluate((wantText) => {
         const vis = (c) => { const d = c.getEl && c.getEl() && c.getEl().dom; const x = d && d.getBoundingClientRect(); return x && x.width > 0 && x.height > 0; };
         const strip = (s) => String(s || '').replace(/<[^>]*>/g, ' ').replace(/&#160;/g, ' ').replace(/\s+/g, ' ').trim();
         const menus = window.Ext.ComponentQuery.query('menu').filter(vis);
-        return { open_menus: menus.length, items: menus.flatMap((m) => m.query('menuitem')).map((i) => strip(i.text) + (i.disabled ? ' (disabled)' : '')) };
-      }).catch(() => null);
-      console.log(`  ${item.clean}: not fired — ${JSON.stringify(seen)?.slice(0, 400)}`);
+        // Report the target's own state: "not found" and "found but disabled" need different fixes.
+        const all = menus.flatMap((m) => m.query('menuitem'));
+        return {
+          open_menus: menus.length,
+          target_present: all.some((i) => strip(i.text) === wantText),
+          target_disabled: all.filter((i) => strip(i.text) === wantText).map((i) => !!i.disabled),
+          sample: all.slice(0, 6).map((i) => strip(i.text) + (i.disabled ? ' (disabled)' : '')),
+        };
+      }, item.clean).catch(() => null);
+      console.log(`  ${item.clean}: not fired — ${JSON.stringify(seen)?.slice(0, 300)}`);
       continue;
     }
     await page.waitForTimeout(5000);
@@ -149,17 +183,31 @@ try {
       };
     }).catch(() => null);
 
-    /* Always leave without committing. */
+    /*
+     * Always leave without committing — and leave the SCREEN too, not just a window. The first
+     * version only knew how to close a modal, so after an inline panel it returned "no window" and
+     * left the panel open; every following action then found no Actions button and thirteen readable
+     * forms were reported as missing.
+     */
     const closed = await frame.evaluate(() => {
       const vis = (c) => { const d = c.getEl && c.getEl() && c.getEl().dom; const x = d && d.getBoundingClientRect(); return x && x.width > 0 && x.height > 0; };
+      const fire = (b) => { b.fireHandler ? b.fireHandler() : b.handler && b.handler.call(b.scope || b, b); };
       const win = window.Ext.ComponentQuery.query('window,messagebox').filter(vis).pop();
-      if (!win) return 'no window';
-      const cancel = win.query('button').find((b) => /^(cancel|close|no)$/i.test(String(b.text || '').trim()));
-      if (cancel) { cancel.fireHandler ? cancel.fireHandler() : cancel.handler && cancel.handler.call(cancel.scope || cancel, cancel); return 'cancelled'; }
-      win.close();
-      return 'closed';
+      if (win) {
+        const cancel = win.query('button').find((b) => /^(cancel|close|no)$/i.test(String(b.text || '').trim()));
+        if (cancel) { fire(cancel); return 'window cancelled'; }
+        win.close();
+        return 'window closed';
+      }
+      // A panel or card: its own Cancel, else the deck's back button.
+      const buttons = window.Ext.ComponentQuery.query('button').filter(vis);
+      const cancel = buttons.find((b) => /^cancel$/i.test(String(b.text || '').trim()) || b.itemId === 'cancelButton');
+      if (cancel) { fire(cancel); return 'panel cancelled'; }
+      const back = buttons.find((b) => b.itemId === 'wm-cardDeck-back-button');
+      if (back) { fire(back); return 'card deck back'; }
+      return 'nothing to close';
     }).catch(() => 'error');
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(3000);
 
     const key = `${label} > ${item.clean}`;
     store.forms[key] = { ...form, closed_with: closed, writes_observed: writes.slice() };

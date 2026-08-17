@@ -177,6 +177,12 @@ Poll `/async/{id}` until `complete: true` and read `/async/{id}/resources` for p
 Contrast the adjustment CREATE, which answers 200 with `approvalRequired` and moves nothing. See
 `http/flows/approveAdjustment.json`.
 
+**Four vocabularies name one field, not three.** The a11y tree says `Description`, a Configuration
+request body wants `businessUnitDescription`, the API's 422 quotes the DB column `lngdsc` — and
+operational forms are addressed in DB columns too: Plan Wave's 22 fields are `dlvnum`, `totpcs`,
+`from_late_shpdte`, `prtnum`, `l_ordnum`. A UI plan for the operational tier and a payload for the
+Configuration tier cannot share a field dictionary.
+
 **Approve is a two-stage action.** The button raises a form — `reasonCode` (required, 27 options,
 two of which say *DO NOT USE* in their own labels), `comment`, and `generateCycleCount` (default
 off, and a real side effect). The request only goes on OK. Other actions render as cards or inline

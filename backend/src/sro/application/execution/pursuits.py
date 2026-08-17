@@ -47,6 +47,13 @@ class PursuitProgress:
     detail: str = ""
     landed_at: str = ""
 
+    recording_id: str = ""
+    """What it left behind. A pursuit is a demonstration nobody had to give."""
+
+    skill_id: str = ""
+    """The skill induced from it, so the same request is answered over the API
+    next time instead of by looking at a screen again."""
+
     @property
     def finished(self) -> bool:
         return self.state is not PursuitState.WORKING

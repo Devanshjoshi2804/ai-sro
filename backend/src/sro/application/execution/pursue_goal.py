@@ -26,21 +26,31 @@ exists to make itself unnecessary.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from sro.application.context import RequestContext
 from sro.application.execution.egress import EgressRefused, prepare
+from sro.application.induction.errors import InductionFailed
+from sro.application.induction.understand import UnderstandRecording
 from sro.application.intent.pursue import Goal
 from sro.application.ports.browser import BrowserProvider, BrowserUnavailable
+from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.ports.ui import UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
 from sro.application.ports.vision import VisionDriver, VisionUnavailable
+from sro.application.recording.finish_recording import FinishRecording
+from sro.application.recording.start_recording import StartRecording
 from sro.domain.connection.connection import Connection
 from sro.domain.recording.events import ActionKind
+from sro.domain.shared.errors import DomainError
+from sro.domain.shared.identifiers import RecordingId
+
+logger = logging.getLogger(__name__)
 
 GESTURE_BUDGET = 12
 """Enough to open a screen, fill a short form and save. Chosen to be obviously
@@ -68,6 +78,16 @@ class Pursued:
     landed_at: str
     detail: str
 
+    recording_id: str = ""
+    """The demonstration this pursuit left behind. A task worked out on screen
+    is evidence exactly as a taught one is -- the same gestures, the same calls,
+    the same capture -- which is what lets the slow rung make itself
+    unnecessary."""
+
+    skill_id: str = ""
+    """The skill induced from it, when it reached the goal and the recording
+    carried enough to build one."""
+
 
 class PursueGoal:
     def __init__(
@@ -78,6 +98,10 @@ class PursueGoal:
         ui: UiDriver | None,
         vision: VisionDriver | None,
         clock: Clock,
+        capture: CaptureController,
+        start_recording: StartRecording,
+        finish_recording: FinishRecording,
+        understand: UnderstandRecording,
         *,
         egress_enabled: bool,
         model: str = "",
@@ -88,6 +112,10 @@ class PursueGoal:
         self._ui = ui
         self._vision = vision
         self._clock = clock
+        self._capture = capture
+        self._start_recording = start_recording
+        self._finish_recording = finish_recording
+        self._understand = understand
         self._egress_enabled = egress_enabled
         self._model = model
 
@@ -128,8 +156,25 @@ class PursueGoal:
         detail = "the budget ran out before the screen showed the result"
 
         session = await self._browser.open()
+        recording_id = ""
+        skill_id = ""
         try:
             await self._browser.restore(session.id, await self._session_of(connection))
+
+            # Recorded exactly as a demonstration is, and before the first
+            # gesture: what a pursuit does on screen is evidence of the same
+            # kind an operator's hands produce, and a task worked out once
+            # should never have to be worked out again.
+            started = await self._start_recording.execute(
+                ctx,
+                label=f"pursued: {goal.intent}"[:120],
+                attach_to=session.debugger_url,
+            )
+            recording_id = started.recording_id.value
+            await self._capture.start(
+                ctx, recording_id=started.recording_id, debugger_url=session.debugger_url
+            )
+
             await self._browser.navigate(session.id, start)
 
             for _ in range(GESTURE_BUDGET):
@@ -179,6 +224,8 @@ class PursueGoal:
         except UiUnavailable as error:
             raise BrowserUnavailable(str(error)) from error
         finally:
+            if recording_id:
+                skill_id = await self._keep(ctx, RecordingId(recording_id), reached=reached)
             await self._browser.close(session.id)
 
         return Pursued(
@@ -187,7 +234,34 @@ class PursueGoal:
             gestures=tuple(gestures),
             landed_at=landed,
             detail=detail,
+            recording_id=recording_id,
+            skill_id=skill_id,
         )
+
+    async def _keep(self, ctx: RequestContext, recording_id: RecordingId, *, reached: bool) -> str:
+        """Seal what was recorded, and induce a skill when it proved something.
+
+        Only when the goal was reached. A pursuit that ran out of budget half
+        way through a form recorded a half-filled form, and inducing a skill
+        from that would teach the system to do the wrong thing quickly.
+        """
+        await self._capture.stop(ctx, recording_id=recording_id)
+        if not reached:
+            await self._finish_recording.abandon(
+                ctx, recording_id=recording_id, reason="the goal was not reached"
+            )
+            return ""
+
+        try:
+            await self._finish_recording.seal(ctx, recording_id=recording_id)
+            understood = await self._understand.execute(ctx, recording_id=recording_id)
+        except (DomainError, InductionFailed) as refusal:
+            # A pursuit that reached its goal without leaving evidence a skill
+            # can be built from is still a success; it just cannot be repeated
+            # cheaply yet, and saying so beats a skill nobody can trust.
+            logger.info("pursuit %s left nothing to induce: %s", recording_id, refusal)
+            return ""
+        return understood.skill_id.value
 
     def _brief(self, goal: Goal, values: dict[str, str]) -> str:
         """The goal, plus the values the operator gave for it.

@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  listRecordings,
   recordingKeys,
   startRecording,
   type ObjectiveKey,
@@ -18,7 +18,7 @@ import { BatchCard } from "@/features/console/batch-card";
 import { SkillCard } from "@/features/console/skill-card";
 import { TeachPanel } from "@/features/console/teach-panel";
 import { useThread } from "@/features/console/thread-store";
-import { TopBar } from "@/features/console/top-bar";
+import { TopBar, BarLink } from "@/features/console/top-bar";
 import {
   ConnectPanel,
   checkSessions,
@@ -29,6 +29,7 @@ import {
 } from "@/features/console/connect-panel";
 import {
   getThread,
+  listThreads,
   say,
   startThread,
   threadKeys,
@@ -52,7 +53,7 @@ type Teaching = {
   objective_key: ObjectiveKey | null;
 };
 
-export function Console() {
+export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
   const queryClient = useQueryClient();
   const thread = useThread();
 
@@ -61,7 +62,11 @@ export function Console() {
   const [teachingAt, setTeachingAt] = useState<Teaching | null>(null);
   const [active, setActive] = useState<{ recordingId: string; run: number } | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const [threadId, setThreadId] = useState<string | null>(null);
+  const router = useRouter();
+  // The URL is the thread. Held in state as well only so a conversation
+  // started in this tab can begin before the route has caught up.
+  const [started, setStarted] = useState<string | null>(null);
+  const threadId = fromUrl ?? started;
   const [draft, setDraft] = useState("");
 
   const skills = useQuery({ queryKey: skillKeys.all, queryFn: listSkills });
@@ -75,7 +80,9 @@ export function Console() {
     refetchInterval: 60_000,
     enabled: (connections.data ?? []).length > 0,
   });
-  const recordings = useQuery({ queryKey: recordingKeys.all, queryFn: listRecordings });
+  // Every conversation this tenant has had, so one can be returned to. They
+  // were always stored; only the way back was missing.
+  const threads = useQuery({ queryKey: threadKeys.all, queryFn: listThreads });
 
   // The conversation lives server-side: a reload used to lose it, and what was
   // asked and what the system decided are half of the audit trail.
@@ -88,7 +95,12 @@ export function Console() {
   const ask = useMutation({
     mutationFn: async (text: string) => {
       const id = threadId ?? (await startThread()).id;
-      if (threadId === null) setThreadId(id);
+      if (threadId === null) {
+        setStarted(id);
+        // Replace rather than push: the empty console the operator typed into
+        // is not a place worth going back to.
+        router.replace(`/console/${id}`);
+      }
       return say(id, text);
     },
     onSuccess: (updated) => {
@@ -202,6 +214,13 @@ export function Console() {
             </Tab>
           )}
         </div>
+        {/* The console had no way out of itself: every other surface carries
+            these, and an operator who wanted to look at a skill had to know the
+            URL. */}
+        <BarLink href="/recordings">Recordings</BarLink>
+        <BarLink href="/skills">Skills</BarLink>
+        <BarLink href="/runs">Runs</BarLink>
+        <BarLink href="/knowledge">What we know</BarLink>
       </TopBar>
 
       {connecting ? (
@@ -323,38 +342,49 @@ export function Console() {
               )}
             </Section>
 
-            <Section title="RECENT SESSIONS">
-              {(recordings.data ?? []).slice(0, 6).map((recording) => (
+            <Section title="CONVERSATIONS">
+              <Link
+                href="/console"
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: ink.accent,
+                  border: `1px dashed ${ink.line}`,
+                }}
+              >
+                New conversation
+              </Link>
+              {(threads.data ?? []).slice(0, 8).map((thread) => (
                 <Link
-                  key={recording.id}
-                  href={`/recordings/${recording.id}`}
+                  key={thread.id}
+                  href={`/console/${thread.id}`}
                   style={{
                     padding: "8px 10px",
                     borderRadius: 8,
                     fontSize: 12.5,
-                    color: ink.textSoft,
                     display: "flex",
                     gap: 7,
-                    alignItems: "center",
+                    alignItems: "baseline",
+                    // The one you are in, marked. Without the URL there was no
+                    // "the one you are in".
+                    background: thread.id === threadId ? ink.infoWash : "transparent",
+                    color: thread.id === threadId ? ink.text : ink.textSoft,
+                    fontWeight: thread.id === threadId ? 600 : 400,
                   }}
                 >
                   <span
                     style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: "50%",
-                      background:
-                        recording.status === "sealed"
-                          ? ink.goodDot
-                          : recording.status === "capturing"
-                            ? ink.accent
-                            : ink.textMuted,
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
                     }}
-                  />
-                  {recording.objective_key?.objective_type ?? "unnamed"}
-                  <span style={{ color: ink.textMuted, fontSize: 11 }}>
-                    {recording.frame_count}
+                  >
+                    {thread.title}
                   </span>
+                  <span style={{ color: ink.textMuted, fontSize: 11 }}>{thread.message_count}</span>
                 </Link>
               ))}
             </Section>

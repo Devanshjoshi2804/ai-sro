@@ -449,6 +449,7 @@ def build_container(settings: Settings | None = None) -> Container:
                 built_vault,
                 realm_url=settings.keycloak_realm_url,
                 client_id=settings.keycloak_client_id,
+                client_secret=settings.keycloak_client_secret,
             )
             if settings.keycloak_realm_url and settings.keycloak_client_id
             else None

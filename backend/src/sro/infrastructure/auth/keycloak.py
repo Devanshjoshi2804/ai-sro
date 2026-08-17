@@ -45,11 +45,13 @@ class KeycloakTokens:
         *,
         realm_url: str,
         client_id: str,
+        client_secret: str = "",
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self._vault = vault
         self._realm = realm_url.rstrip("/")
         self._client_id = client_id
+        self._secret = client_secret
         self._http = client or httpx.AsyncClient(timeout=30.0)
         self._live: dict[str, _Live] = {}
 
@@ -116,6 +118,8 @@ class KeycloakTokens:
         return token
 
     async def _grant(self, form: dict[str, str]) -> dict[str, object]:
+        if self._secret:
+            form = {**form, "client_secret": self._secret}
         try:
             response = await self._http.post(
                 f"{self._realm}/protocol/openid-connect/token", data=form

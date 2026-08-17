@@ -113,6 +113,12 @@ class Settings(BaseSettings):
     which work and expire on the identity provider's schedule."""
 
     keycloak_client_id: str = ""
+
+    keycloak_client_secret: str = ""
+    """Only for a confidential client. Keycloak answers a public client sent a
+    secret, and a confidential one sent none, with the same "Invalid client"
+    -- so this is set when the realm says the client is confidential rather
+    than guessed at."""
     """The L3 rung sends a screenshot of a customer's live WMS to Google.
 
     Off by default and separate from the key, like every other egress here. With

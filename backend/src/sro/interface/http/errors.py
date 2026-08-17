@@ -18,6 +18,7 @@ from sro.application.execution.execute_skill import NotRunnable, Refused
 from sro.application.induction.errors import InductionFailed
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.sign_in import SignInFailed
+from sro.application.ports.token import TokenRefused
 from sro.application.ports.vault import VaultUnavailable
 from sro.application.recording.start_recording import NoSessionForSystem
 from sro.domain.shared.errors import Conflict, DomainError, InvariantViolation, NotFound
@@ -41,6 +42,10 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     # request's shape: a stale password, a second factor, a changed page. All
     # of them are resolved by a human signing in once.
     SignInFailed: status.HTTP_409_CONFLICT,
+    # The identity provider's own answer, in its own words. "Invalid client"
+    # and "invalid_grant" want different people to do different things, and a
+    # 500 tells neither of them anything.
+    TokenRefused: status.HTTP_409_CONFLICT,
 }
 
 _TITLES = {
@@ -113,5 +118,6 @@ def install_error_handlers(app: FastAPI) -> None:
         # Not a DomainError, so it needs saying: without this a failed login is
         # a 500 and the operator is told nothing they can act on.
         SignInFailed,
+        TokenRefused,
     ):
         app.add_exception_handler(error_type, _problem)

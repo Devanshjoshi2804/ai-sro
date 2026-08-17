@@ -37,7 +37,12 @@ const routeIdx = process.argv.indexOf('--route');
 const route = routeIdx > -1 ? process.argv[routeIdx + 1] : menus.hash;
 const items = menus.menus.flatMap((m) => m.items || [])
   .map((i) => ({ ...i, clean: String(i.text || '').replace(/&#160;/g, '').replace(/\s+/g, ' ').trim() }))
-  .filter((i) => i.clean && !i.disabled && (all || wanted.includes(i.clean)));
+  /*
+   * Do NOT trust the stored disabled flag. index/actions-menus.json was captured with nothing
+   * selected, so every selection-dependent action — Release Count, Reset Count, Reopen Count — is
+   * recorded as disabled there and would be skipped forever. Live state is checked when firing.
+   */
+  .filter((i) => i.clean && (all ? !i.disabled : wanted.includes(i.clean)));
 if (!items.length) { console.error('no matching enabled action'); process.exit(1); }
 console.log(`${label}: ${items.length} action(s) to read`);
 
@@ -81,11 +86,16 @@ try {
     for (let attempt = 0; attempt < 6 && !frame; attempt++) {
     if (attempt) await page.waitForTimeout(4000);
     for (const fr of page.frames()) {
-      const ok = await fr.evaluate(() => {
+      const ok = await fr.evaluate((noSelect) => {
         if (!window.Ext) return false;
         const vis = (c) => { const d = c.getEl && c.getEl() && c.getEl().dom; const x = d && d.getBoundingClientRect(); return x && x.width > 0 && x.height > 0; };
+        /*
+         * Selection is not always a precondition — it can be a BLOCKER. "Schedule Count" is enabled
+         * with nothing selected and disabled once a row is picked, because it creates a new count
+         * rather than acting on an existing one. `--noselect` reads that class of action.
+         */
         const grid = window.Ext.ComponentQuery.query('grid').filter(vis).find((g) => g.getStore().getCount() > 0);
-        if (grid) grid.getSelectionModel().select(0);
+        if (grid) { if (noSelect) grid.getSelectionModel().deselectAll(); else grid.getSelectionModel().select(0); }
         const btn = window.Ext.ComponentQuery.query('button').filter(vis)
           .find((b) => /actionsBtn$/i.test(b.itemId || '') || /^Actions$/i.test(String(b.text || '').trim()));
         if (!btn) return false;
@@ -95,7 +105,7 @@ try {
          */
         if (btn.menu && btn.showMenu) { btn.showMenu(); return true; }
         return btn.getEl() ? { domId: btn.getEl().dom.id } : false;
-      }).catch(() => false);
+      }, process.argv.includes('--noselect')).catch(() => false);
       if (ok === true) { frame = fr; break; }
       if (ok && ok.domId) { await fr.locator('#' + ok.domId).click({ timeout: 5000 }).catch(() => {}); frame = fr; break; }
     }
@@ -151,8 +161,15 @@ try {
        */
       const win = window.Ext.ComponentQuery.query('window,messagebox').filter(vis).pop();
       if (!win) {
+        /*
+         * Exclude the screen's own furniture. Every grid page carries a page-size combobox, an
+         * `inputItem` page number and a clock displayfield, and counting those three as a form made
+         * Schedule Count, Reset Count and Reopen Count all report "inline panel, 3 fields" — which
+         * was the page, not a form.
+         */
+        const CHROME_FIELD = /^(rpuxFilter|search|combobox-\d+|inputItem$|displayfield-\d+)/i;
         const fields = window.Ext.ComponentQuery.query('field').filter(vis)
-          .filter((f) => f.name && !/^rpuxFilter|search/i.test(f.name));
+          .filter((f) => f.name && !CHROME_FIELD.test(f.name));
         const back = window.Ext.ComponentQuery.query('button').filter(vis).some((b) => b.itemId === 'wm-cardDeck-back-button');
         if (fields.length) {
           return {

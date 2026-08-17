@@ -15,6 +15,7 @@ from sro.application.execution.execute_skill import ExecuteSkill, ExecutionReque
 from sro.application.induction.induce_skill import InducedSkill, InduceSkill
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.application.ports.http import HttpResponse, TargetUnreachable
+from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.repositories import (
     ConnectionRepository,
     KnowledgeRepository,
@@ -702,3 +703,26 @@ class FakeUnitOfWork:
 
     async def rollback(self) -> None:
         self.rollbacks += 1
+
+
+class FakeIntentParser:
+    """Reads what it was told to read. Never asked what to run.
+
+    Exists so the reading can be tested without a model: what matters is that a
+    reading is *validated* against the library rather than obeyed, and that is
+    the same code whether the reading came from Gemini or from here.
+    """
+
+    def __init__(self, reading: Reading | None = None, *, available: bool = True) -> None:
+        self._reading = reading or Reading()
+        self.available = available
+        self.asked: list[str] = []
+
+    async def extract(
+        self, utterance: str, *, parameters: tuple[str, ...], context: str = ""
+    ) -> Extraction:
+        return Extraction()
+
+    async def read(self, utterance: str, *, after: str = "") -> Reading:
+        self.asked.append(utterance)
+        return self._reading

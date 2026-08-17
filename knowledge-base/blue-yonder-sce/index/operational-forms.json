@@ -913,6 +913,258 @@
       ],
       "closed_with": "window closed",
       "writes_observed": []
+    },
+    "Counts > Schedule Count": {
+      "rendered_as": "inline panel",
+      "fields": [
+        {
+          "field": "combobox-1091-inputEl",
+          "label": "",
+          "type": "combobox",
+          "required": false,
+          "value": 50,
+          "options": [
+            {
+              "v": 50,
+              "t": 50
+            },
+            {
+              "v": 100,
+              "t": 100
+            },
+            {
+              "v": 150,
+              "t": 150
+            }
+          ]
+        },
+        {
+          "field": "inputItem",
+          "label": "",
+          "type": "numberfield",
+          "required": false,
+          "value": 1
+        },
+        {
+          "field": "displayfield-1407-inputEl",
+          "label": "",
+          "type": "displayfield",
+          "required": false,
+          "value": "8:00 am"
+        }
+      ],
+      "buttons": [
+        {
+          "text": "Quick Filters",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "first",
+          "disabled": true
+        },
+        {
+          "text": "",
+          "itemId": "prev",
+          "disabled": true
+        },
+        {
+          "text": "",
+          "itemId": "next",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "last",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "exportAction",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "printAction",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "refreshAction",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "refreshIntervalButton",
+          "disabled": false
+        },
+        {
+          "text": "Scheduled",
+          "itemId": "invCount_scheduleBtn",
+          "disabled": false
+        },
+        {
+          "text": "Templates",
+          "itemId": "invCount_templateBtn",
+          "disabled": false
+        },
+        {
+          "text": "Audit Count",
+          "itemId": "invCount_countAuditBtn",
+          "disabled": false
+        },
+        {
+          "text": "History",
+          "itemId": "invCount_historyBtn",
+          "disabled": false
+        },
+        {
+          "text": "Actions",
+          "itemId": "gridActionsButton",
+          "disabled": false
+        },
+        {
+          "text": "Counts 1250",
+          "itemId": "countsGrid-countsToggle",
+          "disabled": false
+        },
+        {
+          "text": "Batches 5",
+          "itemId": "countsGrid-batchesToggle",
+          "disabled": false
+        }
+      ],
+      "closed_with": "nothing to close",
+      "writes_observed": []
+    },
+    "Counts > Reset Count": {
+      "no_dialog_and_no_fields": true,
+      "note": "nothing rendered that this tool can read; whether the action did anything is answered by writes_observed, not by this",
+      "closed_with": "nothing to close",
+      "writes_observed": []
+    },
+    "Counts > Reopen Count": {
+      "rendered_as": "inline panel",
+      "fields": [
+        {
+          "field": "combobox-1091-inputEl",
+          "label": "",
+          "type": "combobox",
+          "required": false,
+          "value": 50,
+          "options": [
+            {
+              "v": 50,
+              "t": 50
+            },
+            {
+              "v": 100,
+              "t": 100
+            },
+            {
+              "v": 150,
+              "t": 150
+            }
+          ]
+        },
+        {
+          "field": "inputItem",
+          "label": "",
+          "type": "numberfield",
+          "required": false,
+          "value": 1
+        },
+        {
+          "field": "displayfield-1407-inputEl",
+          "label": "",
+          "type": "displayfield",
+          "required": false,
+          "value": "8:02 am"
+        }
+      ],
+      "buttons": [
+        {
+          "text": "Quick Filters",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "first",
+          "disabled": true
+        },
+        {
+          "text": "",
+          "itemId": "prev",
+          "disabled": true
+        },
+        {
+          "text": "",
+          "itemId": "next",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "last",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "exportAction",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "printAction",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "refreshAction",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "refreshIntervalButton",
+          "disabled": false
+        },
+        {
+          "text": "Scheduled",
+          "itemId": "invCount_scheduleBtn",
+          "disabled": false
+        },
+        {
+          "text": "Templates",
+          "itemId": "invCount_templateBtn",
+          "disabled": false
+        },
+        {
+          "text": "Audit Count",
+          "itemId": "invCount_countAuditBtn",
+          "disabled": false
+        },
+        {
+          "text": "History",
+          "itemId": "invCount_historyBtn",
+          "disabled": false
+        },
+        {
+          "text": "Actions",
+          "itemId": "gridActionsButton",
+          "disabled": false
+        },
+        {
+          "text": "Counts 1250",
+          "itemId": "countsGrid-countsToggle",
+          "disabled": false
+        },
+        {
+          "text": "Batches 5",
+          "itemId": "countsGrid-batchesToggle",
+          "disabled": false
+        }
+      ],
+      "closed_with": "nothing to close",
+      "writes_observed": []
     }
   },
   "generated_by": "tools/cdp/read-action-form.mjs",

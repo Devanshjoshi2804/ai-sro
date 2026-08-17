@@ -9,7 +9,7 @@
   ],
   "principle": "Every edge is derived from a recorded exchange and carries its evidence file. Nothing here is inferred from naming or convention.",
   "counts": {
-    "screens": 186,
+    "screens": 189,
     "resources": 296,
     "edges": 328,
     "dataflow_edges": 13,
@@ -18,6 +18,8 @@
     "cascades": 1,
     "hazards": 8,
     "resources_with_behaviour_warnings": 69,
+    "resources_with_ui_actions": 2,
+    "ui_actions_captured": 8,
     "publishes_edges": 35,
     "resources_publishing_links": 39,
     "operations_found_on_records": 2,
@@ -5856,7 +5858,27 @@
           }
         }
       },
-      "evidence": "http/exchanges/inventoryCounts.jsonl"
+      "evidence": "http/exchanges/inventoryCounts.jsonl",
+      "ui_actions": [
+        {
+          "action": "Suspend Work",
+          "method": "PUT",
+          "endpoint": "/data/WM/wm/work/suspendDirectedWorks/batch",
+          "status": 200,
+          "body": "array of the full record",
+          "expressed_by": "field change: workqueStatus, workqueStatusDesc, workRequestStatus",
+          "evidence": "http/flows/SuspendWork-ResumeWork-counts.json"
+        },
+        {
+          "action": "Resume Work",
+          "method": "PUT",
+          "endpoint": "/data/WM/wm/work/resumeDirectedWorks/batch",
+          "status": 200,
+          "body": "array of the full record",
+          "expressed_by": "field change: workqueStatus, workqueStatusDesc, workRequestStatus",
+          "evidence": "http/flows/SuspendWork-ResumeWork-counts.json"
+        }
+      ]
     },
     {
       "id": "resource:itemClassLevels",
@@ -13343,11 +13365,69 @@
             "suspend-work": "200",
             "resume-work": "200",
             "assign-user": "202",
-            "unassign": "202"
+            "unassign": "202",
+            "change-priority": "202",
+            "assign-role": "202"
           }
         }
       },
-      "evidence": "http/exchanges/work.jsonl"
+      "evidence": "http/exchanges/work.jsonl",
+      "ui_actions": [
+        {
+          "action": "Assign Role",
+          "method": "PUT",
+          "endpoint": "/data/WM/wm/work/async",
+          "status": 202,
+          "body": "array of the full record",
+          "expressed_by": "field change: assignedToRole, assignedToRoleDesc, roleDescription",
+          "evidence": "http/flows/AssignRole-Unassign.json"
+        },
+        {
+          "action": "Unassign",
+          "method": "PUT",
+          "endpoint": "/data/WM/wm/work/async",
+          "status": 202,
+          "body": "array of the full record",
+          "expressed_by": "field change: assignedToRole, assignedToRoleDesc, roleDescription",
+          "evidence": "http/flows/AssignRole-Unassign.json"
+        },
+        {
+          "action": "Assign User",
+          "method": "PUT",
+          "endpoint": "/data/WM/wm/work/async",
+          "status": 202,
+          "body": "array of the full record",
+          "expressed_by": "field change: assignedTo, assignedUserFirstName, assignedUserLastName",
+          "evidence": "http/flows/AssignUser-Unassign.json"
+        },
+        {
+          "action": "Change Priority",
+          "method": "PUT",
+          "endpoint": "/data/WM/wm/work/async",
+          "status": 202,
+          "body": "array of the full record",
+          "expressed_by": "field change: effectivePriority",
+          "evidence": "http/flows/ChangePriority-ChangePriority.json"
+        },
+        {
+          "action": "Suspend Work",
+          "method": "PUT",
+          "endpoint": "/data/WM/wm/work/suspendDirectedWorks/batch",
+          "status": 200,
+          "body": "array of the full record",
+          "expressed_by": "the endpoint itself",
+          "evidence": "http/flows/SuspendWork-ResumeWork-workqueue.json"
+        },
+        {
+          "action": "Resume Work",
+          "method": "PUT",
+          "endpoint": "/data/WM/wm/work/resumeDirectedWorks/batch",
+          "status": 200,
+          "body": "array of the full record",
+          "expressed_by": "the endpoint itself",
+          "evidence": "http/flows/SuspendWork-ResumeWork-workqueue.json"
+        }
+      ]
     },
     {
       "id": "resource:workAreaMove",
@@ -14489,14 +14569,29 @@
       "evidence": "index/form-models.json"
     },
     {
+      "id": "screen:AssignRole-Unassign",
+      "type": "screen",
+      "screen": "AssignRole-Unassign"
+    },
+    {
       "id": "screen:AssignUser-Unassign",
       "type": "screen",
       "screen": "AssignUser-Unassign"
     },
     {
-      "id": "screen:SuspendWork-ResumeWork",
+      "id": "screen:ChangePriority-ChangePriority",
       "type": "screen",
-      "screen": "SuspendWork-ResumeWork"
+      "screen": "ChangePriority-ChangePriority"
+    },
+    {
+      "id": "screen:SuspendWork-ResumeWork-counts",
+      "type": "screen",
+      "screen": "SuspendWork-ResumeWork-counts"
+    },
+    {
+      "id": "screen:SuspendWork-ResumeWork-workqueue",
+      "type": "screen",
+      "screen": "SuspendWork-ResumeWork-workqueue"
     },
     {
       "id": "screen:[object Object]",

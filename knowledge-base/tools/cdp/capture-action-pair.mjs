@@ -34,12 +34,25 @@ const actionB = arg('b');
 const resource = arg('resource');
 const idField = arg('id');
 const watch = arg('watch');
+/*
+ * Some actions need a VALUE, not just a confirmation — Change Priority is a dialog with a number in
+ * it. `--seta field=value` and `--setb field=value` fill one field before submitting, which is what
+ * makes such an action reversible: do it with one value, then again with the original.
+ */
+const setA = arg('seta');
+const setB = arg('setb');
 const dry = process.argv.includes('--dry');
 if (!route || !actionA || !actionB || !resource || !idField) {
   console.error('usage: --route <hash> --a "<action>" --b "<inverse>" --resource <res> --id <idField> [--watch <field>] [--dry]');
   process.exit(1);
 }
-const OUT = `${KG}/http/flows/${actionA.replace(/\W+/g, '')}-${actionB.replace(/\W+/g, '')}.json`;
+/*
+ * Include the route in the filename. Naming a flow after its two verbs alone meant the Counts run of
+ * Suspend/Resume silently overwrote the Work Queue run of the same pair — two different findings, one
+ * path. The screen is part of the identity of a capture.
+ */
+const screenTag = route.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+const OUT = `${KG}/http/flows/${actionA.replace(/\W+/g, '')}-${actionB.replace(/\W+/g, '')}--${screenTag}.json`;
 
 const browser = await chromium.connectOverCDP(process.env.CDP_URL || 'http://localhost:9222');
 const ctx = browser.contexts()[0];
@@ -113,8 +126,24 @@ async function fireAction(frame, text) {
  * look for the submit. Without this the run reported "dialog with no submit button" and moved on,
  * leaving the picker open for the next action to misread.
  */
-async function confirmDialog(frame) {
+async function confirmDialog(frame, setSpec) {
   await page.waitForTimeout(4000);
+  if (setSpec) {
+    const [field, ...rest] = setSpec.split('=');
+    const value = rest.join('=');
+    const applied = await frame.evaluate(({ field, value }) => {
+      const vis = (c) => { const d = c.getEl && c.getEl() && c.getEl().dom; const x = d && d.getBoundingClientRect(); return x && x.width > 0 && x.height > 0; };
+      const win = window.Ext.ComponentQuery.query('window,messagebox').filter(vis).pop();
+      const pool = win ? win.query('field') : window.Ext.ComponentQuery.query('field').filter(vis);
+      const f = pool.find((x) => x.name === field) || pool.find((x) => new RegExp(field, 'i').test(x.name || ''));
+      if (!f) return { set: false, available: pool.map((x) => x.name).filter(Boolean).slice(0, 12) };
+      const before = f.getValue ? f.getValue() : undefined;
+      f.setValue(isNaN(Number(value)) ? value : Number(value));
+      return { set: true, field: f.name, from: before, to: f.getValue ? f.getValue() : undefined };
+    }, { field, value }).catch(() => null);
+    console.log(`  set ${setSpec}: ${JSON.stringify(applied)}`);
+    await page.waitForTimeout(1200);
+  }
   /*
    * Select inside the picker and CONFIRM the selection took. Assign User's Select button is disabled
    * until a row is chosen, and one earlier run selected into a grid that had not finished loading its
@@ -211,7 +240,7 @@ try {
   /* --- A --- */
   bucket = [];
   if (!await fireAction(first.frame, actionA)) { console.error(`could not fire ${actionA}`); process.exit(1); }
-  const dialogA = await confirmDialog(first.frame);
+  const dialogA = await confirmDialog(first.frame, setA);
   await page.waitForTimeout(7000);
   const reqA = bucket.slice();
   console.log(`\n${actionA}: ${dialogA}`);
@@ -228,7 +257,7 @@ try {
   const reqB = [];
   if (again) {
     if (await fireAction(again.frame, actionB)) {
-      dialogB = await confirmDialog(again.frame);
+      dialogB = await confirmDialog(again.frame, setB);
       await page.waitForTimeout(7000);
       reqB.push(...bucket);
     } else dialogB = `could not fire ${actionB}`;
@@ -251,6 +280,26 @@ try {
     }
   }
 
+  /*
+   * Diff the two request bodies. The watched field can lie — a run that watched basePriority reported
+   * "reversed: true" while effectivePriority had gone 1 -> 9 -> 5 — but the payloads cannot: whatever
+   * differs between A and B IS the verb. This makes that finding automatic for every future pair.
+   */
+  let bodyDiff = null;
+  const bodyOf = (reqs) => {
+    const b = reqs[0]?.request_body;
+    return Array.isArray(b) ? b[0] : b;
+  };
+  const ba = bodyOf(reqA), bb = bodyOf(reqB);
+  if (ba && bb && typeof ba === 'object' && typeof bb === 'object') {
+    bodyDiff = [...new Set([...Object.keys(ba), ...Object.keys(bb)])]
+      .filter((k) => JSON.stringify(ba[k]) !== JSON.stringify(bb[k]))
+      .map((k) => ({ field: k, in_a: ba[k], in_b: bb[k] }));
+    console.log(`\nfields that differ between the two payloads — this is the verb:`);
+    for (const d of bodyDiff) console.log(`  ${d.field}: ${JSON.stringify(d.in_a)} vs ${JSON.stringify(d.in_b)}`);
+    if (!bodyDiff.length) console.log('  (identical payloads — the action is carried by the URL, not the body)');
+  }
+
   const reversed = watch ? before.watched === after.watched : null;
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify({
@@ -258,6 +307,8 @@ try {
     screen_route: route, resource, id_field: idField, id, watched_field: watch,
     action_a: actionA, action_b: actionB,
     before, after_a: mid, after_b: after, reversed,
+    payload_diff: bodyDiff,
+    payload_diff_note: 'Whatever differs between the two payloads is what the action actually does. Trust this over the watched field.',
     dialog_a: dialogA, dialog_b: dialogB,
     requests_a: reqA, requests_b: reqB,
   }, null, 2) + '\n');

@@ -376,6 +376,54 @@ if (exists(claimsPath)) {
 }
 
 /*
+ * UI-DRIVEN OPERATIONAL ACTIONS.
+ *
+ * Six verbs are now captured by driving the screens, and they do not appear in any endpoint
+ * catalogue in a usable form: three of them PUT the same generic /wm/work/async and differ only in
+ * the field they change. Attach them to the resource so a caller asking about `work` is told what
+ * can be DONE to it, with the field that expresses each verb.
+ */
+{
+  const flowDir = path.join(KG, 'http/flows');
+  if (exists(flowDir)) {
+    for (const file of fs.readdirSync(flowDir).filter((f) => f.endsWith('.json'))) {
+      let flow; try { flow = readJSON(path.join(flowDir, file)); } catch { continue; }
+      const res = flow.resource || (flow.target ? 'inventoryAdjustmentApprovals' : null);
+      if (!res) continue;
+      const id = `resource:${res}`;
+      if (!nodes.has(id)) continue;
+      const n = nodes.get(id);
+      const reqOf = (arr) => (arr && arr[0]) ? { method: arr[0].method, url: arr[0].url.split('?')[0], status: arr[0].status } : null;
+      for (const [name, reqs] of [[flow.action_a, flow.requests_a], [flow.action_b, flow.requests_b]]) {
+        const r = reqOf(reqs);
+        if (!name || !r) continue;
+        n.ui_actions = n.ui_actions || [];
+        if (n.ui_actions.some((a) => a.action === name)) continue;
+        /*
+         * Compute the diff when the flow file predates it. The earliest captures stored both request
+         * bodies but no diff, and reporting "the endpoint itself" for Assign User — which is the
+         * clearest field-change of the set — would be exactly backwards.
+         */
+        let diff = (flow.payload_diff || []).map((d) => d.field);
+        if (!diff.length) {
+          const first = (arr) => { const b = arr && arr[0] && arr[0].request_body; return Array.isArray(b) ? b[0] : b; };
+          const a = first(flow.requests_a), b = first(flow.requests_b);
+          if (a && b && typeof a === 'object' && typeof b === 'object') {
+            diff = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
+          }
+        }
+        n.ui_actions.push({
+          action: name, method: r.method, endpoint: r.url, status: r.status,
+          body: 'array of the full record',
+          expressed_by: diff.length ? `field change: ${diff.join(', ')}` : 'the endpoint itself',
+          evidence: `http/flows/${file}`,
+        });
+      }
+    }
+  }
+}
+
+/*
  * PUBLISHED LINKS — the relationships the server itself declares.
  *
  * Every record carries `*_uri` fields pointing at its own neighbourhood: a shipment publishes its
@@ -555,6 +603,8 @@ graph.counts = {
   cascades: cascades.length,
   hazards: hazards.length,
   resources_with_behaviour_warnings: graph.nodes.filter((n) => n.behaviour_warnings).length,
+  resources_with_ui_actions: graph.nodes.filter((n) => n.ui_actions).length,
+  ui_actions_captured: graph.nodes.reduce((a, n) => a + (n.ui_actions?.length || 0), 0),
   publishes_edges: graph.edges.filter((e) => e.type === 'publishes').length,
   resources_publishing_links: graph.nodes.filter((n) => n.publishes).length,
   operations_found_on_records: graph.nodes.reduce((a, n) => a + (n.actions?.length || 0), 0),

@@ -8,6 +8,7 @@ task was asked for.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 from sro.application.context import RequestContext
@@ -22,11 +23,22 @@ from sro.application.intent.match import (
 )
 from sro.application.intent.plan_task import PlanTask, Proposal
 from sro.application.intent.pursue import Pursuit, compose
-from sro.application.ports.intent import IntentParser
+from sro.application.ports.intent import IntentParser, Reading
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.skill.parameter import ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill
+
+logger = logging.getLogger(__name__)
+
+_READ_FLOOR = 0.5
+"""Below this the reading is not used and the words are matched literally.
+
+A model that says it is unsure is more useful than one that is confidently
+wrong, and a deployment with no model at all falls here by construction --
+which is worse, and is meant to be. Reading a sentence literally is an honest
+kind of worse; pretending to understand it is not.
+"""
 
 _LIBRARY_PAGE = 200
 """Skills are ranked in memory. A tenant's library is dozens, not millions.
@@ -85,6 +97,16 @@ class Resolution:
 
 
 class ResolveIntent:
+    async def _read(self, utterance: str, after: str | None) -> Reading:
+        """What the sentence means, or nothing when there is nobody to ask."""
+        if self._parser is None or not self._parser.available:
+            return Reading()
+        try:
+            return await self._parser.read(utterance, after=after or "")
+        except Exception:
+            logger.warning("could not read the request; matching the words instead")
+            return Reading()
+
     def __init__(
         self, uow: UnitOfWork, planner: PlanTask, parser: IntentParser | None = None
     ) -> None:
@@ -108,6 +130,17 @@ class ResolveIntent:
         if system:
             skills = tuple(s for s in skills if s.objective_key.target_system == system)
 
+        # What the sentence means, read by something that reads sentences. The
+        # phrase lists this replaces -- "how many", "which", "list all" -- were
+        # each a guess about wording, and every one of them was broken by the
+        # next thing somebody typed. "Show the list of all transport_mode then"
+        # is a question by any reading and matched none of them.
+        #
+        # The reading decides nothing. It is matched against the skills that
+        # exist and discarded where it names something that does not, so a
+        # misreading costs a clarifying question rather than a wrong write.
+        reading = await self._read(utterance, after)
+
         # A skill already under discussion, waiting for values it asked for.
         # Without this the answer to "what should the code be?" was resolved as
         # a fresh request, matched nothing, and the operator was asked the same
@@ -124,7 +157,15 @@ class ResolveIntent:
         # Being asked something is the clearest possible signal that the last
         # question is no longer what is being talked about, and a pinned skill
         # that writes has no business answering one.
-        interrupted = asks(utterance) and pending is not None and writes(pending.versions[-1])
+        # Asked something, or plainly about something else. Read rather than
+        # pattern-matched: a pinned skill that writes has no business answering
+        # a question, however the question happens to be phrased.
+        asking = reading.wants == "ask" if reading.confidence >= _READ_FLOOR else asks(utterance)
+        interrupted = (
+            pending is not None
+            and writes(pending.versions[-1])
+            and (asking or (reading.confidence >= _READ_FLOOR and not reading.continues))
+        )
         carrying_on = (
             pending is not None and not interrupted and not _names_another(candidates, pending)
         )
@@ -138,7 +179,7 @@ class ResolveIntent:
         # operator back to the knowledge base for a subject they had just been
         # shown. The previous sentence supplies the subject; this one still has
         # to match something, so nothing is invented -- only remembered.
-        if not candidates and after and refers_back(utterance):
+        if not candidates and after and (reading.continues or refers_back(utterance)):
             candidates = rank(skills, f"{after} {utterance}")
 
         if not candidates:

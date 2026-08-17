@@ -792,6 +792,55 @@
       "consequence": "An executor cannot infer the action from the endpoint. /wm/work/async is a generic update — the same URL performs assign, unassign and anything else expressible as a field change — so a replayed call is only as safe as the body it carries, and a diff-based recipe must capture which FIELD changed rather than which route was hit. Verb-routes and field-changes need different verification: one asserts a status transition, the other asserts a field value.",
       "method_note": "Getting here took three fixes, each hiding the action behind a plausible failure: fireHandler() is a no-op on these menu items (click the DOM element); the Assign User picker has no OK — it commits through a Select button that stays disabled until a row is chosen; and selecting into a grid of 249 users before it finished loading left that button disabled, which read as \"this action cannot be performed\".",
       "evidence_level": "round-trip"
+    },
+    {
+      "id": "change-priority-writes-effectivepriority-not-basepriority",
+      "source": "tools/cdp/capture-action-pair.mjs — 2026-08-17",
+      "claim": "Change Priority is a third generic update on /wm/work/async, and the field it writes is effectivePriority — not the basePriority the grid shows first.",
+      "verdict": "ROUND-TRIP PROVEN",
+      "evidence": "http/flows/ChangePriority-ChangePriority.json; http/exchanges/work.jsonl",
+      "observed": [
+        "The dialog is \"Change Priority — Enter Priority Level*\" with Apply and Cancel, one field named `priority`.",
+        "PUT /wm/work/async -> 202, the same generic route as Assign/Unassign. Diffing the two bodies shows exactly ONE differing field: effectivePriority 9 versus 5. basePriority stayed 5 throughout.",
+        "The dialog field pre-fills from effectivePriority (1), not basePriority (5) — so the visible \"Priority\" column and the editable priority are different numbers on the same record.",
+        "Restored: effectivePriority is back to 1, verified by reading the record."
+      ],
+      "consequence": "Three of five operational writes now go through /wm/work/async with the verb expressed only as a field change: assignedTo for assign, \"\" for unassign, effectivePriority for priority. A recipe for this screen is a field-diff, not an endpoint call.",
+      "method_note": "The first run watched basePriority and reported \"5 -> 5 -> 5, reversed: true\" — a clean pass while effectivePriority had actually gone 1 -> 9 -> 5. Watching the wrong field produces a false confirmation, and it also meant my restore put back 5 instead of the original 1. Caught by diffing the request bodies rather than trusting the verdict, then corrected with a second run. The `reversed` flag this tool prints is only as good as the field it was told to watch.",
+      "evidence_level": "round-trip"
+    },
+    {
+      "id": "counts-are-work-requests-underneath",
+      "source": "tools/cdp/capture-action-pair.mjs on Inventory ▸ Counts — 2026-08-17",
+      "claim": "A cycle count is a work request. Suspending a count hits the same endpoint as suspending picking work, and the count record carries work status fields.",
+      "verdict": "ROUND-TRIP PROVEN",
+      "evidence": "http/flows/SuspendWork-ResumeWork.json (counts run); http/exchanges/work.jsonl",
+      "observed": [
+        "Inventory ▸ Counts ▸ Suspend Work -> PUT /wm/work/suspendDirectedWorks/batch -> 200, dialog \"Selected Work has been Suspended.\" — the SAME endpoint the picking Work Queue uses.",
+        "Resume Work -> PUT /wm/work/resumeDirectedWorks/batch -> 200, \"Selected Work has been Resumed.\"",
+        "The payload diff is the proof: workqueStatus and workRequestStatus went PEND in the suspend body to SUSP in the resume body, plus their description fields. The resume was sent while the record was suspended.",
+        "The count record itself carries workqueStatus, workqueStatusDesc and workRequestStatus alongside countId, countZoneId, location and requestType — so counts and directed work share a status model.",
+        "The Counts screen also offers Release Count, Cancel Count, Reset Count, Reopen Count and Remove Count, none of which is captured yet."
+      ],
+      "consequence": "The work endpoints are not the Work Queue screen's API — they are the API for anything that is work, counts included. An executor written per-screen would duplicate them; one written per-CONCEPT covers both. It also means a count can be suspended, assigned and reprioritised with the verbs already proven.",
+      "limitation": "State could NOT be verified through the API here: countId is not a filterable column on inventoryCounts, so the read-back returned nothing — the silent-empty trap. The evidence is the payload diff instead, which is why the tool now computes it on every run.",
+      "evidence_level": "round-trip"
+    },
+    {
+      "id": "selection-can-be-a-blocker-not-a-precondition",
+      "source": "tools/cdp/read-action-form.mjs on Inventory ▸ Counts — 2026-08-17",
+      "claim": "Some operational actions are enabled only when NOTHING is selected, so the usual \"select a row, then act\" rule is not universal.",
+      "verdict": "RECORDED",
+      "evidence": "index/operational-forms.json — \"Counts > Schedule Count\"; index/actions-menus.json",
+      "observed": [
+        "Schedule Count is enabled with no selection and DISABLED once a row is picked — it creates a new count rather than acting on one. Every other Counts verb is the opposite.",
+        "The stored menu snapshot is therefore misleading in both directions: index/actions-menus.json was captured with nothing selected, so Release/Cancel/Reset/Reopen/Remove Count are all recorded there as disabled and were being skipped forever by a tool that trusted the flag.",
+        "Reset Count and Reopen Count fire with a row selected but render no dialog and send no request. Whether they need a further condition — a count in a particular status — is not established.",
+        "A `--noselect` mode now exists for the first class, and the reader no longer trusts stored disabled flags."
+      ],
+      "consequence": "A UI plan needs the SELECTION STATE as an explicit precondition per action, not a global assumption. And any capture of an Actions menu is only valid for the selection state it was taken in — a menu snapshot is not a capability list.",
+      "method_note": "Three of these readings first reported \"inline panel, 3 fields\" for three different actions. The three fields were identical every time: a page-size combobox, a page-number `inputItem` and a clock displayfield — the grid page's own furniture, not a form. The reader now excludes that chrome and honestly reports \"nothing readable rendered\", which is what actually happened.",
+      "evidence_level": "observed"
     }
   ],
   "still_asserted_not_reproduced": [],

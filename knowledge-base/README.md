@@ -179,6 +179,16 @@ Check it before trusting an empty result: on an unproven column, empty means unk
 | Work Queue ▸ Resume Work | `PUT /wm/work/resumeDirectedWorks/batch` |
 | Work Queue ▸ Assign User | `PUT /wm/work/async` with `assignedTo: "ABELOT"` |
 | Work Queue ▸ Unassign | `PUT /wm/work/async` with `assignedTo: ""` |
+| Work Queue ▸ Change Priority | `PUT /wm/work/async` with `effectivePriority: n` (**not** `basePriority`) |
+| Work Queue ▸ Assign Role | `PUT /wm/work/async` with `assignedToRole: "ALLOCATION_API"` |
+
+`tools/graph-query.mjs resource work` now lists all six verbs with the field each one changes.
+
+**A cycle count is a work request.** Inventory ▸ Counts ▸ Suspend Work hits the *same*
+`/wm/work/suspendDirectedWorks/batch` endpoint as the picking Work Queue, and the count record carries
+`workqueStatus` / `workRequestStatus` alongside `countId`. So the work endpoints are the API for
+anything that is work — an executor written per-screen would duplicate them; one written per-concept
+covers both.
 
 **Two shapes, and the endpoint does not tell you the action.** Suspend and Resume have dedicated verb
 routes; Assign and Unassign share one generic update route and differ only in the field they change.
@@ -200,6 +210,11 @@ request body wants `businessUnitDescription`, the API's 422 quotes the DB column
 operational forms are addressed in DB columns too: Plan Wave's 22 fields are `dlvnum`, `totpcs`,
 `from_late_shpdte`, `prtnum`, `l_ordnum`. A UI plan for the operational tier and a payload for the
 Configuration tier cannot share a field dictionary.
+
+**Selection state is a per-action precondition, not a rule.** `Schedule Count` is enabled only when
+*nothing* is selected; every other Counts verb needs a row. A captured Actions menu is therefore only
+valid for the selection state it was taken in — `index/actions-menus.json` was captured with no
+selection, so selection-dependent verbs appear disabled there and must not be read as unavailable.
 
 **Approve is a two-stage action.** The button raises a form — `reasonCode` (required, 27 options,
 two of which say *DO NOT USE* in their own labels), `comment`, and `generateCycleCount` (default

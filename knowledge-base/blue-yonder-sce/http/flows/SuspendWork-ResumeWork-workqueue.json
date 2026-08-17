@@ -1,0 +1,42 @@
+{
+  "generated_by": "tools/cdp/capture-action-pair.mjs",
+  "note": "Picking ▸ Work Queue. Restored after a filename collision with the Counts run of the same two verbs.",
+  "screen_route": "#wm.picking/wm.workqueue////",
+  "resource": "work",
+  "id_field": "workRequestId",
+  "id": 5490663,
+  "watched_field": "workRequestStatus",
+  "action_a": "Suspend Work",
+  "action_b": "Resume Work",
+  "before": {
+    "watched": "PEND"
+  },
+  "after_a": {
+    "watched": "SUSP"
+  },
+  "after_b": {
+    "watched": "PEND"
+  },
+  "reversed": true,
+  "dialog_a": "Suspend Work — \"Selected Work has been Suspended.\"",
+  "dialog_b": "Resume Work — \"Selected Work has been Resumed.\"",
+  "requests_a": [
+    {
+      "method": "PUT",
+      "url": "/data/WM/wm/work/suspendDirectedWorks/batch?siteId=SG&subsites=----",
+      "status": 200,
+      "body_shape": "array of the full 44-field work record; workRequestStatus PEND when sent"
+    }
+  ],
+  "requests_b": [
+    {
+      "method": "PUT",
+      "url": "/data/WM/wm/work/resumeDirectedWorks/batch?siteId=SG&subsites=----",
+      "status": 200,
+      "body_shape": "array of the full 44-field work record; workRequestStatus SUSP when sent, which proves the suspend landed"
+    }
+  ],
+  "payload_diff": null,
+  "payload_diff_note": "Not a field change: these verbs have their own endpoints, unlike assign/unassign/priority which share /wm/work/async.",
+  "verified_after": "work 5490663 read back as PEND"
+}

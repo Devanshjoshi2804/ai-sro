@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from sro.application.context import RequestContext
-from sro.application.intent.match import Candidate, ambiguous, rank
+from sro.application.intent.match import Candidate, ambiguous, asks, rank
 from sro.application.intent.plan_task import PlanTask, Proposal
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.repositories import UnitOfWork
@@ -158,6 +158,24 @@ class ResolveIntent:
         operator can read is a slow correct one.
         """
         proposal = await self._planner.execute(ctx, utterance=utterance, system=system)
+        if asks(utterance):
+            # A question that reached here did so because every skill that
+            # matched it writes, and those were excluded rather than ranked.
+            # Saying "teach me that task" to somebody who asked how many there
+            # are would be answering a question with a form.
+            return Resolution(
+                utterance=utterance,
+                proposal=proposal,
+                question=(
+                    "Nothing taught answers that. Reading it is not a task anybody has "
+                    "demonstrated yet"
+                    + (
+                        " — here is what the knowledge base says the system exposes for it."
+                        if proposal is not None and proposal.steps
+                        else ". Show me once where you would look, and I will have it."
+                    )
+                ),
+            )
         return Resolution(
             utterance=utterance,
             proposal=proposal,

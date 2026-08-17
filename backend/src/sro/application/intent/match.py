@@ -64,6 +64,48 @@ TOO_CLOSE = 2
 them is the wrong-match failure with extra steps."""
 
 
+_ASKS = (
+    "how many",
+    "how much",
+    "what is",
+    "what are",
+    "which",
+    "list all",
+    "list the",
+    "show me all",
+    "show all",
+    "are there",
+    "do we have",
+    "is there",
+)
+"""Openings that make a sentence a question rather than an instruction.
+
+Phrases, not words, and matched at the start: single words are how this goes
+wrong. "count" reads like a question and is one of the most consequential tasks
+in a warehouse; "show" appears in "show me how to create one". A question is
+recognised by how it opens, or by ending in a question mark.
+
+Deliberately incomplete. A question this misses is treated as an instruction and
+still has to pass every other check, which is the safe direction to be wrong in;
+an instruction misread as a question would refuse to do work somebody asked for.
+"""
+
+
+def asks(utterance: str) -> bool:
+    """Whether this sentence wants to be told something rather than have it done."""
+    text = utterance.strip().lower()
+    return text.endswith("?") or any(text.startswith(opening) for opening in _ASKS)
+
+
+def writes(version: SkillVersion) -> bool:
+    """Whether performing this skill changes the target system."""
+    return any(
+        step.network_plan is not None
+        and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
+        for step in version.steps
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class Candidate:
     skill: Skill
@@ -92,12 +134,28 @@ def words(text: str) -> frozenset[str]:
 
 
 def rank(skills: tuple[Skill, ...], utterance: str) -> tuple[Candidate, ...]:
-    """Every skill that structurally matches, best first."""
+    """Every skill that structurally matches, best first.
+
+    A question never matches a skill that writes. "How many transport modes are
+    in the list" shares every noun with the skill that *creates* one, scores
+    well on all of them, and the only honest answer to matching it is a form
+    asking which transport mode to create -- which is the wrong-task failure
+    wearing the face of a helpful prompt.
+
+    Ranking a writer lower would not do: the question that asks for a count and
+    the instruction that asks for a creation are not two points on one scale.
+    """
     asked = words(utterance)
     if not asked:
         return ()
 
-    scored = [candidate for skill in skills if (candidate := _score(skill, asked)) is not None]
+    question = asks(utterance)
+    scored = [
+        candidate
+        for skill in skills
+        if (candidate := _score(skill, asked)) is not None
+        and not (question and writes(candidate.version))
+    ]
     return tuple(sorted(scored, key=lambda candidate: -candidate.score))
 
 

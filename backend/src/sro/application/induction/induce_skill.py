@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from sro.application.context import RequestContext
 from sro.application.induction import assertions as assertion_extraction
 from sro.application.induction import describe, narration
+from sro.application.induction.companions import read_skills
 from sro.application.induction.diff import Parameterisation, align, parameterise
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
@@ -77,6 +78,23 @@ class InduceSkill:
                 summary=described.summary,
                 when_to_use=described.when_to_use,
             )
+            # Everything else the demonstration proved. Opening the screen to
+            # create a transport mode lists the existing ones first, and that
+            # read is real evidence -- asking the operator to demonstrate it
+            # separately is asking them for something already in hand.
+            for companion in read_skills(
+                run_a.frames,
+                taught=objective,
+                recording_id=run_a.id,
+                tenant_id=ctx.tenant_id,
+                by=ctx.principal_id,
+                at=now,
+                new_id=self._ids.new_skill_id,
+            ):
+                if await uow.skills.find_by_objective(ctx.tenant_id, companion.objective_key):
+                    continue  # already known from an earlier demonstration
+                await uow.skills.add(companion)
+
             skill.add_version(version)
             # Straight to rehearsing, once it is attached: a version is added at
             # RECORDED and cannot be run there, so it could never earn the rung

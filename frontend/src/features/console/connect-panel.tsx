@@ -53,9 +53,20 @@ export const signInAgain = (connectionId: string, targetSystem: string) =>
     `/v1/connections/${connectionId}/sign-in?target_system=${encodeURIComponent(targetSystem)}`,
   );
 
-export function ConnectPanel({ onDone }: { onDone: () => void }) {
+export function ConnectPanel({
+  onDone,
+  reconnect,
+}: {
+  onDone: () => void;
+  /** An existing connection whose session died. Its address is already known,
+   * so there is no form to fill in — the browser opens and the watching starts
+   * at once. Without this, "sign in again" opened a window nothing was
+   * polling, and an operator signed in successfully while the console went on
+   * reporting them signed out. */
+  reconnect?: { base_url: string };
+}) {
   const queryClient = useQueryClient();
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(reconnect?.base_url ?? "");
   const [opened, setOpened] = useState<Opened | null>(null);
 
   const connect = useMutation({
@@ -71,6 +82,14 @@ export function ConnectPanel({ onDone }: { onDone: () => void }) {
         description: error instanceof ApiError ? error.problem.detail : String(error),
       }),
   });
+
+  // A known address needs no form: open it and start watching.
+  const begin = connect.mutate;
+  useEffect(() => {
+    if (reconnect) begin();
+    // Once, for the connection this panel was opened for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reconnect?.base_url]);
 
   // Stable, or the poll below restarts its timer on every re-render and the
   // two-second tick never actually arrives.

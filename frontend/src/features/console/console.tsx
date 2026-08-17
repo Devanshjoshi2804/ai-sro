@@ -61,7 +61,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
   const [plusOpen, setPlusOpen] = useState(false);
   const [teachingAt, setTeachingAt] = useState<Teaching | null>(null);
   const [active, setActive] = useState<{ recordingId: string; run: number } | null>(null);
-  const [connecting, setConnecting] = useState(false);
+  const [connecting, setConnecting] = useState<true | { base_url: string } | null>(null);
   const router = useRouter();
   // The URL is the thread. Held in state as well only so a conversation
   // started in this tab can begin before the route has caught up.
@@ -225,7 +225,10 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
 
       {connecting ? (
         <div style={{ flex: 1, minHeight: 0 }}>
-          <ConnectPanel onDone={() => setConnecting(false)} />
+          <ConnectPanel
+            onDone={() => setConnecting(null)}
+            reconnect={connecting === true ? undefined : connecting}
+          />
         </div>
       ) : tab === "teach" && active ? (
         <div style={{ flex: 1, minHeight: 0 }}>
@@ -274,7 +277,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
                     check={(health.data ?? []).find((c) => c.connection_id === connection.id)}
                     status={connection.status}
                     connection={connection}
-                    onReconnect={() => setConnecting(true)}
+                    onReconnect={() => setConnecting({ base_url: connection.base_url })}
                   />
                 </div>
               ))}
@@ -985,6 +988,9 @@ function SessionState({
       toast.success("Signed back in", { description: "Nobody had to be asked." });
       void queryClient.invalidateQueries({ queryKey: connectionKeys.health });
     },
+    // No stored credentials is the common case, not an error worth a toast:
+    // it means this system is signed into by hand, so open the window and
+    // watch it. What went wrong before was opening one nothing was watching.
     onError: onReconnect,
   });
   const state = check?.health ?? (status === "connected" ? "checking" : "never_connected");

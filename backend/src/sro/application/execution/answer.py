@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from sro.application.induction.sites import parse_json
 
 MAX_ROWS = 25
-MAX_FIELDS = 4
+MAX_COLUMNS = 10
 MAX_VALUE = 60
 
 _IDENTIFYING = (
@@ -50,6 +50,11 @@ class Answer:
     """Enough of the first records to recognise them."""
 
     truncated: bool
+
+    columns: tuple[str, ...] = ()
+    """The fields worth showing, in ranked order, decided once for the whole
+    result. Carried because `jsonb` will not keep a row's key order and because
+    a table needs to know its columns before it draws a header."""
 
     labels: tuple[str, ...] = ()
     """Each record as one line, in the order the fields were ranked.
@@ -81,22 +86,63 @@ def read_answer(body: str | None) -> Answer | None:
     if records is None:
         return None
 
-    sample = tuple(_row(record) for record in records[:MAX_ROWS] if isinstance(record, dict))
+    shown = [record for record in records[:MAX_ROWS] if isinstance(record, dict)]
+    columns = _columns(shown)
+    sample = tuple(_row(record, columns) for record in shown)
     return Answer(
         rows=len(records),
         sample=sample,
         truncated=len(records) > MAX_ROWS,
         labels=tuple(_describe(row) for row in sample),
+        columns=columns,
     )
 
 
-def _row(record: dict[str, object]) -> dict[str, str]:
-    """The few fields that identify this record, preferred by name."""
-    ranked = sorted(
-        (key for key, value in record.items() if _sayable(value)),
-        key=lambda key: (_rank(key), len(key)),
-    )
-    return {key: str(record[key])[:MAX_VALUE] for key in ranked[:MAX_FIELDS]}
+def _columns(records: list[dict[str, object]]) -> tuple[str, ...]:
+    """The fields worth showing, decided across the whole result rather than per row.
+
+    A WMS record carries as much bookkeeping as content. The transport-mode
+    payload has `dateLastModified`, `lastModifiedBy`, `palletBuildConsolidationBy`
+    and `warehouseId` null in all twenty-three rows, and a `self_uri` repeating
+    the address the request was made to: four empty columns and one useless one,
+    which is how a table stops being read.
+
+    So a column earns its place by having a value somewhere, and the ranking
+    orders what survives.
+    """
+    seen: dict[str, int] = {}
+    for record in records:
+        for key, value in record.items():
+            if _sayable(value) and not _is_a_link(value):
+                seen[key] = seen.get(key, 0) + 1
+
+    ranked = sorted(seen, key=lambda key: (_rank(key), len(key)))
+    # And no column twice under two names. `resourceId` and `transportMode`
+    # carry the same value in every row of this payload; showing both fills a
+    # third of the table with a repeat.
+    kept: list[str] = []
+    printed: list[tuple[str, ...]] = []
+    for column in ranked:
+        values = tuple(str(record.get(column, "")) for record in records)
+        if values in printed:
+            continue
+        printed.append(values)
+        kept.append(column)
+    return tuple(kept[:MAX_COLUMNS])
+
+
+def _is_a_link(value: object) -> bool:
+    """A self-referential URL is the address we already know, spelled out."""
+    return isinstance(value, str) and value.startswith(("http://", "https://"))
+
+
+def _row(record: dict[str, object], columns: tuple[str, ...]) -> dict[str, str]:
+    """One record, as the columns the whole result agreed on."""
+    return {
+        column: str(record[column])[:MAX_VALUE]
+        for column in columns
+        if column in record and _sayable(record[column])
+    }
 
 
 def _rank(key: str) -> int:

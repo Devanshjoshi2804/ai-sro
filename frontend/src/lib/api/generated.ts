@@ -548,11 +548,32 @@ export interface paths {
          * Pursue
          * @description Say go: work a task out on the screen, when nobody has demonstrated it.
          *
-         *     The rung of last resort, and the one with the least behind it -- so it is
-         *     reached only after the operator has read the goal and the values, and said
-         *     to go ahead.
+         *     Accepted rather than performed. A pursuit is twelve gestures long, each one
+         *     a screenshot to a hosted model and back, and running it inside this request
+         *     held the whole API until it finished -- which is not a slow endpoint, it is
+         *     an outage with a good excuse. What comes back is an address to watch.
          */
         post: operations["pursue_v1_threads__thread_id__pursue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/threads/{thread_id}/pursue/{pursuit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pursuit Progress
+         * @description What it has done so far. Polled while the browser is being driven.
+         */
+        get: operations["pursuit_progress_v1_threads__thread_id__pursue__pursuit_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1104,18 +1125,20 @@ export interface components {
             /** Start Url */
             start_url?: string | null;
         };
-        /** PursuedResponse */
-        PursuedResponse: {
+        /** PursuitProgressModel */
+        PursuitProgressModel: {
+            /** Id */
+            id: string;
             /** Goal */
             goal: string;
-            /** Reached */
-            reached: boolean;
+            /** State */
+            state: string;
             /** Gestures */
             gestures: string[];
-            /** Landed At */
-            landed_at: string;
             /** Detail */
             detail: string;
+            /** Landed At */
+            landed_at: string;
         };
         /** RecordingDetail */
         RecordingDetail: {
@@ -1450,6 +1473,11 @@ export interface components {
             found: {
                 [key: string]: string;
             }[];
+            /**
+             * Found Columns
+             * @default []
+             */
+            found_columns: string[];
             /**
              * Found Labels
              * @default []
@@ -2599,12 +2627,47 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PursuitProgressModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pursuit_progress_v1_threads__thread_id__pursue__pursuit_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                thread_id: string;
+                pursuit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PursuedResponse"];
+                    "application/json": components["schemas"]["PursuitProgressModel"];
                 };
             };
             /** @description Validation Error */

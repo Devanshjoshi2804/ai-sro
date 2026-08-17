@@ -48,6 +48,26 @@ class Converse:
         self._clock = clock
         self._ids = ids
 
+    async def note(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
+        """Write something into the thread that nobody asked a question for.
+
+        A pursuit finishes minutes after the request that started it, in a
+        background task, and its progress lives only in this process. What it
+        did has to end up somewhere an operator can read tomorrow.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=text,
+                    said_at=self._clock.now(),
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+
     async def execute(
         self,
         ctx: RequestContext,

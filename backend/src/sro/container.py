@@ -34,6 +34,7 @@ from sro.application.execution.execute_skill import (
     StartRun,
 )
 from sro.application.execution.pursue_goal import PursueGoal
+from sro.application.execution.pursuits import Pursuits
 from sro.application.execution.read_runs import GetRun, ListRuns
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.vision_step import PerformWithVision
@@ -119,6 +120,11 @@ class Container:
     sign_in_driver: SignInDriver
     durable: DurableExecution
     session_factory: async_sessionmaker[AsyncSession]
+
+    pursuits: Pursuits = field(default_factory=Pursuits)
+    """Pursuits this process is driving. In memory on purpose: the browser one
+    was driving does not survive a restart either, and a half-finished pursuit
+    resumed against a screen nobody can see is worse than one that stopped."""
 
     capture: CaptureController = field(init=False)
     """Set by ``build_container``: the supervisor is built from the container's

@@ -282,6 +282,7 @@ def _step_to_json(step: StepOutcome) -> dict[str, Any]:
         "detail": step.detail,
         "found_rows": step.found_rows,
         "found": [dict(row) for row in step.found],
+        "found_columns": list(step.found_columns),
         "found_labels": list(step.found_labels),
     }
 
@@ -303,6 +304,7 @@ def _step_from_json(data: dict[str, Any]) -> StepOutcome:
         detail=data.get("detail"),
         found_rows=data.get("found_rows"),
         found=tuple(dict(row) for row in (data.get("found") or ())),
+        found_columns=tuple(data.get("found_columns") or ()),
         found_labels=tuple(data.get("found_labels") or ()),
     )
 

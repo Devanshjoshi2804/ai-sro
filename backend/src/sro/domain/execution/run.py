@@ -85,6 +85,11 @@ class StepOutcome:
     the response and was being thrown away."""
 
     found: tuple[dict[str, str], ...] = ()
+    found_columns: tuple[str, ...] = ()
+    """The columns of the result, in the order they should be shown. Carried
+    because `jsonb` sorts an object's keys by length, so a row cannot be trusted
+    to remember its own field order."""
+
     found_labels: tuple[str, ...] = ()
     """Each record as one readable line. Kept as text because `jsonb` sorts an
     object's keys by length, so the field ranking does not survive being

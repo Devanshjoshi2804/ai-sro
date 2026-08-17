@@ -466,8 +466,12 @@ function Result({ run }: { run: RunModel }) {
     return <span style={{ fontSize: 12.5, color: ink.textSoft }}>Done.</span>;
   }
 
-  // Every column any sampled row declares, in the order the ranking put them.
-  const columns = Array.from(new Set(read.found.flatMap((row) => Object.keys(row))));
+  // The columns the result decided on, in its order. Never the row's own key
+  // order: jsonb sorts an object's keys by length, so a row does not remember
+  // how it was arranged.
+  const columns = read.found_columns.length
+    ? read.found_columns
+    : Array.from(new Set(read.found.flatMap((row) => Object.keys(row))));
   const shown = expanded ? read.found : read.found.slice(0, 5);
 
   return (

@@ -1976,7 +1976,7 @@
           "threads"
         ],
         "summary": "Pursue",
-        "description": "Say go: work a task out on the screen, when nobody has demonstrated it.\n\nThe rung of last resort, and the one with the least behind it -- so it is\nreached only after the operator has read the goal and the values, and said\nto go ahead.",
+        "description": "Say go: work a task out on the screen, when nobody has demonstrated it.\n\nAccepted rather than performed. A pursuit is twelve gestures long, each one\na screenshot to a hosted model and back, and running it inside this request\nheld the whole API until it finished -- which is not a slow endpoint, it is\nan outage with a good excuse. What comes back is an address to watch.",
         "operationId": "pursue_v1_threads__thread_id__pursue_post",
         "parameters": [
           {
@@ -2020,12 +2020,84 @@
           }
         },
         "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuitProgressModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/threads/{thread_id}/pursue/{pursuit_id}": {
+      "get": {
+        "tags": [
+          "threads"
+        ],
+        "summary": "Pursuit Progress",
+        "description": "What it has done so far. Polled while the browser is being driven.",
+        "operationId": "pursuit_progress_v1_threads__thread_id__pursue__pursuit_id__get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Thread Id"
+            }
+          },
+          {
+            "name": "pursuit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pursuit Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PursuedResponse"
+                  "$ref": "#/components/schemas/PursuitProgressModel"
                 }
               }
             }
@@ -3614,15 +3686,19 @@
         "title": "PursueRequest",
         "description": "What the operator confirmed before anything is driven."
       },
-      "PursuedResponse": {
+      "PursuitProgressModel": {
         "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
           "goal": {
             "type": "string",
             "title": "Goal"
           },
-          "reached": {
-            "type": "boolean",
-            "title": "Reached"
+          "state": {
+            "type": "string",
+            "title": "State"
           },
           "gestures": {
             "items": {
@@ -3631,24 +3707,25 @@
             "type": "array",
             "title": "Gestures"
           },
-          "landed_at": {
-            "type": "string",
-            "title": "Landed At"
-          },
           "detail": {
             "type": "string",
             "title": "Detail"
+          },
+          "landed_at": {
+            "type": "string",
+            "title": "Landed At"
           }
         },
         "type": "object",
         "required": [
+          "id",
           "goal",
-          "reached",
+          "state",
           "gestures",
-          "landed_at",
-          "detail"
+          "detail",
+          "landed_at"
         ],
-        "title": "PursuedResponse"
+        "title": "PursuitProgressModel"
       },
       "RecordingDetail": {
         "properties": {
@@ -4677,6 +4754,14 @@
             },
             "type": "array",
             "title": "Found",
+            "default": []
+          },
+          "found_columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Found Columns",
             "default": []
           },
           "found_labels": {

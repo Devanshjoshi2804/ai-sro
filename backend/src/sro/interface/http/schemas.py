@@ -12,6 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from sro.application.execution.pursuits import PursuitProgress
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
 from sro.domain.chat.thread import Thread
@@ -125,15 +126,28 @@ class PursueRequest(BaseModel):
     start_url: str | None = None
 
 
-class PursuedResponse(BaseModel):
+class PursuitProgressModel(BaseModel):
+    id: str
     goal: str
-    reached: bool
-    """What the model claimed, never what the system verified: a pursuit has no
-    demonstration to assert against."""
+    state: str
+    """working | reached | stopped | failed. `reached` is what the model
+    claimed, never what the system verified: a pursuit has no demonstration to
+    assert against."""
 
     gestures: list[str]
-    landed_at: str
     detail: str
+    landed_at: str
+
+    @classmethod
+    def of(cls, progress: PursuitProgress) -> PursuitProgressModel:
+        return cls(
+            id=progress.id,
+            goal=progress.goal,
+            state=progress.state.value,
+            gestures=list(progress.gestures),
+            detail=progress.detail,
+            landed_at=progress.landed_at,
+        )
 
 
 class ResumeRequest(BaseModel):
@@ -602,6 +616,9 @@ class StepOutcomeModel(BaseModel):
     question. A step that reports only a status code has answered nothing."""
 
     found: list[dict[str, str]] = []
+    found_columns: list[str] = []
+    """The result's columns, in the order to show them."""
+
     found_labels: list[str] = []
     """Each record as one readable line, ranked before storage."""
 
@@ -623,6 +640,7 @@ class StepOutcomeModel(BaseModel):
             detail=step.detail,
             found_rows=step.found_rows,
             found=[dict(row) for row in step.found],
+            found_columns=list(step.found_columns),
             found_labels=list(step.found_labels),
         )
 

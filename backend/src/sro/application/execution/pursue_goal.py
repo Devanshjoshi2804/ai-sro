@@ -26,6 +26,7 @@ exists to make itself unnecessary.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -91,8 +92,19 @@ class PursueGoal:
         self._model = model
 
     async def execute(
-        self, ctx: RequestContext, *, goal: Goal, target_system: str, values: dict[str, str]
+        self,
+        ctx: RequestContext,
+        *,
+        goal: Goal,
+        target_system: str,
+        values: dict[str, str],
+        watching: Callable[[str], None] | None = None,
     ) -> Pursued:
+        """``watching`` is told each gesture as it happens.
+
+        A browser being driven on somebody's behalf with nothing on screen for
+        two minutes is indistinguishable from a hang.
+        """
         if self._vision is None or self._ui is None:
             raise VisionUnavailable(
                 "this deployment has no rung that can look at a screen, so a task nobody "
@@ -151,11 +163,14 @@ class PursueGoal:
                     y=proposed.y or 0,
                     value=proposed.value,
                 )
-                gestures.append(
+                gesture = (
                     f"{proposed.action.value} at ({proposed.x}, {proposed.y})"
                     + (f" = {proposed.value}" if proposed.value else "")
                     + ("" if outcome.performed else " — nothing happened")
                 )
+                gestures.append(gesture)
+                if watching is not None:
+                    watching(gesture)
                 if not outcome.performed:
                     detail = "the screen did not respond to what was proposed"
                     break

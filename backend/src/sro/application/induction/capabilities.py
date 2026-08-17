@@ -131,3 +131,19 @@ def _rows(text: str | None) -> int | None:
     if isinstance(data, list):
         return len(data)
     return 1 if isinstance(data, dict) else None
+
+
+def wrote_to(frames: tuple[ActionFrame, ...]) -> str | None:
+    """The collection the demonstration changed, if it changed one.
+
+    The counterpart of a create is a read of the same collection. Blue Yonder's
+    screen creates in `transportModes` and then refreshes `warehouseTransportModes`
+    -- the site's own view of it -- so a read claimed from what the screen
+    happened to fetch answers a narrower question than the write acts on, and
+    says nothing about the difference.
+    """
+    for frame in reversed(frames):
+        for request in frame.requests:
+            if request.is_mutation and request.status and 200 <= request.status < 300:
+                return _resource_of(request.url)
+    return None

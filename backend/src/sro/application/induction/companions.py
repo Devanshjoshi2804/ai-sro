@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sro.application.induction.capabilities import ReadCapability, reads_about
+from sro.application.induction.capabilities import ReadCapability, reads_about, wrote_to
 from sro.application.induction.headers import build_header_plans
 from sro.domain.recording.events import ActionFrame
 from sro.domain.shared.identifiers import PrincipalId, RecordingId, SkillId
@@ -53,6 +53,7 @@ def read_skills(
             tenant_id=tenant_id,
             by=by,
             at=at,
+            written=wrote_to(frames),
             skill_id=new_id(),  # type: ignore[operator]
         )
         for capability in reads_about(frames, taught.entity_type)[:1]
@@ -73,6 +74,7 @@ def objective_for(capability: ReadCapability, taught: ObjectiveKey) -> Objective
 def _skill(
     capability: ReadCapability,
     *,
+    written: str | None,
     taught: ObjectiveKey,
     recording_id: RecordingId,
     tenant_id: object,
@@ -84,11 +86,19 @@ def _skill(
     listing = capability.rows != 1
     objective = objective_for(capability, taught)
 
+    # The screen creates in one collection and refreshes another: the site's own
+    # view of it. Both are real and they answer different questions, so a skill
+    # reading the narrower one says which, rather than calling itself the list.
+    # Compared raw, not normalised: normalising exists to see through the
+    # `warehouse` prefix, and the prefix is exactly the difference here.
+    narrower = bool(written) and capability.entity.lower() != (written or "").lower()
+    where = f" at {taught.facility}" if narrower else ""
+
     skill = Skill(
         id=SkillId(str(skill_id)),
         tenant_id=tenant_id,  # type: ignore[arg-type]
         objective_key=objective,
-        name=f"{'List' if listing else 'View'} {entity}s" if listing else f"View {entity}",
+        name=(f"List {entity}s{where}" if listing else f"View {entity}{where}"),
         created_at=at,
     )
     version = SkillVersion(
@@ -129,7 +139,12 @@ def _skill(
         ),
         summary=(
             f"{'List every' if listing else 'View a'} {entity} "
-            f"at {taught.facility} on {taught.target_system}."
+            f"at {taught.facility} on {taught.target_system}, as {capability.entity}."
+            + (
+                f" The task itself writes to {written}, which is a wider collection."
+                if narrower
+                else ""
+            )
             + (
                 f" There were {capability.rows} when this was observed."
                 if listing and capability.rows

@@ -46,5 +46,78 @@
   "related": {
     "filter_param": "The grids also carry an Ext-style `filter` param, but RPUX.rest.RestProxy.getParams() deletes it whenever remoteFiltering is false — which is the case on every Configuration grid, so those filter client-side over an already-loaded page.",
     "filter_columns_endpoint": "/rpux/filter/columns/<Entity> lists the columns a grid offers in its filter UI. Most entities return an empty list; it is not a reliable source for what `query` accepts."
+  },
+  "range_operators": {
+    "tested": [
+      {
+        "resource": "locations",
+        "column": "workZoneId",
+        "pivot": 10351,
+        "sample_rows": 200,
+        "GT": {
+          "rows": 200,
+          "all_above": true,
+          "expected_in_sample": 0
+        },
+        "LE": {
+          "rows": 200,
+          "all_at_or_below": true,
+          "expected_in_sample": 194
+        },
+        "verdict": "RANGE OPERATORS COMPARE"
+      },
+      {
+        "resource": "storageConfigurations",
+        "column": "sortSequence",
+        "pivot": 23,
+        "sample_rows": 45,
+        "GT": {
+          "rows": 22,
+          "all_above": true,
+          "expected_in_sample": 22
+        },
+        "LE": {
+          "rows": 23,
+          "all_at_or_below": true,
+          "expected_in_sample": 23
+        },
+        "verdict": "RANGE OPERATORS COMPARE"
+      },
+      {
+        "resource": "workOperations",
+        "column": "basePriority",
+        "pivot": 50,
+        "sample_rows": 73,
+        "GT": {
+          "rows": 21,
+          "all_above": true,
+          "expected_in_sample": 21
+        },
+        "LE": {
+          "rows": 52,
+          "all_at_or_below": true,
+          "expected_in_sample": 52
+        },
+        "verdict": "RANGE OPERATORS COMPARE"
+      },
+      {
+        "resource": "aisles",
+        "column": "areaCount",
+        "pivot": 1,
+        "sample_rows": 99,
+        "GT": {
+          "rows": 15,
+          "all_above": true,
+          "expected_in_sample": 15
+        },
+        "LE": {
+          "rows": 80,
+          "all_at_or_below": true,
+          "expected_in_sample": 84
+        },
+        "verdict": "RANGE OPERATORS COMPARE"
+      }
+    ],
+    "conclusion": "GT/GE/LT/LE perform real comparisons."
   }
 }

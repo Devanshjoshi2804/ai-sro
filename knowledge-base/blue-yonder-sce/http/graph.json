@@ -10,14 +10,17 @@
   "principle": "Every edge is derived from a recorded exchange and carries its evidence file. Nothing here is inferred from naming or convention.",
   "counts": {
     "screens": 183,
-    "resources": 295,
+    "resources": 296,
     "edges": 291,
     "dataflow_edges": 13,
     "dataflow_strong": 3,
     "requires_edges": 10,
     "cascades": 1,
     "hazards": 8,
-    "resources_with_behaviour_warnings": 26,
+    "resources_with_behaviour_warnings": 69,
+    "resources_with_a_filterability_map": 152,
+    "resources_that_cannot_be_filtered_at_all": 43,
+    "resources_with_a_state_vocabulary": 23,
     "resources_with_a_write_contract": 54,
     "write_contracts_proven_round_trip": 36
   },
@@ -34,7 +37,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -43,6 +47,18 @@
         "status": 200,
         "fields": 14,
         "rows_in_sample": 257
+      },
+      "queryable": {
+        "filterable_columns": [
+          "activityCode",
+          "activityCategory"
+        ],
+        "not_filterable": [
+          "activityCategoryDescription",
+          "description",
+          "indirectFlag"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -63,7 +79,10 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-requestState": "200",
+            "filter-by-state": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -170,6 +189,47 @@
         "fields": 54,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "addressId",
+          "addressName",
+          "addressType",
+          "clientId",
+          "countryName",
+          "addressLine1",
+          "addressLine2"
+        ],
+        "not_filterable": [
+          "contactName",
+          "hostExternalId",
+          "localeId",
+          "phoneNumber",
+          "postalCode",
+          "city",
+          "requestState",
+          "state"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "requestState": [
+          "ACCEPTED"
+        ],
+        "state": [
+          "ON",
+          "NH",
+          "BC",
+          "AB",
+          "CA",
+          "SC",
+          "NY",
+          "QC",
+          "IN",
+          "NS",
+          "TN",
+          "LA"
+        ]
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/addresses/{id}",
@@ -248,7 +308,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -257,6 +318,14 @@
         "status": 200,
         "fields": 12,
         "rows_in_sample": 236
+      },
+      "queryable": {
+        "filterable_columns": [
+          "ageProfileName",
+          "longDescription"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -292,7 +361,9 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200",
+            "range-operators": "200"
           }
         }
       },
@@ -301,6 +372,21 @@
         "status": 200,
         "fields": 12,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "aisleId",
+          "areaCount",
+          "bayCount",
+          "locationCount"
+        ],
+        "not_filterable": [
+          "warehouseId",
+          "doorsCount",
+          "lanesCount",
+          "version"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -314,7 +400,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -323,6 +410,16 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "allocationAssetGroup",
+          "handlingUnitTypesCount"
+        ],
+        "not_filterable": [
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -359,7 +456,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -368,7 +466,24 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 99
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "allocationSearchPathCriterionId",
+          "allocationSearchPathId",
+          "column",
+          "columnLongDescription",
+          "value"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:allocationSearchPathRules",
@@ -381,7 +496,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -390,7 +506,30 @@
         "status": 200,
         "fields": 25,
         "rows_in_sample": 210
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "allocationSearchPathId",
+          "allocationSearchPathRuleId",
+          "buildingId",
+          "pickMethodId",
+          "pickZoneId",
+          "allocationSearchPathDesc",
+          "loadLevel",
+          "loadLevelDesc",
+          "pathRegulatingUOM",
+          "pathRegulatingUOMDesc",
+          "sortSequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:allocationSearchPaths",
@@ -403,7 +542,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -412,6 +552,18 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "allocationSearchPathId",
+          "searchPathName",
+          "searchPathType"
+        ],
+        "not_filterable": [
+          "warehouseId",
+          "sortSequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -451,14 +603,26 @@
         "GET": {
           "statuses": [
             200,
-            404
+            404,
+            422
           ],
           "cases": {
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "query-form-ext-filter-property": "200",
+            "query-form-ext-filter-operator-eq": "200",
+            "query-form-ext-filter-field-key": "200",
+            "query-form-ext-filter-like": "200",
+            "query-form-name-value-pair": "200",
+            "query-form-metadata-columnName-EQ": "200",
+            "query-form-metadata-columnName-eq-lower": "200",
+            "query-form-metadata-columnName-value": "200",
+            "query-form-metadata-with-datatype": "200",
+            "query-form-sql-like-string": "422",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -516,6 +680,20 @@
         "status": 200,
         "fields": 17,
         "rows_in_sample": 94
+      },
+      "queryable": {
+        "filterable_columns": [
+          "areaCode",
+          "locationCount",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "buildingId",
+          "warehouseId",
+          "lostLocation",
+          "version"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -595,7 +773,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -604,6 +783,21 @@
         "status": 200,
         "fields": 48,
         "rows_in_sample": 8
+      },
+      "queryable": {
+        "filterable_columns": [
+          "buildingId",
+          "warehouseId",
+          "defaultReplConfigMaxUnit",
+          "defaultReplConfigMinUnit"
+        ],
+        "not_filterable": [
+          "movementZoneCode",
+          "movementZoneId",
+          "locationTypeCategory",
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -617,7 +811,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -626,6 +821,17 @@
         "status": 200,
         "fields": 48,
         "rows_in_sample": 13
+      },
+      "queryable": {
+        "filterable_columns": [
+          "movementZoneCode",
+          "movementZoneId",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -639,7 +845,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -648,6 +855,18 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 164
+      },
+      "queryable": {
+        "filterable_columns": [
+          "columnDescription",
+          "tableDescription"
+        ],
+        "not_filterable": [
+          "columnName",
+          "tableName",
+          "tableColumnDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -661,7 +880,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -670,7 +890,23 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 105
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "columnName",
+          "tableName",
+          "columnLongDescription",
+          "tableLongDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:availablePickDeductionSequences",
@@ -683,7 +919,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -692,7 +929,23 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 19
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "fieldName",
+          "tableName",
+          "fieldLongDescription",
+          "tableLongDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:availableTransactionGroupingAttributes",
@@ -705,7 +958,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -714,7 +968,21 @@
         "status": 200,
         "fields": 2,
         "rows_in_sample": 10
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "columnName",
+          "description"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:availableWorkListGroupCriterias",
@@ -727,7 +995,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -736,7 +1005,23 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 1335
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "columnName",
+          "tableName",
+          "columnLongDescription",
+          "tableLongDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:barcodeTemplates",
@@ -932,7 +1217,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -941,7 +1227,21 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 4
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "breakStopSequenceCode",
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:buildingInventoryMixingRules",
@@ -977,7 +1277,9 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filter-by-sortAttributeLocationStatus": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -1001,6 +1303,27 @@
         "fields": 15,
         "rows_in_sample": 1
       },
+      "queryable": {
+        "filterable_columns": [
+          "buildingId"
+        ],
+        "not_filterable": [
+          "addressId",
+          "sortAttributeLocationStatus",
+          "warehouseId",
+          "areaCount",
+          "fluidLoadFlag",
+          "locationCount",
+          "sortDefaultFlag",
+          "version"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "sortAttributeLocationStatus": [
+          "P"
+        ]
+      },
       "write_contract": {
         "PUT": {
           "path": "/data/WM/wm/buildings/{id}",
@@ -1020,7 +1343,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -1029,6 +1353,15 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 6
+      },
+      "queryable": {
+        "filterable_columns": [
+          "bundleRuleName"
+        ],
+        "not_filterable": [
+          "bundleBrkField"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -1179,7 +1512,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -1188,6 +1522,23 @@
         "status": 200,
         "fields": 18,
         "rows_in_sample": 12
+      },
+      "queryable": {
+        "filterable_columns": [
+          "voiceCode",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "allocationType",
+          "cycleCountCode",
+          "codeValue",
+          "dateLastModified",
+          "lastModifiedBy",
+          "shortDescription",
+          "sortSequence",
+          "unassignWorkFlag"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -1209,7 +1560,8 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -1274,6 +1626,23 @@
         "fields": 19,
         "rows_in_sample": 45
       },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "destinationName",
+          "carrier",
+          "destinationCarrier",
+          "destinationLevel",
+          "serviceLevel"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/carrierCrossReferences/{id}",
@@ -1374,7 +1743,8 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -1438,6 +1808,20 @@
         "status": 200,
         "fields": 15,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "addressName",
+          "carrier",
+          "format"
+        ],
+        "not_filterable": [
+          "addressId",
+          "poolPointAddressId",
+          "numberLength",
+          "version"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -1506,7 +1890,9 @@
         "GET": {
           "statuses": [
             200,
-            404
+            404,
+            422,
+            500
           ],
           "cases": {
             "route-exists": "200",
@@ -1515,7 +1901,55 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "query-form-ext-filter-property": "200",
+            "query-form-ext-filter-operator-eq": "200",
+            "query-form-ext-filter-field-key": "200",
+            "query-form-ext-filter-like": "200",
+            "query-form-name-value-pair": "200",
+            "query-form-column-comparison": "500",
+            "query-dsl-filter-property": "200",
+            "query-dsl-filter-property-op": "200",
+            "query-dsl-filter-partial": "200",
+            "query-dsl-sort-desc": "200",
+            "query-dsl-query-bare-string": "422",
+            "query-dsl-query-array-of-strings": "422",
+            "query-dsl-query-object": "422",
+            "query-dsl-query-array-object": "200",
+            "query-dsl-query-col-op-val": "422",
+            "query-dsl-query-triple-obj": "200",
+            "query-dsl-query-moca-where": "422",
+            "query-dsl-query-db-column": "200",
+            "query-dsl-str-eq-quoted": "422",
+            "query-dsl-str-eq-plain": "422",
+            "query-dsl-str-eq-nospace": "422",
+            "query-dsl-str-colon": "422",
+            "query-dsl-str-like": "422",
+            "query-dsl-str-db-column": "422",
+            "query-dsl-obj-property-value-op": "200",
+            "query-dsl-obj-name-op-value": "200",
+            "query-dsl-EQ": "200",
+            "query-dsl-NE": "200",
+            "query-dsl-LIKE-prefix": "422",
+            "query-dsl-CONTAINS": "422",
+            "query-dsl-IN": "422",
+            "query-dsl-GT": "200",
+            "query-dsl-lowercase-eq": "422",
+            "query-dsl-two-clauses": "200",
+            "query-dsl-LT": "200",
+            "query-dsl-GE": "200",
+            "query-dsl-LE": "200",
+            "query-dsl-BEGINS": "422",
+            "query-dsl-STARTSWITH": "422",
+            "query-dsl-BEGINS_WITH": "422",
+            "query-dsl-SW": "422",
+            "query-dsl-CONTAINS_LOWER": "422",
+            "query-dsl-NOT_NULL": "422",
+            "query-dsl-IS_NULL": "422",
+            "query-dsl-BETWEEN": "422",
+            "query-dsl-IN_csv": "422",
+            "query-dsl-wildcard-in-EQ": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -1574,6 +2008,15 @@
         "status": 200,
         "fields": 19,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "carrierCode"
+        ],
+        "not_filterable": [
+          "carrierName"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -1647,7 +2090,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -1656,7 +2100,21 @@
         "status": 200,
         "fields": 11,
         "rows_in_sample": 208
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "clientId",
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:categoryCounts",
@@ -1669,7 +2127,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -1678,6 +2137,19 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "dock",
+          "logical",
+          "pnd",
+          "proc",
+          "staging",
+          "storage",
+          "yard"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -1691,7 +2163,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -1700,6 +2173,19 @@
         "status": 200,
         "fields": 19,
         "rows_in_sample": 6
+      },
+      "queryable": {
+        "filterable_columns": [
+          "clientId"
+        ],
+        "not_filterable": [
+          "countType",
+          "operationCode",
+          "adjustmentMethod",
+          "closeLocationCountMethod",
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -1845,7 +2331,8 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -1918,6 +2405,17 @@
         "fields": 19,
         "rows_in_sample": 1
       },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "warehouseId"
+        ],
+        "not_filterable": [
+          "dateWindow",
+          "deliverySequenceLoadingOrder"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/clientWarehouse/{id}",
@@ -1972,7 +2470,8 @@
             "read-missing": "404/RECORD-MISSING",
             "read-created": "404/RECORD-MISSING",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -2041,6 +2540,19 @@
         "fields": 24,
         "rows_in_sample": 1
       },
+      "queryable": {
+        "filterable_columns": [
+          "addressId",
+          "clientId",
+          "adjustmentThresholdCost",
+          "adjustmentThresholdUnit"
+        ],
+        "not_filterable": [
+          "warehouseId",
+          "allClientFlg"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/clients/{id}",
@@ -2102,7 +2614,8 @@
             "confirm-gone": "404/RECORD-MISSING",
             "read-shape": "200",
             "cleanup-confirm-gone": "404/RECORD-MISSING",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -2168,6 +2681,18 @@
         "fields": 10,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "codeValue"
+        ],
+        "not_filterable": [
+          "columnName",
+          "columnDescription",
+          "requiredFlag",
+          "sortSequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/codes/{id}",
@@ -2228,7 +2753,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -2237,6 +2763,36 @@
         "status": 200,
         "fields": 159,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "defaultCancelCode",
+          "logFileName",
+          "skipCancelCode",
+          "thresPckOpCode",
+          "warehouseId",
+          "autcmpstp",
+          "bulkPickingAllocCommand",
+          "bulkPickingBreakOnOrder",
+          "bulkPickingBreakOnWorkOrder",
+          "capdocnum",
+          "cartonPosition",
+          "cartonizationBreakOn",
+          "cartonizationGroupBy",
+          "cartonizationIterationLimit",
+          "cartonizationMethod",
+          "cartonizationOrderBy",
+          "cartonizationPopupIterationLimit",
+          "cartonizationPopupLevelsPercent",
+          "cassrtfld",
+          "checkMoveDuringAlloc",
+          "defaultMaxStarterPallets",
+          "deliverIncompleteWorkAssignment",
+          "delivery",
+          "deplodnum"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -2250,7 +2806,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -2259,7 +2816,23 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 29
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "argumentType",
+          "commandId",
+          "commandArgument",
+          "sequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:commandConfigurations",
@@ -2272,7 +2845,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -2281,6 +2855,17 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 76
+      },
+      "queryable": {
+        "filterable_columns": [
+          "commandConfig",
+          "commandDescription",
+          "commandGroup"
+        ],
+        "not_filterable": [
+          "configId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -2316,7 +2901,8 @@
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -2373,6 +2959,14 @@
         "fields": 6,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "commodityCode",
+          "longDescription"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/commodities/{id}",
@@ -2423,7 +3017,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -2432,6 +3027,16 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 12
+      },
+      "queryable": {
+        "filterable_columns": [
+          "warehouseId"
+        ],
+        "not_filterable": [
+          "command",
+          "sortSequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -2466,7 +3071,8 @@
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -2534,6 +3140,19 @@
         "fields": 21,
         "rows_in_sample": 12
       },
+      "queryable": {
+        "filterable_columns": [
+          "countType",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "baseCountType",
+          "operationCode",
+          "adjustmentMethod",
+          "closeLocationCountMethod"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/countTypes/{id}",
@@ -2600,7 +3219,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -2609,6 +3229,18 @@
         "status": 200,
         "fields": 18,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "buildingId",
+          "countZoneCode",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "countZoneId",
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -2695,7 +3327,8 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -2760,6 +3393,27 @@
         "fields": 47,
         "rows_in_sample": 76
       },
+      "queryable": {
+        "filterable_columns": [
+          "customerType",
+          "createShipmentBy",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "crossDockFlag",
+          "earlyDeliveryThreshold",
+          "lateDeliveryThreshold",
+          "maxQuantityOvershipPercentage",
+          "maxQuantityUndershipPercentage",
+          "minimumShelfLife",
+          "outboundDateWindow",
+          "outboundDateWindowUnit",
+          "quantityOvershipLimit",
+          "quantityUndershipLimit",
+          "version"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/customerTypes/{id}",
@@ -2805,7 +3459,9 @@
             "read-shape": "200",
             "cleanup-confirm-gone": "404/RECORD-MISSING",
             "confirm-gone": "404/RECORD-MISSING",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filter-by-addressState": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -2931,6 +3587,56 @@
         "status": 200,
         "fields": 80,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "addressName",
+          "clientId",
+          "countryName",
+          "customerNumber",
+          "postalCode"
+        ],
+        "not_filterable": [
+          "addressId",
+          "addressCity",
+          "addressLine1",
+          "addressLine2",
+          "addressState"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "addressState": [
+          "FL",
+          "GA",
+          "TX",
+          "NC",
+          "IL",
+          "AL",
+          "IA",
+          "SC",
+          "LA",
+          "MO",
+          "KY",
+          "TN",
+          "AR",
+          "CA",
+          "MS",
+          "PA",
+          "VA",
+          "WI",
+          "WA",
+          "KS",
+          "CO",
+          "IN",
+          "NY",
+          "MN",
+          "AB",
+          "OH",
+          "07",
+          "NE",
+          "OK"
+        ]
       },
       "write_contract": {
         "DELETE": {
@@ -3064,7 +3770,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3073,6 +3780,18 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "columnName"
+        ],
+        "not_filterable": [
+          "customsItemTypeCode",
+          "longDescription",
+          "shortDescription",
+          "sortSequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -3130,7 +3849,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3139,6 +3859,19 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "supNum"
+        ],
+        "not_filterable": [
+          "warehouseId",
+          "aCountPerCycle",
+          "bCountPerCycle",
+          "cCountPerCycle"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -3174,7 +3907,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3183,6 +3917,15 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "clientId"
+        ],
+        "not_filterable": [
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -3196,7 +3939,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3205,6 +3949,16 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 26
+      },
+      "queryable": {
+        "filterable_columns": [
+          "tableName",
+          "protectionFlag"
+        ],
+        "not_filterable": [
+          "columnName"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -3240,7 +3994,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3249,6 +4004,16 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 6
+      },
+      "queryable": {
+        "filterable_columns": [
+          "description"
+        ],
+        "not_filterable": [
+          "deviceClass",
+          "deviceFunction"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -3463,7 +4228,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3472,6 +4238,17 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 58
+      },
+      "queryable": {
+        "filterable_columns": [
+          "warehouseId"
+        ],
+        "not_filterable": [
+          "operationCode",
+          "basePriority",
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -3490,7 +4267,8 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "cleanup-confirm-gone": "404/RECORD-MISSING"
+            "cleanup-confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -3555,6 +4333,18 @@
         "fields": 13,
         "rows_in_sample": 5
       },
+      "queryable": {
+        "filterable_columns": [
+          "distributionTiming",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "distributionType",
+          "distributionRuleSet",
+          "distributionTimingDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/distributionTypes/{id}",
@@ -3590,7 +4380,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3599,6 +4390,21 @@
         "status": 200,
         "fields": 11,
         "rows_in_sample": 94
+      },
+      "queryable": {
+        "filterable_columns": [
+          "areaCode",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "buildingId",
+          "warehouseId",
+          "locationCount",
+          "rcvDockDoorsCount",
+          "shpDockDoorsCount",
+          "shpRcvDockDoorsCount"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -3612,7 +4418,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3621,6 +4428,35 @@
         "status": 200,
         "fields": 55,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "areaCode",
+          "buildingId",
+          "locationCode",
+          "locationAccess",
+          "locationTypeDescription",
+          "palletStackRestriction",
+          "storageLocation"
+        ],
+        "not_filterable": [
+          "countZoneId",
+          "locationType",
+          "locationTypeId",
+          "movementZoneId",
+          "pickZoneId",
+          "storageZoneId",
+          "warehouseId",
+          "workZoneId",
+          "defaultMaximumCapacity",
+          "escalationThreshold",
+          "maxWeight",
+          "noOfAisles",
+          "noOfLanes",
+          "storageSequence",
+          "velocityZone"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -3651,7 +4487,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3660,6 +4497,17 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 7
+      },
+      "queryable": {
+        "filterable_columns": [
+          "buildingId",
+          "slotId"
+        ],
+        "not_filterable": [
+          "areaCode",
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -3699,7 +4547,8 @@
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -3758,6 +4607,29 @@
         "fields": 14,
         "rows_in_sample": 73
       },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "documentType",
+          "documentTypeCode",
+          "breakLevel",
+          "breakLevelDescription",
+          "dataCommand",
+          "dateLastModified",
+          "description",
+          "documentTypeCodeDescription",
+          "lastModifiedBy",
+          "printDocumentsBy",
+          "printDocumentsByDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/documentTypes/{id}",
@@ -3856,7 +4728,8 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -3922,6 +4795,20 @@
         "fields": 13,
         "rows_in_sample": 77
       },
+      "queryable": {
+        "filterable_columns": [
+          "vehicleTypeId",
+          "voiceCode",
+          "longDescription",
+          "vehicleLimit"
+        ],
+        "not_filterable": [
+          "dateLastModified",
+          "lastModifiedBy",
+          "location"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/equipmentTypes/{id}",
@@ -3960,7 +4847,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3969,7 +4857,21 @@
         "status": 200,
         "fields": 3,
         "rows_in_sample": 3
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "description",
+          "escalationCommand"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:exitPoints",
@@ -3982,7 +4884,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -3991,6 +4894,16 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 142
+      },
+      "queryable": {
+        "filterable_columns": [
+          "exitPointLongDescription"
+        ],
+        "not_filterable": [
+          "exitPointType",
+          "exitPoint"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -4004,7 +4917,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4013,6 +4927,22 @@
         "status": 200,
         "fields": 11,
         "rows_in_sample": 12
+      },
+      "queryable": {
+        "filterable_columns": [
+          "buildingId",
+          "type",
+          "warehouseId",
+          "height",
+          "text",
+          "width",
+          "x",
+          "y"
+        ],
+        "not_filterable": [
+          "id"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -4077,7 +5007,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -4100,6 +5031,16 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 3
+      },
+      "queryable": {
+        "filterable_columns": [
+          "warehouseId"
+        ],
+        "not_filterable": [
+          "assetCategory",
+          "description"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -4139,7 +5080,8 @@
             "read-shape": "200",
             "read-created": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -4206,6 +5148,27 @@
         "status": 200,
         "fields": 31,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "assetType",
+          "allocationAssetGroup",
+          "allocationAssetGroupDescription",
+          "assetCategory",
+          "assetCategoryDescription",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "assetHeight",
+          "assetLength",
+          "assetWeight",
+          "assetWidth",
+          "maximumCartons",
+          "maximumStarterPallets",
+          "maximumVolume",
+          "maximumWeight"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -4277,7 +5240,8 @@
             "read-shape": "200",
             "read-created": "200",
             "confirm-gone": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -4346,6 +5310,29 @@
         "fields": 79,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "holdNumber",
+          "holdType",
+          "holdPrefix",
+          "severity"
+        ],
+        "not_filterable": [
+          "createdUserFirstName",
+          "createdUserLastName",
+          "warehouseId",
+          "createdBy",
+          "creationDate",
+          "dateLastModified",
+          "holdTypeDescription",
+          "lastModifiedBy",
+          "longDescription",
+          "lpnCount",
+          "severityDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {},
       "write_contract": {
         "POST": {
           "path": "/data/WM/wm/holdDefinitions",
@@ -4405,7 +5392,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4414,7 +5402,21 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 49
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "systemId",
+          "description"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:hotItemsByLoc",
@@ -4427,7 +5429,9 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-trailerStatus": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4436,6 +5440,45 @@
         "status": 200,
         "fields": 31,
         "rows_in_sample": 57
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "carrierCode",
+          "displayItemNumber",
+          "inboundLoadNumber",
+          "itemClientId",
+          "itemNumber",
+          "outboundOrderNumber",
+          "trailerId",
+          "trailerNumber",
+          "trailerStatus",
+          "warehouseId",
+          "appliedQuantity",
+          "arrivedDate",
+          "hotQuantity",
+          "itemDescription",
+          "loadLevel",
+          "quantity",
+          "storageLocation",
+          "trailerStatusDescription",
+          "yardLocation"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ],
+      "state_vocabulary": {
+        "trailerStatus": [
+          "LDG (Loading)",
+          "OR (Open For Receiving)",
+          "CI (Checked In)",
+          "R (Receiving)"
+        ]
       }
     },
     {
@@ -4488,7 +5531,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4497,6 +5541,15 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 20
+      },
+      "queryable": {
+        "filterable_columns": [
+          "inboundOrderType"
+        ],
+        "not_filterable": [
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -4510,7 +5563,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4519,6 +5573,28 @@
         "status": 200,
         "fields": 20,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "transportEquipmentNumber",
+          "inboundOrder",
+          "inboundShipment",
+          "item",
+          "lastUpdatedUser",
+          "reportedByUser",
+          "supplier"
+        ],
+        "not_filterable": [
+          "issueId",
+          "warehouseId",
+          "client",
+          "inboundIssueDescription",
+          "inboundIssues",
+          "inboundQuantity",
+          "insertDate",
+          "lastUpdated"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -4613,7 +5689,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4622,7 +5699,21 @@
         "status": 200,
         "fields": 2,
         "rows_in_sample": 39
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "columnName",
+          "description"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:inventoryCounts",
@@ -4677,7 +5768,8 @@
           "cases": {
             "read-shape": "200",
             "cleanup-confirm-gone": "404/RECORD-MISSING",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -4722,6 +5814,14 @@
         "fields": 4,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "itemClassName",
+          "longDescription"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/itemClasses/{id}",
@@ -4754,7 +5854,8 @@
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -4811,6 +5912,21 @@
         "fields": 13,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "itemFamilyGroupName",
+          "itemFamily",
+          "itemFamilyGroupDescription",
+          "longDescription",
+          "workReleaseSequence"
+        ],
+        "not_filterable": [
+          "dateLastModified",
+          "lastModifiedBy",
+          "shortDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/itemFamilies/{id}",
@@ -4844,7 +5960,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4853,7 +5970,22 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 45
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "itemFamilyGroupName",
+          "longDescription",
+          "version"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:itemFamilySets",
@@ -4888,7 +6020,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4897,7 +6030,21 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 7
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "itemHierarchyLevel",
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:itemHierarchyLevels",
@@ -4932,7 +6079,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4941,6 +6089,14 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "itemClientId",
+          "warehouseId"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -4954,7 +6110,10 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-defaultInventoryStatus": "200",
+            "filter-by-lotStatus": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -4963,6 +6122,34 @@
         "status": 200,
         "fields": 20,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "itemClientId",
+          "itemNumber",
+          "lotNumber",
+          "warehouseId",
+          "itemDesc",
+          "lotStatusDescription"
+        ],
+        "not_filterable": [
+          "lotStatus",
+          "alternateItemNbr",
+          "createdBy",
+          "expirationDate",
+          "manufacturedDate",
+          "updatedBy",
+          "updatedDate"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "defaultInventoryStatus": [
+          "AV"
+        ],
+        "lotStatus": [
+          "U (Unrestricted)"
+        ]
       }
     },
     {
@@ -4979,7 +6166,8 @@
           "cases": {
             "read-shape": "200",
             "cleanup-confirm-gone": "404/RECORD-MISSING",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -5025,6 +6213,16 @@
         "fields": 6,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "attributeCodeName",
+          "attributeColumnName",
+          "columnDescription",
+          "longDescription"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/itemStyleAttributes/{id}",
@@ -5054,7 +6252,9 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200",
+            "filter-by-receiveStatus": "200"
           }
         }
       },
@@ -5063,6 +6263,42 @@
         "status": 200,
         "fields": 171,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "abcCode",
+          "commodityCode",
+          "dateCode",
+          "itemClassName",
+          "itemClientId",
+          "itemNumber",
+          "itemTypeCode",
+          "lotFormatId",
+          "receiveStatus"
+        ],
+        "not_filterable": [
+          "agingProfileName",
+          "associationKey",
+          "currencyCode",
+          "customsCommodityCode",
+          "dateWindowType",
+          "displayItemNumber",
+          "timeCode",
+          "warehouseId",
+          "weightCode",
+          "abcCodeDescription",
+          "attributeDate1",
+          "attributeDate2",
+          "attributeDecimal1",
+          "attributeDecimal2",
+          "attributeDecimal3"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "receiveStatus": [
+          "AV (AVAILABLE)"
+        ]
       }
     },
     {
@@ -5076,7 +6312,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -5085,7 +6322,26 @@
         "status": 200,
         "fields": 15,
         "rows_in_sample": 256
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "groupName",
+          "jobId",
+          "name",
+          "type",
+          "command",
+          "schedule",
+          "sourceFile"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:labelFormats",
@@ -5098,7 +6354,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -5107,7 +6364,22 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 166
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "labelCommand",
+          "labelFormat",
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:levelTypes",
@@ -5244,7 +6516,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -5253,6 +6526,18 @@
         "status": 200,
         "fields": 11,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "aisleId",
+          "bay",
+          "level"
+        ],
+        "not_filterable": [
+          "warehouseId",
+          "quantity"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -5674,7 +6959,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -5683,6 +6969,18 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 14
+      },
+      "queryable": {
+        "filterable_columns": [
+          "warehouseId",
+          "intTmu",
+          "machTmu"
+        ],
+        "not_filterable": [
+          "procedureId",
+          "extTmu"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -5713,7 +7011,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -5722,7 +7021,21 @@
         "status": 200,
         "fields": 2,
         "rows_in_sample": 12
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "columnName",
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:lmWorkTypes",
@@ -5735,7 +7048,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -5744,7 +7058,21 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 162
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "workType",
+          "description"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:loadAttributeConfigurations",
@@ -5757,7 +7085,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -5780,6 +7109,19 @@
         "status": 200,
         "fields": 10,
         "rows_in_sample": 5
+      },
+      "queryable": {
+        "filterable_columns": [
+          "warehouseId"
+        ],
+        "not_filterable": [
+          "variableName",
+          "mlsText",
+          "originalLabel",
+          "originalRFLabel",
+          "rfLabel"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -5794,7 +7136,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -5803,6 +7146,26 @@
         "status": 200,
         "fields": 16,
         "rows_in_sample": 14
+      },
+      "queryable": {
+        "filterable_columns": [
+          "NLSSORTSetting",
+          "RFServerLocale",
+          "absoluteGroup",
+          "unixServerLocale"
+        ],
+        "not_filterable": [
+          "MSWindowsClientLCId",
+          "MSWindowsServerLCId",
+          "countryName",
+          "localeId",
+          "voiceLanguageCode",
+          "NLSLANGUAGESetting",
+          "NLSTERRITORYSetting",
+          "localeDescription",
+          "measurementUnitSystem"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -5838,7 +7201,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -5847,6 +7211,24 @@
         "status": 200,
         "fields": 18,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "itemNumber",
+          "beginLocation",
+          "endLocation"
+        ],
+        "not_filterable": [
+          "itemClientId",
+          "policyCode",
+          "warehouseId",
+          "oldValue",
+          "policyValue",
+          "policyVariable",
+          "sortSequence",
+          "suffix"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -5890,7 +7272,8 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -5952,6 +7335,20 @@
         "fields": 49,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "locationType",
+          "locationTypeCategory",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "locationTypeId",
+          "warehouseId",
+          "totalLocations"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {},
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/locationTypes/{id}",
@@ -5994,7 +7391,10 @@
             "read-batch-route": "400/HTTP-400",
             "count": "200",
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200",
+            "filter-by-locationStatus": "200",
+            "range-operators": "200"
           }
         },
         "POST": {
@@ -6026,6 +7426,42 @@
         "fields": 176,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "areaCode",
+          "buildingId",
+          "locationCode",
+          "locationStatus",
+          "locationTypeId",
+          "workZoneCode",
+          "workZoneId",
+          "defaultMaximumCapacity",
+          "locationTypeCategory"
+        ],
+        "not_filterable": [
+          "deviceCode",
+          "locationTypeName",
+          "warehouseId",
+          "allocateToEmptySequence",
+          "backfillLocationFlag",
+          "borderPadding",
+          "bottomLeftX",
+          "bottomLeftY",
+          "bottomRightX",
+          "bottomRightY",
+          "escalationThreshold",
+          "lastUser",
+          "locationCodeDescription",
+          "locationStatusDescription",
+          "locationTypeCategoryDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "locationStatus": [
+          "E (Empty)"
+        ]
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/locations/{id}",
@@ -6055,7 +7491,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6064,7 +7501,24 @@
         "status": 200,
         "fields": 7,
         "rows_in_sample": 24
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "lotFormatId",
+          "lotDateControl",
+          "lotDateParsingCommand",
+          "lotValidationCommand",
+          "rawLotFormat"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:lpnInventoryMixingRules",
@@ -6078,7 +7532,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6087,6 +7542,27 @@
         "status": 200,
         "fields": 16,
         "rows_in_sample": 4
+      },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "columnName",
+          "insertUserId",
+          "lastUpdateUserId",
+          "mixRuleType",
+          "tableName",
+          "warehouseId",
+          "sortSequence"
+        ],
+        "not_filterable": [
+          "lpnRuleId",
+          "columnDescription",
+          "insertDate",
+          "lastUpdateDate",
+          "tableColumnDescription",
+          "tableDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -6100,7 +7576,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6109,6 +7586,20 @@
         "status": 200,
         "fields": 15,
         "rows_in_sample": 139
+      },
+      "queryable": {
+        "filterable_columns": [
+          "workflowId",
+          "workflowType",
+          "workflowIdLongDescription"
+        ],
+        "not_filterable": [
+          "associationKey",
+          "dateLastModified",
+          "lastModifiedBy",
+          "workflowTypeLongDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -6144,7 +7635,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6153,7 +7645,25 @@
         "status": 200,
         "fields": 12,
         "rows_in_sample": 170
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "hopToMovementZoneCode",
+          "destinationMovementZone",
+          "hopSequence",
+          "hopToMovementZone",
+          "loadLevel",
+          "sourceMovementZone"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:movementPaths",
@@ -6170,7 +7680,8 @@
             "read-shape": "200",
             "cleanup-confirm-gone": "404/RECORD-MISSING",
             "read-created": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -6231,6 +7742,20 @@
         "fields": 11,
         "rows_in_sample": 210
       },
+      "queryable": {
+        "filterable_columns": [
+          "destinationMovementZoneCode",
+          "sourceMovementZoneCode",
+          "loadLevelDescription"
+        ],
+        "not_filterable": [
+          "destinationMovementZone",
+          "hopsCount",
+          "loadLevel",
+          "sourceMovementZone"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/movementPaths/{id}",
@@ -6265,7 +7790,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6274,7 +7800,28 @@
         "status": 200,
         "fields": 11,
         "rows_in_sample": 7
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "destinationZoneId",
+          "sourceZoneId",
+          "type",
+          "warehouseId",
+          "destinationZoneDescription",
+          "lpnLevel",
+          "lpnLevelDescription",
+          "sortSequence",
+          "sourceZoneDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:movementZoneNextMoves",
@@ -6287,7 +7834,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6296,6 +7844,24 @@
         "status": 200,
         "fields": 14,
         "rows_in_sample": 40
+      },
+      "queryable": {
+        "filterable_columns": [
+          "loadLevel"
+        ],
+        "not_filterable": [
+          "destinationMovementZoneCode",
+          "operationCode",
+          "priorityCode",
+          "sequenceNumber",
+          "sourceMovementZoneCode",
+          "destinationMovementZone",
+          "destinationMovementZoneDescription",
+          "operationCodeDescription",
+          "sourceMovementZone",
+          "sourceMovementZoneDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -6310,7 +7876,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6319,6 +7886,19 @@
         "status": 200,
         "fields": 48,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "buildingId",
+          "movementZoneCode",
+          "movementZoneId",
+          "locationTypeCategory",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -6332,7 +7912,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6341,6 +7922,20 @@
         "status": 200,
         "fields": 48,
         "rows_in_sample": 10
+      },
+      "queryable": {
+        "filterable_columns": [
+          "movementZoneCode",
+          "resourceVariableDescription",
+          "zoneDescription"
+        ],
+        "not_filterable": [
+          "movementZoneId",
+          "resourceType",
+          "warehouseId",
+          "resourceVariable"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -6354,7 +7949,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6363,7 +7959,22 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 18
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "noteType",
+          "exitPoint",
+          "exitPointLongDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:noteTypes",
@@ -6378,7 +7989,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -6424,6 +8036,14 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 28
+      },
+      "queryable": {
+        "filterable_columns": [
+          "noteType",
+          "noteTypeLongDescription"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -6501,7 +8121,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -6551,6 +8172,16 @@
         "fields": 11,
         "rows_in_sample": 11
       },
+      "queryable": {
+        "filterable_columns": [
+          "orderTypeLongDescription"
+        ],
+        "not_filterable": [
+          "orderType",
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/orderTypes/{id}",
@@ -6584,7 +8215,11 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-trailerSafetyStatus": "200",
+            "filter-by-trailerStatus": "200",
+            "filter-by-warehouseStatus": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6593,6 +8228,38 @@
         "status": 200,
         "fields": 74,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "carrierMoveId",
+          "trailerStatus"
+        ],
+        "not_filterable": [
+          "trailerId",
+          "trailerNumber",
+          "trailerSafetyStatus",
+          "warehouseId",
+          "carrier",
+          "close",
+          "dispatch",
+          "stopCount",
+          "trailerStatusDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "trailerSafetyStatus": [
+          "U",
+          "P",
+          "W"
+        ],
+        "trailerStatus": [
+          "D (Dispatched)",
+          "EX (Expected)"
+        ],
+        "warehouseStatus": [
+          "WHCOMPLETE"
+        ]
       }
     },
     {
@@ -6627,7 +8294,9 @@
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filter-by-locationStatus": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -6686,6 +8355,25 @@
         "fields": 10,
         "rows_in_sample": 3
       },
+      "queryable": {
+        "filterable_columns": [
+          "overrideLocationCode",
+          "cycleCountDescription",
+          "locationStatusDescription",
+          "overrideLocationCodeDescription"
+        ],
+        "not_filterable": [
+          "cycleCountCode",
+          "locationStatus"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "locationStatus": [
+          "N (No Change)",
+          "F (Full)"
+        ]
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/overrideLocationCodes/{id}",
@@ -6721,7 +8409,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6730,6 +8419,19 @@
         "status": 200,
         "fields": 12,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "auditType"
+        ],
+        "not_filterable": [
+          "clientId",
+          "columnName",
+          "warehouseId",
+          "longDescription",
+          "sortSequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -6747,7 +8449,8 @@
             "route-exists": "200",
             "read-collection": "200",
             "read-missing": "400/HTTP-400",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -6790,6 +8493,14 @@
         "status": 200,
         "fields": 11,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "warehouseId"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -6848,7 +8559,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6857,7 +8569,25 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 60
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "carrierCode",
+          "packageCode",
+          "warehouseId",
+          "longDescription",
+          "parcelManifestingSystem",
+          "shortDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:parcelPackages",
@@ -6887,7 +8617,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6896,7 +8627,26 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 47
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "carrierCode",
+          "paymentCode",
+          "warehouseId",
+          "longDescription",
+          "parcelManifestingSystem",
+          "paymentValue",
+          "shortDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:parcelUserField",
@@ -6933,7 +8683,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -6942,6 +8693,20 @@
         "status": 200,
         "fields": 11,
         "rows_in_sample": 69
+      },
+      "queryable": {
+        "filterable_columns": [
+          "paymentCode",
+          "longDescription",
+          "manifestingSystemDescription",
+          "paymentValue"
+        ],
+        "not_filterable": [
+          "dateLastModified",
+          "manifestingSystem",
+          "shortDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -6960,7 +8725,8 @@
             "read-created": "200",
             "confirm-gone": "404/RECORD-MISSING",
             "cleanup-confirm-gone": "404/RECORD-MISSING",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -7041,6 +8807,19 @@
         "fields": 15,
         "rows_in_sample": 17
       },
+      "queryable": {
+        "filterable_columns": [
+          "pickMethodId"
+        ],
+        "not_filterable": [
+          "pickMethodName",
+          "warehouseId",
+          "description",
+          "pickPreValidationScheme",
+          "reserveTypeDuringPickRelease"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/pickMethods/{id}",
@@ -7080,7 +8859,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -7133,6 +8913,22 @@
         "fields": 11,
         "rows_in_sample": 4
       },
+      "queryable": {
+        "filterable_columns": [
+          "actionCode",
+          "cancelCode",
+          "actionCodeDescription",
+          "cancelCodeDescription",
+          "skipLimit"
+        ],
+        "not_filterable": [
+          "infoCode",
+          "schemeId",
+          "description",
+          "infoCodeDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/pickPreValidationSchemes/{id}",
@@ -7169,7 +8965,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7178,7 +8975,24 @@
         "status": 200,
         "fields": 14,
         "rows_in_sample": 149
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "operationCode",
+          "pickMethodId",
+          "pickReleaseRuleId",
+          "workType",
+          "action"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:pickZonePickDeductions",
@@ -7248,7 +9062,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7257,7 +9072,24 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 1
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "allocatedPicks",
+          "loadedPicks",
+          "pickedPicks",
+          "releasedPicks",
+          "stagedPicks"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:pickingVerifications",
@@ -7270,7 +9102,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7279,6 +9112,37 @@
         "status": 200,
         "fields": 57,
         "rows_in_sample": 38
+      },
+      "queryable": {
+        "filterable_columns": [
+          "warehouseId",
+          "catchQuantityFlag",
+          "detailLpnFlag",
+          "expirationDateFlag",
+          "itemFlag",
+          "lastModifiedBy",
+          "lotFlag",
+          "lpnFlag",
+          "manufacturedDateFlag",
+          "originFlag",
+          "revisionFlag",
+          "subLpnFlag",
+          "supplier",
+          "supplierLotFlag",
+          "version"
+        ],
+        "not_filterable": [
+          "pickZoneCode",
+          "pickZoneId",
+          "workType",
+          "dateLastModified",
+          "locationFlag",
+          "lpnDescription",
+          "lpnLevel",
+          "pckZoneDescription",
+          "quantityFlag"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -7309,7 +9173,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7318,6 +9183,15 @@
         "status": 200,
         "fields": 2,
         "rows_in_sample": 487
+      },
+      "queryable": {
+        "filterable_columns": [
+          "warehouseId"
+        ],
+        "not_filterable": [
+          "storageLocation"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -7332,7 +9206,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7341,6 +9216,24 @@
         "status": 200,
         "fields": 15,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "policyCode",
+          "warehouseId",
+          "overrideFlag",
+          "policyValue",
+          "policyVariable",
+          "sortSequence"
+        ],
+        "not_filterable": [
+          "groupName",
+          "returnFloat1",
+          "returnFloat2",
+          "returnNumber1",
+          "returnNumber2"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -7354,7 +9247,9 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-state": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7363,6 +9258,31 @@
         "status": 200,
         "fields": 14,
         "rows_in_sample": 11
+      },
+      "queryable": {
+        "filterable_columns": [
+          "countryName",
+          "postalCode",
+          "city",
+          "state"
+        ],
+        "not_filterable": [
+          "absoluteGroup",
+          "customizationLevel",
+          "invalidFlag"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "state": [
+          "ON",
+          "CMX",
+          "QC",
+          "MA",
+          "MI",
+          "NY",
+          "OH"
+        ]
       }
     },
     {
@@ -7401,7 +9321,9 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-printerStatus": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -7469,6 +9391,26 @@
         "fields": 15,
         "rows_in_sample": 8
       },
+      "queryable": {
+        "filterable_columns": [
+          "printerName",
+          "printerStatus",
+          "printerType",
+          "printerAddress"
+        ],
+        "not_filterable": [
+          "warehouseId",
+          "printQueue",
+          "printerStatusDescription",
+          "printerTypeDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "printerStatus": [
+          "C (Connected)"
+        ]
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/printers/{id}",
@@ -7535,7 +9477,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7544,7 +9487,21 @@
         "status": 200,
         "fields": 2,
         "rows_in_sample": 23
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "codeValue",
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:productionLines",
@@ -7579,7 +9536,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7588,6 +9546,17 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 34
+      },
+      "queryable": {
+        "filterable_columns": [
+          "inventoryStatusProgression"
+        ],
+        "not_filterable": [
+          "inventoryStatusProgressionLongDescription",
+          "inventoryStatusProgressionShortDescription",
+          "statusCount"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -7606,7 +9575,8 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -7668,6 +9638,17 @@
         "fields": 12,
         "rows_in_sample": 143
       },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "reasonCode",
+          "reasonGroupDescription"
+        ],
+        "not_filterable": [
+          "reasonGroup"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/reasonCodes/{id}",
@@ -7704,7 +9685,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7713,7 +9695,21 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 22
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "reasonGroup",
+          "reasonGroupDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:receivableInboundOrderStatuses",
@@ -7726,7 +9722,9 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-receivableInboundOrderStatus": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7735,6 +9733,19 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "receivableInboundOrderStatus",
+          "warehouseId"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "receivableInboundOrderStatus": [
+          "OPEN"
+        ]
       }
     },
     {
@@ -7767,7 +9778,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7776,6 +9788,14 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "warehouseId"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -7814,7 +9834,8 @@
           "cases": {
             "read-shape": "200",
             "read-created": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -7880,6 +9901,22 @@
         "fields": 16,
         "rows_in_sample": 12
       },
+      "queryable": {
+        "filterable_columns": [
+          "countType",
+          "countZoneId",
+          "releaseTypeId",
+          "basePriority"
+        ],
+        "not_filterable": [
+          "baseCountType",
+          "operationCode",
+          "warehouseId",
+          "releaseCommand",
+          "releaseCommandDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/releaseRules/{id}",
@@ -7920,7 +9957,9 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-inventoryStatus": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7929,6 +9968,33 @@
         "status": 200,
         "fields": 23,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "inventoryStatus",
+          "itemClientId",
+          "itemNumber",
+          "movementZoneId",
+          "incrementUnits",
+          "maximumLocations",
+          "maximumUnits",
+          "minimumUnits",
+          "releasePercentage",
+          "storageLocation"
+        ],
+        "not_filterable": [
+          "replenishmentNumber",
+          "warehouseId",
+          "inventoryStatusDescription",
+          "movementZoneDescription",
+          "replenishmentDate"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "inventoryStatus": [
+          "AV (AVAILABLE)"
+        ]
       }
     },
     {
@@ -7964,7 +10030,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7973,6 +10040,16 @@
         "status": 200,
         "fields": 3,
         "rows_in_sample": 76
+      },
+      "queryable": {
+        "filterable_columns": [
+          "description"
+        ],
+        "not_filterable": [
+          "commandName",
+          "commandGroup"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -7986,7 +10063,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -7995,6 +10073,16 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 273
+      },
+      "queryable": {
+        "filterable_columns": [
+          "customizationLevel"
+        ],
+        "not_filterable": [
+          "formName",
+          "formClass"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -8097,7 +10185,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8106,6 +10195,15 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "warehouseId"
+        ],
+        "not_filterable": [
+          "column"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -8122,7 +10220,8 @@
           "cases": {
             "read-shape": "200",
             "read-created": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -8173,6 +10272,16 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 14
+      },
+      "queryable": {
+        "filterable_columns": [
+          "rfVendorName",
+          "rfVendorInquiry",
+          "rfVendorResponse",
+          "rfVendorResponseTime"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -8260,6 +10369,23 @@
       }
     },
     {
+      "id": "resource:rpux-filter",
+      "type": "resource",
+      "resource": "rpux-filter",
+      "exists": true,
+      "operations": {
+        "GET": {
+          "statuses": [
+            200
+          ],
+          "cases": {
+            "filter-columns": "200"
+          }
+        }
+      },
+      "evidence": "http/exchanges/rpux-filter.jsonl"
+    },
+    {
       "id": "resource:ruleParameters",
       "type": "resource",
       "resource": "ruleParameters",
@@ -8270,7 +10396,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8279,7 +10406,26 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 96
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "parameterId",
+          "parameterType",
+          "ruleName",
+          "dateLastModified",
+          "lastModifiedBy",
+          "parameterDescription",
+          "parameterTypeDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:ruleSetCommands",
@@ -8309,7 +10455,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8318,7 +10465,27 @@
         "status": 200,
         "fields": 11,
         "rows_in_sample": 2
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "ruleName",
+          "cancelCommand",
+          "changeCarrierLevel",
+          "dateLastModified",
+          "description",
+          "lastModifiedBy",
+          "shortDescription",
+          "summaryCommand"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:serialNumberTypes",
@@ -8333,7 +10500,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -8380,6 +10548,18 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 4
+      },
+      "queryable": {
+        "filterable_columns": [
+          "serialNumberTypeId"
+        ],
+        "not_filterable": [
+          "dateLastModified",
+          "lastModifiedBy",
+          "longDescription",
+          "sortSequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -8469,7 +10649,9 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-toShipmentStatus": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8478,6 +10660,29 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 8
+      },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "warehouseId",
+          "toShipmentStatusDescription"
+        ],
+        "not_filterable": [
+          "toShipmentStatus"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "toShipmentStatus": [
+          "R (Ready)",
+          "I (In-Process)",
+          "S (Staged)",
+          "L (Loading)",
+          "D (Loaded)",
+          "C (Load Complete)",
+          "X (Transfer)",
+          "B (Cancelled)"
+        ]
       }
     },
     {
@@ -8491,7 +10696,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8500,6 +10706,55 @@
         "status": 200,
         "fields": 132,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "routeToAddressId",
+          "shipmentId",
+          "carrier",
+          "deliverySequenceLoadingOrder"
+        ],
+        "not_filterable": [
+          "addressCountryName",
+          "addressName",
+          "addressPostalCode",
+          "shipmentStatus",
+          "warehouseId",
+          "addressCity",
+          "addressLineOne",
+          "addressState",
+          "dateAdded",
+          "dateEntered",
+          "dateLastModified",
+          "deliverySequenceLoadingOrderDescription",
+          "destinationLocation",
+          "earlyShipDate",
+          "freightRate",
+          "lastModifiedBy",
+          "serviceLevel",
+          "shipmentStatusLongDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "addressState": [
+          "GA",
+          "FL",
+          "NC",
+          "TN",
+          "AL",
+          "SC",
+          "VA",
+          "LA",
+          "CA"
+        ],
+        "shipmentStatus": [
+          "C",
+          "R",
+          "S",
+          "I"
+        ]
       }
     },
     {
@@ -8682,7 +10937,10 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-pickStatus": "200",
+            "filter-by-replenishmentStatus": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8691,6 +10949,47 @@
         "status": 200,
         "fields": 125,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "itemNumber",
+          "orderNumber",
+          "shipToCustomerName",
+          "shipmentId",
+          "itemClass"
+        ],
+        "not_filterable": [
+          "clientId",
+          "consolidationCode",
+          "destinationMovementZoneId",
+          "displayItemNumber",
+          "itemClientId",
+          "lastModifiedUserId",
+          "pickStatus",
+          "reasonCode",
+          "replenishmentStatus",
+          "scheduleBatchNumber",
+          "shipToAddressId",
+          "shipmentLineId",
+          "warehouseId",
+          "allocatedCatchQuantity",
+          "allocatedQuantity",
+          "allocationDate",
+          "dateAdded",
+          "destinationLocation",
+          "inventoryStatusProgression"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "pickStatus": [
+          "P"
+        ],
+        "replenishmentStatus": [
+          "I (Issued)",
+          "S (Failed to Allocate Initial Storage Location)",
+          "X (Processing through Cross Dock)"
+        ]
       }
     },
     {
@@ -8772,7 +11071,10 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filter-by-inventoryStatus": "200",
+            "filterable-columns": "200",
+            "range-operators": "200"
           }
         }
       },
@@ -8781,6 +11083,30 @@
         "status": 200,
         "fields": 83,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "longDescription",
+          "sortSequence"
+        ],
+        "not_filterable": [
+          "itemClientId",
+          "itemNumber",
+          "storageConfigurationId",
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "inventoryStatus": [
+          "AG",
+          "EX",
+          "FR",
+          "ED",
+          "DN",
+          "DE",
+          "HZ"
+        ]
       }
     },
     {
@@ -8794,7 +11120,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8803,7 +11130,22 @@
         "status": 200,
         "fields": 4,
         "rows_in_sample": 75
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "longDescription",
+          "shortDescription",
+          "suffix"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:storageTemplateHeaders",
@@ -8844,7 +11186,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8853,7 +11196,22 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 47
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "longDescription",
+          "storageZone",
+          "unitOfMeasure"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:storageZoneInventoryMixingRules",
@@ -8866,7 +11224,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8875,7 +11234,27 @@
         "status": 200,
         "fields": 10,
         "rows_in_sample": 142
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "columnName",
+          "modifiedUserId",
+          "storageZoneId",
+          "tableName",
+          "columnDescription",
+          "modifiedDate",
+          "sortSequence",
+          "tableDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:storageZones",
@@ -8888,7 +11267,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8897,6 +11277,19 @@
         "status": 200,
         "fields": 19,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "buildingId",
+          "storageZoneCode",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "pickableCode",
+          "storageZoneId",
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -8910,7 +11303,11 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filter-by-inventoryStatus": "200",
+            "filter-by-locationStatus": "200",
+            "filter-by-trailerStatus": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -8919,6 +11316,54 @@
         "status": 200,
         "fields": 233,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "agingProfileName",
+          "areaCode",
+          "detailNumber",
+          "footprintCode",
+          "inventoryStatus",
+          "itemClassName",
+          "itemClientId",
+          "itemNumber",
+          "loadNumber",
+          "lotNumber",
+          "originCode",
+          "receiveKey",
+          "subNumber"
+        ],
+        "not_filterable": [
+          "assetType",
+          "buildingId",
+          "dateCode",
+          "displayItemNumber",
+          "historyId",
+          "locationStatus",
+          "pkDetailNumber",
+          "pkLoadNumber",
+          "pkSubNumber",
+          "warehouseId",
+          "assetHeight"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "inventoryStatus": [
+          "AV (AVAILABLE)",
+          "AG (AGE HOLD)",
+          "DE (DAMAGE DESTROY)"
+        ],
+        "locationStatus": [
+          "F",
+          "P",
+          "L",
+          "E"
+        ],
+        "trailerStatus": [
+          "D",
+          "LDG"
+        ]
       }
     },
     {
@@ -9007,7 +11452,10 @@
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filter-by-receiveStatus": "200",
+            "filter-by-state": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -9101,6 +11549,47 @@
         "fields": 36,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "supplierNumber"
+        ],
+        "not_filterable": [
+          "trackConsignment"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "receiveStatus": [
+          "AV"
+        ],
+        "state": [
+          "IL",
+          "MI",
+          "TX",
+          "GA",
+          "IA",
+          "MO",
+          "PA",
+          "CA",
+          "KY",
+          "NM",
+          "IN",
+          "NY",
+          "MN",
+          "OH",
+          "QC",
+          "WI",
+          "ON",
+          "NE",
+          "MT",
+          "SC",
+          "GT",
+          "NJ",
+          "ND",
+          "MS"
+        ]
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/suppliers/{id}",
@@ -9192,7 +11681,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -9201,7 +11691,21 @@
         "status": 200,
         "fields": 2,
         "rows_in_sample": 15
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "tableName",
+          "longDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:tasks",
@@ -9249,7 +11753,10 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200",
+            "filter-by-safetyCheckStatus": "200",
+            "filter-by-trailerStatus": "200"
           }
         }
       },
@@ -9258,6 +11765,60 @@
         "status": 200,
         "fields": 124,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "safetyCheckStatus",
+          "trailerCode",
+          "trailerId",
+          "trailerNumber",
+          "trailerStatus",
+          "carrier",
+          "laborEstimate",
+          "safetyCheckStatusDescription",
+          "storageLocation",
+          "trailerCodeDescription",
+          "trailerStatusDescription",
+          "trailerWeight"
+        ],
+        "not_filterable": [
+          "associationKey",
+          "storageLocationWarehouseId",
+          "dateLastModified",
+          "frontAxlePosition",
+          "lastModifiedBy",
+          "maximumRearAxlePosition",
+          "minimumRearAxlePosition",
+          "shipToCustomerCount",
+          "supplierCount",
+          "trailerSize"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "inboundShipmentStatus": [
+          "C (Closed)",
+          "CI (Checked In)",
+          "R (Receiving)"
+        ],
+        "locationStatus": [
+          "F (Full)"
+        ],
+        "safetyCheckStatus": [
+          "U (Unknown)",
+          "P (Passed)",
+          "W (Pending (Waiting))"
+        ],
+        "trailerStatus": [
+          "EX (Expected)",
+          "D (Dispatched)",
+          "OR (Open For Receiving)",
+          "R (Receiving)",
+          "C (Closed)"
+        ],
+        "yardStatus": [
+          "FULL (Full)"
+        ]
       }
     },
     {
@@ -9461,7 +12022,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -9470,7 +12032,22 @@
         "status": 200,
         "fields": 7,
         "rows_in_sample": 28
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "valueFieldType",
+          "variableName",
+          "mlsText"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:uDIAFlagConfigs",
@@ -9483,7 +12060,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -9492,7 +12070,21 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 28
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "variableName",
+          "mlsText"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:uoms",
@@ -9508,7 +12100,8 @@
           "cases": {
             "read-shape": "200",
             "read-created-through-view": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -9566,6 +12159,20 @@
         "status": 200,
         "fields": 12,
         "rows_in_sample": 31
+      },
+      "queryable": {
+        "filterable_columns": [
+          "codeValue",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "columnName",
+          "columnDescription",
+          "requiredFlag",
+          "shortDescription",
+          "sortSequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -9787,7 +12394,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -9796,7 +12404,22 @@
         "status": 200,
         "fields": 5,
         "rows_in_sample": 779
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "vehicleType",
+          "description",
+          "locationAccess"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:warehouseInventoryMixingRules",
@@ -9857,7 +12480,8 @@
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -9923,6 +12547,19 @@
         "fields": 12,
         "rows_in_sample": 16
       },
+      "queryable": {
+        "filterable_columns": [
+          "billOfLadingBreakLevelDescription",
+          "transportModeDescription"
+        ],
+        "not_filterable": [
+          "warehouseId",
+          "billOfLadingBreakLevel",
+          "maximumUsers",
+          "transportMode"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/warehouseTransportModes/{id}",
@@ -9963,7 +12600,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -9986,6 +12624,16 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 4
+      },
+      "queryable": {
+        "filterable_columns": [
+          "warehouseId"
+        ],
+        "not_filterable": [
+          "longDescription",
+          "unitOfMeasure"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -10003,7 +12651,8 @@
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -10059,6 +12708,24 @@
         "fields": 21,
         "rows_in_sample": 12
       },
+      "queryable": {
+        "filterable_columns": [
+          "workflowId",
+          "workflowIdLongDescription"
+        ],
+        "not_filterable": [
+          "sequenceNumber",
+          "warehouseId",
+          "workflowType",
+          "auditThresholdCost",
+          "dateLastModified",
+          "exitPointCount",
+          "lastModifiedBy",
+          "warehouseIdLongDescription",
+          "workflowTypeLongDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/warehouseWorkflows/{id}",
@@ -10092,7 +12759,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -10120,6 +12788,34 @@
         "fields": 43,
         "rows_in_sample": 1
       },
+      "queryable": {
+        "filterable_columns": [
+          "addressId",
+          "warehouseId",
+          "warehouseTypeCode",
+          "adjustmentThresholdCost",
+          "adjustmentThresholdUnit",
+          "aisleMax",
+          "autoPlayCostThreshold",
+          "bayMax",
+          "concatenationOrder",
+          "consignmentPeriod",
+          "countingThresholdCost",
+          "countingThresholdUnit",
+          "longDescription",
+          "permanentAdjustLoad",
+          "permanentAdjustSubLoad",
+          "permanentCreateLoad",
+          "permanentCreateSubLoad",
+          "slotMax",
+          "warehouseMapLeftX",
+          "warehouseMapLowerY",
+          "warehouseMapRightX",
+          "warehouseMapUpperY"
+        ],
+        "not_filterable": [],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "POST": {
           "path": "/data/WM/wm/warehouses/async",
@@ -10144,7 +12840,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -10153,7 +12850,23 @@
         "status": 200,
         "fields": 6,
         "rows_in_sample": 8
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "dummyKey",
+          "ruleName",
+          "command",
+          "sortSequence"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:waves",
@@ -10183,7 +12896,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -10192,7 +12906,22 @@
         "status": 200,
         "fields": 3,
         "rows_in_sample": 437
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "eventId",
+          "systemId",
+          "description"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:webPerformanceEntries",
@@ -10244,7 +12973,8 @@
           "cases": {
             "read-shape": "200",
             "read-created": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -10292,6 +13022,17 @@
         "fields": 6,
         "rows_in_sample": 2
       },
+      "queryable": {
+        "filterable_columns": [
+          "currentWorkArea",
+          "moveSequence",
+          "moveWorkArea"
+        ],
+        "not_filterable": [
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/workAreaMove/{id}",
@@ -10326,7 +13067,8 @@
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -10383,6 +13125,21 @@
         "fields": 12,
         "rows_in_sample": 28
       },
+      "queryable": {
+        "filterable_columns": [
+          "absolutePriority",
+          "deltaPriority",
+          "homeWorkAreaAbsolutePriority",
+          "workArea"
+        ],
+        "not_filterable": [
+          "warehouseId",
+          "dateLastModified",
+          "lastModifiedBy",
+          "workAreaDescription"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/workAreas/{id}",
@@ -10416,7 +13173,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -10425,6 +13183,29 @@
         "status": 200,
         "fields": 41,
         "rows_in_sample": 1
+      },
+      "queryable": {
+        "filterable_columns": [
+          "clientId",
+          "pickListRuleName",
+          "listTypeDescription",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "listType",
+          "operationCode",
+          "warehouseId",
+          "commandText",
+          "groups",
+          "maxAssetsPerList",
+          "maximumStarterPicks",
+          "onePassOnly",
+          "pickOrderBy",
+          "pickToLevel",
+          "systemGeneratedIdentifierForThisPickListRule",
+          "workAssignmentFitCriteria"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       }
     },
     {
@@ -10438,7 +13219,8 @@
             200
           ],
           "cases": {
-            "read-shape": "200"
+            "read-shape": "200",
+            "filterable-columns": "200"
           }
         }
       },
@@ -10447,7 +13229,24 @@
         "status": 200,
         "fields": 9,
         "rows_in_sample": 26
-      }
+      },
+      "queryable": {
+        "filterable_columns": [],
+        "not_filterable": [
+          "fieldName",
+          "pickListRuleGroupingCriteriaId",
+          "sequenceNumber",
+          "tableName",
+          "systemGeneratedIdentifierForThisPickListRule"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "behaviour_warnings": [
+        {
+          "hazard": "not-queryable",
+          "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
+        }
+      ]
     },
     {
       "id": "resource:workOperations",
@@ -10461,7 +13260,10 @@
           ],
           "cases": {
             "read-shape": "200",
-            "cleanup-confirm-gone": "200"
+            "cleanup-confirm-gone": "200",
+            "filter-by-initialCreationStatus": "200",
+            "filterable-columns": "200",
+            "range-operators": "200"
           }
         },
         "POST": {
@@ -10505,6 +13307,26 @@
         "status": 200,
         "fields": 24,
         "rows_in_sample": 72
+      },
+      "queryable": {
+        "filterable_columns": [
+          "operationCode",
+          "basePriority",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "initialCreationStatus",
+          "warehouseId",
+          "warehouseIdTemplate"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
+      },
+      "state_vocabulary": {
+        "initialCreationStatus": [
+          "PEND",
+          "SUSP",
+          "LOCK"
+        ]
       },
       "write_contract": {
         "POST": {
@@ -10550,7 +13372,8 @@
           "cases": {
             "read-shape": "200",
             "read-created": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -10603,6 +13426,16 @@
         "status": 200,
         "fields": 10,
         "rows_in_sample": 2
+      },
+      "queryable": {
+        "filterable_columns": [
+          "workOrderType",
+          "description"
+        ],
+        "not_filterable": [
+          "warehouseId"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {
@@ -10674,7 +13507,8 @@
             "read-shape": "200",
             "read-created": "200",
             "read-updated": "200",
-            "confirm-gone": "404/RECORD-MISSING"
+            "confirm-gone": "404/RECORD-MISSING",
+            "filterable-columns": "200"
           }
         },
         "POST": {
@@ -10730,6 +13564,17 @@
         "status": 200,
         "fields": 8,
         "rows_in_sample": 3
+      },
+      "queryable": {
+        "filterable_columns": [
+          "workflowRateId",
+          "longDescription"
+        ],
+        "not_filterable": [
+          "quantityByCode",
+          "sampleRatesQty"
+        ],
+        "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "write_contract": {
         "DELETE": {

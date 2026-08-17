@@ -5,20 +5,20 @@
       "probed_columns": 15,
       "filterable": [
         "addressId",
-        "addressLine1",
-        "addressLine2",
         "addressName",
         "addressType",
         "clientId",
-        "countryName"
+        "countryName",
+        "addressLine1",
+        "addressLine2"
       ],
       "not_filterable": [
-        "city",
         "contactName",
         "hostExternalId",
         "localeId",
         "phoneNumber",
         "postalCode",
+        "city",
         "requestState",
         "state"
       ],
@@ -39,13 +39,18 @@
       "filterable": [
         "areaCode",
         "buildingId",
-        "defaultMaximumCapacity",
         "locationCode",
         "locationStatus",
-        "locationTypeCategory",
-        "locationTypeId"
+        "locationTypeId",
+        "workZoneCode",
+        "workZoneId",
+        "defaultMaximumCapacity",
+        "locationTypeCategory"
       ],
       "not_filterable": [
+        "deviceCode",
+        "locationTypeName",
+        "warehouseId",
         "allocateToEmptySequence",
         "backfillLocationFlag",
         "borderPadding",
@@ -53,16 +58,11 @@
         "bottomLeftY",
         "bottomRightX",
         "bottomRightY",
-        "deviceCode",
         "escalationThreshold",
         "lastUser",
         "locationCodeDescription",
         "locationStatusDescription",
-        "locationTypeCategoryDescription",
-        "locationTypeDescription",
-        "locationTypeName",
-        "maxWeight",
-        "maximumCapacity"
+        "locationTypeCategoryDescription"
       ],
       "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
     },
@@ -132,30 +132,2070 @@
     "trailers": {
       "probed_columns": 22,
       "filterable": [
-        "carrier",
-        "laborEstimate",
         "safetyCheckStatus",
-        "safetyCheckStatusDescription",
-        "storageLocation",
         "trailerCode",
-        "trailerCodeDescription",
         "trailerId",
         "trailerNumber",
         "trailerStatus",
+        "carrier",
+        "laborEstimate",
+        "safetyCheckStatusDescription",
+        "storageLocation",
+        "trailerCodeDescription",
         "trailerStatusDescription",
         "trailerWeight"
       ],
       "not_filterable": [
         "associationKey",
+        "storageLocationWarehouseId",
         "dateLastModified",
         "frontAxlePosition",
         "lastModifiedBy",
         "maximumRearAxlePosition",
         "minimumRearAxlePosition",
         "shipToCustomerCount",
-        "storageLocationWarehouseId",
         "supplierCount",
         "trailerSize"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "buildings": {
+      "probed_columns": 9,
+      "filterable": [
+        "buildingId"
+      ],
+      "not_filterable": [
+        "addressId",
+        "sortAttributeLocationStatus",
+        "warehouseId",
+        "areaCount",
+        "fluidLoadFlag",
+        "locationCount",
+        "sortDefaultFlag",
+        "version"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "customers": {
+      "probed_columns": 10,
+      "filterable": [
+        "addressName",
+        "clientId",
+        "countryName",
+        "customerNumber",
+        "postalCode"
+      ],
+      "not_filterable": [
+        "addressId",
+        "addressCity",
+        "addressLine1",
+        "addressLine2",
+        "addressState"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "holdDefinitions": {
+      "probed_columns": 15,
+      "filterable": [
+        "holdNumber",
+        "holdType",
+        "holdPrefix",
+        "severity"
+      ],
+      "not_filterable": [
+        "createdUserFirstName",
+        "createdUserLastName",
+        "warehouseId",
+        "createdBy",
+        "creationDate",
+        "dateLastModified",
+        "holdTypeDescription",
+        "lastModifiedBy",
+        "longDescription",
+        "lpnCount",
+        "severityDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "hotItemsByLoc": {
+      "probed_columns": 19,
+      "filterable": [],
+      "not_filterable": [
+        "carrierCode",
+        "displayItemNumber",
+        "inboundLoadNumber",
+        "itemClientId",
+        "itemNumber",
+        "outboundOrderNumber",
+        "trailerId",
+        "trailerNumber",
+        "trailerStatus",
+        "warehouseId",
+        "appliedQuantity",
+        "arrivedDate",
+        "hotQuantity",
+        "itemDescription",
+        "loadLevel",
+        "quantity",
+        "storageLocation",
+        "trailerStatusDescription",
+        "yardLocation"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "itemLots": {
+      "probed_columns": 13,
+      "filterable": [
+        "itemClientId",
+        "itemNumber",
+        "lotNumber",
+        "warehouseId",
+        "itemDesc",
+        "lotStatusDescription"
+      ],
+      "not_filterable": [
+        "lotStatus",
+        "alternateItemNbr",
+        "createdBy",
+        "expirationDate",
+        "manufacturedDate",
+        "updatedBy",
+        "updatedDate"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "locationTypes": {
+      "probed_columns": 6,
+      "filterable": [
+        "locationType",
+        "locationTypeCategory",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "locationTypeId",
+        "warehouseId",
+        "totalLocations"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "outboundLoads": {
+      "probed_columns": 11,
+      "filterable": [
+        "carrierMoveId",
+        "trailerStatus"
+      ],
+      "not_filterable": [
+        "trailerId",
+        "trailerNumber",
+        "trailerSafetyStatus",
+        "warehouseId",
+        "carrier",
+        "close",
+        "dispatch",
+        "stopCount",
+        "trailerStatusDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "overrideLocationCodes": {
+      "probed_columns": 6,
+      "filterable": [
+        "overrideLocationCode",
+        "cycleCountDescription",
+        "locationStatusDescription",
+        "overrideLocationCodeDescription"
+      ],
+      "not_filterable": [
+        "cycleCountCode",
+        "locationStatus"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "postalCodes": {
+      "probed_columns": 7,
+      "filterable": [
+        "countryName",
+        "postalCode",
+        "city",
+        "state"
+      ],
+      "not_filterable": [
+        "absoluteGroup",
+        "customizationLevel",
+        "invalidFlag"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "printers": {
+      "probed_columns": 8,
+      "filterable": [
+        "printerName",
+        "printerStatus",
+        "printerType",
+        "printerAddress"
+      ],
+      "not_filterable": [
+        "warehouseId",
+        "printQueue",
+        "printerStatusDescription",
+        "printerTypeDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "receivableInboundOrderStatuses": {
+      "probed_columns": 2,
+      "filterable": [
+        "receivableInboundOrderStatus",
+        "warehouseId"
+      ],
+      "not_filterable": []
+    },
+    "replenishmentConfigurations": {
+      "probed_columns": 15,
+      "filterable": [
+        "inventoryStatus",
+        "itemClientId",
+        "itemNumber",
+        "movementZoneId",
+        "incrementUnits",
+        "maximumLocations",
+        "maximumUnits",
+        "minimumUnits",
+        "releasePercentage",
+        "storageLocation"
+      ],
+      "not_filterable": [
+        "replenishmentNumber",
+        "warehouseId",
+        "inventoryStatusDescription",
+        "movementZoneDescription",
+        "replenishmentDate"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "shipmentStatusChangeNotifications": {
+      "probed_columns": 4,
+      "filterable": [
+        "clientId",
+        "warehouseId",
+        "toShipmentStatusDescription"
+      ],
+      "not_filterable": [
+        "toShipmentStatus"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "shorts": {
+      "probed_columns": 24,
+      "filterable": [
+        "itemNumber",
+        "orderNumber",
+        "shipToCustomerName",
+        "shipmentId",
+        "itemClass"
+      ],
+      "not_filterable": [
+        "clientId",
+        "consolidationCode",
+        "destinationMovementZoneId",
+        "displayItemNumber",
+        "itemClientId",
+        "lastModifiedUserId",
+        "pickStatus",
+        "reasonCode",
+        "replenishmentStatus",
+        "scheduleBatchNumber",
+        "shipToAddressId",
+        "shipmentLineId",
+        "warehouseId",
+        "allocatedCatchQuantity",
+        "allocatedQuantity",
+        "allocationDate",
+        "dateAdded",
+        "destinationLocation",
+        "inventoryStatusProgression"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "storageConfigurations": {
+      "probed_columns": 6,
+      "filterable": [
+        "longDescription",
+        "sortSequence"
+      ],
+      "not_filterable": [
+        "itemClientId",
+        "itemNumber",
+        "storageConfigurationId",
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "structuredInventory": {
+      "probed_columns": 24,
+      "filterable": [
+        "agingProfileName",
+        "areaCode",
+        "detailNumber",
+        "footprintCode",
+        "inventoryStatus",
+        "itemClassName",
+        "itemClientId",
+        "itemNumber",
+        "loadNumber",
+        "lotNumber",
+        "originCode",
+        "receiveKey",
+        "subNumber"
+      ],
+      "not_filterable": [
+        "assetType",
+        "buildingId",
+        "dateCode",
+        "displayItemNumber",
+        "historyId",
+        "locationStatus",
+        "pkDetailNumber",
+        "pkLoadNumber",
+        "pkSubNumber",
+        "warehouseId",
+        "assetHeight"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "suppliers": {
+      "probed_columns": 3,
+      "filterable": [
+        "clientId",
+        "supplierNumber"
+      ],
+      "not_filterable": [
+        "trackConsignment"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "workOperations": {
+      "probed_columns": 6,
+      "filterable": [
+        "operationCode",
+        "basePriority",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "initialCreationStatus",
+        "warehouseId",
+        "warehouseIdTemplate"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "activityCodes": {
+      "probed_columns": 5,
+      "filterable": [
+        "activityCode",
+        "activityCategory"
+      ],
+      "not_filterable": [
+        "activityCategoryDescription",
+        "description",
+        "indirectFlag"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "agingProfiles": {
+      "probed_columns": 2,
+      "filterable": [
+        "ageProfileName",
+        "longDescription"
+      ],
+      "not_filterable": []
+    },
+    "aisles": {
+      "probed_columns": 8,
+      "filterable": [
+        "aisleId",
+        "areaCount",
+        "bayCount",
+        "locationCount"
+      ],
+      "not_filterable": [
+        "warehouseId",
+        "doorsCount",
+        "lanesCount",
+        "version"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "allocationHandlingUnitGroups": {
+      "probed_columns": 3,
+      "filterable": [
+        "allocationAssetGroup",
+        "handlingUnitTypesCount"
+      ],
+      "not_filterable": [
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "allocationSearchPathCriteria": {
+      "probed_columns": 5,
+      "filterable": [],
+      "not_filterable": [
+        "allocationSearchPathCriterionId",
+        "allocationSearchPathId",
+        "column",
+        "columnLongDescription",
+        "value"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "allocationSearchPathRules": {
+      "probed_columns": 11,
+      "filterable": [],
+      "not_filterable": [
+        "allocationSearchPathId",
+        "allocationSearchPathRuleId",
+        "buildingId",
+        "pickMethodId",
+        "pickZoneId",
+        "allocationSearchPathDesc",
+        "loadLevel",
+        "loadLevelDesc",
+        "pathRegulatingUOM",
+        "pathRegulatingUOMDesc",
+        "sortSequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "allocationSearchPaths": {
+      "probed_columns": 5,
+      "filterable": [
+        "allocationSearchPathId",
+        "searchPathName",
+        "searchPathType"
+      ],
+      "not_filterable": [
+        "warehouseId",
+        "sortSequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "areas": {
+      "probed_columns": 7,
+      "filterable": [
+        "areaCode",
+        "locationCount",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "buildingId",
+        "warehouseId",
+        "lostLocation",
+        "version"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "autoStagingMovementZones": {
+      "probed_columns": 8,
+      "filterable": [
+        "buildingId",
+        "warehouseId",
+        "defaultReplConfigMaxUnit",
+        "defaultReplConfigMinUnit"
+      ],
+      "not_filterable": [
+        "movementZoneCode",
+        "movementZoneId",
+        "locationTypeCategory",
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "availableAutoStagingMovementZones": {
+      "probed_columns": 4,
+      "filterable": [
+        "movementZoneCode",
+        "movementZoneId",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "availableInventoryMixingRules": {
+      "probed_columns": 5,
+      "filterable": [
+        "columnDescription",
+        "tableDescription"
+      ],
+      "not_filterable": [
+        "columnName",
+        "tableName",
+        "tableColumnDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "availablePickCartonizationCriteria": {
+      "probed_columns": 4,
+      "filterable": [],
+      "not_filterable": [
+        "columnName",
+        "tableName",
+        "columnLongDescription",
+        "tableLongDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "availablePickDeductionSequences": {
+      "probed_columns": 4,
+      "filterable": [],
+      "not_filterable": [
+        "fieldName",
+        "tableName",
+        "fieldLongDescription",
+        "tableLongDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "availableTransactionGroupingAttributes": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "columnName",
+        "description"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "availableWorkListGroupCriterias": {
+      "probed_columns": 4,
+      "filterable": [],
+      "not_filterable": [
+        "columnName",
+        "tableName",
+        "columnLongDescription",
+        "tableLongDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "breakStopSequenceCodeses": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "breakStopSequenceCode",
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "bundleRules": {
+      "probed_columns": 2,
+      "filterable": [
+        "bundleRuleName"
+      ],
+      "not_filterable": [
+        "bundleBrkField"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "cancelCodes": {
+      "probed_columns": 10,
+      "filterable": [
+        "voiceCode",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "allocationType",
+        "cycleCountCode",
+        "codeValue",
+        "dateLastModified",
+        "lastModifiedBy",
+        "shortDescription",
+        "sortSequence",
+        "unassignWorkFlag"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "carrierCrossReferences": {
+      "probed_columns": 5,
+      "filterable": [],
+      "not_filterable": [
+        "destinationName",
+        "carrier",
+        "destinationCarrier",
+        "destinationLevel",
+        "serviceLevel"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "carrierProNumbers": {
+      "probed_columns": 7,
+      "filterable": [
+        "addressName",
+        "carrier",
+        "format"
+      ],
+      "not_filterable": [
+        "addressId",
+        "poolPointAddressId",
+        "numberLength",
+        "version"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "catchQuantityConfigs": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "clientId",
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "categoryCounts": {
+      "probed_columns": 7,
+      "filterable": [
+        "dock",
+        "logical",
+        "pnd",
+        "proc",
+        "staging",
+        "storage",
+        "yard"
+      ],
+      "not_filterable": []
+    },
+    "clientCountTypes": {
+      "probed_columns": 6,
+      "filterable": [
+        "clientId"
+      ],
+      "not_filterable": [
+        "countType",
+        "operationCode",
+        "adjustmentMethod",
+        "closeLocationCountMethod",
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "clientWarehouse": {
+      "probed_columns": 4,
+      "filterable": [
+        "clientId",
+        "warehouseId"
+      ],
+      "not_filterable": [
+        "dateWindow",
+        "deliverySequenceLoadingOrder"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "clients": {
+      "probed_columns": 6,
+      "filterable": [
+        "addressId",
+        "clientId",
+        "adjustmentThresholdCost",
+        "adjustmentThresholdUnit"
+      ],
+      "not_filterable": [
+        "warehouseId",
+        "allClientFlg"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "codes": {
+      "probed_columns": 5,
+      "filterable": [
+        "codeValue"
+      ],
+      "not_filterable": [
+        "columnName",
+        "columnDescription",
+        "requiredFlag",
+        "sortSequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "combinedPickingPolicies": {
+      "probed_columns": 24,
+      "filterable": [
+        "defaultCancelCode",
+        "logFileName",
+        "skipCancelCode",
+        "thresPckOpCode",
+        "warehouseId",
+        "autcmpstp",
+        "bulkPickingAllocCommand",
+        "bulkPickingBreakOnOrder",
+        "bulkPickingBreakOnWorkOrder",
+        "capdocnum",
+        "cartonPosition",
+        "cartonizationBreakOn",
+        "cartonizationGroupBy",
+        "cartonizationIterationLimit",
+        "cartonizationMethod",
+        "cartonizationOrderBy",
+        "cartonizationPopupIterationLimit",
+        "cartonizationPopupLevelsPercent",
+        "cassrtfld",
+        "checkMoveDuringAlloc",
+        "defaultMaxStarterPallets",
+        "deliverIncompleteWorkAssignment",
+        "delivery",
+        "deplodnum"
+      ],
+      "not_filterable": []
+    },
+    "commandConfigurationArguments": {
+      "probed_columns": 4,
+      "filterable": [],
+      "not_filterable": [
+        "argumentType",
+        "commandId",
+        "commandArgument",
+        "sequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "commandConfigurations": {
+      "probed_columns": 4,
+      "filterable": [
+        "commandConfig",
+        "commandDescription",
+        "commandGroup"
+      ],
+      "not_filterable": [
+        "configId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "commodities": {
+      "probed_columns": 2,
+      "filterable": [
+        "commodityCode",
+        "longDescription"
+      ],
+      "not_filterable": []
+    },
+    "consolidationRules": {
+      "probed_columns": 3,
+      "filterable": [
+        "warehouseId"
+      ],
+      "not_filterable": [
+        "command",
+        "sortSequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "countTypes": {
+      "probed_columns": 6,
+      "filterable": [
+        "countType",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "baseCountType",
+        "operationCode",
+        "adjustmentMethod",
+        "closeLocationCountMethod"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "countZones": {
+      "probed_columns": 5,
+      "filterable": [
+        "buildingId",
+        "countZoneCode",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "countZoneId",
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "customerTypes": {
+      "probed_columns": 14,
+      "filterable": [
+        "customerType",
+        "createShipmentBy",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "crossDockFlag",
+        "earlyDeliveryThreshold",
+        "lateDeliveryThreshold",
+        "maxQuantityOvershipPercentage",
+        "maxQuantityUndershipPercentage",
+        "minimumShelfLife",
+        "outboundDateWindow",
+        "outboundDateWindowUnit",
+        "quantityOvershipLimit",
+        "quantityUndershipLimit",
+        "version"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "customsItemTypes": {
+      "probed_columns": 5,
+      "filterable": [
+        "columnName"
+      ],
+      "not_filterable": [
+        "customsItemTypeCode",
+        "longDescription",
+        "shortDescription",
+        "sortSequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "cycleCountABCConfig": {
+      "probed_columns": 6,
+      "filterable": [
+        "clientId",
+        "supNum"
+      ],
+      "not_filterable": [
+        "warehouseId",
+        "aCountPerCycle",
+        "bCountPerCycle",
+        "cCountPerCycle"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "cycleCountPromptConfig": {
+      "probed_columns": 2,
+      "filterable": [
+        "clientId"
+      ],
+      "not_filterable": [
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "dataProtectionConfigs": {
+      "probed_columns": 3,
+      "filterable": [
+        "tableName",
+        "protectionFlag"
+      ],
+      "not_filterable": [
+        "columnName"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "deviceClassFunctions": {
+      "probed_columns": 3,
+      "filterable": [
+        "description"
+      ],
+      "not_filterable": [
+        "deviceClass",
+        "deviceFunction"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "directedWorkOperations": {
+      "probed_columns": 4,
+      "filterable": [
+        "warehouseId"
+      ],
+      "not_filterable": [
+        "operationCode",
+        "basePriority",
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "distributionTypes": {
+      "probed_columns": 5,
+      "filterable": [
+        "distributionTiming",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "distributionType",
+        "distributionRuleSet",
+        "distributionTimingDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "dockDoorAreas": {
+      "probed_columns": 8,
+      "filterable": [
+        "areaCode",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "buildingId",
+        "warehouseId",
+        "locationCount",
+        "rcvDockDoorsCount",
+        "shpDockDoorsCount",
+        "shpRcvDockDoorsCount"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "dockDoors": {
+      "probed_columns": 22,
+      "filterable": [
+        "areaCode",
+        "buildingId",
+        "locationCode",
+        "locationAccess",
+        "locationTypeDescription",
+        "palletStackRestriction",
+        "storageLocation"
+      ],
+      "not_filterable": [
+        "countZoneId",
+        "locationType",
+        "locationTypeId",
+        "movementZoneId",
+        "pickZoneId",
+        "storageZoneId",
+        "warehouseId",
+        "workZoneId",
+        "defaultMaximumCapacity",
+        "escalationThreshold",
+        "maxWeight",
+        "noOfAisles",
+        "noOfLanes",
+        "storageSequence",
+        "velocityZone"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "dockSlots": {
+      "probed_columns": 4,
+      "filterable": [
+        "buildingId",
+        "slotId"
+      ],
+      "not_filterable": [
+        "areaCode",
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "documentTypes": {
+      "probed_columns": 11,
+      "filterable": [],
+      "not_filterable": [
+        "documentType",
+        "documentTypeCode",
+        "breakLevel",
+        "breakLevelDescription",
+        "dataCommand",
+        "dateLastModified",
+        "description",
+        "documentTypeCodeDescription",
+        "lastModifiedBy",
+        "printDocumentsBy",
+        "printDocumentsByDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "equipmentTypes": {
+      "probed_columns": 7,
+      "filterable": [
+        "vehicleTypeId",
+        "voiceCode",
+        "longDescription",
+        "vehicleLimit"
+      ],
+      "not_filterable": [
+        "dateLastModified",
+        "lastModifiedBy",
+        "location"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "escalationCommand": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "description",
+        "escalationCommand"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "exitPoints": {
+      "probed_columns": 3,
+      "filterable": [
+        "exitPointLongDescription"
+      ],
+      "not_filterable": [
+        "exitPointType",
+        "exitPoint"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "floorPlan": {
+      "probed_columns": 9,
+      "filterable": [
+        "buildingId",
+        "type",
+        "warehouseId",
+        "height",
+        "text",
+        "width",
+        "x",
+        "y"
+      ],
+      "not_filterable": [
+        "id"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "handlingUnitCategories": {
+      "probed_columns": 3,
+      "filterable": [
+        "warehouseId"
+      ],
+      "not_filterable": [
+        "assetCategory",
+        "description"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "handlingUnitTypes": {
+      "probed_columns": 14,
+      "filterable": [
+        "assetType",
+        "allocationAssetGroup",
+        "allocationAssetGroupDescription",
+        "assetCategory",
+        "assetCategoryDescription",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "assetHeight",
+        "assetLength",
+        "assetWeight",
+        "assetWidth",
+        "maximumCartons",
+        "maximumStarterPallets",
+        "maximumVolume",
+        "maximumWeight"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "hostSystems": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "systemId",
+        "description"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "inboundOrderTypes": {
+      "probed_columns": 2,
+      "filterable": [
+        "inboundOrderType"
+      ],
+      "not_filterable": [
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "inboundQualityIssues": {
+      "probed_columns": 15,
+      "filterable": [
+        "transportEquipmentNumber",
+        "inboundOrder",
+        "inboundShipment",
+        "item",
+        "lastUpdatedUser",
+        "reportedByUser",
+        "supplier"
+      ],
+      "not_filterable": [
+        "issueId",
+        "warehouseId",
+        "client",
+        "inboundIssueDescription",
+        "inboundIssues",
+        "inboundQuantity",
+        "insertDate",
+        "lastUpdated"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "inventoryConsolidationCriteria": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "columnName",
+        "description"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "itemClasses": {
+      "probed_columns": 2,
+      "filterable": [
+        "itemClassName",
+        "longDescription"
+      ],
+      "not_filterable": []
+    },
+    "itemFamilies": {
+      "probed_columns": 8,
+      "filterable": [
+        "itemFamilyGroupName",
+        "itemFamily",
+        "itemFamilyGroupDescription",
+        "longDescription",
+        "workReleaseSequence"
+      ],
+      "not_filterable": [
+        "dateLastModified",
+        "lastModifiedBy",
+        "shortDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "itemFamilyGroups": {
+      "probed_columns": 3,
+      "filterable": [],
+      "not_filterable": [
+        "itemFamilyGroupName",
+        "longDescription",
+        "version"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "itemHierarchyLevelDescriptions": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "itemHierarchyLevel",
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "itemLotExpirationDateValidation": {
+      "probed_columns": 2,
+      "filterable": [
+        "itemClientId",
+        "warehouseId"
+      ],
+      "not_filterable": []
+    },
+    "itemStyleAttributes": {
+      "probed_columns": 4,
+      "filterable": [
+        "attributeCodeName",
+        "attributeColumnName",
+        "columnDescription",
+        "longDescription"
+      ],
+      "not_filterable": []
+    },
+    "jobDefinitions": {
+      "probed_columns": 7,
+      "filterable": [],
+      "not_filterable": [
+        "groupName",
+        "jobId",
+        "name",
+        "type",
+        "command",
+        "schedule",
+        "sourceFile"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "labelFormats": {
+      "probed_columns": 3,
+      "filterable": [],
+      "not_filterable": [
+        "labelCommand",
+        "labelFormat",
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "levelWithLevelType": {
+      "probed_columns": 5,
+      "filterable": [
+        "aisleId",
+        "bay",
+        "level"
+      ],
+      "not_filterable": [
+        "warehouseId",
+        "quantity"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "lmDiscreteProcedures": {
+      "probed_columns": 5,
+      "filterable": [
+        "warehouseId",
+        "intTmu",
+        "machTmu"
+      ],
+      "not_filterable": [
+        "procedureId",
+        "extTmu"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "lmUserFieldOptions": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "columnName",
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "lmWorkTypes": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "workType",
+        "description"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "loadAttributeConfigurations": {
+      "probed_columns": 6,
+      "filterable": [
+        "warehouseId"
+      ],
+      "not_filterable": [
+        "variableName",
+        "mlsText",
+        "originalLabel",
+        "originalRFLabel",
+        "rfLabel"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "locales": {
+      "probed_columns": 13,
+      "filterable": [
+        "NLSSORTSetting",
+        "RFServerLocale",
+        "absoluteGroup",
+        "unixServerLocale"
+      ],
+      "not_filterable": [
+        "MSWindowsClientLCId",
+        "MSWindowsServerLCId",
+        "countryName",
+        "localeId",
+        "voiceLanguageCode",
+        "NLSLANGUAGESetting",
+        "NLSTERRITORYSetting",
+        "localeDescription",
+        "measurementUnitSystem"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "locationConfigs": {
+      "probed_columns": 11,
+      "filterable": [
+        "itemNumber",
+        "beginLocation",
+        "endLocation"
+      ],
+      "not_filterable": [
+        "itemClientId",
+        "policyCode",
+        "warehouseId",
+        "oldValue",
+        "policyValue",
+        "policyVariable",
+        "sortSequence",
+        "suffix"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "lotFormats": {
+      "probed_columns": 5,
+      "filterable": [],
+      "not_filterable": [
+        "lotFormatId",
+        "lotDateControl",
+        "lotDateParsingCommand",
+        "lotValidationCommand",
+        "rawLotFormat"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "lpnInventoryMixingRules": {
+      "probed_columns": 14,
+      "filterable": [
+        "clientId",
+        "columnName",
+        "insertUserId",
+        "lastUpdateUserId",
+        "mixRuleType",
+        "tableName",
+        "warehouseId",
+        "sortSequence"
+      ],
+      "not_filterable": [
+        "lpnRuleId",
+        "columnDescription",
+        "insertDate",
+        "lastUpdateDate",
+        "tableColumnDescription",
+        "tableDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "masterWorkflows": {
+      "probed_columns": 7,
+      "filterable": [
+        "workflowId",
+        "workflowType",
+        "workflowIdLongDescription"
+      ],
+      "not_filterable": [
+        "associationKey",
+        "dateLastModified",
+        "lastModifiedBy",
+        "workflowTypeLongDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "movementPathDetails": {
+      "probed_columns": 6,
+      "filterable": [],
+      "not_filterable": [
+        "hopToMovementZoneCode",
+        "destinationMovementZone",
+        "hopSequence",
+        "hopToMovementZone",
+        "loadLevel",
+        "sourceMovementZone"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "movementPaths": {
+      "probed_columns": 7,
+      "filterable": [
+        "destinationMovementZoneCode",
+        "sourceMovementZoneCode",
+        "loadLevelDescription"
+      ],
+      "not_filterable": [
+        "destinationMovementZone",
+        "hopsCount",
+        "loadLevel",
+        "sourceMovementZone"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "movementRestrictions": {
+      "probed_columns": 9,
+      "filterable": [],
+      "not_filterable": [
+        "destinationZoneId",
+        "sourceZoneId",
+        "type",
+        "warehouseId",
+        "destinationZoneDescription",
+        "lpnLevel",
+        "lpnLevelDescription",
+        "sortSequence",
+        "sourceZoneDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "movementZoneNextMoves": {
+      "probed_columns": 11,
+      "filterable": [
+        "loadLevel"
+      ],
+      "not_filterable": [
+        "destinationMovementZoneCode",
+        "operationCode",
+        "priorityCode",
+        "sequenceNumber",
+        "sourceMovementZoneCode",
+        "destinationMovementZone",
+        "destinationMovementZoneDescription",
+        "operationCodeDescription",
+        "sourceMovementZone",
+        "sourceMovementZoneDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "movementZones": {
+      "probed_columns": 6,
+      "filterable": [
+        "buildingId",
+        "movementZoneCode",
+        "movementZoneId",
+        "locationTypeCategory",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "movementZonesWithResourceCode": {
+      "probed_columns": 7,
+      "filterable": [
+        "movementZoneCode",
+        "resourceVariableDescription",
+        "zoneDescription"
+      ],
+      "not_filterable": [
+        "movementZoneId",
+        "resourceType",
+        "warehouseId",
+        "resourceVariable"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "noteTypeExitPoints": {
+      "probed_columns": 3,
+      "filterable": [],
+      "not_filterable": [
+        "noteType",
+        "exitPoint",
+        "exitPointLongDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "noteTypes": {
+      "probed_columns": 2,
+      "filterable": [
+        "noteType",
+        "noteTypeLongDescription"
+      ],
+      "not_filterable": []
+    },
+    "orderTypes": {
+      "probed_columns": 3,
+      "filterable": [
+        "orderTypeLongDescription"
+      ],
+      "not_filterable": [
+        "orderType",
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "packStationFields": {
+      "probed_columns": 6,
+      "filterable": [
+        "auditType"
+      ],
+      "not_filterable": [
+        "clientId",
+        "columnName",
+        "warehouseId",
+        "longDescription",
+        "sortSequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "packingConfigurations": {
+      "probed_columns": 2,
+      "filterable": [
+        "clientId",
+        "warehouseId"
+      ],
+      "not_filterable": []
+    },
+    "parcelPackageCodes": {
+      "probed_columns": 6,
+      "filterable": [],
+      "not_filterable": [
+        "carrierCode",
+        "packageCode",
+        "warehouseId",
+        "longDescription",
+        "parcelManifestingSystem",
+        "shortDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "parcelPaymentTerms": {
+      "probed_columns": 7,
+      "filterable": [],
+      "not_filterable": [
+        "carrierCode",
+        "paymentCode",
+        "warehouseId",
+        "longDescription",
+        "parcelManifestingSystem",
+        "paymentValue",
+        "shortDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "paymentTerms": {
+      "probed_columns": 7,
+      "filterable": [
+        "paymentCode",
+        "longDescription",
+        "manifestingSystemDescription",
+        "paymentValue"
+      ],
+      "not_filterable": [
+        "dateLastModified",
+        "manifestingSystem",
+        "shortDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "pickMethods": {
+      "probed_columns": 6,
+      "filterable": [
+        "pickMethodId"
+      ],
+      "not_filterable": [
+        "pickMethodName",
+        "warehouseId",
+        "description",
+        "pickPreValidationScheme",
+        "reserveTypeDuringPickRelease"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "pickPreValidationSchemes": {
+      "probed_columns": 9,
+      "filterable": [
+        "actionCode",
+        "cancelCode",
+        "actionCodeDescription",
+        "cancelCodeDescription",
+        "skipLimit"
+      ],
+      "not_filterable": [
+        "infoCode",
+        "schemeId",
+        "description",
+        "infoCodeDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "pickReleaseRules": {
+      "probed_columns": 5,
+      "filterable": [],
+      "not_filterable": [
+        "operationCode",
+        "pickMethodId",
+        "pickReleaseRuleId",
+        "workType",
+        "action"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "pickingSummary": {
+      "probed_columns": 5,
+      "filterable": [],
+      "not_filterable": [
+        "allocatedPicks",
+        "loadedPicks",
+        "pickedPicks",
+        "releasedPicks",
+        "stagedPicks"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "pickingVerifications": {
+      "probed_columns": 24,
+      "filterable": [
+        "warehouseId",
+        "catchQuantityFlag",
+        "detailLpnFlag",
+        "expirationDateFlag",
+        "itemFlag",
+        "lastModifiedBy",
+        "lotFlag",
+        "lpnFlag",
+        "manufacturedDateFlag",
+        "originFlag",
+        "revisionFlag",
+        "subLpnFlag",
+        "supplier",
+        "supplierLotFlag",
+        "version"
+      ],
+      "not_filterable": [
+        "pickZoneCode",
+        "pickZoneId",
+        "workType",
+        "dateLastModified",
+        "locationFlag",
+        "lpnDescription",
+        "lpnLevel",
+        "pckZoneDescription",
+        "quantityFlag"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "pndLocations": {
+      "probed_columns": 2,
+      "filterable": [
+        "warehouseId"
+      ],
+      "not_filterable": [
+        "storageLocation"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "policies": {
+      "probed_columns": 11,
+      "filterable": [
+        "policyCode",
+        "warehouseId",
+        "overrideFlag",
+        "policyValue",
+        "policyVariable",
+        "sortSequence"
+      ],
+      "not_filterable": [
+        "groupName",
+        "returnFloat1",
+        "returnFloat2",
+        "returnNumber1",
+        "returnNumber2"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "processingFieldsForPackout": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "codeValue",
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "progressions": {
+      "probed_columns": 4,
+      "filterable": [
+        "inventoryStatusProgression"
+      ],
+      "not_filterable": [
+        "inventoryStatusProgressionLongDescription",
+        "inventoryStatusProgressionShortDescription",
+        "statusCount"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "reasonCodes": {
+      "probed_columns": 4,
+      "filterable": [
+        "clientId",
+        "reasonCode",
+        "reasonGroupDescription"
+      ],
+      "not_filterable": [
+        "reasonGroup"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "reasonGroups": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "reasonGroup",
+        "reasonGroupDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "receivingHistoryConfiguration": {
+      "probed_columns": 2,
+      "filterable": [
+        "clientId",
+        "warehouseId"
+      ],
+      "not_filterable": []
+    },
+    "releaseRules": {
+      "probed_columns": 9,
+      "filterable": [
+        "countType",
+        "countZoneId",
+        "releaseTypeId",
+        "basePriority"
+      ],
+      "not_filterable": [
+        "baseCountType",
+        "operationCode",
+        "warehouseId",
+        "releaseCommand",
+        "releaseCommandDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "resourceTypeCommands": {
+      "probed_columns": 3,
+      "filterable": [
+        "description"
+      ],
+      "not_filterable": [
+        "commandName",
+        "commandGroup"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "rfForms": {
+      "probed_columns": 3,
+      "filterable": [
+        "customizationLevel"
+      ],
+      "not_filterable": [
+        "formName",
+        "formClass"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "rfSummaryDisplayConfig": {
+      "probed_columns": 2,
+      "filterable": [
+        "warehouseId"
+      ],
+      "not_filterable": [
+        "column"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "rfVendors": {
+      "probed_columns": 4,
+      "filterable": [
+        "rfVendorName",
+        "rfVendorInquiry",
+        "rfVendorResponse",
+        "rfVendorResponseTime"
+      ],
+      "not_filterable": []
+    },
+    "ruleParameters": {
+      "probed_columns": 7,
+      "filterable": [],
+      "not_filterable": [
+        "parameterId",
+        "parameterType",
+        "ruleName",
+        "dateLastModified",
+        "lastModifiedBy",
+        "parameterDescription",
+        "parameterTypeDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "rules": {
+      "probed_columns": 8,
+      "filterable": [],
+      "not_filterable": [
+        "ruleName",
+        "cancelCommand",
+        "changeCarrierLevel",
+        "dateLastModified",
+        "description",
+        "lastModifiedBy",
+        "shortDescription",
+        "summaryCommand"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "serialNumberTypes": {
+      "probed_columns": 5,
+      "filterable": [
+        "serialNumberTypeId"
+      ],
+      "not_filterable": [
+        "dateLastModified",
+        "lastModifiedBy",
+        "longDescription",
+        "sortSequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "storageSuffixes": {
+      "probed_columns": 3,
+      "filterable": [],
+      "not_filterable": [
+        "longDescription",
+        "shortDescription",
+        "suffix"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "storageUoms": {
+      "probed_columns": 3,
+      "filterable": [],
+      "not_filterable": [
+        "longDescription",
+        "storageZone",
+        "unitOfMeasure"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "storageZoneInventoryMixingRules": {
+      "probed_columns": 8,
+      "filterable": [],
+      "not_filterable": [
+        "columnName",
+        "modifiedUserId",
+        "storageZoneId",
+        "tableName",
+        "columnDescription",
+        "modifiedDate",
+        "sortSequence",
+        "tableDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "storageZones": {
+      "probed_columns": 6,
+      "filterable": [
+        "buildingId",
+        "storageZoneCode",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "pickableCode",
+        "storageZoneId",
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "tablesForPalletBuildCriteria": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "tableName",
+        "longDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "uDIAConfigs": {
+      "probed_columns": 3,
+      "filterable": [],
+      "not_filterable": [
+        "valueFieldType",
+        "variableName",
+        "mlsText"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "uDIAFlagConfigs": {
+      "probed_columns": 2,
+      "filterable": [],
+      "not_filterable": [
+        "variableName",
+        "mlsText"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "uoms": {
+      "probed_columns": 7,
+      "filterable": [
+        "codeValue",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "columnName",
+        "columnDescription",
+        "requiredFlag",
+        "shortDescription",
+        "sortSequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "warehouseEquipmentAccesses": {
+      "probed_columns": 3,
+      "filterable": [],
+      "not_filterable": [
+        "vehicleType",
+        "description",
+        "locationAccess"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "warehouseTransportModes": {
+      "probed_columns": 6,
+      "filterable": [
+        "billOfLadingBreakLevelDescription",
+        "transportModeDescription"
+      ],
+      "not_filterable": [
+        "warehouseId",
+        "billOfLadingBreakLevel",
+        "maximumUsers",
+        "transportMode"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "warehouseUoms": {
+      "probed_columns": 3,
+      "filterable": [
+        "warehouseId"
+      ],
+      "not_filterable": [
+        "longDescription",
+        "unitOfMeasure"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "warehouseWorkflows": {
+      "probed_columns": 11,
+      "filterable": [
+        "workflowId",
+        "workflowIdLongDescription"
+      ],
+      "not_filterable": [
+        "sequenceNumber",
+        "warehouseId",
+        "workflowType",
+        "auditThresholdCost",
+        "dateLastModified",
+        "exitPointCount",
+        "lastModifiedBy",
+        "warehouseIdLongDescription",
+        "workflowTypeLongDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "warehouses": {
+      "probed_columns": 22,
+      "filterable": [
+        "addressId",
+        "warehouseId",
+        "warehouseTypeCode",
+        "adjustmentThresholdCost",
+        "adjustmentThresholdUnit",
+        "aisleMax",
+        "autoPlayCostThreshold",
+        "bayMax",
+        "concatenationOrder",
+        "consignmentPeriod",
+        "countingThresholdCost",
+        "countingThresholdUnit",
+        "longDescription",
+        "permanentAdjustLoad",
+        "permanentAdjustSubLoad",
+        "permanentCreateLoad",
+        "permanentCreateSubLoad",
+        "slotMax",
+        "warehouseMapLeftX",
+        "warehouseMapLowerY",
+        "warehouseMapRightX",
+        "warehouseMapUpperY"
+      ],
+      "not_filterable": []
+    },
+    "waveRules": {
+      "probed_columns": 4,
+      "filterable": [],
+      "not_filterable": [
+        "dummyKey",
+        "ruleName",
+        "command",
+        "sortSequence"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "wcsEvents": {
+      "probed_columns": 3,
+      "filterable": [],
+      "not_filterable": [
+        "eventId",
+        "systemId",
+        "description"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "workAreaMove": {
+      "probed_columns": 4,
+      "filterable": [
+        "currentWorkArea",
+        "moveSequence",
+        "moveWorkArea"
+      ],
+      "not_filterable": [
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "workAreas": {
+      "probed_columns": 8,
+      "filterable": [
+        "absolutePriority",
+        "deltaPriority",
+        "homeWorkAreaAbsolutePriority",
+        "workArea"
+      ],
+      "not_filterable": [
+        "warehouseId",
+        "dateLastModified",
+        "lastModifiedBy",
+        "workAreaDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "workAssignmentRuleExceptions": {
+      "probed_columns": 16,
+      "filterable": [
+        "clientId",
+        "pickListRuleName",
+        "listTypeDescription",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "listType",
+        "operationCode",
+        "warehouseId",
+        "commandText",
+        "groups",
+        "maxAssetsPerList",
+        "maximumStarterPicks",
+        "onePassOnly",
+        "pickOrderBy",
+        "pickToLevel",
+        "systemGeneratedIdentifierForThisPickListRule",
+        "workAssignmentFitCriteria"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "workListGroupCriteria": {
+      "probed_columns": 5,
+      "filterable": [],
+      "not_filterable": [
+        "fieldName",
+        "pickListRuleGroupingCriteriaId",
+        "sequenceNumber",
+        "tableName",
+        "systemGeneratedIdentifierForThisPickListRule"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "workOrderTypes": {
+      "probed_columns": 3,
+      "filterable": [
+        "workOrderType",
+        "description"
+      ],
+      "not_filterable": [
+        "warehouseId"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "workflowSamplingConfigurations": {
+      "probed_columns": 4,
+      "filterable": [
+        "workflowRateId",
+        "longDescription"
+      ],
+      "not_filterable": [
+        "quantityByCode",
+        "sampleRatesQty"
       ],
       "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
     }

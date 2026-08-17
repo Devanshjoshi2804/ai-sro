@@ -600,11 +600,13 @@
         "Verified on carriers (1,581 rows): EQ carrierCode=0000 returns exactly 1 matching row; NE returns 25 none of which match; two clauses AND to 1 row.",
         "Accepted operators: EQ, NE, GT, GE, LT, LE. Rejected with 422: LIKE, CONTAINS, IN, BETWEEN, BEGINS, STARTSWITH, NOT_NULL, IS_NULL, and lowercase \"eq\" — the vocabulary is upper-case and small.",
         "There is no LIKE, but a % wildcard inside an EQ value works: carrierCode EQ \"00%\" returned 3 rows.",
-        "Columns are the camelCase JSON names, NOT the DB column names the 422 errors quote — which is why every earlier guess based on those failed."
+        "Columns are the camelCase JSON names, NOT the DB column names the 422 errors quote — which is why every earlier guess based on those failed.",
+        "GT/GE/LT/LE perform REAL comparisons, tested on four resources against the actual distribution of a numeric column: every returned row honoured the bound (locations.workZoneId, storageConfigurations.sortSequence, workOperations.basePriority, aisles.areaCount)."
       ],
       "consequence": "Targeted reads are now possible, which is what verification needs: a post-condition on a 61,912-row table no longer means paging it. The caution is that a parseable but wrong clause returns 200 with ZERO rows, indistinguishable from a genuine no-match, so a filtered read that comes back empty must be re-checked against an unfiltered count before concluding a record is absent.",
       "method_note": "Eighteen hand-invented spellings were tried first and every one failed. What worked was reading the grid store proxy (RPUX.rest.RestProxy) and then watching a server-paged screen make its own call — the same lesson as payloads: the application already knows, so watch it.",
-      "evidence_level": "reproduced"
+      "evidence_level": "reproduced",
+      "correction": "An earlier note in this claim read GT as \"accepted but possibly ignored\" because a GT probe on carriers returned a full page. That was a misreading of my own test: the probe asked for carrierCode GT \"0\", a STRING comparison that every carrier code satisfies. The operator was comparing correctly; the test was wrong."
     },
     {
       "id": "most-columns-are-not-filterable-and-fail-silently",
@@ -616,7 +618,9 @@
         "Across six resources, 41 of 110 probed columns filtered correctly and 69 did not.",
         "addresses filters on addressId and addressName but NOT on city, state or requestState — with a value copied straight out of a row that is definitely present.",
         "trailers is the most filterable at 12 of 22; shipments manages 5 of 23; carriers 1 of 2.",
-        "There is no error. The unfilterable column answers 200 and an empty data array, which is indistinguishable from \"no such record\"."
+        "There is no error. The unfilterable column answers 200 and an empty data array, which is indistinguishable from \"no such record\".",
+        "Extended to 152 resources and 1,051 columns: 402 filterable, 649 not — 38% overall. 43 resources have NO filterable column at all and can only be paged, hotItemsByLoc and carrierCrossReferences among them.",
+        "There is no pattern to infer it from. By suffix: *Code 57% filterable, *Name 56%, *Status 45%, *Id 42%, everything else 31%. Filterability is per-resource server configuration and has to be measured, which is what index/filterable-columns.json now holds."
       ],
       "consequence": "This is the most dangerous read shape in the system. An agent asking \"is there an address in BURLINGTON\" is told no, confidently. Any filtered read must check its column against index/filterable-columns.json first, and an empty result on an unproven column must be treated as unknown rather than as absence.",
       "method_note": "A first pass reported items as filterable on one column. That was my own cap: the probe took the first 24 keys alphabetically and spent them all on attributeDate1..attributeText5, never reaching itemNumber. Probing identifying columns first showed 9 of 24, itemNumber among them.",

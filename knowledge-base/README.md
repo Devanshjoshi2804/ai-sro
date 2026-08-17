@@ -158,14 +158,16 @@ the instance everything else depends on.
 
 `query=[{"column":"<jsonFieldName>","operator":"EQ","value":"<v>"}]`, ANDed across clauses. Operators
 are upper-case and few: `EQ NE GT GE LT LE`. There is no `LIKE` — a `%` wildcard inside an `EQ`
-value does prefix matching. Columns are the camelCase JSON names the resource returns, **not** the DB
+value does prefix matching. The range operators genuinely compare (verified on four resources
+against the real distribution of a numeric column), so date and quantity bounds work. Columns are the camelCase JSON names the resource returns, **not** the DB
 column names its 422 errors quote. Full spec in `index/query-dsl.json`.
 
-**Most columns are not filterable, and they fail silently.** Across six resources only 41 of 110
-columns honoured a filter; the other 69 returned 200 and zero rows for a value taken out of their own
-row. `addresses` filters on `addressId` and `addressName` but not on `city` or `state`. Check
-`index/filterable-columns.json` before trusting an empty result — on an unproven column, empty means
-unknown, not absent.
+**Most columns are not filterable, and they fail silently.** Measured across **152 resources and
+1,051 columns: 402 filterable, 649 not**. `addresses` filters on `addressId` and `addressName` but
+not on `city` or `state` — with a value taken out of its own row. **43 resources have no filterable
+column at all** and can only be paged. There is no pattern to infer it from (`*Code` 57%, `*Id` 42%,
+everything else 31%), so `index/filterable-columns.json` holds the measured answer per resource.
+Check it before trusting an empty result: on an unproven column, empty means unknown, not absent.
 
 **State vocabularies** for 23 operational resources are in `index/status-vocabulary.json`, including
 the shipment lifecycle: `R` Ready, `I` In-Process, `S` Staged, `L` Loading, `D` Loaded, `C` Load

@@ -312,6 +312,10 @@ if (exists(claimsPath)) {
 {
   const shapes = exists(path.join(KG, 'index/read-shapes.json'))
     ? readJSON(path.join(KG, 'index/read-shapes.json')).resources : {};
+  const filterable = exists(path.join(KG, 'index/filterable-columns.json'))
+    ? readJSON(path.join(KG, 'index/filterable-columns.json')).resources : {};
+  const statuses = exists(path.join(KG, 'index/status-vocabulary.json'))
+    ? readJSON(path.join(KG, 'index/status-vocabulary.json')).resources : {};
   for (const n of nodes.values()) {
     if (n.type !== 'resource') continue;
     const cases = { ...(n.operations?.GET?.cases || {}), ...(n.operations?.POST?.cases || {}), ...(n.operations?.DELETE?.cases || {}), ...(n.operations?.PUT?.cases || {}) };
@@ -344,6 +348,29 @@ if (exists(claimsPath)) {
     if (w.length) n.behaviour_warnings = w;
     if (shapes[n.resource]) {
       n.read_shape = { status: shapes[n.resource].status, fields: shapes[n.resource].field_count, rows_in_sample: shapes[n.resource].rows_returned };
+    }
+    /*
+     * How this resource can be QUERIED, and what states its rows can be in. Both are measured, and
+     * both are things a caller needs before it reads: filtering on an unlisted column returns 200
+     * with zero rows, which is indistinguishable from absence.
+     */
+    if (filterable[n.resource]) {
+      n.queryable = {
+        filterable_columns: filterable[n.resource].filterable,
+        not_filterable: filterable[n.resource].not_filterable,
+        grammar: 'query=[{"column","operator","value"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ',
+      };
+      if (!filterable[n.resource].filterable.length) {
+        n.behaviour_warnings = [...(n.behaviour_warnings || []), {
+          hazard: 'not-queryable',
+          detail: 'No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing.',
+        }];
+      }
+    }
+    if (statuses[n.resource]) {
+      n.state_vocabulary = Object.fromEntries(Object.entries(statuses[n.resource].fields)
+        .filter(([, v]) => v.distinct_values.length)
+        .map(([f, v]) => [f, v.distinct_values.map((x) => (x.label ? `${x.value} (${x.label})` : x.value))]));
     }
   }
 }
@@ -492,6 +519,9 @@ graph.counts = {
   cascades: cascades.length,
   hazards: hazards.length,
   resources_with_behaviour_warnings: graph.nodes.filter((n) => n.behaviour_warnings).length,
+  resources_with_a_filterability_map: graph.nodes.filter((n) => n.queryable).length,
+  resources_that_cannot_be_filtered_at_all: graph.nodes.filter((n) => n.queryable && !n.queryable.filterable_columns.length).length,
+  resources_with_a_state_vocabulary: graph.nodes.filter((n) => n.state_vocabulary).length,
   resources_with_a_write_contract: graph.nodes.filter((n) => n.write_contract).length,
   write_contracts_proven_round_trip: graph.nodes.filter((n) => n.write_contract && Object.values(n.write_contract).some((w) => w.proof === 'round-trip')).length,
 };

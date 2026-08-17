@@ -54,33 +54,108 @@ class Parameterisation:
         return {sub.site: f"${{{sub.parameter}}}" for sub in self.substitutions.get(index, ())}
 
 
-def align(run_a: tuple[ActionFrame, ...], run_b: tuple[ActionFrame, ...]) -> None:
-    """Verify the runs describe the same task, or say why they do not.
+def _control(frame: ActionFrame) -> str:
+    """What the gesture acted on, as steadily as the page allows.
 
-    Alignment is positional and refuses anything that does not match exactly. A
-    fuzzy match here would be a guess at the point where guessing costs most.
+    The accessible name first, because ExtJS renumbers its generated ids between
+    page loads and ``button-1148`` is not the same control tomorrow. Role and
+    kind on their own would pair two different text boxes, which is the one
+    mistake worth being strict about.
+    """
+    target = frame.action.target
+    if target is None:
+        return f"{frame.action.kind}"
+    identity = target.accessible_name or target.test_id or target.css_path or target.xpath or ""
+    return f"{frame.action.kind}:{target.role or ''}:{identity}"
+
+
+def _evidential(frame: ActionFrame) -> bool:
+    """Whether dropping this step would lose something the skill needs.
+
+    A gesture that changed the system, or carried a value into it, is evidence.
+    A click that fetched nothing and typed nothing is the operator finding their
+    way -- focusing a field, opening a panel to look, clicking a label twice.
+    """
+    if frame.action.value or frame.action.secret:
+        return True
+    return any(request.is_mutation for request in frame.requests)
+
+
+def align(
+    run_a: tuple[ActionFrame, ...], run_b: tuple[ActionFrame, ...]
+) -> tuple[tuple[ActionFrame, ActionFrame], ...]:
+    """Pair the steps the two runs share, and say why they cannot be paired.
+
+    The first demonstration of anything contains looking around: a field clicked
+    twice, a panel opened to check a code, a grid sorted before the row is found.
+    Demanding identical step counts made the exploration part of the task and
+    refused the pair -- for two runs whose writes were byte-identical.
+
+    So the runs are aligned rather than counted, on the longest sequence of
+    gestures they share. What only one run did is dropped, but only when
+    dropping it loses nothing: a step that changed the system or carried a value
+    is never silently discarded, because that is a genuine disagreement about
+    what the task is and guessing there is what ADR 004 exists to prevent.
     """
     if not run_a or not run_b:
         raise InductionFailed("both recordings must contain at least one step")
 
-    if len(run_a) != len(run_b):
-        raise InductionFailed(
-            f"the runs have different numbers of steps ({len(run_a)} and {len(run_b)}); "
-            "they are not two runs of the same task -- re-record, or trim the extra steps"
-        )
-
-    for index, (frame_a, frame_b) in enumerate(zip(run_a, run_b, strict=True)):
-        if frame_a.action.kind is not frame_b.action.kind:
+    paired = _longest_common(run_a, run_b)
+    for run, label in ((run_a, "the first run"), (run_b, "the second run")):
+        matched = {id(frame) for pair in paired for frame in pair}
+        orphan = next((f for f in run if id(f) not in matched and _evidential(f)), None)
+        if orphan is not None:
             raise InductionFailed(
-                f"run A did {frame_a.action.kind} but run B did {frame_b.action.kind}",
-                step_index=index,
+                f"{label} did something the other did not: "
+                f"{describe_step(orphan)}. The runs are not two runs of one task",
+                step_index=orphan.index,
             )
+    if not paired:
+        raise InductionFailed("the runs share no steps at all; they are different tasks")
+    return paired
+
+
+def describe_step(frame: ActionFrame) -> str:
+    """A step named the way an operator would recognise it."""
+    target = frame.action.target
+    name = (target.accessible_name or target.text or target.css_path) if target else None
+    request = frame.primary_request
+    call = f" ({request.method} {request.url.split('?')[0]})" if request else ""
+    return f"{frame.action.kind} on {name or 'the page'}{call}"
+
+
+def _longest_common(
+    run_a: tuple[ActionFrame, ...], run_b: tuple[ActionFrame, ...]
+) -> tuple[tuple[ActionFrame, ActionFrame], ...]:
+    """Classic LCS over control identity. Runs are a handful of steps, so the
+    quadratic table is smaller than the code to avoid it."""
+    keys_a = [_control(frame) for frame in run_a]
+    keys_b = [_control(frame) for frame in run_b]
+    table = [[0] * (len(keys_b) + 1) for _ in range(len(keys_a) + 1)]
+    for i in range(len(keys_a) - 1, -1, -1):
+        for j in range(len(keys_b) - 1, -1, -1):
+            table[i][j] = (
+                table[i + 1][j + 1] + 1
+                if keys_a[i] == keys_b[j]
+                else max(table[i + 1][j], table[i][j + 1])
+            )
+
+    pairs: list[tuple[ActionFrame, ActionFrame]] = []
+    i = j = 0
+    while i < len(keys_a) and j < len(keys_b):
+        if keys_a[i] == keys_b[j]:
+            pairs.append((run_a[i], run_b[j]))
+            i, j = i + 1, j + 1
+        elif table[i + 1][j] >= table[i][j + 1]:
+            i += 1
+        else:
+            j += 1
+    return tuple(pairs)
 
 
 def differences(run_a: tuple[ActionFrame, ...], run_b: tuple[ActionFrame, ...]) -> list[Difference]:
-    align(run_a, run_b)
     found: list[Difference] = []
-    for index, (frame_a, frame_b) in enumerate(zip(run_a, run_b, strict=True)):
+    for index, (frame_a, frame_b) in enumerate(align(run_a, run_b)):
         found.extend(_diff_action(index, frame_a, frame_b))
         found.extend(_diff_request(index, frame_a, frame_b))
     return found
@@ -90,6 +165,14 @@ def parameterise(
     run_a: tuple[ActionFrame, ...], run_b: tuple[ActionFrame, ...]
 ) -> Parameterisation:
     """Diff, classify as input or derived, name, and address every substitution."""
+    # Every index below -- a difference's step, a parameter's source -- counts
+    # paired steps, not the steps of either recording. Handing the raw runs to
+    # _find_source would look up "step 4" in a run whose step 4 is somebody's
+    # second click on a label.
+    pairs = align(run_a, run_b)
+    paired_a = tuple(pair[0] for pair in pairs)
+    paired_b = tuple(pair[1] for pair in pairs)
+
     # Grouped by value pair: an order number in the URL, the body and a
     # confirmation field is one parameter with three sites, not three that agree.
     groups: dict[tuple[str, str], list[Difference]] = {}
@@ -103,7 +186,7 @@ def parameterise(
     for (value_a, value_b), sites in groups.items():
         first = sites[0]
         earliest_use = min(site.step_index for site in sites)
-        source = _find_source(value_a, value_b, run_a, run_b, before=earliest_use)
+        source = _find_source(value_a, value_b, paired_a, paired_b, before=earliest_use)
 
         name = deduplicate(
             suggest_name(first.site, url=first.url, field_label=first.field_label), taken
@@ -272,9 +355,31 @@ def _diff_url(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Differ
             url=a.url,
         )
         for key in query_a
-        if query_a[key] != query_b[key]
+        if query_a[key] != query_b[key] and not _is_a_clock(query_a[key], query_b[key])
     )
     return found
+
+
+def _is_a_clock(value_a: str, value_b: str) -> bool:
+    """Whether these two values differ only because time passed.
+
+    Ext JS appends ``_dc=<epoch millis>`` to every request to defeat caching,
+    and jQuery's ``_`` does the same. Both runs of a task therefore disagree
+    there, always -- and the diff dutifully reported a parameter, so a skill
+    asked its operator for a number that means "now". Two parameters out of four
+    on the first real task taught were this.
+
+    Detected by what the values are rather than by the key's name, because the
+    name differs per framework and the shape does not: milliseconds since the
+    epoch, recently, and different in the two runs.
+    """
+    recent = range(1_600_000_000_000, 4_000_000_000_000)  # 2020 to 2096, in millis
+    return (
+        value_a.isdigit()
+        and value_b.isdigit()
+        and int(value_a) in recent
+        and int(value_b) in recent
+    )
 
 
 def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Difference]:

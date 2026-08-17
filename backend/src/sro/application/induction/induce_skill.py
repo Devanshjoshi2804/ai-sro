@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from sro.application.context import RequestContext
 from sro.application.induction import assertions as assertion_extraction
 from sro.application.induction import describe, narration
-from sro.application.induction.diff import Parameterisation, parameterise
+from sro.application.induction.diff import Parameterisation, align, parameterise
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
 from sro.application.ports.repositories import UnitOfWork
@@ -124,10 +124,15 @@ def _build_steps(
     objective: ObjectiveKey,
     parameterisation: Parameterisation,
 ) -> tuple[SkillStep, ...]:
-    frames_a, frames_b = run_a.frames, run_b.frames
+    # The steps both runs share, in order. What only one operator did -- a field
+    # clicked twice, a panel opened to check something -- is not part of the
+    # task, and emitting it would make every replay repeat somebody's hesitation.
+    pairs = align(run_a.frames, run_b.frames)
+    frames_a = [pair[0] for pair in pairs]
+    frames_b = [pair[1] for pair in pairs]
     # Run A's narration, because run A's frames are the ones being emitted. Run
     # B is here to disagree with A, not to describe it.
-    said = narration.align(frames_a, run_a.narration)
+    said = narration.align(tuple(frames_a), run_a.narration)
     return tuple(
         emit_step(
             index,

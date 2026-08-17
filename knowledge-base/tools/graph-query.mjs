@@ -86,6 +86,15 @@ function resource(name) {
     }
   }
   if (n.read_shape) out(`\nread shape: ${n.read_shape.fields} fields, ${n.read_shape.rows_in_sample} rows in the recorded sample (status ${n.read_shape.status})`);
+  if (n.queryable) {
+    out(`\nfilter on: ${n.queryable.filterable_columns.join(', ') || 'NOTHING — this resource can only be paged'}`);
+    if (n.queryable.not_filterable.length) out(`  these return 200 and zero rows, which is NOT proof of absence: ${n.queryable.not_filterable.slice(0, 10).join(', ')}${n.queryable.not_filterable.length > 10 ? ' …' : ''}`);
+    out(`  grammar: ${n.queryable.grammar}`);
+  }
+  if (n.state_vocabulary) {
+    out('\nstates:');
+    for (const [f, vals] of Object.entries(n.state_vocabulary)) out(`  ${f}: ${vals.join(', ')}`);
+  }
   if (n.operations) {
     out('\nobserved behaviour:');
     for (const [m, v] of Object.entries(n.operations)) {

@@ -15,9 +15,11 @@ What this is careful about, in order of how much damage the alternative does:
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from urllib.parse import urlsplit
 
 from sro.application.context import RequestContext
 from sro.application.execution.headers import client_headers, resolve_headers
+from sro.application.execution.self_heal import HealBudget, Healed, SelfHeal
 from sro.application.execution.verify import check, extract
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.knowledge.learn_from_run import LearnFromRun
@@ -135,12 +137,15 @@ class ExecuteStep:
         vault: CredentialVault,
         ui: UiDriver | None = None,
         vision: PerformWithVision | None = None,
+        heal: SelfHeal | None = None,
     ) -> None:
         self._uow = uow
         self._http = http
         self._vault = vault
         self._ui = ui
         self._vision = vision
+        self._heal_with = heal
+        self._budgets: dict[str, HealBudget] = {}
 
     async def execute(self, ctx: RequestContext, *, run_id: RunId, index: int) -> StepOutcome:
         async with self._uow as uow:
@@ -169,14 +174,36 @@ class ExecuteStep:
             None,
         )
 
+        session_scope = f"{skill.objective_key.target_system}/{skill.objective_key.facility}"
         outcome, derived, failure = await self._perform(
             run,
             step,
             values=run.values,
             scope=str(ctx.tenant_id),
-            session_scope=(f"{skill.objective_key.target_system}/{skill.objective_key.facility}"),
+            session_scope=session_scope,
             produces=produces,
         )
+
+        # A session that aged out is not a broken skill, and the run should not
+        # need a person to say so. Repair what the target system owns, once,
+        # and let the step speak for itself; anything the healer cannot explain
+        # is left exactly as it failed.
+        healed = await self._heal(ctx, run, skill, step, outcome, failure)
+        if healed is not None:
+            outcome, derived, failure = await self._perform(
+                run,
+                step,
+                values=run.values,
+                scope=str(ctx.tenant_id),
+                session_scope=session_scope,
+                produces=produces,
+            )
+            outcome = replace(
+                outcome,
+                detail=f"{healed.because}; {healed.detail}, then retried"
+                + (f" -- {outcome.detail}" if outcome.detail else ""),
+            )
+
         if failure is not None:
             outcome = await self._escalate(run, step, outcome, failure, values=run.values)
         run.record(outcome)
@@ -187,6 +214,40 @@ class ExecuteStep:
             await uow.runs.save(run)
             await uow.commit()
         return outcome
+
+    async def _heal(
+        self,
+        ctx: RequestContext,
+        run: Run,
+        skill: Skill,
+        step: SkillStep,
+        outcome: StepOutcome,
+        failure: FailureKind | None,
+    ) -> Healed | None:
+        """Ask the healer whether this failure is one the session explains."""
+        if self._heal_with is None or (
+            outcome.disposition is StepDisposition.PERFORMED and not failure
+        ):
+            return None
+        plan = step.network_plan
+        return await self._heal_with.attempt(
+            ctx,
+            target_system=skill.objective_key.target_system,
+            facility=skill.objective_key.facility,
+            step_index=step.index,
+            mutating=bool(plan and plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}),
+            budget=self._budget_for(run),
+            failure=failure,
+            status_code=outcome.status_code,
+            missing_headers=_missing_named(outcome.detail),
+            endpoint=f"{outcome.method} {urlsplit(outcome.url or '').path}"
+            if outcome.url
+            else None,
+        )
+
+    def _budget_for(self, run: Run) -> HealBudget:
+        """One budget per run, so a repair that did not take is not repeated."""
+        return self._budgets.setdefault(run.id.value, HealBudget())
 
     async def _perform_in_ui(
         self, run: Run, step: SkillStep, *, values: dict[str, str]
@@ -640,3 +701,17 @@ __all__ = [
     "Refused",
     "StartRun",
 ]
+
+
+def _missing_named(detail: str | None) -> tuple[str, ...]:
+    """The headers a step said it had no live value for.
+
+    Read back off the step's own words rather than threaded through a second
+    return value: the message is the record, and a healer that diagnosed from
+    something the record does not show would be repairing a failure nobody can
+    see afterwards.
+    """
+    if not detail or not detail.startswith("no live value for "):
+        return ()
+    named = detail[len("no live value for ") :].split(";", 1)[0]
+    return tuple(part.strip() for part in named.split(",") if part.strip())

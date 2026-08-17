@@ -33,6 +33,7 @@ from sro.application.execution.execute_skill import (
     StartRun,
 )
 from sro.application.execution.read_runs import GetRun, ListRuns
+from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.understand import UnderstandRecording
@@ -236,9 +237,24 @@ class Container:
     def start_run(self) -> StartRun:
         return StartRun(self.unit_of_work(), self.clock, self.ids)
 
+    def self_heal(self) -> SelfHeal:
+        return SelfHeal(
+            self.unit_of_work(),
+            self.vault,
+            self.browser,
+            self.check_session(),
+            self.ensure_signed_in(),
+            self.record_claims(),
+        )
+
     def execute_step(self) -> ExecuteStep:
         return ExecuteStep(
-            self.unit_of_work(), self.http, self.vault, self.ui, self.perform_with_vision()
+            self.unit_of_work(),
+            self.http,
+            self.vault,
+            self.ui,
+            self.perform_with_vision(),
+            self.self_heal(),
         )
 
     def finish_run(self) -> FinishRun:

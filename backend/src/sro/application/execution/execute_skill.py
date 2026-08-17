@@ -589,6 +589,11 @@ class FinishRun:
             version = skill.version(run.skill_version)
             verdict = judge(run)
             version.record_run(verdict, now)
+            # The ladder climbs itself. Nobody has time to notice that a skill
+            # has earned the next rung, and a stage that waits for someone to
+            # notice is a fact about their afternoon rather than about the
+            # skill. Demotion below still happens faster, and for less.
+            version.earn(verdict, now)
             # Demotion is automatic and needs no human, which is exactly why it
             # is bounded by a small number: confirming a few runs costs an
             # operator minutes, and a broken autonomous skill keeps writing.

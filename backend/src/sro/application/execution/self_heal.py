@@ -127,6 +127,16 @@ class SelfHeal:
                 # An outage is not a session problem, and signing in during one
                 # spends the credentials against a system that cannot answer.
                 return None
+            if health is not None and health.health is SessionHealth.SIGNED_IN:
+                # The session is alive and the call was still turned away, so
+                # what expired is what the executor carries beside it -- the
+                # token the page mints, the context in the Referer. Signing in
+                # again would do nothing at best and, on a system that permits
+                # one session, take the operator's browser down at worst.
+                #
+                # Found by watching this fire against the live WMS: the healer
+                # reported success and the retry came back 302 all the same.
+                return await self._refresh_context(ctx, target_system, facility)
             if not await self._ensure.execute(ctx, target_system=target_system):
                 return None
             return f"signed {target_system} in again and kept the session it produced"

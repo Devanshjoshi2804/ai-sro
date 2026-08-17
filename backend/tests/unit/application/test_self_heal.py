@@ -171,3 +171,67 @@ async def test_an_outage_is_never_answered_by_signing_in() -> None:
 
     assert healed is None
     assert await vault.get(connection.cookie_key) == "SESSIONID=maybe-fine"
+
+
+@pytest.mark.asyncio
+async def test_a_live_session_with_a_rejected_call_is_repaired_as_context() -> None:
+    """What the live WMS taught the healer on its first outing.
+
+    The portal accepted the cookies and the data API refused the call, so the
+    session check said signed in, the remedy signed nothing in, and it reported
+    success while the retry came back 302 all the same. A session that is alive
+    while the call is refused is a token problem, not a login problem.
+    """
+    uow, vault, browser, http = (
+        FakeUnitOfWork(),
+        FakeCredentialVault(),
+        FakeBrowserProvider(),
+        FakeHttpCaller(),
+    )
+    connection = Connection(
+        id=ConnectionId("con_1"),
+        tenant_id=f.TENANT,
+        name="WMS",
+        target_system="blue_yonder",
+        base_url="https://wms.example.com/portal",
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    connection.authenticated(datetime(2026, 1, 2, tzinfo=UTC))
+    async with uow:
+        await uow.connections.add(connection)
+        await uow.commit()
+    await vault.store(connection.cookie_key, "SESSIONID=alive")
+    http.answer(status_code=200)  # the portal is happy; the API was not
+    browser.headers = {
+        "csrf-encrypt-token": "fresh",
+        "referer": "https://wms.example.com/page?ctx=1",
+    }
+
+    sign_in = SignIn(
+        uow, vault, browser, FakeSignInDriver(), RefreshSession(uow, vault, FakeClock())
+    )
+    check = CheckSession(uow, vault, http)
+    healer = SelfHeal(
+        uow,
+        vault,
+        browser,
+        check,
+        EnsureSignedIn(sign_in, check, uow),
+        RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
+    )
+
+    healed = await healer.attempt(
+        CTX,
+        target_system="blue_yonder",
+        facility="SG",
+        step_index=0,
+        mutating=False,
+        budget=HealBudget(),
+        status_code=302,
+        redirected_off_host=True,
+        endpoint="GET /data/WM/wm/policies",
+    )
+
+    assert healed is not None
+    assert await vault.get("acme/blue_yonder/SG/csrf-encrypt-token") == "fresh"
+    assert await vault.get("acme/blue_yonder/SG/referer") == "https://wms.example.com/page?ctx=1"

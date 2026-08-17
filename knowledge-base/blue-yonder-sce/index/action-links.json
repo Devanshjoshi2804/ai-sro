@@ -473,6 +473,1503 @@
           "kind": "sub-collection"
         }
       ]
+    },
+    "activityCodes": {
+      "sampled_record": "ADJAPP",
+      "actions": [],
+      "sub_collections": []
+    },
+    "addresses": {
+      "sampled_record": "A000278094",
+      "actions": [],
+      "sub_collections": []
+    },
+    "agingProfiles": {
+      "sampled_record": "0",
+      "actions": [],
+      "sub_collections": []
+    },
+    "aisles": {
+      "sampled_record": "AABN*!SG",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "areas_uri",
+          "path": "/wm/aisles/AABN%2A%21SG/areas",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "locations_uri",
+          "path": "/wm/locations?aisleId=AABN&warehouseId=SG",
+          "get_status": 400,
+          "options_status": 520,
+          "allow": null,
+          "kind": "unclear (400)"
+        }
+      ]
+    },
+    "allocationHandlingUnitGroups": {
+      "sampled_record": "PALLETS",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "handlingUnitTypes_uri",
+          "path": "/wm/allocationHandlingUnitGroups/PALLETS/handlingUnitTypes",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "allocationSearchPathCriteria": {
+      "sampled_record": "10004*!dst_mov_zone_id",
+      "actions": [],
+      "sub_collections": []
+    },
+    "allocationSearchPathRules": {
+      "sampled_record": "10135",
+      "actions": [],
+      "sub_collections": []
+    },
+    "allocationSearchPaths": {
+      "sampled_record": "10108",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "criteria_uri",
+          "path": "/wm/allocationSearchPaths/10108/allocationSearchPathCriteria",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "areas": {
+      "sampled_record": "ADJS*!SG",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "locations_uri",
+          "path": "/wm/locations?areaCode=ADJS&warehouseId=SG",
+          "get_status": 400,
+          "options_status": 520,
+          "allow": null,
+          "kind": "unclear (400)"
+        }
+      ]
+    },
+    "autoStagingMovementZones": {
+      "sampled_record": "10208",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "consolidations_uri",
+          "path": "/wm/movementZones/10208/consolidations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "locations_uri",
+          "path": "/wm/movementZones/10208/locations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "movementZoneNextMoves_uri",
+          "path": "/wm/movementZones/10208/movementZoneNextMoves",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "availableAutoStagingMovementZones": {
+      "sampled_record": "10215",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "consolidations_uri",
+          "path": "/wm/movementZones/10215/consolidations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "locations_uri",
+          "path": "/wm/movementZones/10215/locations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "movementZoneNextMoves_uri",
+          "path": "/wm/movementZones/10215/movementZoneNextMoves",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "availableInventoryMixingRules": {
+      "sampled_record": "Date Added*!adddte*!invdtl",
+      "actions": [],
+      "sub_collections": []
+    },
+    "availablePickCartonizationCriteria": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "availablePickDeductionSequences": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "availableTransactionGroupingAttributes": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "availableWorkListGroupCriterias": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "breakStopSequenceCodeses": {
+      "sampled_record": "FBBACK",
+      "actions": [],
+      "sub_collections": []
+    },
+    "buildings": {
+      "sampled_record": "B1*!SG",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "address_uri",
+          "path": "/wm/addresses/A000000022",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "pickingBuildingSequences_uri",
+          "path": "/wm/buildings/B1%2A%21SG/pickingSequences",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "storageBuildingSequences_uri",
+          "path": "/wm/buildings/B1%2A%21SG/storageSequences",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "bundleRules": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "cancelCodes": {
+      "sampled_record": "C-R",
+      "actions": [],
+      "sub_collections": []
+    },
+    "carrierCrossReferences": {
+      "sampled_record": "FDE2*!ENVEYO*!FDE2",
+      "actions": [],
+      "sub_collections": []
+    },
+    "carrierDetails": {
+      "sampled_record": "0000*!LT",
+      "actions": [],
+      "sub_collections": []
+    },
+    "carrierProNumbers": {
+      "sampled_record": "A000022452*!EXLA*!----",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "carrierInfo_uri",
+          "path": "/wm/carriers/EXLA",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "carrierServiceLevels": {
+      "sampled_record": "**!LT",
+      "actions": [],
+      "sub_collections": []
+    },
+    "carriers": {
+      "sampled_record": "0000",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "address_uri",
+          "path": "/wm/carriers/0000/addresses",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "carrierDetails_uri",
+          "path": "/wm/carriers/0000/carrierDetails",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "carrierMatrixs_uri",
+          "path": "/wm/carriers/0000/carrierMatrices",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        }
+      ]
+    },
+    "catchQuantityConfigs": {
+      "sampled_record": "----*!AZ01",
+      "actions": [],
+      "sub_collections": []
+    },
+    "categoryCounts": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "clientCountTypes": {
+      "sampled_record": "BP*!A",
+      "actions": [],
+      "sub_collections": []
+    },
+    "clientWarehouse": {
+      "sampled_record": "----*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "clients": {
+      "sampled_record": "----",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "address_uri",
+          "path": "/wm/clients/----/addresses",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "clientGroups_uri",
+          "path": "/wm/clients/----/groups",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "clientWarehouse_uri",
+          "path": "/wm/clients/----/warehouse",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "codes": {
+      "sampled_record": "SHRINK-WRAP-PAL*!actcod",
+      "actions": [],
+      "sub_collections": []
+    },
+    "combinedPickingPolicies": {
+      "sampled_record": "SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "commandConfigurationArguments": {
+      "sampled_record": "qty*!proc_distro_fix_uom",
+      "actions": [],
+      "sub_collections": []
+    },
+    "commandConfigurations": {
+      "sampled_record": "cmd_resource_typ",
+      "actions": [],
+      "sub_collections": []
+    },
+    "commodities": {
+      "sampled_record": "0000000001",
+      "actions": [],
+      "sub_collections": []
+    },
+    "consolidationRules": {
+      "sampled_record": "1*!----",
+      "actions": [],
+      "sub_collections": []
+    },
+    "countTypes": {
+      "sampled_record": "AA",
+      "actions": [],
+      "sub_collections": []
+    },
+    "countZones": {
+      "sampled_record": "10010",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "consolidations_uri",
+          "path": "/wm/countZones/10010/consolidations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "locations_uri",
+          "path": "/wm/countZones/10010/locations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "customerTypes": {
+      "sampled_record": "ABSC",
+      "actions": [],
+      "sub_collections": []
+    },
+    "customers": {
+      "sampled_record": "----*!0000000040",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "address_uri",
+          "path": "/wm/customers/----%2A%210000000040/addresses",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "customsItemTypes": {
+      "sampled_record": "C",
+      "actions": [],
+      "sub_collections": []
+    },
+    "cycleCountABCConfig": {
+      "sampled_record": "----*!----*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "cycleCountPromptConfig": {
+      "sampled_record": "----*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "dataProtectionConfigs": {
+      "sampled_record": "adr_district*!ADRMST",
+      "actions": [],
+      "sub_collections": []
+    },
+    "deviceClassFunctions": {
+      "sampled_record": "V*!1",
+      "actions": [],
+      "sub_collections": []
+    },
+    "devices": {
+      "sampled_record": "000*!SG",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "consolidateAtPackStationZone_uri",
+          "path": "/wm/devices/000%2A%21SG/consolidateAtPackStationZone",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "scaleWeight_uri",
+          "path": "/wm/devices/000%2A%21SG/scaleWeight",
+          "get_status": 422,
+          "options_status": 520,
+          "allow": null,
+          "kind": "unclear (422)"
+        },
+        {
+          "link": "shipmentsPending_uri",
+          "path": "/wm/devices/000%2A%21SG/shipmentsPendingPack",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "directedWorkOperations": {
+      "sampled_record": "BPCK*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "distributionTypes": {
+      "sampled_record": "dt_fix_qty",
+      "actions": [],
+      "sub_collections": []
+    },
+    "dockDoorAreas": {
+      "sampled_record": "ADJS*!B1*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "dockDoors": {
+      "sampled_record": "TRL0053408*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "dockSlots": {
+      "sampled_record": "DESTRUCTION*!SG",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "dockDoors_uri",
+          "path": "/wm/dockSlots/DESTRUCTION%2A%21SG/dockDoors",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "documentTypes": {
+      "sampled_record": "Amazon Case",
+      "actions": [],
+      "sub_collections": []
+    },
+    "doorsWithAppointments": {
+      "sampled_record": "ANIMAL-DUMPSTER*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "doorsWithTrailers": {
+      "sampled_record": "ANIMAL-DUMPSTER*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "equipmentTypes": {
+      "sampled_record": "7BHAND",
+      "actions": [],
+      "sub_collections": []
+    },
+    "escalationCommand": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "exitPoints": {
+      "sampled_record": "ALLOCINV*!SERVICE-BACKGROUND",
+      "actions": [],
+      "sub_collections": []
+    },
+    "floorPlan": {
+      "sampled_record": "0000011*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "footprints": {
+      "sampled_record": "1-1-1*!----*!0001057000*!SG",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "footprintDetails_uri",
+          "path": "/wm/footprints/1-1-1%2A%21----%2A%210001057000%2A%21SG/footprintDetails",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "supplierItemFootprint_uri",
+          "path": "/wm/footprints/1-1-1%2A%21----%2A%210001057000%2A%21SG/supplierFootprints",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "handlingUnitCategories": {
+      "sampled_record": "INV*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "handlingUnitTypes": {
+      "sampled_record": "CHEP",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "handlingUnitSlots_uri",
+          "path": "/wm/handlingUnitTypes/CHEP/handlingUnitSlots",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "handlingUnitTypeCartons_uri",
+          "path": "/wm/handlingUnitTypes/CHEP/handlingUnitTypeCartons",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "handlingUnitTypeFeatures_uri",
+          "path": "/wm/handlingUnitTypes/CHEP/handlingUnitTypeFeatures",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "holdDefinitions": {
+      "sampled_record": "86092*!92*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "hostSystems": {
+      "sampled_record": "AGV_OUT",
+      "actions": [],
+      "sub_collections": []
+    },
+    "hotItemsByLoc": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "location_uri",
+          "path": "/wm/locations/TRL0262224%2A%21SG",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "inboundOrderTypes": {
+      "sampled_record": "CO",
+      "actions": [],
+      "sub_collections": []
+    },
+    "inboundQualityIssues": {
+      "sampled_record": "IBQ000000001",
+      "actions": [],
+      "sub_collections": []
+    },
+    "integratorTransactions": {
+      "sampled_record": "UC_EDI_214_OUB_IFD*!2012.2*!GMI",
+      "actions": [],
+      "sub_collections": []
+    },
+    "inventoryConsolidationCriteria": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "itemClasses": {
+      "sampled_record": "AMMONIA",
+      "actions": [],
+      "sub_collections": []
+    },
+    "itemFamilies": {
+      "sampled_record": "101011",
+      "actions": [],
+      "sub_collections": []
+    },
+    "itemFamilyGroups": {
+      "sampled_record": "ABCD - CH 7",
+      "actions": [],
+      "sub_collections": []
+    },
+    "itemHierarchyLevelDescriptions": {
+      "sampled_record": "hrcy_level1",
+      "actions": [],
+      "sub_collections": []
+    },
+    "itemLotExpirationDateValidation": {
+      "sampled_record": "----*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "itemLots": {
+      "sampled_record": "----*!0360646000*!01APR4SG*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "itemStyleAttributes": {
+      "sampled_record": "TST1*!prtcolor",
+      "actions": [],
+      "sub_collections": []
+    },
+    "items": {
+      "sampled_record": "----*!0001057000*!SG",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "allocationAttributes_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/allocationAttributes",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "assetDetails_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/handlingUnitDetails",
+          "get_status": 422,
+          "options_status": 520,
+          "allow": null,
+          "kind": "unclear (422)"
+        },
+        {
+          "link": "countHistory_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/countHistory",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "footprints_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/footprints",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "hotItemDetails_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/hotItemDetails",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "inventoryShipped_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/inventoryShipped",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "media_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/media",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "serialNumberTypes_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/serialNumberTypes",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "summary_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/summary",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "transactionHistory_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/dailyTransactions",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "uomQuantities_uri",
+          "path": "/wm/items/----%2A%210001057000%2A%21SG/uomQuantities",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "jobDefinitions": {
+      "sampled_record": "ABC-COUNT-GENERATION",
+      "actions": [],
+      "sub_collections": []
+    },
+    "labelFormats": {
+      "sampled_record": "711",
+      "actions": [],
+      "sub_collections": []
+    },
+    "levelWithLevelType": {
+      "sampled_record": "AABN*!101*!A*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "lmDiscreteProcedures": {
+      "sampled_record": "CNTBCKD*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "lmUserFieldOptions": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "lmWorkTypes": {
+      "sampled_record": "PACK-LST-CTN",
+      "actions": [],
+      "sub_collections": []
+    },
+    "loadAttributeConfigurations": {
+      "sampled_record": "load_attr1_flg*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "locales": {
+      "sampled_record": "ARABIC_SAUDI",
+      "actions": [],
+      "sub_collections": []
+    },
+    "locationConfigs": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "locationTypes": {
+      "sampled_record": "10000",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "consolidations_uri",
+          "path": "/wm/locationTypes/10000/consolidations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "locations": {
+      "sampled_record": "000*!SG",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "asset_uri",
+          "path": "/wm/locations/000%2A%21SG/assets",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "configuration_uri",
+          "path": "/wm/locations/000%2A%21SG/configuration",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "countHistory_uri",
+          "path": "/wm/locations/000%2A%21SG/countHistory",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "countInProgessLocationDetail_uri",
+          "path": "/wm/locations/000%2A%21SG/countInProgressDetails",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "fixErrors_uri",
+          "path": "/wm/locations/000%2A%21SG/fixErrors",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "history_uri",
+          "path": "/wm/locations/000%2A%21SG/history",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "item_uri",
+          "path": "/wm/locations/000%2A%21SG/locationItems",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "locationInventorySummary_uri",
+          "path": "/wm/locations/000%2A%21SG/inventorySummary",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "locationType_uri",
+          "path": "/wm/locationTypes/10013",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "mixingRules_uri",
+          "path": "/wm/locations/000%2A%21SG/mixingrules",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "summary_uri",
+          "path": "/wm/locations/000%2A%21SG/summary",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "uomQuantities_uri",
+          "path": "/wm/locations/000%2A%21SG/uomQuantities",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "workZones_uri",
+          "path": "/wm/workZones/10000",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "lotFormats": {
+      "sampled_record": "EXP",
+      "actions": [],
+      "sub_collections": []
+    },
+    "lpnInventoryMixingRules": {
+      "sampled_record": "LRID000013",
+      "actions": [],
+      "sub_collections": []
+    },
+    "masterWorkflows": {
+      "sampled_record": "ACLX-PICK-REQ",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "workflowInstruction_uri",
+          "path": "/wm/masterWorkflows/ACLX-PICK-REQ/workflowInstructions",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "movementPathDetails": {
+      "sampled_record": "10646*!1*!10647*!L*!10001",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "criteria_uri",
+          "path": "/wm/movementPathDetails/10646%2A%211%2A%2110647%2A%21L%2A%2110001/movementPathCriterias",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "movementPaths": {
+      "sampled_record": "10646*!L*!10001",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "details_uri",
+          "path": "/wm/movementPaths/10646%2A%21L%2A%2110001/movementPathDetails",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "movementRestrictions": {
+      "sampled_record": "10646*!X*!1*!10003*!EXCLUSION-OVERRIDES*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "movementZoneNextMoves": {
+      "sampled_record": "10225*!L*!1*!10183",
+      "actions": [],
+      "sub_collections": []
+    },
+    "movementZones": {
+      "sampled_record": "10001",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "consolidations_uri",
+          "path": "/wm/movementZones/10001/consolidations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "locations_uri",
+          "path": "/wm/movementZones/10001/locations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "movementZoneNextMoves_uri",
+          "path": "/wm/movementZones/10001/movementZoneNextMoves",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "movementZonesWithResourceCode": {
+      "sampled_record": "10208",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "consolidations_uri",
+          "path": "/wm/movementZones/10208/consolidations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "locations_uri",
+          "path": "/wm/movementZones/10208/locations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "movementZoneNextMoves_uri",
+          "path": "/wm/movementZones/10208/movementZoneNextMoves",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "noteTypeExitPoints": {
+      "sampled_record": "LOADTRLR*!BOL",
+      "actions": [],
+      "sub_collections": []
+    },
+    "noteTypes": {
+      "sampled_record": "BOL",
+      "actions": [],
+      "sub_collections": []
+    },
+    "orderTypes": {
+      "sampled_record": "C*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "overrideLocationCodes": {
+      "sampled_record": "BL",
+      "actions": [],
+      "sub_collections": []
+    },
+    "packStationFields": {
+      "sampled_record": "PACK*! *!prtnum*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "packingConfigurations": {
+      "sampled_record": "----*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "parcelPackageCodes": {
+      "sampled_record": "std.fedexws.com*!10B*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "parcelPaymentTerms": {
+      "sampled_record": "87*!1*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "paymentTerms": {
+      "sampled_record": "ENVEYO*!TP",
+      "actions": [],
+      "sub_collections": []
+    },
+    "pickMethods": {
+      "sampled_record": "-50013",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "pickPreValidationScheme_uri",
+          "path": "/wm/pickPreValidationSchemes/DEF_DISABLE",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "pickPreValidationSchemes": {
+      "sampled_record": "DEF_DISABLE",
+      "actions": [],
+      "sub_collections": []
+    },
+    "pickReleaseRules": {
+      "sampled_record": "1",
+      "actions": [],
+      "sub_collections": []
+    },
+    "pickingSummary": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "workZonePickingSummary_uri",
+          "path": "/wm/pickingSummary/workZonePickingSummary",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "pickingVerifications": {
+      "sampled_record": "L*!10033*!P",
+      "actions": [],
+      "sub_collections": []
+    },
+    "pndLocations": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "policies": {
+      "sampled_record": "ALLOCATE-INV*!ORDLIN*!CREATE-ORDER-TO-INV*!0*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "postalCodes": {
+      "sampled_record": "Caledon East*!CAN*!0*!L7C 1R3*!ON",
+      "actions": [],
+      "sub_collections": []
+    },
+    "printers": {
+      "sampled_record": "SG_DOC01*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "processingFieldsForPackout": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "progressions": {
+      "sampled_record": "001",
+      "actions": [],
+      "sub_collections": []
+    },
+    "reasonCodes": {
+      "sampled_record": "----*!05*!ADJAPP",
+      "actions": [],
+      "sub_collections": []
+    },
+    "reasonGroups": {
+      "sampled_record": "ADJAPP",
+      "actions": [],
+      "sub_collections": []
+    },
+    "receivableInboundOrderStatuses": {
+      "sampled_record": "OPEN*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "receivingHistoryConfiguration": {
+      "sampled_record": "----*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "releaseRules": {
+      "sampled_record": "-10000*!AA*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "replenishmentConfigurations": {
+      "sampled_record": "RCF0000CZN",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "item_uri",
+          "path": "/wm/items/----%2A%210001072000%2A%21SG",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "movementZone_uri",
+          "path": "/wm/movementZones/11224",
+          "get_status": 404,
+          "options_status": 520,
+          "allow": null,
+          "kind": "nothing here for this record, or action requiring another verb"
+        }
+      ]
+    },
+    "resourceTypeCommands": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "rfForms": {
+      "sampled_record": "0*!ABOUT",
+      "actions": [],
+      "sub_collections": []
+    },
+    "rfSummaryDisplayConfig": {
+      "sampled_record": "invsts*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "rfVendors": {
+      "sampled_record": "ANY",
+      "actions": [],
+      "sub_collections": []
+    },
+    "ruleParameters": {
+      "sampled_record": "adddte*!HAZ-ORDERSELECTION",
+      "actions": [],
+      "sub_collections": []
+    },
+    "rules": {
+      "sampled_record": "STD-ORDERSELECTION",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "ruleParameters_uri",
+          "path": "/wm/rules/STD-ORDERSELECTION/ruleParameters",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "serialNumberTypes": {
+      "sampled_record": "ANYSERNUM",
+      "actions": [],
+      "sub_collections": []
+    },
+    "shipmentStatusChangeNotifications": {
+      "sampled_record": "----*!R*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "shorts": {
+      "sampled_record": "RPL2156718",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "allocationSearchPathRules_uri",
+          "path": "/wm/shorts/RPL2156718/allocationSearchPathRules",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "shipToAddress_uri",
+          "path": "/wm/addresses/SONOCO",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "storageConfigurationRules": {
+      "sampled_record": "001004",
+      "actions": [],
+      "sub_collections": []
+    },
+    "storageConfigurations": {
+      "sampled_record": "000186",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "storageConfigurationRules_uri",
+          "path": "/wm/storageConfigurations/000186/rules",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "storageSuffixes": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "storageTemplateHeaders": {
+      "sampled_record": "-1",
+      "actions": [],
+      "sub_collections": []
+    },
+    "storageUoms": {
+      "sampled_record": "10143*!PA",
+      "actions": [],
+      "sub_collections": []
+    },
+    "storageZoneInventoryMixingRules": {
+      "sampled_record": "hld_flg*!10135*!invdtl",
+      "actions": [],
+      "sub_collections": []
+    },
+    "storageZones": {
+      "sampled_record": "10000",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "consolidations_uri",
+          "path": "/wm/storageZones/10000/consolidations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "locations_uri",
+          "path": "/wm/storageZones/10000/locations",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "suppliers": {
+      "sampled_record": "----*!0040381130715",
+      "actions": [],
+      "sub_collections": []
+    },
+    "tablesForPalletBuildCriteria": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "uDIAConfigs": {
+      "sampled_record": "attributeDate1",
+      "actions": [],
+      "sub_collections": []
+    },
+    "uDIAFlagConfigs": {
+      "sampled_record": "attributeDate1",
+      "actions": [],
+      "sub_collections": []
+    },
+    "uoms": {
+      "sampled_record": "EA*!uomcod",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "warehouseUoms_uri",
+          "path": "/wm/uoms/EA%2A%21uomcod/warehouseUoms",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "userOperations": {
+      "sampled_record": "CNT*!AMERCADO*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "warehouseEquipmentAccesses": {
+      "sampled_record": "ALEQ*!7BHAND",
+      "actions": [],
+      "sub_collections": []
+    },
+    "warehouseTransportModes": {
+      "sampled_record": "AF*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "warehouseUoms": {
+      "sampled_record": "CS*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "warehouseWorkflows": {
+      "sampled_record": "SG*!INIT-SAFETY-CHECK",
+      "actions": [],
+      "sub_collections": []
+    },
+    "warehouses": {
+      "sampled_record": "SG",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "address_uri",
+          "path": "/wm/addresses/A000000021",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "waveRules": {
+      "sampled_record": "0*!HAZ-ORDERSELECTION",
+      "actions": [],
+      "sub_collections": []
+    },
+    "wcsEvents": {
+      "sampled_record": null,
+      "actions": [],
+      "sub_collections": []
+    },
+    "workAreaMove": {
+      "sampled_record": "SPK-WW*!DCK-EW*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "workAreas": {
+      "sampled_record": "SG*!DCK-EW",
+      "actions": [],
+      "sub_collections": []
+    },
+    "workAssignmentRuleExceptions": {
+      "sampled_record": "4",
+      "actions": [],
+      "sub_collections": [
+        {
+          "link": "workListGroupCriterion_uri",
+          "path": "/wm/workAssignmentRuleExceptions/4/workListGroupCriteria",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "workListRuleBreakCriterion_uri",
+          "path": "/wm/workAssignmentRuleExceptions/4/workListRuleBreakCriteria",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "workListSelectCriterion_uri",
+          "path": "/wm/workAssignmentRuleExceptions/4/workListSelectCriteria",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        },
+        {
+          "link": "workListSequenceCriterion_uri",
+          "path": "/wm/workAssignmentRuleExceptions/4/workListSequenceCriteria",
+          "get_status": 200,
+          "options_status": 520,
+          "allow": null,
+          "kind": "sub-collection"
+        }
+      ]
+    },
+    "workListGroupCriteria": {
+      "sampled_record": "19",
+      "actions": [],
+      "sub_collections": []
+    },
+    "workOperations": {
+      "sampled_record": "BPCK*!SG",
+      "actions": [],
+      "sub_collections": []
+    },
+    "workOrderTypes": {
+      "sampled_record": "SG*!ASMBLE",
+      "actions": [],
+      "sub_collections": []
+    },
+    "workflowSamplingConfigurations": {
+      "sampled_record": "ALL",
+      "actions": [],
+      "sub_collections": []
     }
   }
 }

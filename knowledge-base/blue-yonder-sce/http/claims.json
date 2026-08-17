@@ -657,6 +657,22 @@
       "consequence": "This is the operational structure the graph never had: its relationships all came from Configuration flows. These are declared by the server per record, so they need no inference — and they are the route to the process view (shipment to its picks to its waves). The operations are the first sighting of how the operational verbs are addressed at all.",
       "caution": "shipments.shipmentStatus is NOT filterable. The status vocabulary exists, but shipments cannot be queried by status — a filtered read on it returns 200 and nothing. Paging plus client-side selection is the only route today.",
       "evidence_level": "observed"
+    },
+    {
+      "id": "operational-verb-inventory-enumerated",
+      "source": "tools/cdp/dump-actions-menu.mjs across the operational tier — 2026-08-17",
+      "claim": "The operational tier offers 95 distinct named actions across 24 screens, and they are enumerable without performing any of them.",
+      "verdict": "RECORDED",
+      "evidence": "index/operational-actions.json; index/actions-menus.json",
+      "observed": [
+        "143 action items, 58 enabled at capture time, 95 distinct names. Menus were opened, read and closed; no item was activated.",
+        "The verbs are the words the application uses, not ours: Receive Inventory, Auto Receive, Allocate, Cancel Picks, Suspend Work, Resume Work, Assign User, Unassign, Hand Over, Complete, Change Carrier, Change Priority, Assign Lane, Assign to Staging Lane, Assign to Dock Set, Maintain Dock Schedules, Mass Update, Update Location Attributes, Relabel LPN, Print Compliant Labels.",
+        "Only 40 of 123 operational screens carry an Actions menu at all; the rest expose their work another way.",
+        "Contrast with the *_uri sweep across 163 resources, which found just 2 operations (trailers.closeWithWorkQueue, structuredInventory.editAsn). The verbs are overwhelmingly in the UI, not published on the records."
+      ],
+      "consequence": "This is the vocabulary an intent resolver maps onto: an operator saying \"cancel the picks on this wave\" is naming Cancel Picks on Waves and Picks. It closes the gap between an utterance and a screen. What it does NOT give is the request behind any of them.",
+      "caution": "No verb here has a recorded request. Each needs an approved capture, and the one operational write ever observed on this instance — inventory adjust — answered 200 with approvalRequired true and moved no stock, so a menu item cannot be assumed to do what its name suggests.",
+      "evidence_level": "observed"
     }
   ],
   "still_asserted_not_reproduced": [],

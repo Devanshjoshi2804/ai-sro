@@ -9,6 +9,7 @@ from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import PrincipalId, RecordingId, SkillId, TenantId
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.assertion import Assertion
+from sro.domain.skill.earned import earned_stage
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.plan import NetworkPlan, UiPlan
 from sro.domain.skill.promotion import PromotionStage, check_promotion
@@ -141,6 +142,33 @@ class SkillVersion:
 
     def record_run(self, verdict: Verdict, at: datetime) -> None:
         self.track_record = self.track_record.after(verdict, at)
+
+    def earn(self, verdict: Verdict, at: datetime) -> PromotionStage | None:
+        """Move up if the record now says so. Returns the rung, or None.
+
+        Promotion by hand made a version's stage a fact about somebody's
+        afternoon rather than about the skill: the ladder was always meant to be
+        earned, and waiting for a click is not evidence. Nobody is named as the
+        promoter because nobody was asked -- the runs were.
+        """
+        target = earned_stage(
+            current=self.stage,
+            record=self.track_record,
+            verdict=verdict,
+            has_verifiable_outcome=self.verifiable,
+            sends_writes=any(
+                step.network_plan is not None
+                and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
+                for step in self.steps
+            ),
+        )
+        if target is None:
+            return None
+        self.stage = target
+        self.promoted_at = at
+        self.promoted_by = None
+        self.demotion_reason = None
+        return target
 
     def demote(self, to: PromotionStage, at: datetime, why: str) -> None:
         """Pull a version back down. Not a promotion in reverse: this happens

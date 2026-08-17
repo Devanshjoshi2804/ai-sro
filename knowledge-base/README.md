@@ -169,6 +169,12 @@ column at all** and can only be paged. There is no pattern to infer it from (`*C
 everything else 31%), so `index/filterable-columns.json` holds the measured answer per resource.
 Check it before trusting an empty result: on an unproven column, empty means unknown, not absent.
 
+**The operational verb inventory is enumerated.** 95 distinct actions across 24 screens —
+`Receive Inventory`, `Auto Receive`, `Allocate`, `Cancel Picks`, `Suspend Work`, `Hand Over`,
+`Change Carrier`, `Assign Lane` — in `index/operational-actions.json`. Menus were opened and read;
+nothing was activated. **None has a recorded request yet**: each needs an approved capture, and the
+only operational write ever observed here answered 200 with `approvalRequired` and moved no stock.
+
 **Records publish their own relationships.** A shipment carries `*_uri` links to its orders, picks,
 waves, shipmentLines, handlingUnits, crossdocks and manifestDetails; a trailer to its inboundLoads,
 stagingLocations and workflowResults. Two of those links are **operations, not collections** —

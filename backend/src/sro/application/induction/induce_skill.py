@@ -16,6 +16,7 @@ from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
+from sro.domain.skill.track_record import Verdict
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +78,12 @@ class InduceSkill:
                 when_to_use=described.when_to_use,
             )
             skill.add_version(version)
+            # Straight to rehearsing, once it is attached: a version is added at
+            # RECORDED and cannot be run there, so it could never earn the rung
+            # that lets it run. Nothing is sent at the next one -- the request is
+            # built and withheld for somebody to read, and withholding it from
+            # the operator too is not caution, just a skill nobody can review.
+            version.earn(Verdict.WITHHELD, now)
             await uow.skills.save(skill)
             await uow.commit()
 

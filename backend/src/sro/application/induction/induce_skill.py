@@ -90,8 +90,13 @@ class InduceSkill:
             if (found := ambiguity_in(run_a.frames, objective)) is not None:
                 await self._ask.raise_question(ctx, found)
 
+            # What somebody already said their words mean, if they have said.
+            settled = await self._ask.settled(
+                ctx, key=f"{objective.target_system}/{objective.entity_type}/collection"
+            )
             for companion in read_skills(
                 run_a.frames,
+                prefer=settled,
                 taught=objective,
                 recording_id=run_a.id,
                 tenant_id=ctx.tenant_id,

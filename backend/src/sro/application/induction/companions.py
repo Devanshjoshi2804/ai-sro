@@ -13,12 +13,15 @@ everything else.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from sro.application.induction.capabilities import ReadCapability, reads_about, wrote_to
 from sro.application.induction.headers import build_header_plans
 from sro.application.knowledge.open_questions import Ambiguity
 from sro.domain.recording.events import ActionFrame
+from sro.domain.recording.network import CapturedRequest
 from sro.domain.shared.identifiers import PrincipalId, RecordingId, SkillId
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.assertion import Assertion, AssertionKind
@@ -63,6 +66,7 @@ def ambiguity_in(frames: tuple[ActionFrame, ...], taught: ObjectiveKey) -> Ambig
 def read_skills(
     frames: tuple[ActionFrame, ...],
     *,
+    prefer: str | None = None,
     taught: ObjectiveKey,
     recording_id: RecordingId,
     tenant_id: object,
@@ -89,8 +93,46 @@ def read_skills(
             written=wrote_to(frames),
             skill_id=new_id(),  # type: ignore[operator]
         )
-        for capability in reads_about(frames, taught.entity_type)[:1]
+        for capability in _chosen(frames, taught, prefer)[:1]
     )
+
+
+def _chosen(
+    frames: tuple[ActionFrame, ...], taught: ObjectiveKey, prefer: str | None
+) -> tuple[ReadCapability, ...]:
+    """The read to build from, once somebody has said which collection they mean.
+
+    The screen creates in one collection and refreshes another, and only a
+    person can say which one their words are about. When they have said, and it
+    is not the one the demonstration happened to fetch, the read is built from
+    the collection they named -- addressed by the URL the task already writes
+    to, which is proven to exist because a 201 came back from it.
+
+    That is the operator's instruction, not an inference: the address is
+    evidence, and which collection they mean is theirs to declare.
+    """
+    captured = reads_about(frames, taught.entity_type)
+    if not prefer or (captured and captured[0].entity.lower() == prefer.lower()):
+        return captured
+
+    write = _write_request(frames)
+    if write is None or _resource(write.url).lower() != prefer.lower():
+        return captured
+    # No query at all: the site parameters belong to the site's own view, and
+    # this collection answers 500 when given them.
+    return (ReadCapability(replace(write, method="GET", url=write.url.split("?")[0]), prefer, -1),)
+
+
+def _write_request(frames: tuple[ActionFrame, ...]) -> CapturedRequest | None:
+    for frame in reversed(frames):
+        for request in frame.requests:
+            if request.is_mutation and request.status and 200 <= request.status < 300:
+                return request
+    return None
+
+
+def _resource(url: str) -> str:
+    return [part for part in urlsplit(url).path.split("/") if part][-1]
 
 
 def objective_for(capability: ReadCapability, taught: ObjectiveKey) -> ObjectiveKey:
@@ -116,6 +158,8 @@ def _skill(
     skill_id: object,
 ) -> Skill:
     entity = taught.entity_type.replace("_", " ")
+    # -1 means the collection was named rather than observed: nobody fetched it
+    # during the demonstration, so how many it holds is not something to claim.
     listing = capability.rows != 1
     objective = objective_for(capability, taught)
 
@@ -148,14 +192,21 @@ def _skill(
                         target_system=taught.target_system,
                         facility=taught.facility,
                     ),
-                    expected_status=capability.request.status or 200,
+                    # 200 when the collection was named rather than observed:
+                    # the request it was synthesised from was a create, and a
+                    # read that expects 201 fails on every success.
+                    expected_status=200
+                    if capability.rows < 0
+                    else (capability.request.status or 200),
                 ),
                 # The only assertion a read needs, and the one that makes it
                 # verifiable: it answered the way it answered for the human.
                 assertions=(
                     Assertion(
                         kind=AssertionKind.HTTP_STATUS,
-                        expected=Template(str(capability.request.status or 200)),
+                        expected=Template(
+                            "200" if capability.rows < 0 else str(capability.request.status or 200)
+                        ),
                     ),
                 ),
             ),
@@ -180,7 +231,7 @@ def _skill(
             )
             + (
                 f" There were {capability.rows} when this was observed."
-                if listing and capability.rows
+                if listing and capability.rows > 0
                 else ""
             )
         ),

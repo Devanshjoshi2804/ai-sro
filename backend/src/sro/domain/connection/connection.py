@@ -44,6 +44,17 @@ class Connection:
     authenticated_at: datetime | None = None
     last_error: str | None = None
 
+    failures_acknowledged_at: datetime | None = None
+    """When somebody looked at this system's recent failures and said to carry on.
+
+    The circuit breaker asks for a person and, without this, gave them nothing
+    to do: every run was refused until the window aged out, including the run
+    that would have shown the fault was already fixed. Failures before this
+    moment stop counting."""
+
+    acknowledged_by: str | None = None
+    acknowledgement_reason: str | None = None
+
     def __post_init__(self) -> None:
         if not self.name.strip():
             raise InvariantViolation("Connection requires a name")
@@ -57,6 +68,21 @@ class Connection:
             )
         if self.created_at.tzinfo is None:
             raise InvariantViolation("Connection.created_at must be timezone-aware")
+
+    def acknowledge_failures(self, at: datetime, by: str, reason: str) -> None:
+        """Close the breaker by a named decision rather than by waiting.
+
+        Recorded rather than silent: a breaker that anybody can clear without
+        leaving their name is a breaker that stops meaning anything.
+        """
+        if not reason.strip():
+            raise InvariantViolation(
+                "clearing a breaker needs a reason: the next person to read this "
+                "is deciding whether to trust it"
+            )
+        self.failures_acknowledged_at = at
+        self.acknowledged_by = by
+        self.acknowledgement_reason = reason.strip()
 
     @property
     def cookie_key(self) -> str:

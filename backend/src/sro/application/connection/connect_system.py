@@ -307,7 +307,16 @@ async def _keep(
         connection.session_key,
         json.dumps({"origin": connection.base_url, "cookies": cookies}),
     )
-    await vault.store(connection.cookie_key, _cookie_header(cookies, connection.base_url))
+    header = _cookie_header(cookies, connection.base_url)
+    await vault.store(connection.cookie_key, header)
+    # And the site-scoped copy, which a skill's credential reference names first.
+    # Left behind, it shadows the system-scoped one forever: the executor sent a
+    # cookie from a session that ended hours earlier while every check on the
+    # fresh one passed, and the run failed in a way nothing could explain.
+    await vault.store(
+        f"{connection.cookie_key.rsplit('/', 1)[0]}/{_facility_of(connection.base_url)}/cookie",
+        header,
+    )
     connection.authenticated(now)
 
 
@@ -333,3 +342,27 @@ class LoadSession:
         payload = json.loads(stored)
         cookies: list[dict[str, object]] = payload.get("cookies", [])
         return tuple(cookies)
+
+
+class AcknowledgeFailures:
+    """Close a tripped breaker by a named decision rather than by waiting.
+
+    The breaker's own message asks for a person to look. This is what that
+    person does afterwards, and it is recorded -- who, when, why -- because a
+    breaker anybody can clear anonymously is a breaker that stops meaning
+    anything.
+    """
+
+    def __init__(self, uow: UnitOfWork, clock: Clock) -> None:
+        self._uow = uow
+        self._clock = clock
+
+    async def execute(
+        self, ctx: RequestContext, *, connection_id: ConnectionId, reason: str
+    ) -> Connection:
+        async with self._uow as uow:
+            connection = await uow.connections.get(ctx.tenant_id, connection_id)
+            connection.acknowledge_failures(self._clock.now(), ctx.principal_id.value, reason)
+            await uow.connections.save(connection)
+            await uow.commit()
+        return connection

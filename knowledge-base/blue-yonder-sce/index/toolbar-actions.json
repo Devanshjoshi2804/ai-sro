@@ -1,0 +1,2105 @@
+{
+  "generated_by": "tools/cdp/dump-toolbar-actions.mjs, collated 2026-08-17",
+  "what_this_is": "Toolbar controls on the operational screens that have no Actions menu, split into domain verbs and the grid chrome every screen shares.",
+  "method": "Buttons were read from the component tree. Nothing was clicked.",
+  "finding": "Most of these screens are monitors, not action surfaces: they carry only export, print, refresh and filter. The operational write surface is concentrated in the 40 screens that DO have an Actions menu.",
+  "totals": {
+    "screens_read": 41,
+    "screens_with_a_domain_verb": 25,
+    "screens_that_are_chrome_only": 16,
+    "domain_verbs": 69
+  },
+  "grid_chrome_present_on_every_screen": [
+    "exportAction",
+    "printAction",
+    "refreshAction",
+    "refreshIntervalButton",
+    "filterMenu"
+  ],
+  "screens_that_are_monitors_only": [
+    "Staging",
+    "Door Activity",
+    "Receiving Assets Display Serialized",
+    "Receiving Assets Display Non Serialized",
+    "Transport Equipment User Assignment",
+    "RF Display",
+    "Work Operation Override",
+    "Loads",
+    "Shipped LPN Activity",
+    "Items Not Assigned To A Location",
+    "WCS Inventory Discrepancy Display",
+    "WCS Inventory Snapshot",
+    "Distribution Status Display",
+    "Distribution Status Store Schedule",
+    "Plannable Order Details",
+    "Check Out"
+  ],
+  "screens_with_domain_verbs": {
+    "Workstation": {
+      "area": "systemAdmin",
+      "route": "#/wm.workstation",
+      "verbs": [
+        {
+          "action": "Save",
+          "itemId": "wm-workstation-btnSelect",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel",
+          "itemId": "wm-workstation-btnCancel",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "SG": {
+      "area": "systemAdmin",
+      "route": "#/refs-Site",
+      "verbs": [
+        {
+          "action": "Select",
+          "itemId": "btnSubmit",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel",
+          "itemId": "btnCancel",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Dashboard": {
+      "area": "outboundPlanner",
+      "route": "#wm.outboundplanner/wm.outbounddashboard////",
+      "verbs": [
+        {
+          "action": "Progress",
+          "itemId": "outboundplan_progressBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Issues",
+          "itemId": "outboundplan_issuesBtn",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Appointments": {
+      "area": "yard",
+      "route": "#wm.yard/wm.appointments////",
+      "verbs": [
+        {
+          "action": "Go",
+          "itemId": "appt_searchBtn",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Check In": {
+      "area": "yard",
+      "route": "#wm.yard/wm.checkin////",
+      "verbs": [
+        {
+          "action": "Check In",
+          "itemId": "checkIn_checkInButton",
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Reset",
+          "itemId": "checkIn_resetButton",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Workflows": {
+      "area": "yard",
+      "route": "#wm.yard/wm.workflowhistory////",
+      "verbs": [
+        {
+          "action": "Planned 0",
+          "itemId": "wm-inbound-plan-toggleBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "In Process 0",
+          "itemId": "wm-inbound-inprocess-toggleBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Failed 0",
+          "itemId": "wm-inbound-failed-toggleBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "History 0",
+          "itemId": "wm-inbound-completed-toggleBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Equip/Production",
+          "itemId": "equipmentToggleButton",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Background",
+          "itemId": "backgroundToggleButton",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "RF Operator",
+          "itemId": "userToggleButton",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Print Compliant Labels": {
+      "area": "inventory",
+      "route": "#wm.inventory/wm.printcompliantlabels////",
+      "verbs": [
+        {
+          "action": "Print",
+          "itemId": "printButton",
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "History": {
+      "area": "yard",
+      "route": "#wm.yard/wm.dailytransaction////",
+      "verbs": [
+        {
+          "action": "Attributes",
+          "itemId": "wm-dailytransaction-toggle-attributes",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Order",
+          "itemId": "wm-dailytransaction-toggle-order",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Adjustment",
+          "itemId": "wm-dailytransaction-toggle-adjustment",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Handling Unit",
+          "itemId": "wm-dailytransaction-toggle-handlingUnit",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Go",
+          "itemId": "wm-searchBtn",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Send RF Message": {
+      "area": "yard",
+      "route": "#wm.yard/wm.rfmessage////",
+      "verbs": [
+        {
+          "action": "Select Recipients",
+          "itemId": "rfmessage-add-recipient-btn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Send",
+          "itemId": "rfmessage-send-button",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Clear",
+          "itemId": "rfmessage-clear-button",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Log Indirect Work": {
+      "area": "outboundPlanner",
+      "route": "#wm.outboundplanner/wm.lmindirect////",
+      "verbs": [
+        {
+          "action": "Save",
+          "itemId": "wm-workstation-btnSelect",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel",
+          "itemId": "wm-workstation-btnCancel",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Work Queue": {
+      "area": "specialPack",
+      "route": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.workqueue////",
+      "verbs": [
+        {
+          "action": "Summary",
+          "itemId": "workQueue_summaryBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Actions",
+          "itemId": "gridActionsButton",
+          "enabled": true,
+          "has_submenu": true
+        }
+      ]
+    },
+    "Waves and Picks": {
+      "area": "specialPack",
+      "route": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.wavesandpicks////",
+      "verbs": [
+        {
+          "action": "Waves 0",
+          "itemId": "picks-waves",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Picks 0",
+          "itemId": "picks-picks",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Actions",
+          "itemId": "wave-actions-btn-id",
+          "enabled": true,
+          "has_submenu": true
+        }
+      ]
+    },
+    "Parcel": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.parcel////",
+      "verbs": [
+        {
+          "action": "Shipments",
+          "itemId": "parcelShipmentsToggle",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Packages",
+          "itemId": "parcelPackagesToggle",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Manifests",
+          "itemId": "parcelManifestsToggle",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Parcel Audit Log": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.parcelauditlog////",
+      "verbs": [
+        {
+          "action": "Go",
+          "itemId": "wm-searchBtn",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Manifesting": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.manifesting////",
+      "verbs": [
+        {
+          "action": "Save",
+          "itemId": "wm-workstation-btnSelect",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel",
+          "itemId": "wm-workstation-btnCancel",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Shipment Delivery": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.delivery////",
+      "verbs": [
+        {
+          "action": "Not Confirmed",
+          "itemId": "notConfirmedBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Confirmed",
+          "itemId": "confirmedBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Confirm Shipment",
+          "itemId": "shipping-shipmentDeliveries-notconfirmed-confirmShipmentBtn",
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Order Line Mass Update": {
+      "area": "outboundPlanner",
+      "route": "#wm.outboundplanner/wm.orderlinemassupdate////",
+      "verbs": [
+        {
+          "action": "Update Order Lines",
+          "itemId": "invmassupdate-updateButton",
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Shipment Mass Update": {
+      "area": "outboundPlanner",
+      "route": "#wm.outboundplanner/wm.shipmentmassupdate////",
+      "verbs": [
+        {
+          "action": "Update Shipments",
+          "itemId": "invmassupdate-updateButton",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Bundling": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.parcel.bundling////",
+      "verbs": [
+        {
+          "action": "Bundle",
+          "itemId": "bundling-bundle",
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Bundle and Manifest",
+          "itemId": "bundling-bundle-manifest",
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Bundle 0",
+          "itemId": "bundling-bundleviewbtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Unbundle 0",
+          "itemId": "bundling-unbundleviewbtn",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Holds": {
+      "area": "inventory",
+      "route": "#wm.inventory/wm.inventory.holds////",
+      "verbs": [
+        {
+          "action": "Active Holds 103407",
+          "itemId": "invHld_activeBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Disabled Holds 281",
+          "itemId": "invHld_disabledBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "History 24759",
+          "itemId": "invHld_historyBtn",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Adjustments": {
+      "area": "inventory",
+      "route": "#wm.inventory/wm.inventory.adjustments////",
+      "verbs": [
+        {
+          "action": "Approvals 9",
+          "itemId": "invAdj_approvalsBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Transaction 0",
+          "itemId": "invAdj_transactionBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Pending to Host",
+          "itemId": "invAdj_historyBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Approve",
+          "itemId": "adjustments-approve",
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Reject",
+          "itemId": "adjustments-reject",
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Location Audit": {
+      "area": "inventory",
+      "route": "#wm.inventory/wm.inventory.locationaudit////",
+      "verbs": [
+        {
+          "action": "Start Audit &amp; Repair",
+          "itemId": "locationaudit_auditrepair",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Start Audit",
+          "itemId": "locationaudit_startaudit",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Pause",
+          "itemId": "locationaudit_pause",
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Resume",
+          "itemId": "locationaudit_resume",
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Stop",
+          "itemId": "locationaudit_stop",
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Repair Selected",
+          "itemId": "locationaudit_repairselected",
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Repair All",
+          "itemId": "locationaudit_repairall",
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Transport Activity": {
+      "area": "yard",
+      "route": "#wm.yard/wm.yard.traileractivity////",
+      "verbs": [
+        {
+          "action": "Transport Equipment",
+          "itemId": "equipment_equipmentBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Go",
+          "itemId": "wm-searchBtn",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Integration Errors": {
+      "area": "systemAdmin",
+      "route": "#mcs-SystemAdmin/wm.config.integration.inboundissues////",
+      "verbs": [
+        {
+          "action": "Go",
+          "itemId": "dateRangeSearchBtn",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Clear",
+          "itemId": "dateRangeClearBtn",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Configuration/Carriers": {
+      "area": "operationsAdmin",
+      "route": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/wm.config.partners.carriers.main////",
+      "verbs": [
+        {
+          "action": "Add",
+          "itemId": "addButton",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Copy",
+          "itemId": "copyButton",
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": "deleteButton",
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    }
+  },
+  "raw_screens": {
+    "Workstation": {
+      "area": "systemAdmin",
+      "route": "#/wm.workstation",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "wm-workstation-btnSelect",
+          "text": "Save",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-workstation-btnCancel",
+          "text": "Cancel",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "SG": {
+      "area": "systemAdmin",
+      "route": "#/refs-Site",
+      "buttons": [
+        {
+          "itemId": "btnSubmit",
+          "text": "Select",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "btnCancel",
+          "text": "Cancel",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Dashboard": {
+      "area": "outboundPlanner",
+      "route": "#wm.outboundplanner/wm.outbounddashboard////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "pickCount-priorityBtn",
+          "text": "1-20",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "outboundplan_progressBtn",
+          "text": "Progress",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "outboundplan_issuesBtn",
+          "text": "Issues",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Staging": {
+      "area": "specialPack",
+      "route": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.staging////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Door Activity": {
+      "area": "yard",
+      "route": "#wm.yard/wm.dooractivity////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Appointments": {
+      "area": "yard",
+      "route": "#wm.yard/wm.appointments////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "appt_searchBtn",
+          "text": "Go",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Check In": {
+      "area": "yard",
+      "route": "#wm.yard/wm.checkin////",
+      "buttons": [
+        {
+          "itemId": "checkIn_checkInButton",
+          "text": "Check In",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "checkIn_resetButton",
+          "text": "Reset",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Workflows": {
+      "area": "yard",
+      "route": "#wm.yard/wm.workflowhistory////",
+      "buttons": [
+        {
+          "itemId": "wm-inbound-plan-toggleBtn",
+          "text": "Planned 0",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-inbound-inprocess-toggleBtn",
+          "text": "In Process 0",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-inbound-failed-toggleBtn",
+          "text": "Failed 0",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-inbound-completed-toggleBtn",
+          "text": "History 0",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "equipmentToggleButton",
+          "text": "Equip/Production",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "backgroundToggleButton",
+          "text": "Background",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "userToggleButton",
+          "text": "RF Operator",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Print Compliant Labels": {
+      "area": "inventory",
+      "route": "#wm.inventory/wm.printcompliantlabels////",
+      "buttons": [
+        {
+          "itemId": "printButton",
+          "text": "Print",
+          "enabled": false,
+          "menu": false
+        }
+      ]
+    },
+    "History": {
+      "area": "yard",
+      "route": "#wm.yard/wm.dailytransaction////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "wm-dailytransaction-toggle-attributes",
+          "text": "Attributes",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-dailytransaction-toggle-order",
+          "text": "Order",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-dailytransaction-toggle-adjustment",
+          "text": "Adjustment",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-dailytransaction-toggle-handlingUnit",
+          "text": "Handling Unit",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "wm-searchBtn",
+          "text": "Go",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Send RF Message": {
+      "area": "yard",
+      "route": "#wm.yard/wm.rfmessage////",
+      "buttons": [
+        {
+          "itemId": "rfmessage-add-recipient-btn",
+          "text": "Select Recipients",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "rfmessage-send-button",
+          "text": "Send",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "rfmessage-clear-button",
+          "text": "Clear",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Log Indirect Work": {
+      "area": "outboundPlanner",
+      "route": "#wm.outboundplanner/wm.lmindirect////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "wm-workstation-btnSelect",
+          "text": "Save",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-workstation-btnCancel",
+          "text": "Cancel",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Receiving Assets Display Serialized": {
+      "area": "receiving",
+      "route": "#wm.receiving/Receiving-Assets-Display-Serialized////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Receiving Assets Display Non Serialized": {
+      "area": "receiving",
+      "route": "#wm.receiving/Receiving-Assets-Display-Non-Serialized////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Transport Equipment User Assignment": {
+      "area": "receiving",
+      "route": "#wm.receiving/Transport-Equipment-User-Assignment////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "RF Display": {
+      "area": "yard",
+      "route": "#wm.yard/RFT-Display////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Work Operation Override": {
+      "area": "picking",
+      "route": "#wm.picking/wm.common.workoperationoverride////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Work Queue": {
+      "area": "specialPack",
+      "route": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.workqueue////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "workQueue_summaryBtn",
+          "text": "Summary",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "gridActionsButton",
+          "text": "Actions",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Waves and Picks": {
+      "area": "specialPack",
+      "route": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.wavesandpicks////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "picks-waves",
+          "text": "Waves 0",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "picks-picks",
+          "text": "Picks 0",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "wave-actions-btn-id",
+          "text": "Actions",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Loads": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.loads////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "loadView-switchToCard",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "loadView-switchToGrid",
+          "text": "",
+          "enabled": false,
+          "menu": false
+        }
+      ]
+    },
+    "Parcel": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.parcel////",
+      "buttons": [
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "parcelShipmentsToggle",
+          "text": "Shipments",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "parcelPackagesToggle",
+          "text": "Packages",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "parcelManifestsToggle",
+          "text": "Manifests",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Parcel Audit Log": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.parcelauditlog////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "wm-searchBtn",
+          "text": "Go",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Manifesting": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.manifesting////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "wm-workstation-btnSelect",
+          "text": "Save",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-workstation-btnCancel",
+          "text": "Cancel",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Shipment Delivery": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.delivery////",
+      "buttons": [
+        {
+          "itemId": "notConfirmedBtn",
+          "text": "Not Confirmed",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "confirmedBtn",
+          "text": "Confirmed",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "shipping-shipmentDeliveries-notconfirmed-confirmShipmentBtn",
+          "text": "Confirm Shipment",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Order Line Mass Update": {
+      "area": "outboundPlanner",
+      "route": "#wm.outboundplanner/wm.orderlinemassupdate////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "invmassupdate-updateButton",
+          "text": "Update Order Lines",
+          "enabled": false,
+          "menu": false
+        }
+      ]
+    },
+    "Shipment Mass Update": {
+      "area": "outboundPlanner",
+      "route": "#wm.outboundplanner/wm.shipmentmassupdate////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "invmassupdate-updateButton",
+          "text": "Update Shipments",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Shipped LPN Activity": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.shipping.shippedlpns////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Bundling": {
+      "area": "shipping",
+      "route": "#wm.shipping/wm.parcel.bundling////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "bundling-bundle",
+          "text": "Bundle",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "bundling-bundle-manifest",
+          "text": "Bundle and Manifest",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "bundling-bundleviewbtn",
+          "text": "Bundle 0",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "bundling-unbundleviewbtn",
+          "text": "Unbundle 0",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Holds": {
+      "area": "inventory",
+      "route": "#wm.inventory/wm.inventory.holds////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "invHld_activeBtn",
+          "text": "Active Holds 103407",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "invHld_disabledBtn",
+          "text": "Disabled Holds 281",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "invHld_historyBtn",
+          "text": "History 24759",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Adjustments": {
+      "area": "inventory",
+      "route": "#wm.inventory/wm.inventory.adjustments////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "invAdj_approvalsBtn",
+          "text": "Approvals 9",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "invAdj_transactionBtn",
+          "text": "Transaction 0",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "invAdj_historyBtn",
+          "text": "Pending to Host",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "adjustments-approve",
+          "text": "Approve",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "adjustments-reject",
+          "text": "Reject",
+          "enabled": false,
+          "menu": false
+        }
+      ]
+    },
+    "Location Audit": {
+      "area": "inventory",
+      "route": "#wm.inventory/wm.inventory.locationaudit////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "locationaudit_auditrepair",
+          "text": "Start Audit &amp; Repair",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "locationaudit_startaudit",
+          "text": "Start Audit",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "locationaudit_pause",
+          "text": "Pause",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "locationaudit_resume",
+          "text": "Resume",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "locationaudit_stop",
+          "text": "Stop",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "locationaudit_repairselected",
+          "text": "Repair Selected",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "locationaudit_repairall",
+          "text": "Repair All",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Items Not Assigned To A Location": {
+      "area": "inventory",
+      "route": "#wm.inventory/wm-inventory-Itemnotassignedtoalocation////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "WCS Inventory Discrepancy Display": {
+      "area": "inventory",
+      "route": "#wm.inventory/WCS-Inventory-Discrepancy-Display////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "WCS Inventory Snapshot": {
+      "area": "inventory",
+      "route": "#wm.inventory/WCS-Inventory-Snapshot////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Distribution Status Display": {
+      "area": "inventory",
+      "route": "#wm.inventory/Distribution-Status-Display////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Distribution Status Store Schedule": {
+      "area": "inventory",
+      "route": "#wm.inventory/Distribution-Status-Store-Schedule////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Plannable Order Details": {
+      "area": "outboundPlanner",
+      "route": "#wm.outboundplanner/Plannable-Order-Details////",
+      "buttons": [
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Check Out": {
+      "area": "yard",
+      "route": "#wm.yard/wm.yard.checkout////",
+      "buttons": [
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        }
+      ]
+    },
+    "Transport Activity": {
+      "area": "yard",
+      "route": "#wm.yard/wm.yard.traileractivity////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "equipment_equipmentBtn",
+          "text": "Transport Equipment",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "wm-searchBtn",
+          "text": "Go",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Integration Errors": {
+      "area": "systemAdmin",
+      "route": "#mcs-SystemAdmin/wm.config.integration.inboundissues////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "exportAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "printAction",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "refreshAction",
+          "text": "",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "refreshIntervalButton",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "dateRangeSearchBtn",
+          "text": "Go",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "dateRangeClearBtn",
+          "text": "Clear",
+          "enabled": true,
+          "menu": false
+        }
+      ]
+    },
+    "Configuration/Carriers": {
+      "area": "operationsAdmin",
+      "route": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/wm.config.partners.carriers.main////",
+      "buttons": [
+        {
+          "itemId": "filterMenu",
+          "text": "",
+          "enabled": true,
+          "menu": true
+        },
+        {
+          "itemId": "addButton",
+          "text": "Add",
+          "enabled": true,
+          "menu": false
+        },
+        {
+          "itemId": "copyButton",
+          "text": "Copy",
+          "enabled": false,
+          "menu": false
+        },
+        {
+          "itemId": "deleteButton",
+          "text": "Delete",
+          "enabled": false,
+          "menu": false
+        }
+      ]
+    }
+  }
+}

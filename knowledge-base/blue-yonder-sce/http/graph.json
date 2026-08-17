@@ -9,17 +9,17 @@
   ],
   "principle": "Every edge is derived from a recorded exchange and carries its evidence file. Nothing here is inferred from naming or convention.",
   "counts": {
-    "screens": 183,
+    "screens": 184,
     "resources": 296,
-    "edges": 303,
+    "edges": 328,
     "dataflow_edges": 13,
     "dataflow_strong": 3,
-    "requires_edges": 11,
+    "requires_edges": 12,
     "cascades": 1,
     "hazards": 8,
     "resources_with_behaviour_warnings": 69,
-    "publishes_edges": 11,
-    "resources_publishing_links": 5,
+    "publishes_edges": 35,
+    "resources_publishing_links": 39,
     "operations_found_on_records": 2,
     "resources_with_a_filterability_map": 152,
     "resources_that_cannot_be_filtered_at_all": 43,
@@ -361,12 +361,15 @@
       "operations": {
         "GET": {
           "statuses": [
-            200
+            200,
+            400
           ],
           "cases": {
             "read-shape": "200",
             "filterable-columns": "200",
-            "range-operators": "200"
+            "range-operators": "200",
+            "link-areas": "200",
+            "link-locations": "400"
           }
         }
       },
@@ -390,7 +393,10 @@
           "version"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "areas"
+      ]
     },
     {
       "id": "resource:allocationHandlingUnitGroups",
@@ -404,7 +410,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-handlingUnitTypes": "200"
           }
         }
       },
@@ -423,7 +430,10 @@
           "longDescription"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "handlingUnitTypes"
+      ]
     },
     {
       "id": "resource:allocationSearchGroups",
@@ -546,7 +556,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-criteria": "200"
           }
         }
       },
@@ -567,7 +578,10 @@
           "sortSequence"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "criteria"
+      ]
     },
     {
       "id": "resource:appointments",
@@ -616,6 +630,7 @@
         "GET": {
           "statuses": [
             200,
+            400,
             404,
             422
           ],
@@ -635,7 +650,8 @@
             "query-form-metadata-columnName-value": "200",
             "query-form-metadata-with-datatype": "200",
             "query-form-sql-like-string": "422",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-locations": "400"
           }
         },
         "POST": {
@@ -787,7 +803,10 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-consolidations": "200",
+            "link-locations": "200",
+            "link-movementZoneNextMoves": "200"
           }
         }
       },
@@ -811,7 +830,12 @@
           "longDescription"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "consolidations",
+        "locations",
+        "movementZoneNextMoves"
+      ]
     },
     {
       "id": "resource:availableAutoStagingMovementZones",
@@ -825,7 +849,10 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-consolidations": "200",
+            "link-locations": "200",
+            "link-movementZoneNextMoves": "200"
           }
         }
       },
@@ -845,7 +872,12 @@
           "warehouseId"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "consolidations",
+        "locations",
+        "movementZoneNextMoves"
+      ]
     },
     {
       "id": "resource:availableInventoryMixingRules",
@@ -1292,7 +1324,10 @@
             "read-shape": "200",
             "sub-resource-read": "200",
             "filter-by-sortAttributeLocationStatus": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-address": "200",
+            "link-pickingBuildingSequences": "200",
+            "link-storageBuildingSequences": "200"
           }
         },
         "POST": {
@@ -1337,6 +1372,11 @@
           "P"
         ]
       },
+      "publishes": [
+        "address",
+        "pickingBuildingSequences",
+        "storageBuildingSequences"
+      ],
       "write_contract": {
         "PUT": {
           "path": "/data/WM/wm/buildings/{id}",
@@ -1757,7 +1797,8 @@
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-carrierInfo": "200"
           }
         },
         "POST": {
@@ -1836,6 +1877,9 @@
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
+      "publishes": [
+        "carrierInfo"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/carrierProNumbers/{id}",
@@ -1962,7 +2006,15 @@
             "query-dsl-BETWEEN": "422",
             "query-dsl-IN_csv": "422",
             "query-dsl-wildcard-in-EQ": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-address": "200",
+            "link-carrierDetails": "200",
+            "link-carrierMatrixs": "404",
+            "query-boolean-flat-AND-documented-": "200",
+            "query-boolean-OR-of-two-codes": "200",
+            "query-boolean-AND-wrapper": "200",
+            "query-boolean-OR-of-ANDs": "200",
+            "query-boolean-lowercase-or": "200"
           }
         },
         "POST": {
@@ -2031,6 +2083,10 @@
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
+      "publishes": [
+        "address",
+        "carrierDetails"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/carriers/{id}",
@@ -2484,7 +2540,10 @@
             "read-created": "404/RECORD-MISSING",
             "confirm-gone": "404/RECORD-MISSING",
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-address": "200",
+            "link-clientGroups": "200",
+            "link-clientWarehouse": "200"
           }
         },
         "POST": {
@@ -2566,6 +2625,11 @@
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
+      "publishes": [
+        "address",
+        "clientGroups",
+        "clientWarehouse"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/clients/{id}",
@@ -3233,7 +3297,9 @@
           "cases": {
             "read-shape": "200",
             "sub-resource-read": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-consolidations": "200",
+            "link-locations": "200"
           }
         }
       },
@@ -3254,7 +3320,11 @@
           "warehouseId"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "consolidations",
+        "locations"
+      ]
     },
     {
       "id": "resource:customerDistributionSettings",
@@ -3474,7 +3544,8 @@
             "confirm-gone": "404/RECORD-MISSING",
             "sub-resource-read": "200",
             "filter-by-addressState": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-address": "200"
           }
         },
         "POST": {
@@ -3651,6 +3722,9 @@
           "OK"
         ]
       },
+      "publishes": [
+        "address"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/customers/{id}",
@@ -4039,7 +4113,8 @@
           "statuses": [
             200,
             400,
-            404
+            404,
+            422
           ],
           "cases": {
             "route-exists": "200",
@@ -4048,7 +4123,10 @@
             "read-created": "200",
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "read-shape": "200"
+            "read-shape": "200",
+            "link-consolidateAtPackStationZone": "200",
+            "link-scaleWeight": "422",
+            "link-shipmentsPending": "200"
           }
         },
         "POST": {
@@ -4163,6 +4241,10 @@
         "fields": 45,
         "rows_in_sample": 502
       },
+      "publishes": [
+        "consolidateAtPackStationZone",
+        "shipmentsPending"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/devices/{id}",
@@ -4501,7 +4583,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-dockDoors": "200"
           }
         }
       },
@@ -4521,7 +4604,10 @@
           "warehouseId"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "dockDoors"
+      ]
     },
     {
       "id": "resource:dockStagingLocationAssociations",
@@ -4970,7 +5056,9 @@
           ],
           "cases": {
             "read-shape": "200",
-            "sub-resource-read": "200"
+            "sub-resource-read": "200",
+            "link-footprintDetails": "200",
+            "link-supplierItemFootprint": "200"
           }
         }
       },
@@ -4985,7 +5073,11 @@
         "status": 200,
         "fields": 26,
         "rows_in_sample": 13069
-      }
+      },
+      "publishes": [
+        "footprintDetails",
+        "supplierItemFootprint"
+      ]
     },
     {
       "id": "resource:generateResourceTypes",
@@ -5094,7 +5186,10 @@
             "read-created": "200",
             "confirm-gone": "404/RECORD-MISSING",
             "sub-resource-read": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-handlingUnitSlots": "200",
+            "link-handlingUnitTypeCartons": "200",
+            "link-handlingUnitTypeFeatures": "200"
           }
         },
         "POST": {
@@ -5183,6 +5278,11 @@
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
+      "publishes": [
+        "handlingUnitSlots",
+        "handlingUnitTypeCartons",
+        "handlingUnitTypeFeatures"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/handlingUnitTypes/{id}",
@@ -5444,7 +5544,8 @@
           "cases": {
             "read-shape": "200",
             "filter-by-trailerStatus": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-location": "200"
           }
         }
       },
@@ -5492,7 +5593,10 @@
           "CI (Checked In)",
           "R (Receiving)"
         ]
-      }
+      },
+      "publishes": [
+        "location"
+      ]
     },
     {
       "id": "resource:inboundDockConfigurations",
@@ -5685,7 +5789,16 @@
             200
           ],
           "cases": {
-            "read-shape-observed": "200"
+            "read-shape-observed": "200",
+            "approve-async-followup": "200"
+          }
+        },
+        "POST": {
+          "statuses": [
+            200
+          ],
+          "cases": {
+            "approve-adjustment": "200"
           }
         }
       },
@@ -6262,12 +6375,24 @@
       "operations": {
         "GET": {
           "statuses": [
-            200
+            200,
+            422
           ],
           "cases": {
             "read-shape": "200",
             "filterable-columns": "200",
-            "filter-by-receiveStatus": "200"
+            "filter-by-receiveStatus": "200",
+            "link-allocationAttributes": "200",
+            "link-assetDetails": "422",
+            "link-countHistory": "200",
+            "link-footprints": "200",
+            "link-hotItemDetails": "200",
+            "link-inventoryShipped": "200",
+            "link-media": "200",
+            "link-serialNumberTypes": "200",
+            "link-summary": "200",
+            "link-transactionHistory": "200",
+            "link-uomQuantities": "200"
           }
         }
       },
@@ -6312,7 +6437,19 @@
         "receiveStatus": [
           "AV (AVAILABLE)"
         ]
-      }
+      },
+      "publishes": [
+        "allocationAttributes",
+        "countHistory",
+        "footprints",
+        "hotItemDetails",
+        "inventoryShipped",
+        "media",
+        "serialNumberTypes",
+        "summary",
+        "transactionHistory",
+        "uomQuantities"
+      ]
     },
     {
       "id": "resource:jobDefinitions",
@@ -7286,7 +7423,8 @@
             "read-updated": "200",
             "confirm-gone": "404/RECORD-MISSING",
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-consolidations": "200"
           }
         },
         "POST": {
@@ -7362,6 +7500,9 @@
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
       "state_vocabulary": {},
+      "publishes": [
+        "consolidations"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/locationTypes/{id}",
@@ -7407,7 +7548,20 @@
             "sub-resource-read": "200",
             "filterable-columns": "200",
             "filter-by-locationStatus": "200",
-            "range-operators": "200"
+            "range-operators": "200",
+            "link-asset": "200",
+            "link-configuration": "200",
+            "link-countHistory": "200",
+            "link-countInProgessLocationDetail": "200",
+            "link-fixErrors": "200",
+            "link-history": "200",
+            "link-item": "200",
+            "link-locationInventorySummary": "200",
+            "link-locationType": "200",
+            "link-mixingRules": "200",
+            "link-summary": "200",
+            "link-uomQuantities": "200",
+            "link-workZones": "200"
           }
         },
         "POST": {
@@ -7475,6 +7629,21 @@
           "E (Empty)"
         ]
       },
+      "publishes": [
+        "asset",
+        "configuration",
+        "countHistory",
+        "countInProgessLocationDetail",
+        "fixErrors",
+        "history",
+        "item",
+        "locationInventorySummary",
+        "locationType",
+        "mixingRules",
+        "summary",
+        "uomQuantities",
+        "workZones"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/locations/{id}",
@@ -7590,7 +7759,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-workflowInstruction": "200"
           }
         }
       },
@@ -7613,7 +7783,10 @@
           "workflowTypeLongDescription"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "workflowInstruction"
+      ]
     },
     {
       "id": "resource:movementPathCriterias",
@@ -7649,7 +7822,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-criteria": "200"
           }
         }
       },
@@ -7676,6 +7850,9 @@
           "hazard": "not-queryable",
           "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
         }
+      ],
+      "publishes": [
+        "criteria"
       ]
     },
     {
@@ -7694,7 +7871,8 @@
             "cleanup-confirm-gone": "404/RECORD-MISSING",
             "read-created": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-details": "200"
           }
         },
         "POST": {
@@ -7769,6 +7947,9 @@
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
+      "publishes": [
+        "details"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/movementPaths/{id}",
@@ -7890,7 +8071,10 @@
           "cases": {
             "read-shape": "200",
             "sub-resource-read": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-consolidations": "200",
+            "link-locations": "200",
+            "link-movementZoneNextMoves": "200"
           }
         }
       },
@@ -7912,7 +8096,12 @@
           "warehouseId"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "consolidations",
+        "locations",
+        "movementZoneNextMoves"
+      ]
     },
     {
       "id": "resource:movementZonesWithResourceCode",
@@ -7926,7 +8115,10 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-consolidations": "200",
+            "link-locations": "200",
+            "link-movementZoneNextMoves": "200"
           }
         }
       },
@@ -7949,7 +8141,12 @@
           "resourceVariable"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "consolidations",
+        "locations",
+        "movementZoneNextMoves"
+      ]
     },
     {
       "id": "resource:noteTypeExitPoints",
@@ -8767,7 +8964,8 @@
             "confirm-gone": "404/RECORD-MISSING",
             "cleanup-confirm-gone": "404/RECORD-MISSING",
             "sub-resource-read": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-pickPreValidationScheme": "200"
           }
         },
         "POST": {
@@ -8861,6 +9059,9 @@
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
+      "publishes": [
+        "pickPreValidationScheme"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/pickMethods/{id}",
@@ -9104,7 +9305,8 @@
           "cases": {
             "read-shape": "200",
             "sub-resource-read": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-workZonePickingSummary": "200"
           }
         }
       },
@@ -9130,6 +9332,9 @@
           "hazard": "not-queryable",
           "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
         }
+      ],
+      "publishes": [
+        "workZonePickingSummary"
       ]
     },
     {
@@ -9995,12 +10200,15 @@
       "operations": {
         "GET": {
           "statuses": [
-            200
+            200,
+            404
           ],
           "cases": {
             "read-shape": "200",
             "filter-by-inventoryStatus": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-item": "200",
+            "link-movementZone": "404"
           }
         }
       },
@@ -10036,7 +10244,10 @@
         "inventoryStatus": [
           "AV (AVAILABLE)"
         ]
-      }
+      },
+      "publishes": [
+        "item"
+      ]
     },
     {
       "id": "resource:reprocessableTransactions",
@@ -10497,7 +10708,8 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-ruleParameters": "200"
           }
         }
       },
@@ -10526,6 +10738,9 @@
           "hazard": "not-queryable",
           "detail": "No column on this resource honours a filter. It can only be paged, so a targeted lookup is impossible and an empty filtered read means nothing."
         }
+      ],
+      "publishes": [
+        "ruleParameters"
       ]
     },
     {
@@ -11014,7 +11229,9 @@
             "read-shape": "200",
             "filter-by-pickStatus": "200",
             "filter-by-replenishmentStatus": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-allocationSearchPathRules": "200",
+            "link-shipToAddress": "200"
           }
         }
       },
@@ -11064,7 +11281,11 @@
           "S (Failed to Allocate Initial Storage Location)",
           "X (Processing through Cross Dock)"
         ]
-      }
+      },
+      "publishes": [
+        "allocationSearchPathRules",
+        "shipToAddress"
+      ]
     },
     {
       "id": "resource:stackMethods",
@@ -11148,7 +11369,8 @@
             "sub-resource-read": "200",
             "filter-by-inventoryStatus": "200",
             "filterable-columns": "200",
-            "range-operators": "200"
+            "range-operators": "200",
+            "link-storageConfigurationRules": "200"
           }
         }
       },
@@ -11181,7 +11403,10 @@
           "DE",
           "HZ"
         ]
-      }
+      },
+      "publishes": [
+        "storageConfigurationRules"
+      ]
     },
     {
       "id": "resource:storageSuffixes",
@@ -11342,7 +11567,9 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-consolidations": "200",
+            "link-locations": "200"
           }
         }
       },
@@ -11364,7 +11591,11 @@
           "warehouseId"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "consolidations",
+        "locations"
+      ]
     },
     {
       "id": "resource:structuredInventory",
@@ -12240,7 +12471,8 @@
             "read-shape": "200",
             "read-created-through-view": "200",
             "confirm-gone": "404/RECORD-MISSING",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-warehouseUoms": "200"
           }
         },
         "POST": {
@@ -12313,6 +12545,9 @@
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
+      "publishes": [
+        "warehouseUoms"
+      ],
       "write_contract": {
         "DELETE": {
           "path": "/data/WM/wm/codes/{id}",
@@ -12899,7 +13134,8 @@
           "cases": {
             "read-shape": "200",
             "sub-resource-read": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-address": "200"
           }
         },
         "POST": {
@@ -12955,6 +13191,9 @@
         "not_filterable": [],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
       },
+      "publishes": [
+        "address"
+      ],
       "write_contract": {
         "POST": {
           "path": "/data/WM/wm/warehouses/async",
@@ -13313,7 +13552,11 @@
           ],
           "cases": {
             "read-shape": "200",
-            "filterable-columns": "200"
+            "filterable-columns": "200",
+            "link-workListGroupCriterion": "200",
+            "link-workListRuleBreakCriterion": "200",
+            "link-workListSelectCriterion": "200",
+            "link-workListSequenceCriterion": "200"
           }
         }
       },
@@ -13345,7 +13588,13 @@
           "workAssignmentFitCriteria"
         ],
         "grammar": "query=[{\"column\",\"operator\",\"value\"}], ANDed; operators EQ NE GT GE LT LE; % wildcard inside EQ"
-      }
+      },
+      "publishes": [
+        "workListGroupCriterion",
+        "workListRuleBreakCriterion",
+        "workListSelectCriterion",
+        "workListSequenceCriterion"
+      ]
     },
     {
       "id": "resource:workListGroupCriteria",
@@ -14226,6 +14475,14 @@
         }
       ],
       "evidence": "index/form-models.json"
+    },
+    {
+      "id": "screen:[object Object]",
+      "type": "screen",
+      "screen": {
+        "lpn": "00000776442003826960",
+        "note": "the adjustment this project's own L1 run created on 2026-08-13"
+      }
     },
     {
       "id": "screen:carriersDuplicate",
@@ -18670,6 +18927,198 @@
       "evidence": "index/action-links.json — GET /wm/appointments/APP0001855/inboundLoads returned 200"
     },
     {
+      "from": "resource:aisles",
+      "to": "resource:areas",
+      "type": "publishes",
+      "via": "areas_uri",
+      "path": "/wm/aisles/AABN%2A%21SG/areas",
+      "evidence": "index/action-links.json — GET /wm/aisles/AABN%2A%21SG/areas returned 200"
+    },
+    {
+      "from": "resource:allocationHandlingUnitGroups",
+      "to": "resource:handlingUnitTypes",
+      "type": "publishes",
+      "via": "handlingUnitTypes_uri",
+      "path": "/wm/allocationHandlingUnitGroups/PALLETS/handlingUnitTypes",
+      "evidence": "index/action-links.json — GET /wm/allocationHandlingUnitGroups/PALLETS/handlingUnitTypes returned 200"
+    },
+    {
+      "from": "resource:autoStagingMovementZones",
+      "to": "resource:locations",
+      "type": "publishes",
+      "via": "locations_uri",
+      "path": "/wm/movementZones/10208/locations",
+      "evidence": "index/action-links.json — GET /wm/movementZones/10208/locations returned 200"
+    },
+    {
+      "from": "resource:autoStagingMovementZones",
+      "to": "resource:movementZoneNextMoves",
+      "type": "publishes",
+      "via": "movementZoneNextMoves_uri",
+      "path": "/wm/movementZones/10208/movementZoneNextMoves",
+      "evidence": "index/action-links.json — GET /wm/movementZones/10208/movementZoneNextMoves returned 200"
+    },
+    {
+      "from": "resource:availableAutoStagingMovementZones",
+      "to": "resource:locations",
+      "type": "publishes",
+      "via": "locations_uri",
+      "path": "/wm/movementZones/10215/locations",
+      "evidence": "index/action-links.json — GET /wm/movementZones/10215/locations returned 200"
+    },
+    {
+      "from": "resource:availableAutoStagingMovementZones",
+      "to": "resource:movementZoneNextMoves",
+      "type": "publishes",
+      "via": "movementZoneNextMoves_uri",
+      "path": "/wm/movementZones/10215/movementZoneNextMoves",
+      "evidence": "index/action-links.json — GET /wm/movementZones/10215/movementZoneNextMoves returned 200"
+    },
+    {
+      "from": "resource:carriers",
+      "to": "resource:carrierDetails",
+      "type": "publishes",
+      "via": "carrierDetails_uri",
+      "path": "/wm/carriers/0000/carrierDetails",
+      "evidence": "index/action-links.json — GET /wm/carriers/0000/carrierDetails returned 200"
+    },
+    {
+      "from": "resource:clients",
+      "to": "resource:clientGroups",
+      "type": "publishes",
+      "via": "clientGroups_uri",
+      "path": "/wm/clients/----/groups",
+      "evidence": "index/action-links.json — GET /wm/clients/----/groups returned 200"
+    },
+    {
+      "from": "resource:clients",
+      "to": "resource:clientWarehouse",
+      "type": "publishes",
+      "via": "clientWarehouse_uri",
+      "path": "/wm/clients/----/warehouse",
+      "evidence": "index/action-links.json — GET /wm/clients/----/warehouse returned 200"
+    },
+    {
+      "from": "resource:countZones",
+      "to": "resource:locations",
+      "type": "publishes",
+      "via": "locations_uri",
+      "path": "/wm/countZones/10010/locations",
+      "evidence": "index/action-links.json — GET /wm/countZones/10010/locations returned 200"
+    },
+    {
+      "from": "resource:dockSlots",
+      "to": "resource:dockDoors",
+      "type": "publishes",
+      "via": "dockDoors_uri",
+      "path": "/wm/dockSlots/DESTRUCTION%2A%21SG/dockDoors",
+      "evidence": "index/action-links.json — GET /wm/dockSlots/DESTRUCTION%2A%21SG/dockDoors returned 200"
+    },
+    {
+      "from": "resource:handlingUnitTypes",
+      "to": "resource:handlingUnitSlots",
+      "type": "publishes",
+      "via": "handlingUnitSlots_uri",
+      "path": "/wm/handlingUnitTypes/CHEP/handlingUnitSlots",
+      "evidence": "index/action-links.json — GET /wm/handlingUnitTypes/CHEP/handlingUnitSlots returned 200"
+    },
+    {
+      "from": "resource:items",
+      "to": "resource:footprints",
+      "type": "publishes",
+      "via": "footprints_uri",
+      "path": "/wm/items/----%2A%210001057000%2A%21SG/footprints",
+      "evidence": "index/action-links.json — GET /wm/items/----%2A%210001057000%2A%21SG/footprints returned 200"
+    },
+    {
+      "from": "resource:items",
+      "to": "resource:serialNumberTypes",
+      "type": "publishes",
+      "via": "serialNumberTypes_uri",
+      "path": "/wm/items/----%2A%210001057000%2A%21SG/serialNumberTypes",
+      "evidence": "index/action-links.json — GET /wm/items/----%2A%210001057000%2A%21SG/serialNumberTypes returned 200"
+    },
+    {
+      "from": "resource:locations",
+      "to": "resource:workZones",
+      "type": "publishes",
+      "via": "workZones_uri",
+      "path": "/wm/workZones/10000",
+      "evidence": "index/action-links.json — GET /wm/workZones/10000 returned 200"
+    },
+    {
+      "from": "resource:movementZones",
+      "to": "resource:locations",
+      "type": "publishes",
+      "via": "locations_uri",
+      "path": "/wm/movementZones/10001/locations",
+      "evidence": "index/action-links.json — GET /wm/movementZones/10001/locations returned 200"
+    },
+    {
+      "from": "resource:movementZones",
+      "to": "resource:movementZoneNextMoves",
+      "type": "publishes",
+      "via": "movementZoneNextMoves_uri",
+      "path": "/wm/movementZones/10001/movementZoneNextMoves",
+      "evidence": "index/action-links.json — GET /wm/movementZones/10001/movementZoneNextMoves returned 200"
+    },
+    {
+      "from": "resource:movementZonesWithResourceCode",
+      "to": "resource:locations",
+      "type": "publishes",
+      "via": "locations_uri",
+      "path": "/wm/movementZones/10208/locations",
+      "evidence": "index/action-links.json — GET /wm/movementZones/10208/locations returned 200"
+    },
+    {
+      "from": "resource:movementZonesWithResourceCode",
+      "to": "resource:movementZoneNextMoves",
+      "type": "publishes",
+      "via": "movementZoneNextMoves_uri",
+      "path": "/wm/movementZones/10208/movementZoneNextMoves",
+      "evidence": "index/action-links.json — GET /wm/movementZones/10208/movementZoneNextMoves returned 200"
+    },
+    {
+      "from": "resource:rules",
+      "to": "resource:ruleParameters",
+      "type": "publishes",
+      "via": "ruleParameters_uri",
+      "path": "/wm/rules/STD-ORDERSELECTION/ruleParameters",
+      "evidence": "index/action-links.json — GET /wm/rules/STD-ORDERSELECTION/ruleParameters returned 200"
+    },
+    {
+      "from": "resource:shorts",
+      "to": "resource:allocationSearchPathRules",
+      "type": "publishes",
+      "via": "allocationSearchPathRules_uri",
+      "path": "/wm/shorts/RPL2156718/allocationSearchPathRules",
+      "evidence": "index/action-links.json — GET /wm/shorts/RPL2156718/allocationSearchPathRules returned 200"
+    },
+    {
+      "from": "resource:storageConfigurations",
+      "to": "resource:storageConfigurationRules",
+      "type": "publishes",
+      "via": "storageConfigurationRules_uri",
+      "path": "/wm/storageConfigurations/000186/rules",
+      "evidence": "index/action-links.json — GET /wm/storageConfigurations/000186/rules returned 200"
+    },
+    {
+      "from": "resource:storageZones",
+      "to": "resource:locations",
+      "type": "publishes",
+      "via": "locations_uri",
+      "path": "/wm/storageZones/10000/locations",
+      "evidence": "index/action-links.json — GET /wm/storageZones/10000/locations returned 200"
+    },
+    {
+      "from": "resource:uoms",
+      "to": "resource:warehouseUoms",
+      "type": "publishes",
+      "via": "warehouseUoms_uri",
+      "path": "/wm/uoms/EA%2A%21uomcod/warehouseUoms",
+      "evidence": "index/action-links.json — GET /wm/uoms/EA%2A%21uomcod/warehouseUoms returned 200"
+    },
+    {
       "from": "resource:carrierCrossReferences",
       "to": "resource:carriers",
       "type": "requires",
@@ -18739,6 +19188,15 @@
       "via": "pickPreValidationScheme = \"DEF_DISABLE\"",
       "matches": "pickPreValidationSchemes.resourceId",
       "evidence": "http/exchanges/pickMethods.jsonl (payload) matched against http/exchanges/pickPreValidationSchemes.jsonl (recorded rows)",
+      "confidence": "value-match"
+    },
+    {
+      "from": "resource:pickPreValidationSchemes",
+      "to": "resource:pickMethods",
+      "type": "requires",
+      "via": "infoCode = \"DISABLE\"",
+      "matches": "pickMethods.infoCode",
+      "evidence": "http/exchanges/pickPreValidationSchemes.jsonl (payload) matched against http/exchanges/pickMethods.jsonl (recorded rows)",
       "confidence": "value-match"
     },
     {

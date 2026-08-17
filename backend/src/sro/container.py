@@ -18,6 +18,7 @@ from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.connection.check_session import CheckSession
 from sro.application.connection.connect_system import (
+    AcknowledgeFailures,
     ConnectSystem,
     LoadSession,
     RefreshSession,
@@ -166,6 +167,9 @@ class Container:
 
     def ensure_signed_in(self) -> EnsureSignedIn:
         return EnsureSignedIn(self.sign_in(), self.check_session(), self.unit_of_work())
+
+    def acknowledge_failures(self) -> AcknowledgeFailures:
+        return AcknowledgeFailures(self.unit_of_work(), self.clock)
 
     def check_session(self) -> CheckSession:
         return CheckSession(self.unit_of_work(), self.vault, self.http)

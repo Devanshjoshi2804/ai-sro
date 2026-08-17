@@ -113,6 +113,12 @@ class SignedInResponse(BaseModel):
     that stalled without recording what was typed."""
 
 
+class ResumeRequest(BaseModel):
+    reason: str
+    """Why it is safe to carry on. Kept, because a breaker anybody can clear
+    anonymously is a breaker that stops meaning anything."""
+
+
 class SessionCheckModel(BaseModel):
     connection_id: str
     target_system: str
@@ -568,6 +574,12 @@ class StepOutcomeModel(BaseModel):
     matched_by: str | None
     detail: str | None
 
+    found_rows: int | None = None
+    """How many records a read returned — the answer, when the question was a
+    question. A step that reports only a status code has answered nothing."""
+
+    found: list[dict[str, str]] = []
+
     @classmethod
     def of(cls, step: StepOutcome) -> StepOutcomeModel:
         return cls(
@@ -584,6 +596,8 @@ class StepOutcomeModel(BaseModel):
             escalation_reason=step.escalation_reason,
             matched_by=step.matched_by,
             detail=step.detail,
+            found_rows=step.found_rows,
+            found=[dict(row) for row in step.found],
         )
 
 

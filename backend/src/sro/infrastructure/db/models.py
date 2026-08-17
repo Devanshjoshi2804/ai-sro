@@ -106,6 +106,9 @@ class ConnectionRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     authenticated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
+    failures_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    acknowledged_by: Mapped[str | None] = mapped_column(String(255))
+    acknowledgement_reason: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         # One connection per system per tenant: a second would mean two sessions

@@ -4,13 +4,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { toast } from "sonner";
-import {
-  describeSkill,
-  getSkill,
-  skillKeys,
-  type SkillVersionModel,
-} from "@/features/skill/api";
-import { runKeys, startRun } from "@/features/run/api";
+import { describeSkill, getSkill, skillKeys, type SkillVersionModel } from "@/features/skill/api";
+import { runKeys, startRun, type RunModel } from "@/features/run/api";
 import { ApiError } from "@/lib/api/client";
 import { env } from "@/lib/env";
 import { ink, mono } from "@/features/console/theme";
@@ -234,9 +229,6 @@ export function SkillCard({
             missing={missing}
           />
         )}
-        <Link href={`/skills/${skillId}`} style={{ color: ink.accentDeep, fontWeight: 600 }}>
-          Review and promote →
-        </Link>
       </div>
     </div>
   );
@@ -372,7 +364,6 @@ const inputStyle = {
   color: ink.text,
 } as const;
 
-
 /**
  * Turning an offer into a run.
  *
@@ -393,7 +384,7 @@ function RunButton({
   missing: string[];
 }) {
   const queryClient = useQueryClient();
-  const [runId, setRunId] = useState<string | null>(null);
+  const [finished, setFinished] = useState<RunModel | null>(null);
 
   const run = useMutation({
     mutationFn: () =>
@@ -402,7 +393,7 @@ function RunButton({
         version: version.version,
       }),
     onSuccess: (started) => {
-      setRunId(started.id);
+      setFinished(started);
       void queryClient.invalidateQueries({ queryKey: runKeys.all });
       toast.success(`Run ${started.status}`, {
         description: started.failure ?? `${started.steps.length} steps, over ${started.medium}`,
@@ -414,12 +405,8 @@ function RunButton({
       }),
   });
 
-  if (runId) {
-    return (
-      <Link href={`/runs/${runId}`} style={{ color: ink.accentDeep, fontWeight: 600 }}>
-        See the run →
-      </Link>
-    );
+  if (finished) {
+    return <Result run={finished} />;
   }
 
   const blocked = missing.length > 0 || version.stage === "recorded";
@@ -447,5 +434,60 @@ function RunButton({
     >
       {run.isPending ? "Running…" : "Run it"}
     </button>
+  );
+}
+
+/**
+ * What the run found, where the question was asked.
+ *
+ * A run that reported `GET … → 200` and a link to a page of URLs answered
+ * nothing: somebody asked how many transport modes there are, the number came
+ * back in the response, and they were shown a status code. The records are
+ * already on the step; this puts them in front of the person who asked.
+ */
+function Result({ run }: { run: RunModel }) {
+  const read = run.steps.find((step) => step.found_rows !== null && step.found_rows !== undefined);
+  const failed = run.status !== "succeeded";
+
+  if (failed) {
+    return (
+      <span style={{ fontSize: 12.5, color: ink.danger }}>
+        {run.failure ?? "It did not finish"}
+        {/* The detail says what was tried and repaired, which is the only
+            useful thing to read when something did not work. */}
+        {run.steps.find((step) => step.detail) && (
+          <span style={{ color: ink.textSoft }}> — {run.steps.find((s) => s.detail)?.detail}</span>
+        )}
+      </span>
+    );
+  }
+
+  if (!read?.found_rows) {
+    return <span style={{ fontSize: 12.5, color: ink.textSoft }}>Done.</span>;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+      <div style={{ fontSize: 13, fontWeight: 700 }}>{read.found_rows} found</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {read.found.slice(0, 24).map((row, index) => (
+          <span
+            key={index}
+            style={{
+              border: `1px solid ${ink.line}`,
+              borderRadius: 6,
+              padding: "4px 8px",
+              fontSize: 12,
+              fontFamily: mono,
+            }}
+          >
+            {Object.values(row)[0]}
+            {Object.values(row)[1] && (
+              <span style={{ color: ink.textMuted }}> · {Object.values(row)[1]}</span>
+            )}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }

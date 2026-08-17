@@ -157,6 +157,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/connections/{connection_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume
+         * @description "I have looked" — close a tripped breaker and let runs start again.
+         *
+         *     The breaker asks for a person; this is what the person says back. Failures
+         *     before this moment stop counting, and who said it is kept with the reason.
+         */
+        post: operations["resume_v1_connections__connection_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/connections/{connection_id}/session-headers": {
         parameters: {
             query?: never;
@@ -1125,6 +1148,11 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** ResumeRequest */
+        ResumeRequest: {
+            /** Reason */
+            reason: string;
+        };
         /** RunModel */
         RunModel: {
             /** Id */
@@ -1357,6 +1385,15 @@ export interface components {
             matched_by: string | null;
             /** Detail */
             detail: string | null;
+            /** Found Rows */
+            found_rows?: number | null;
+            /**
+             * Found
+             * @default []
+             */
+            found: {
+                [key: string]: string;
+            }[];
         };
         /** TaughtSkillModel */
         TaughtSkillModel: {
@@ -1718,6 +1755,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignedInResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_v1_connections__connection_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResumeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionModel"];
                 };
             };
             /** @description Validation Error */

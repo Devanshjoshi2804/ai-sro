@@ -169,11 +169,24 @@ column at all** and can only be paged. There is no pattern to infer it from (`*C
 everything else 31%), so `index/filterable-columns.json` holds the measured answer per resource.
 Check it before trusting an empty result: on an unproven column, empty means unknown, not absent.
 
+**One operational write is now proven end to end.** `Inventory ▸ Adjustments ▸ Approve` posts an
+**array of full adjustment records** — not an id — to `POST /wm/inventoryAdjustmentApprovals/async`,
+and the 200 is an **async receipt**, not a result: `{asynchronousResourceGroupId, complete: false}`.
+Poll `/async/{id}` until `complete: true` and read `/async/{id}/resources` for per-item
+`asynchronousStatus` and `errorCode`. Effect verified on both sides — queue 9→8, on-hand 66→65 CS.
+Contrast the adjustment CREATE, which answers 200 with `approvalRequired` and moves nothing. See
+`http/flows/approveAdjustment.json`.
+
 **The operational verb inventory is enumerated.** 95 distinct actions across 24 screens —
 `Receive Inventory`, `Auto Receive`, `Allocate`, `Cancel Picks`, `Suspend Work`, `Hand Over`,
 `Change Carrier`, `Assign Lane` — in `index/operational-actions.json`. Menus were opened and read;
 nothing was activated. **None has a recorded request yet**: each needs an approved capture, and the
 only operational write ever observed here answered 200 with `approvalRequired` and moved no stock.
+
+The other 83 operational screens are mostly **monitors**: 69 more domain verbs sit on 25 of them
+(`Approve`/`Reject` on Adjustments, `Confirm Shipment`, `Start Audit`/`Repair All`, `Bundle`,
+`Update Shipments`), and 16 carry nothing but export/print/refresh/filter. So the operational write
+surface is ~65 screens, not 123 — see `index/toolbar-actions.json`.
 
 **Records publish their own relationships.** A shipment carries `*_uri` links to its orders, picks,
 waves, shipmentLines, handlingUnits, crossdocks and manifestDetails; a trailer to its inboundLoads,

@@ -6,7 +6,7 @@
     "shape": "[{\"column\":\"<jsonFieldName>\",\"operator\":\"<OP>\",\"value\":\"<value>\"}]",
     "example_from_the_app": "/wm/locations?query=[{\"column\":\"locationTypeCategory\",\"operator\":\"EQ\",\"value\":\"STORAGE\"}]&storageArea=true&buildingId=&offset=0&limit=100",
     "column_names": "the camelCase JSON field names the resource returns — NOT the DB column names its 422 errors quote",
-    "multiple_clauses": "ANDed. [{...},{...}] returned the intersection.",
+    "multiple_clauses": "A bare array of clauses is ANDed. Explicit {\"AND\":[…]} and {\"OR\":[…]} groups are supported and can nest, so arbitrary boolean expressions are possible.",
     "empty": "query=[] means no filter; 295 of 298 recorded calls before this used exactly that."
   },
   "operators": {
@@ -119,5 +119,17 @@
       }
     ],
     "conclusion": "GT/GE/LT/LE perform real comparisons."
+  },
+  "boolean_logic": {
+    "discovered": "From a call the Adjustments screen makes to /wm/policies, which nests OR over AND groups.",
+    "shape": "[{\"OR\":[{\"AND\":[{column,operator,value},…]},{\"AND\":[…]}]}]",
+    "verified_on_carriers": {
+      "flat AND (one clause)": "200, 1 row",
+      "{\"OR\":[clause,clause]}": "200, 2 rows, both codes present — OR works",
+      "{\"AND\":[clause]} wrapper": "200, 1 row",
+      "OR of AND groups": "200, 2 rows — nesting works",
+      "lowercase {\"or\":…}": "200, ZERO rows — the keys are case-sensitive and a wrong one fails silently"
+    },
+    "correction": "This base previously documented the grammar as a flat, implicitly-ANDed array. It is a boolean tree: OR and AND are explicit, upper-case, and nestable."
   }
 }

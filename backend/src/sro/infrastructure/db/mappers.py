@@ -193,6 +193,9 @@ def update_connection_row(row: ConnectionRow, connection: Connection) -> None:
     row.created_at = connection.created_at
     row.authenticated_at = connection.authenticated_at
     row.last_error = connection.last_error
+    row.failures_acknowledged_at = connection.failures_acknowledged_at
+    row.acknowledged_by = connection.acknowledged_by
+    row.acknowledgement_reason = connection.acknowledgement_reason
 
 
 def row_to_connection(row: ConnectionRow) -> Connection:
@@ -206,6 +209,9 @@ def row_to_connection(row: ConnectionRow) -> Connection:
         status=ConnectionStatus(row.status),
         authenticated_at=row.authenticated_at,
         last_error=row.last_error,
+        failures_acknowledged_at=row.failures_acknowledged_at,
+        acknowledged_by=row.acknowledged_by,
+        acknowledgement_reason=row.acknowledgement_reason,
     )
 
 
@@ -247,6 +253,10 @@ def row_to_run(row: RunRow) -> Run:
         started_at=row.started_at,
         authorized_by=PrincipalId(row.authorized_by) if row.authorized_by else None,
         derived=dict(row.derived),
+        # A stored run was validated when it was created; rehydration must not
+        # re-litigate that. A read-only assisted run has no authoriser by
+        # design, and re-checking would make it unreadable ever afterwards.
+        may_change_the_system=False,
     )
     run.status = RunStatus(row.status)
     run.steps = [_step_from_json(step) for step in row.steps]
@@ -270,6 +280,8 @@ def _step_to_json(step: StepOutcome) -> dict[str, Any]:
         "escalation_reason": step.escalation_reason,
         "matched_by": step.matched_by,
         "detail": step.detail,
+        "found_rows": step.found_rows,
+        "found": [dict(row) for row in step.found],
     }
 
 
@@ -288,6 +300,8 @@ def _step_from_json(data: dict[str, Any]) -> StepOutcome:
         escalation_reason=data.get("escalation_reason"),
         matched_by=data.get("matched_by"),
         detail=data.get("detail"),
+        found_rows=data.get("found_rows"),
+        found=tuple(dict(row) for row in (data.get("found") or ())),
     )
 
 

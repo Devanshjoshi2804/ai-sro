@@ -436,6 +436,79 @@
         }
       }
     },
+    "/v1/connections/{connection_id}/resume": {
+      "post": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Resume",
+        "description": "\"I have looked\" \u2014 close a tripped breaker and let runs start again.\n\nThe breaker asks for a person; this is what the person says back. Failures\nbefore this moment stop counting, and who said it is kept with the reason.",
+        "operationId": "resume_v1_connections__connection_id__resume_post",
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Connection Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/connections/{connection_id}/session-headers": {
       "post": {
         "tags": [
@@ -3709,6 +3782,19 @@
         ],
         "title": "ResolveIntentRequest"
       },
+      "ResumeRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "ResumeRequest"
+      },
       "RunModel": {
         "properties": {
           "id": {
@@ -4423,6 +4509,28 @@
               }
             ],
             "title": "Detail"
+          },
+          "found_rows": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Found Rows"
+          },
+          "found": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Found",
+            "default": []
           }
         },
         "type": "object",

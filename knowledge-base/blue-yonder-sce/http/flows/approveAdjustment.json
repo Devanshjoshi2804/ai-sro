@@ -1,0 +1,149 @@
+{
+  "generated_by": "tools/cdp/capture-approve-adjustment.mjs",
+  "what_this_is": "The first operational APPROVAL captured on this instance: Inventory > Adjustments > Approve, driven through the UI, with the queue and the inventory read before and after.",
+  "target": {
+    "lpn": "00000776442003826960",
+    "note": "the adjustment this project's own L1 run created on 2026-08-13"
+  },
+  "before": {
+    "approvals_pending": 9,
+    "our_row": "still queued",
+    "inventory": [
+      {
+        "item": "0113224000",
+        "quantity": 66,
+        "status": "AV",
+        "location": null
+      }
+    ]
+  },
+  "after": {
+    "approvals_pending": 8,
+    "our_row": "not in queue",
+    "inventory": [
+      {
+        "item": "0113224000",
+        "quantity": 65,
+        "status": "AV",
+        "location": null
+      }
+    ]
+  },
+  "modal": "confirmed :: Approve Adjustments Reason* Comment Generate Cycle Count OK Cancel",
+  "requests": [
+    {
+      "method": "POST",
+      "url": "/data/WM/wm/inventoryAdjustmentApprovals/async?siteId=SG&subsites=----",
+      "request_headers": {
+        "sec-ch-ua-platform": "\"macOS\"",
+        "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.inventory&subsite=----",
+        "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-requested-with": "XMLHttpRequest",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+        "accept": "*/*",
+        "content-type": "application/json"
+      },
+      "request_body": [
+        {
+          "adjustmentReferenceOne": "",
+          "adjustmentReferenceTwo": "",
+          "cost": 0,
+          "currencyCode": "USD",
+          "dateLastModified": "2026-08-13T19:21:38.000Z",
+          "detailLpn": "D0000006VDYW",
+          "itemClientId": "----",
+          "itemNumber": "0113224000",
+          "lastModifiedBy": "RKUCHIYAGM",
+          "location": "EF131",
+          "lpn": "00000776442003826960",
+          "modifiedUserName": "Kuchiya, Rudy",
+          "reasonCode": "AA",
+          "reasonDescription": "AA - Physical Count",
+          "scannedQuantity": 65,
+          "subLpn": "S00000081LOE",
+          "unitQuantity": 66,
+          "warehouseId": "SG",
+          "longDesc": "MG PASTA SCE ITALIAN HERB",
+          "operationCode": "INVADJ",
+          "adjComment": "",
+          "originCode": "----",
+          "revisionLevel": "----",
+          "lotNumber": "12MAR8VS",
+          "adjustmentQuantity": -1,
+          "catchQuantity": 0,
+          "scannedCatchQuantity": 0,
+          "consignedFlag": false,
+          "countBatch": "",
+          "deviceCode": "NONE",
+          "failureReason": "",
+          "stkUom": "CS",
+          "altItemNumber": "0113224000",
+          "sessionNumber": "SES0088078",
+          "inventoryAttributeDecimal1": null,
+          "inventoryAttributeDecimal2": null,
+          "inventoryAttributeDecimal3": null,
+          "inventoryAttributeNumber2": null,
+          "inventoryAttributeNumber3": null,
+          "inventoryAttributeNumber4": null,
+          "inventoryAttributeNumber5": null,
+          "inventoryAttributeText10": "",
+          "inventoryAttributeText11": "",
+          "inventoryAttributeText12": "",
+          "inventoryAttributeText13": "",
+          "inventoryAttributeText14": "",
+          "inventoryAttributeText15": "",
+          "inventoryAttributeText16": "",
+          "inventoryAttributeText17": "",
+          "inventoryAttributeText18": "",
+          "inventoryAttributeText2": "",
+          "inventoryAttributeText3": "",
+          "inventoryAttributeText4": "",
+          "inventoryAttributeText5": "",
+          "inventoryAttributeText6": "",
+          "inventoryAttributeText7": "",
+          "inventoryAttributeText8": "",
+          "inventoryAttributeText9": "",
+          "inventoryAttributeNumber1": null,
+          "inventoryAttributeText1": "",
+          "loadAttribute1": false,
+          "loadAttribute2": false,
+          "loadAttribute3": false,
+          "loadAttribute4": false,
+          "loadAttribute5": false,
+          "inventoryStatusDesc": "AVAILABLE",
+          "supplierNumber": "",
+          "supplierLotNumber": "",
+          "displayLpn": "00000776442003826960",
+          "displayUnitQuantity": 1,
+          "displayUnitQuantityUOM": "PA",
+          "displayRemainingUnitQuantity": 0,
+          "displayRemainingUnitQuantityUOM": "CS",
+          "displayScannedQuantity": 0,
+          "displayScannedQuantityUOM": "PA",
+          "displayRemainingScannedQuantity": 65,
+          "displayRemainingScannedQuantityUOM": "CS",
+          "displayAdjustedQuantity": 0,
+          "displayRemainingAdjustedQuantity": -1,
+          "completedReceivingDate": "2026-08-17T08:46:27.237Z"
+        }
+      ],
+      "status": 200,
+      "response_body": {
+        "@type": "ResponseBodyWrapper",
+        "data": {
+          "asynchronousResourceGroupId": 1566006,
+          "asynchronousResourceGroupType": "INVENTORYADJUSTMENT",
+          "asynchronousResources_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventoryAdjustmentApprovals/async/1566006/resources",
+          "clientId": "----",
+          "complete": false,
+          "creationDate": "2026-08-17T08:46:27.000+0000",
+          "resourceId": "1566006",
+          "self_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/inventoryAdjustmentApprovals/async/1566006",
+          "totalProgress": null,
+          "warehouseId": "SG"
+        }
+      }
+    }
+  ]
+}

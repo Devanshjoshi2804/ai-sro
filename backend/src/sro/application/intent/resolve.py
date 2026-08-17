@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from sro.application.context import RequestContext
 from sro.application.intent.match import Candidate, ambiguous, asks, rank
 from sro.application.intent.plan_task import PlanTask, Proposal
+from sro.application.intent.pursue import Pursuit, compose
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.skill.parameter import ParameterKind
@@ -50,6 +51,11 @@ class Resolution:
     match is still offered -- it is probably right -- but as a question, because
     a partial match on a warehouse write is how the wrong thing gets done fast.
     """
+
+    pursuit: Pursuit | None = None
+    """What to do when nothing was taught: a goal composed from what is known,
+    to be worked out on the screen. Never a dead end -- a person put in front of
+    an unfamiliar screen does not refuse, and neither should this."""
 
     proposal: Proposal | None = None
     """When no skill matched: what the knowledge base says such a task would
@@ -158,6 +164,10 @@ class ResolveIntent:
         operator can read is a slow correct one.
         """
         proposal = await self._planner.execute(ctx, utterance=utterance, system=system)
+        # Not "teach me first". Everything known about the task is composed into
+        # a goal, and the browser is driven toward it -- slowly, watched, and
+        # captured, so the next time it is a taught skill over the API.
+        pursuit = Pursuit.of(ctx, compose(utterance, proposal))
         if asks(utterance):
             # A question that reached here did so because every skill that
             # matched it writes, and those were excluded rather than ranked.
@@ -166,21 +176,22 @@ class ResolveIntent:
             return Resolution(
                 utterance=utterance,
                 proposal=proposal,
+                pursuit=pursuit,
                 question=(
-                    "Nothing taught answers that. Reading it is not a task anybody has "
-                    "demonstrated yet"
-                    + (
-                        " — here is what the knowledge base says the system exposes for it."
-                        if proposal is not None and proposal.steps
-                        else ". Show me once where you would look, and I will have it."
-                    )
+                    "Nobody has demonstrated reading that, so I will work it out on the "
+                    "screen and keep what I learn."
+                    if pursuit.goal.facts
+                    else "Nobody has demonstrated that and the knowledge base has nothing "
+                    "on it. Show me once where you would look."
                 ),
             )
         return Resolution(
             utterance=utterance,
             proposal=proposal,
+            pursuit=pursuit,
             question=(
-                "Nothing has been taught for that. "
+                pursuit.question
+                or "Nothing has been taught for that. "
                 + (
                     "Here is what the knowledge base says about it — review it, or teach me "
                     "the task and I will do it exactly as you do."

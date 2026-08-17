@@ -79,6 +79,15 @@ class StepOutcome:
     detail: str | None = None
     """Why it was withheld, skipped or failed. Never carries a response body."""
 
+    found_rows: int | None = None
+    """How many records a read returned. The answer to "how many", kept because
+    a run that reports `GET … -> 200` has answered nothing: the number was in
+    the response and was being thrown away."""
+
+    found: tuple[dict[str, str], ...] = ()
+    """Enough of the first records to recognise them. Bounded deliberately --
+    this is an answer, not a copy of the customer's database."""
+
     @property
     def ok(self) -> bool:
         return self.disposition is not StepDisposition.FAILED and not self.assertion_failures
@@ -125,6 +134,13 @@ class Run:
     the step that read it. It is also the honest audit answer to "what value did
     it actually send", which the parameters alone cannot give."""
 
+    may_change_the_system: bool = True
+    """Whether the skill being run sends anything but reads.
+
+    Authorisation is for changing a system. A read-only skill demanded a named
+    human and told them it "performs real writes" while fetching a list -- untrue,
+    and the kind of prompt that teaches people to click past prompts."""
+
     status: RunStatus = RunStatus.RUNNING
     steps: list[StepOutcome] = field(default_factory=list)
     ended_at: datetime | None = None
@@ -135,7 +151,11 @@ class Run:
             raise InvariantViolation("version numbers start at 1")
         if self.started_at.tzinfo is None:
             raise InvariantViolation("Run.started_at must be timezone-aware")
-        if self.stage.rung > PromotionStage.SHADOW.rung and self.authorized_by is None:
+        if (
+            self.may_change_the_system
+            and self.stage.rung > PromotionStage.SHADOW.rung
+            and self.authorized_by is None
+        ):
             raise InvariantViolation(
                 f"a {self.stage} run performs real writes and must name the human who authorised it"
             )

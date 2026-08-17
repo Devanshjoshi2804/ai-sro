@@ -601,7 +601,9 @@
         "Accepted operators: EQ, NE, GT, GE, LT, LE. Rejected with 422: LIKE, CONTAINS, IN, BETWEEN, BEGINS, STARTSWITH, NOT_NULL, IS_NULL, and lowercase \"eq\" — the vocabulary is upper-case and small.",
         "There is no LIKE, but a % wildcard inside an EQ value works: carrierCode EQ \"00%\" returned 3 rows.",
         "Columns are the camelCase JSON names, NOT the DB column names the 422 errors quote — which is why every earlier guess based on those failed.",
-        "GT/GE/LT/LE perform REAL comparisons, tested on four resources against the actual distribution of a numeric column: every returned row honoured the bound (locations.workZoneId, storageConfigurations.sortSequence, workOperations.basePriority, aisles.areaCount)."
+        "GT/GE/LT/LE perform REAL comparisons, tested on four resources against the actual distribution of a numeric column: every returned row honoured the bound (locations.workZoneId, storageConfigurations.sortSequence, workOperations.basePriority, aisles.areaCount).",
+        "The grammar is a BOOLEAN TREE, not a flat list: [{\"OR\":[{\"AND\":[clause,…]},{\"AND\":[…]}]}] works, verified on carriers — an OR of two carrier codes returns both, where the flat form returns one. Found in a /wm/policies call the Adjustments screen makes, not by guessing.",
+        "The boolean keys are case-sensitive: {\"or\":…} answers 200 with zero rows. Same silent-failure shape as an unfilterable column."
       ],
       "consequence": "Targeted reads are now possible, which is what verification needs: a post-condition on a 61,912-row table no longer means paging it. The caution is that a parseable but wrong clause returns 200 with ZERO rows, indistinguishable from a genuine no-match, so a filtered read that comes back empty must be re-checked against an unfiltered count before concluding a record is absent.",
       "method_note": "Eighteen hand-invented spellings were tried first and every one failed. What worked was reading the grid store proxy (RPUX.rest.RestProxy) and then watching a server-paged screen make its own call — the same lesson as payloads: the application already knows, so watch it.",
@@ -673,6 +675,40 @@
       "consequence": "This is the vocabulary an intent resolver maps onto: an operator saying \"cancel the picks on this wave\" is naming Cancel Picks on Waves and Picks. It closes the gap between an utterance and a screen. What it does NOT give is the request behind any of them.",
       "caution": "No verb here has a recorded request. Each needs an approved capture, and the one operational write ever observed on this instance — inventory adjust — answered 200 with approvalRequired true and moved no stock, so a menu item cannot be assumed to do what its name suggests.",
       "evidence_level": "observed"
+    },
+    {
+      "id": "most-operational-screens-are-monitors-not-action-surfaces",
+      "source": "tools/cdp/dump-toolbar-actions.mjs — 2026-08-17",
+      "claim": "The 83 operational screens without an Actions menu are mostly read-only monitors. 69 further domain verbs live on 25 of them; 16 carry nothing but grid chrome.",
+      "verdict": "RECORDED",
+      "evidence": "index/toolbar-actions.json",
+      "observed": [
+        "209 buttons read across 41 distinct screens. Five controls appear on nearly every one — exportAction, printAction, refreshAction, refreshIntervalButton, filterMenu — and counting those as actions would have inflated the verb inventory with export buttons.",
+        "The real verbs found here are worth having: Adjustments offers Approve and Reject (with a live count of 9 pending approvals); Location Audit offers Start Audit, Start Audit & Repair, Pause, Resume, Stop, Repair Selected, Repair All; Shipment Delivery offers Confirm Shipment; Bundling offers Bundle, Bundle and Manifest, Unbundle; Order Line Mass Update and Shipment Mass Update each offer their bulk update; Check In offers Check In.",
+        "Several screens are tab-switchers whose \"buttons\" carry live counts — Holds shows Active Holds 103407, Disabled Holds 281, History 24759. Those are navigation with data attached, not actions.",
+        "Nothing was clicked. Button state was read from the component tree."
+      ],
+      "consequence": "The operational write surface is narrower than 123 screens suggested: 40 screens with Actions menus plus roughly 25 with toolbar verbs. That is the real blast radius to secure, and it is a much smaller target for capture than the tier as a whole. Adjustments.Approve is the natural first capture — it is the other half of the approval queue the one observed inventory adjust landed in.",
+      "evidence_level": "observed"
+    },
+    {
+      "id": "operational-approval-captured-and-it-moves-stock",
+      "source": "tools/cdp/capture-approve-adjustment.mjs — 2026-08-17, with the user's explicit approval",
+      "claim": "Inventory ▸ Adjustments ▸ Approve posts an ARRAY of full adjustment records to an async endpoint, and it really does move stock.",
+      "verdict": "ROUND-TRIP PROVEN",
+      "evidence": "http/flows/approveAdjustment.json; http/exchanges/inventoryAdjustmentApprovals.jsonl case approve-adjustment",
+      "observed": [
+        "One request: POST /wm/inventoryAdjustmentApprovals/async -> 200.",
+        "The body is an ARRAY containing the ENTIRE approval row, not an id — 40+ fields including lpn, detailLpn, subLpn, lotNumber, location, unitQuantity 66, scannedQuantity 65, adjustmentQuantity -1, reasonCode AA, operationCode INVADJ, cost, currencyCode, and the original lastModifiedBy/dateLastModified of the row being approved.",
+        "The response is an ASYNC HANDLE, not a result: {asynchronousResourceGroupId: 1566006, asynchronousResourceGroupType: \"INVENTORYADJUSTMENT\", complete: FALSE, asynchronousResources_uri: .../async/1566006/resources}. The 200 means \"queued\", not \"done\".",
+        "Effect verified by reading both sides: the approval queue went 9 -> 8 and the row left it; structuredInventory for the LPN went 66 -> 65 CS. Stock moved.",
+        "The UI raises a form first — \"Approve Adjustments: Reason*, Comment, Generate Cycle Count, OK/Cancel\" — so there is a second stage between clicking Approve and the request, and its defaults were accepted here.",
+        "The async handle resolves properly and is the right place to verify: GET /wm/inventoryAdjustmentApprovals/async/1566006 now returns complete:true, totalProgress:100; its /resources sub-collection returns one row with asynchronousStatus COMPLETE, a completionDate two seconds after the request, an errorCode field, and the server-side runner class that did the work (ApproveInventoryAdjustmentApprovalTrackedRunnerImpl)."
+      ],
+      "consequence": "This is the first operational write proven end to end on this instance, and it contradicts the tier's only prior data point: an adjustment CREATE answered 200 with approvalRequired true and moved nothing, while the APPROVAL genuinely moves inventory. Two things follow for an executor. The payload cannot be synthesised from an id — it is the whole record, so a read must precede the write. And a 200 here is a receipt for an async group, so verification has to poll asynchronousResources_uri or re-read the inventory; taking the 200 as success would report a completed adjustment that may still be in flight.",
+      "irreversible": "There is no Unapprove. The target was chosen deliberately: LPN 00000776442003826960, the adjustment this project's own L1 run created on 2026-08-13, rather than any of the eight other pending rows belonging to other work.",
+      "evidence_level": "round-trip",
+      "verification_recipe": "POST the array, take data.asynchronousResourceGroupId from the 200, then poll GET /wm/inventoryAdjustmentApprovals/async/{id} until complete is true, and read /resources for asynchronousStatus and errorCode per item. Do not treat the POST 200 as the outcome."
     }
   ],
   "still_asserted_not_reproduced": [],

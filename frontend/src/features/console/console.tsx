@@ -188,6 +188,14 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
     }
   };
 
+  // Nothing taught, nothing proposed, nothing running: the only state where an
+  // invitation to teach is the most useful thing on screen.
+  const lastDecision = (conversation.data?.messages ?? [])
+    .filter((message) => message.decision)
+    .at(-1)?.decision as { matched_skill_id?: string | null } | undefined;
+  const showTeach =
+    (conversation.data?.messages ?? []).length === 0 || lastDecision?.matched_skill_id == null;
+
   const runsSoFar = thread.sealedRecordings.length;
   const teaching = active !== null;
 
@@ -519,7 +527,11 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
                   </div>
                 )}
 
-                {teachingAt === null && (
+                {/* Only when there is nothing to answer with. Offering to be
+                    taught underneath every reply — including replies that found
+                    the right skill and ran it — reads as though nothing worked.
+                    Teaching is always available from the + button. */}
+                {teachingAt === null && showTeach && (
                   <TeachForm onStart={beginTeaching} pending={start.isPending} />
                 )}
               </div>

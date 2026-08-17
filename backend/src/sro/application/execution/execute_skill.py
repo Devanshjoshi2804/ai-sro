@@ -18,6 +18,7 @@ from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
 from sro.application.context import RequestContext
+from sro.application.execution.answer import read_answer
 from sro.application.execution.headers import client_headers, resolve_headers
 from sro.application.execution.self_heal import HealBudget, Healed, SelfHeal
 from sro.application.execution.verify import check, extract
@@ -100,6 +101,16 @@ class StartRun:
             recent = await uow.runs.finished_since(
                 ctx.tenant_id, target_system=system, since=now - FAILURE_WINDOW - WRITE_WINDOW
             )
+            # Failures somebody has already looked at stop counting. Without
+            # this the breaker asks for a person and gives them nothing to do:
+            # every run is refused until the window ages out, including the one
+            # that would show the fault is already fixed.
+            connection = await uow.connections.find_by_system(ctx.tenant_id, system)
+            cleared = connection.failures_acknowledged_at if connection else None
+            if cleared is not None:
+                recent = tuple(
+                    run for run in recent if run.ended_at is None or run.ended_at > cleared
+                )
             verdict = assess(tuple(_fact(run) for run in recent), now)
             if not verdict.permitted:
                 raise Refused(verdict.reason or "recent runs against this system have failed")
@@ -116,6 +127,7 @@ class StartRun:
                 authorized_by=_principal(request.authorized_by),
                 medium=request.medium,
                 target_system=system,
+                may_change_the_system=_writes(version),
             )
             await uow.runs.add(run)
             await uow.commit()
@@ -520,6 +532,10 @@ class ExecuteStep:
                 FailureKind.UNREACHABLE,
             )
 
+        # What it found, not only that it answered. A read whose records are
+        # discarded leaves the person who asked looking at a status code.
+        answer = read_answer(response.text) if not mutating else None
+
         failures = check(step.assertions, response, values=values)
         if plan.expected_status is not None and response.status_code != plan.expected_status:
             failures = (
@@ -538,6 +554,8 @@ class ExecuteStep:
                 status_code=response.status_code,
                 idempotency_key=key,
                 assertion_failures=failures,
+                found_rows=answer.rows if answer else None,
+                found=answer.sample if answer else (),
             ),
             _derive(produces, response),
             FailureKind.ASSERTION_FAILED if failures else None,
@@ -656,13 +674,30 @@ def _version_of(skill: Skill, requested: int | None) -> SkillVersion:
     raise NotRunnable(f"skill has no version {requested}")
 
 
+def _writes(version: SkillVersion) -> bool:
+    """Whether performing this version changes the target system."""
+    return any(
+        step.network_plan is not None
+        and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
+        for step in version.steps
+    )
+
+
 def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
     if version.stage is PromotionStage.RECORDED:
         raise NotRunnable(
             "a recorded skill has not been reviewed by anybody; promote it to shadow "
             "to run it against the system"
         )
-    if version.stage.rung > PromotionStage.SHADOW.rung and not request.authorized_by:
+    # Authorisation is for changing the system. A skill that only reads asked
+    # for a name and told the operator it "performs real writes" while fetching
+    # a list -- which is both untrue and the kind of prompt that teaches people
+    # to click past prompts.
+    if (
+        _writes(version)
+        and version.stage.rung > PromotionStage.SHADOW.rung
+        and not request.authorized_by
+    ):
         raise NotRunnable(
             f"a {version.stage} run performs real writes and must name the human who authorised it"
         )

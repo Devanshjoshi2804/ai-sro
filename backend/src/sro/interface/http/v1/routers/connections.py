@@ -17,6 +17,7 @@ from sro.interface.http.schemas import (
     ConnectSystemRequest,
     CredentialsRequest,
     OpenedConnectionResponse,
+    ResumeRequest,
     SessionCheckModel,
     SessionHeadersRequest,
     SessionHeadersResponse,
@@ -142,6 +143,21 @@ async def sign_in(
         landed_at=signed_in.landed_at,
         steps=list(signed_in.steps),
     )
+
+
+@router.post("/{connection_id}/resume")
+async def resume(
+    connection_id: str, body: ResumeRequest, container: ContainerDep, ctx: ContextDep
+) -> ConnectionModel:
+    """ "I have looked" — close a tripped breaker and let runs start again.
+
+    The breaker asks for a person; this is what the person says back. Failures
+    before this moment stop counting, and who said it is kept with the reason.
+    """
+    connection = await container.acknowledge_failures().execute(
+        ctx, connection_id=ConnectionId(connection_id), reason=body.reason
+    )
+    return _model(connection)
 
 
 @router.post("/{connection_id}/session-headers")

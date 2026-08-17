@@ -169,6 +169,18 @@ column at all** and can only be paged. There is no pattern to infer it from (`*C
 everything else 31%), so `index/filterable-columns.json` holds the measured answer per resource.
 Check it before trusting an empty result: on an unproven column, empty means unknown, not absent.
 
+**Three operational writes are proven, and the convention is clear.** All of them PUT or POST an
+**array of whole records** to a `/batch`-style route — never an id:
+
+| action | endpoint |
+|---|---|
+| Adjustments ▸ Approve | `POST /wm/inventoryAdjustmentApprovals/async` |
+| Work Queue ▸ Suspend Work | `PUT /wm/work/suspendDirectedWorks/batch` |
+| Work Queue ▸ Resume Work | `PUT /wm/work/resumeDirectedWorks/batch` |
+
+Suspend/Resume is a reversible pair and was run as one: work 5490663 went PEND → SUSP → PEND, so the
+warehouse ended where it started. An executor must therefore read the record before writing it.
+
 **One operational write is now proven end to end.** `Inventory ▸ Adjustments ▸ Approve` posts an
 **array of full adjustment records** — not an id — to `POST /wm/inventoryAdjustmentApprovals/async`,
 and the 200 is an **async receipt**, not a result: `{asynchronousResourceGroupId, complete: false}`.

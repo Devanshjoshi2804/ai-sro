@@ -44,6 +44,7 @@ from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.backfill import BackfillEmbeddings
 from sro.application.knowledge.learn_from_run import LearnFromRun
+from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.read_knowledge import ReadKnowledge
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
@@ -209,7 +210,7 @@ class Container:
         return FinishRecording(self.unit_of_work(), self.browser, self.clock)
 
     def induce_skill(self) -> InduceSkill:
-        return InduceSkill(self.unit_of_work(), self.clock, self.ids)
+        return InduceSkill(self.unit_of_work(), self.clock, self.ids, self.ask_about())
 
     def understand_recording(self) -> UnderstandRecording:
         return UnderstandRecording(self.unit_of_work(), self.interpreter, self.clock, self.ids)
@@ -293,6 +294,9 @@ class Container:
 
     def backfill_embeddings(self) -> BackfillEmbeddings:
         return BackfillEmbeddings(self.unit_of_work(), self.embedder)
+
+    def ask_about(self) -> AskAbout:
+        return AskAbout(self.unit_of_work(), self.record_claims())
 
     def read_knowledge(self) -> ReadKnowledge:
         return ReadKnowledge(self.unit_of_work())

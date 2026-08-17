@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from sro.application.context import RequestContext
 from sro.application.induction import assertions as assertion_extraction
 from sro.application.induction import describe, narration
-from sro.application.induction.companions import read_skills
+from sro.application.induction.companions import ambiguity_in, read_skills
 from sro.application.induction.diff import Parameterisation, align, parameterise
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
+from sro.application.knowledge.open_questions import AskAbout
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.recording.recording import Recording, RecordingStatus
@@ -30,10 +31,11 @@ class InducedSkill:
 
 
 class InduceSkill:
-    def __init__(self, uow: UnitOfWork, clock: Clock, ids: IdFactory) -> None:
+    def __init__(self, uow: UnitOfWork, clock: Clock, ids: IdFactory, ask: AskAbout) -> None:
         self._uow = uow
         self._clock = clock
         self._ids = ids
+        self._ask = ask
 
     async def execute(
         self,
@@ -82,6 +84,12 @@ class InduceSkill:
             # create a transport mode lists the existing ones first, and that
             # read is real evidence -- asking the operator to demonstrate it
             # separately is asking them for something already in hand.
+            # Where two readings of one entity were both observed, the system
+            # says so rather than choosing. Asked once, answered once, and read
+            # by everything afterwards.
+            if (found := ambiguity_in(run_a.frames, objective)) is not None:
+                await self._ask.raise_question(ctx, found)
+
             for companion in read_skills(
                 run_a.frames,
                 taught=objective,

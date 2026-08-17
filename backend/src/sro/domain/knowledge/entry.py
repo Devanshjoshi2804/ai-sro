@@ -60,6 +60,12 @@ class EntryKind(StrEnum):
     FLOW = "flow"
     STATUS = "status"
     QUIRK = "quirk"
+    QUESTION = "question"
+    """Something the system could not decide and will not guess at.
+
+    Kept with what is known about the system on purpose: an open question is a
+    fact about this deployment -- the place where the next confident answer
+    would be a guess -- and it is answered once, by somebody who works here."""
 
 
 class KnowledgeId(str):

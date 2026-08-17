@@ -757,6 +757,24 @@
       "consequence": "The three vocabularies problem is worse than recorded. A Configuration create needs camelCase (businessUnitDescription), the API error quotes the DB column (lngdsc), and now an operational form is ADDRESSED in DB columns (dlvnum). A UI plan for the operational tier and a payload for the Configuration tier cannot share a field dictionary.",
       "method_note": "Four readings were dropped rather than kept: an untitled window with no fields, closed with an error, is the signature of reading the PREVIOUS action's leftover dialog. Recording those as \"this action takes no input\" would have been worse than recording nothing. Seven more actions were present and enabled but their handler did not fire — the tool records that as not-fired rather than guessing.",
       "evidence_level": "observed"
+    },
+    {
+      "id": "suspend-and-resume-work-captured-as-a-reversible-pair",
+      "source": "tools/cdp/capture-action-pair.mjs — 2026-08-17, with the user's approval",
+      "claim": "Two more operational writes are proven, and they undo each other: Suspend Work and Resume Work on the Work Queue.",
+      "verdict": "ROUND-TRIP PROVEN",
+      "evidence": "http/exchanges/work.jsonl cases suspend-work and resume-work; http/flows/SuspendWork-ResumeWork.json",
+      "observed": [
+        "PUT /wm/work/suspendDirectedWorks/batch -> 200, dialog \"Selected Work has been Suspended.\"",
+        "PUT /wm/work/resumeDirectedWorks/batch -> 200, dialog \"Selected Work has been Resumed.\"",
+        "Both bodies are an ARRAY of the FULL work records as the grid holds them — 44 fields each — not an id. The same shape as the adjustment approval, so this looks like the convention for operational batch actions rather than a quirk of one screen.",
+        "The resume body carried workRequestStatus SUSP / \"Suspended\", which is itself independent proof that the suspend had landed.",
+        "Verified afterwards through the API: work 5490663 is back to PEND / Pending, priority 5. Clean round trip.",
+        "The endpoints are PUT to /<verb>DirectedWorks/batch, a naming pattern that suggests the sibling verbs (cancel, unlock, assign) follow the same shape — worth testing rather than assuming."
+      ],
+      "consequence": "The operational write convention is now visible on two independent screens: a PUT or POST to a /batch route carrying an array of whole records. An executor must read the record first, and cannot construct these calls from an identifier. Reversible pairs are also the safe way to learn the rest of the tier — this run left the warehouse exactly as it found it.",
+      "method_note": "A first attempt reported \"fired\" and changed nothing. `fireHandler()` is a NO-OP on these menu items — the handler lives on the menu's click event — so the run produced no dialog, no request, and a false clean result. Clicking the item's DOM element works. This is the same lesson the grid link columns taught earlier in this project, now recorded for menu items too.",
+      "evidence_level": "round-trip"
     }
   ],
   "still_asserted_not_reproduced": [],

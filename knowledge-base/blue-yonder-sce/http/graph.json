@@ -9,7 +9,7 @@
   ],
   "principle": "Every edge is derived from a recorded exchange and carries its evidence file. Nothing here is inferred from naming or convention.",
   "counts": {
-    "screens": 184,
+    "screens": 185,
     "resources": 296,
     "edges": 328,
     "dataflow_edges": 13,
@@ -13333,6 +13333,15 @@
           "cases": {
             "read-shape-observed": "200"
           }
+        },
+        "PUT": {
+          "statuses": [
+            200
+          ],
+          "cases": {
+            "suspend-work": "200",
+            "resume-work": "200"
+          }
         }
       },
       "evidence": "http/exchanges/work.jsonl"
@@ -14475,6 +14484,11 @@
         }
       ],
       "evidence": "index/form-models.json"
+    },
+    {
+      "id": "screen:SuspendWork-ResumeWork",
+      "type": "screen",
+      "screen": "SuspendWork-ResumeWork"
     },
     {
       "id": "screen:[object Object]",

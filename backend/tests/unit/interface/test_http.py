@@ -27,6 +27,7 @@ from tests.unit.fakes import (
     FakeClock,
     FakeCredentialVault,
     FakeDurableExecution,
+    FakeEmbedder,
     FakeHttpCaller,
     FakeIdFactory,
     FakeSignInDriver,
@@ -50,12 +51,15 @@ class _FakeContainer(Container):
         self.blobs = FakeBlobStore()
         self.browser = FakeBrowserProvider()
         self.transcriber = FakeTranscriber()
+        # Before the durable fake: it builds induction, which now records what it
+        # could not decide, which needs somewhere to put it.
+        self.embedder = FakeEmbedder()
+        self.vault = FakeCredentialVault()
         # A supervisor with no browser behind it: start/stop are no-ops, which
         # is what these tests want -- the capture loop has its own coverage in
         # tests/integration/test_steel_capture.py.
         self.capture = FakeCaptureSupervisor()
         self.durable = FakeDurableExecution(self.induce_skill())
-        self.vault = FakeCredentialVault()
         # Teaching asks whether the system is open before it opens a browser.
         # Here nothing is reachable and nothing is stored, so the answer is "no"
         # and the endpoint's own refusal is what the tests see.

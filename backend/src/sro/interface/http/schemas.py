@@ -156,6 +156,31 @@ class PursuitProgressModel(BaseModel):
         )
 
 
+class OpenQuestionModel(BaseModel):
+    system: str
+    key: str
+    question: str
+    options: list[str]
+    because: list[str]
+
+    @classmethod
+    def of(cls, entry: object) -> OpenQuestionModel:
+        body = getattr(entry, "body", {}) or {}
+        return cls(
+            system=str(getattr(entry, "system", "")),
+            key=str(getattr(entry, "key", "")),
+            question=str(body.get("question") or getattr(entry, "title", "")),
+            options=[str(option) for option in (body.get("options") or [])],
+            because=[str(reason) for reason in (body.get("because") or [])],
+        )
+
+
+class AnswerQuestionRequest(BaseModel):
+    system: str
+    key: str
+    chosen: str
+
+
 class ResumeRequest(BaseModel):
     reason: str
     """Why it is safe to carry on. Kept, because a breaker anybody can clear

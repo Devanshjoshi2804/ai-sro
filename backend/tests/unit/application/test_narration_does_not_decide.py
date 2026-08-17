@@ -9,11 +9,13 @@ from __future__ import annotations
 
 from sro.application.context import RequestContext
 from sro.application.induction.induce_skill import InduceSkill
+from sro.application.knowledge.open_questions import AskAbout
+from sro.application.knowledge.record_claim import RecordClaims
 from sro.domain.recording.narration import NarrationSegment
 from sro.domain.shared.identifiers import RecordingId
 from sro.domain.skill.skill import SkillVersion
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
@@ -42,9 +44,12 @@ async def _induced(*, narrated: bool) -> SkillVersion:
         recording.seal(f.at(300))
         await uow.recordings.add(recording)
 
-    await InduceSkill(uow, FakeClock(), FakeIdFactory()).execute(
-        CTX, first=RecordingId("rec-a"), second=RecordingId("rec-b")
-    )
+    await InduceSkill(
+        uow,
+        FakeClock(),
+        FakeIdFactory(),
+        AskAbout(uow, RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder())),
+    ).execute(CTX, first=RecordingId("rec-a"), second=RecordingId("rec-b"))
     skill = next(iter(uow.skills.rows.values()))
     return skill.versions[-1]
 

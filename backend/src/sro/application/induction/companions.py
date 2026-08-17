@@ -17,6 +17,7 @@ from datetime import datetime
 
 from sro.application.induction.capabilities import ReadCapability, reads_about, wrote_to
 from sro.application.induction.headers import build_header_plans
+from sro.application.knowledge.open_questions import Ambiguity
 from sro.domain.recording.events import ActionFrame
 from sro.domain.shared.identifiers import PrincipalId, RecordingId, SkillId
 from sro.domain.shared.objective import Direction, ObjectiveKey
@@ -25,6 +26,38 @@ from sro.domain.skill.plan import NetworkPlan
 from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
 from sro.domain.skill.template import Template
 from sro.domain.skill.track_record import Verdict
+
+
+def ambiguity_in(frames: tuple[ActionFrame, ...], taught: ObjectiveKey) -> Ambiguity | None:
+    """Two readings of one entity, where picking either would be a guess.
+
+    Blue Yonder creates in `transportModes` and refreshes `warehouseTransportModes`:
+    sixteen rows at this site, twenty-three across all of them. Both answer "how
+    many transport modes are there", and which one somebody means is a fact
+    about how they talk, not about the system -- so it is asked, once, rather
+    than decided by whichever the screen happened to fetch first.
+    """
+    reads = reads_about(frames, taught.entity_type)
+    written = wrote_to(frames)
+    if not reads or not written:
+        return None
+    if reads[0].entity.lower() == written.lower():
+        return None
+
+    entity = taught.entity_type.replace("_", " ")
+    return Ambiguity(
+        system=taught.target_system,
+        key=f"{taught.target_system}/{taught.entity_type}/collection",
+        question=(
+            f'When somebody says "{entity}", do they mean the ones at '
+            f"{taught.facility}, or all of them?"
+        ),
+        options=(reads[0].entity, written),
+        because=(
+            f"{reads[0].entity} returned {reads[0].rows} when this was demonstrated",
+            f"{written} is what the task writes to, and is wider",
+        ),
+    )
 
 
 def read_skills(

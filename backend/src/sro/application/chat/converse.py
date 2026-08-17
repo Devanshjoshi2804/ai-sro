@@ -23,7 +23,7 @@ from sro.application.ports.http import TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.thread import Message, Speaker, Thread, ThreadId
-from sro.domain.execution.run import Run
+from sro.domain.execution.run import Run, RunStatus
 from sro.domain.shared.errors import DomainError
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ class Converse:
                 Message(
                     id=self._ids.new_message_id(),
                     speaker=Speaker.ASSISTANT,
-                    text=_reply(resolution),
+                    text=_reply(resolution) + _why_it_failed(run),
                     said_at=self._clock.now(),
                     decision=_decision(resolution, run),
                 )
@@ -168,6 +168,27 @@ class Converse:
             # fact about the system, not an absence of transport modes.
             logger.info("could not answer from the system: %s", refusal)
             return None
+
+
+def _why_it_failed(run: Run | None) -> str:
+    """Say what actually went wrong, in the words of the thing that went wrong.
+
+    "1 step did not satisfy their post-conditions" is true of a skill that has
+    drifted, a system that is down, and a session that has expired, and those
+    want three different people to do three different things. The step already
+    knows which; it was just not being read.
+    """
+    if run is None or run.status is not RunStatus.FAILED:
+        return ""
+    for step in run.steps:
+        if step.detail and "login page" in step.detail:
+            return (
+                " The connection is signed out — the system answered with its login page. "
+                "Sign in once and ask again."
+            )
+        if step.detail and "no live value" in step.detail:
+            return " The session is missing something the system signs its calls with."
+    return ""
 
 
 def _reply(resolution: Resolution) -> str:

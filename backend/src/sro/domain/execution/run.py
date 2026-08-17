@@ -85,6 +85,10 @@ class StepOutcome:
     the response and was being thrown away."""
 
     found: tuple[dict[str, str], ...] = ()
+    found_labels: tuple[str, ...] = ()
+    """Each record as one readable line. Kept as text because `jsonb` sorts an
+    object's keys by length, so the field ranking does not survive being
+    stored."""
     """Enough of the first records to recognise them. Bounded deliberately --
     this is an answer, not a copy of the customer's database."""
 

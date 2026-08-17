@@ -579,6 +579,8 @@ class StepOutcomeModel(BaseModel):
     question. A step that reports only a status code has answered nothing."""
 
     found: list[dict[str, str]] = []
+    found_labels: list[str] = []
+    """Each record as one readable line, ranked before storage."""
 
     @classmethod
     def of(cls, step: StepOutcome) -> StepOutcomeModel:
@@ -598,6 +600,7 @@ class StepOutcomeModel(BaseModel):
             detail=step.detail,
             found_rows=step.found_rows,
             found=[dict(row) for row in step.found],
+            found_labels=list(step.found_labels),
         )
 
 

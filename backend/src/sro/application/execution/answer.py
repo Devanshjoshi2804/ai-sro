@@ -51,6 +51,14 @@ class Answer:
 
     truncated: bool
 
+    labels: tuple[str, ...] = ()
+    """Each record as one line, in the order the fields were ranked.
+
+    Carried separately because Postgres `jsonb` does not keep key order -- it
+    sorts by key length -- so a row stored as an object comes back with the
+    surrogate key first however carefully it was arranged. The ranking has to
+    survive the round trip, so it is applied once, here, and kept as text."""
+
     def sentence(self, subject: str) -> str:
         """One line, for a person who asked a question rather than a table."""
         if self.rows == 0:
@@ -74,7 +82,12 @@ def read_answer(body: str | None) -> Answer | None:
         return None
 
     sample = tuple(_row(record) for record in records[:MAX_ROWS] if isinstance(record, dict))
-    return Answer(rows=len(records), sample=sample, truncated=len(records) > MAX_ROWS)
+    return Answer(
+        rows=len(records),
+        sample=sample,
+        truncated=len(records) > MAX_ROWS,
+        labels=tuple(_describe(row) for row in sample),
+    )
 
 
 def _row(record: dict[str, object]) -> dict[str, str]:

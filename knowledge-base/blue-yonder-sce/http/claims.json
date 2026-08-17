@@ -709,6 +709,37 @@
       "irreversible": "There is no Unapprove. The target was chosen deliberately: LPN 00000776442003826960, the adjustment this project's own L1 run created on 2026-08-13, rather than any of the eight other pending rows belonging to other work.",
       "evidence_level": "round-trip",
       "verification_recipe": "POST the array, take data.asynchronousResourceGroupId from the 200, then poll GET /wm/inventoryAdjustmentApprovals/async/{id} until complete is true, and read /resources for asynchronousStatus and errorCode per item. Do not treat the POST 200 as the outcome."
+    },
+    {
+      "id": "approve-adjustments-has-a-second-stage-form",
+      "source": "tools/cdp/read-approve-form.mjs — 2026-08-17",
+      "claim": "Approve is not one click. It raises a form with a required reason, a comment, and a side effect toggle, and the request only goes when that form is submitted.",
+      "verdict": "RECORDED",
+      "evidence": "index/operational-forms.json; images/approve-adjustments-form.png",
+      "observed": [
+        "Title \"Approve Adjustments\", buttons OK and Cancel. Three fields: reasonCode (combo, REQUIRED, 27 options, pre-filled from the row being approved — AA here), comment (textarea, empty), generateCycleCount (checkbox, default FALSE).",
+        "So the approval captured earlier ran with generateCycleCount OFF and reason AA inherited from the row. That was a default, not a decision, and it is now recorded as such rather than left ambiguous.",
+        "The reason list includes two codes the business has explicitly retired inside their own labels: ADJ-ACCEPT \"Acceptable Adjustment - DO NOT USE\" and ADJ-REJECT \"Reject Adjustment - DO NOT USE\". An automation picking the first option, or matching on a name, could easily choose one of them.",
+        "The form was opened and cancelled. No write left the browser — verified by listening for non-GET traffic, which recorded none."
+      ],
+      "consequence": "A UI plan for this action needs three decisions, not zero: which reason, whether to comment, and whether to generate a cycle count. generateCycleCount is a real side effect that creates counting work in the warehouse. And a reason cannot be picked positionally — two of the 27 options are traps whose only warning is the word DO-NOT-USE inside their description.",
+      "evidence_level": "observed"
+    },
+    {
+      "id": "operational-actions-render-three-different-ways",
+      "source": "tools/cdp/read-action-form.mjs — 2026-08-17",
+      "claim": "An operational action does not have one UI shape. It may open a modal window, push a card into the deck, or render an inline panel — and a missing window is not evidence that it acted.",
+      "verdict": "RECORDED",
+      "evidence": "index/operational-forms.json",
+      "observed": [
+        "Adjustments > Approve opens a modal WINDOW: 3 fields (reasonCode required with 27 options, comment, generateCycleCount).",
+        "Inventory > Apply Hold renders an INLINE PANEL with its own Apply / Cancel / Add Hold buttons and a hold-selection grid, not a dialog.",
+        "The first version of this tool reported Apply Hold as \"NO DIALOG — acts immediately\", which was a wrong inference from a missing window. It now looks for cards and panels before concluding anything, and prints what it actually found.",
+        "Nothing was written by any of it. Verified two ways: the non-GET listener recorded zero requests, and holdsHistory's newest entry is still 2026-06-03.",
+        "The Actions menu itself needs a real DOM click or showMenu() — firing the button handler leaves the menu closed, which made every action look disabled."
+      ],
+      "consequence": "A UI plan cannot be written per-verb from a template. Each action needs its rendering shape recorded, and \"did a window appear\" is not a usable signal for whether an action ran — only observed traffic is. The 95-verb inventory therefore needs 95 individual readings, and this tool does them one at a time without side effects.",
+      "evidence_level": "observed"
     }
   ],
   "still_asserted_not_reproduced": [],

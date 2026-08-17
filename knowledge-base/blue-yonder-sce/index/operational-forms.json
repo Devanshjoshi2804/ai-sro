@@ -1,0 +1,276 @@
+{
+  "forms": {
+    "Adjustments > Approve": {
+      "title": "Approve Adjustments",
+      "text": "Approve Adjustments Reason* Comment Generate Cycle Count OK Cancel",
+      "fields": [
+        {
+          "field": "reasonCode",
+          "label": "Reason",
+          "type": "combo",
+          "required": true,
+          "value": "AA",
+          "options": [
+            {
+              "v": "0003",
+              "t": "0003 - Carrier Damage (Inbound)"
+            },
+            {
+              "v": "0005",
+              "t": "0005 - Product Put on Hold"
+            },
+            {
+              "v": "0007",
+              "t": "0007 - Preload Damage (Inbound)"
+            },
+            {
+              "v": "0013",
+              "t": "0013 - Hidden Damage"
+            },
+            {
+              "v": "0017",
+              "t": "0017 - Chep Structual Failure"
+            },
+            {
+              "v": "0019",
+              "t": "0019 - Aged or Expired Damage"
+            },
+            {
+              "v": "0025",
+              "t": "0025 - Quality Hold Damage"
+            },
+            {
+              "v": "0028",
+              "t": "0028 - SPPK Damage (Sonoco)"
+            },
+            {
+              "v": "0033",
+              "t": "0033 - Customer Returns Damage"
+            },
+            {
+              "v": "0036",
+              "t": "0036 - Warehouse Damage"
+            },
+            {
+              "v": "0048",
+              "t": "0048 - Packaging Failure Damage"
+            },
+            {
+              "v": "0053",
+              "t": "0053 - Employee Giveaway"
+            },
+            {
+              "v": "0054",
+              "t": "0054 - Lost By Carrier Damage"
+            },
+            {
+              "v": "0055",
+              "t": "0055 - Product Taken Off Hold"
+            },
+            {
+              "v": "05",
+              "t": "05 - Product Put on Hold"
+            },
+            {
+              "v": "07",
+              "t": "07 - Product Dumped or Destroyed"
+            },
+            {
+              "v": "0900",
+              "t": "0900 - Firesale Damage"
+            },
+            {
+              "v": "0901",
+              "t": "0901 - Donation Damage"
+            },
+            {
+              "v": "AA",
+              "t": "AA - Physical Count"
+            },
+            {
+              "v": "AC",
+              "t": "AC - Condition Change"
+            },
+            {
+              "v": "ADJ-ACCEPT",
+              "t": "Acceptable Adjustment - DO NOT USE"
+            },
+            {
+              "v": "AD",
+              "t": "AD - Purpose Change"
+            },
+            {
+              "v": "AE",
+              "t": "AE - Reidentification"
+            },
+            {
+              "v": "AK",
+              "t": "AK - Transfer"
+            },
+            {
+              "v": "ADJ-REJECT",
+              "t": "Reject Adjustment - DO NOT USE"
+            },
+            {
+              "v": "0020",
+              "t": "Tipped pallet - Deep Lane Rack"
+            },
+            {
+              "v": "NOSND",
+              "t": "X - Do Not Send (Internal Only)"
+            }
+          ]
+        },
+        {
+          "field": "comment",
+          "label": "Comment",
+          "type": "textarea",
+          "required": false,
+          "value": ""
+        },
+        {
+          "field": "generateCycleCount",
+          "label": "",
+          "type": "checkbox",
+          "required": false,
+          "value": false
+        }
+      ],
+      "buttons": [
+        {
+          "text": "OK",
+          "itemId": "inventoryAdjustmentApproval-okButton",
+          "disabled": false
+        },
+        {
+          "text": "Cancel",
+          "itemId": "inventoryAdjustmentApproval-cancelButton",
+          "disabled": false
+        }
+      ],
+      "closed_with": "cancelled",
+      "writes_observed": []
+    },
+    "Inventory > Apply Hold": {
+      "rendered_as": "inline panel",
+      "fields": [
+        {
+          "field": "rpFilterComboBox-2193-inputEl",
+          "label": "",
+          "type": "rpFilterComboBox",
+          "required": false,
+          "value": null,
+          "options": [
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            },
+            {
+              "t": ""
+            }
+          ]
+        },
+        {
+          "field": "combobox-2215-inputEl",
+          "label": "",
+          "type": "combobox",
+          "required": false,
+          "value": 50,
+          "options": [
+            {
+              "v": 50,
+              "t": 50
+            },
+            {
+              "v": 100,
+              "t": 100
+            },
+            {
+              "v": 150,
+              "t": 150
+            }
+          ]
+        },
+        {
+          "field": "inputItem",
+          "label": "",
+          "type": "numberfield",
+          "required": false,
+          "value": 1
+        }
+      ],
+      "buttons": [
+        {
+          "text": "",
+          "itemId": "filterMenu",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "first",
+          "disabled": true
+        },
+        {
+          "text": "",
+          "itemId": "prev",
+          "disabled": true
+        },
+        {
+          "text": "",
+          "itemId": "next",
+          "disabled": false
+        },
+        {
+          "text": "",
+          "itemId": "last",
+          "disabled": false
+        },
+        {
+          "text": "Apply",
+          "itemId": "applyButton",
+          "disabled": false
+        },
+        {
+          "text": "Cancel",
+          "itemId": "cancelButton",
+          "disabled": false
+        },
+        {
+          "text": "Add Hold",
+          "itemId": "holds-add-button",
+          "disabled": false
+        }
+      ],
+      "closed_with": "no window",
+      "writes_observed": []
+    }
+  },
+  "generated_by": "tools/cdp/read-action-form.mjs",
+  "readOnly": "each form is opened, read and cancelled; writes_observed records any traffic that escaped that intent"
+}

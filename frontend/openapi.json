@@ -4531,6 +4531,14 @@
             "type": "array",
             "title": "Found",
             "default": []
+          },
+          "found_labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Found Labels",
+            "default": []
           }
         },
         "type": "object",

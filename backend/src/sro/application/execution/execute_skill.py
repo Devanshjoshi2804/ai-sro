@@ -556,6 +556,7 @@ class ExecuteStep:
                 assertion_failures=failures,
                 found_rows=answer.rows if answer else None,
                 found=answer.sample if answer else (),
+                found_labels=answer.labels if answer else (),
             ),
             _derive(produces, response),
             FailureKind.ASSERTION_FAILED if failures else None,

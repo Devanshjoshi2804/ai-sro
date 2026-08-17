@@ -470,23 +470,25 @@ function Result({ run }: { run: RunModel }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
       <div style={{ fontSize: 13, fontWeight: 700 }}>{read.found_rows} found</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {read.found.slice(0, 24).map((row, index) => (
-          <span
-            key={index}
-            style={{
-              border: `1px solid ${ink.line}`,
-              borderRadius: 6,
-              padding: "4px 8px",
-              fontSize: 12,
-              fontFamily: mono,
-            }}
-          >
-            {Object.values(row)[0]}
-            {Object.values(row)[1] && (
-              <span style={{ color: ink.textMuted }}> · {Object.values(row)[1]}</span>
-            )}
-          </span>
-        ))}
+        {(read.found_labels.length
+          ? read.found_labels
+          : read.found.map((row) => Object.values(row)[0])
+        )
+          .slice(0, 24)
+          .map((label, index) => (
+            <span
+              key={index}
+              style={{
+                border: `1px solid ${ink.line}`,
+                borderRadius: 6,
+                padding: "4px 8px",
+                fontSize: 12,
+                fontFamily: mono,
+              }}
+            >
+              {label}
+            </span>
+          ))}
       </div>
     </div>
   );

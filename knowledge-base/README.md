@@ -177,6 +177,12 @@ Poll `/async/{id}` until `complete: true` and read `/async/{id}/resources` for p
 Contrast the adjustment CREATE, which answers 200 with `approvalRequired` and moves nothing. See
 `http/flows/approveAdjustment.json`.
 
+**Approve is a two-stage action.** The button raises a form — `reasonCode` (required, 27 options,
+two of which say *DO NOT USE* in their own labels), `comment`, and `generateCycleCount` (default
+off, and a real side effect). The request only goes on OK. Other actions render as cards or inline
+panels instead of windows, so "no dialog appeared" is not evidence an action ran — only observed
+traffic is. See `index/operational-forms.json`.
+
 **The operational verb inventory is enumerated.** 95 distinct actions across 24 screens —
 `Receive Inventory`, `Auto Receive`, `Allocate`, `Cancel Picks`, `Suspend Work`, `Hand Over`,
 `Change Carrier`, `Assign Lane` — in `index/operational-actions.json`. Menus were opened and read;

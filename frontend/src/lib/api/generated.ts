@@ -1394,6 +1394,11 @@ export interface components {
             found: {
                 [key: string]: string;
             }[];
+            /**
+             * Found Labels
+             * @default []
+             */
+            found_labels: string[];
         };
         /** TaughtSkillModel */
         TaughtSkillModel: {

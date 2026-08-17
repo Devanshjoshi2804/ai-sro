@@ -64,6 +64,16 @@ class PlaywrightUiDriver:
     def __init__(self, debugger_url: str) -> None:
         self._debugger_url = debugger_url
 
+    def for_session(self, debugger_url: str) -> PlaywrightUiDriver:
+        """A driver bound to one browser, rather than to the configured one.
+
+        A pursuit opens its own browser and must look at that one. Pointed at
+        the deployment's default instead, it navigated one Chrome and
+        screenshotted another -- so the model was shown a blank page and clicked
+        the same corner of it until the budget ran out.
+        """
+        return PlaywrightUiDriver(debugger_url)
+
     async def current_url(self) -> str | None:
         if not self._debugger_url:
             return None
@@ -182,6 +192,16 @@ class _AttachedPage:
 
     def __init__(self, debugger_url: str) -> None:
         self._debugger_url = debugger_url
+
+    def for_session(self, debugger_url: str) -> PlaywrightUiDriver:
+        """A driver bound to one browser, rather than to the configured one.
+
+        A pursuit opens its own browser and must look at that one. Pointed at
+        the deployment's default instead, it navigated one Chrome and
+        screenshotted another -- so the model was shown a blank page and clicked
+        the same corner of it until the budget ran out.
+        """
+        return PlaywrightUiDriver(debugger_url)
 
     async def __aenter__(self) -> Page:
         self._playwright = await async_playwright().start()

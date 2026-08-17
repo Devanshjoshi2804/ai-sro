@@ -202,6 +202,16 @@ class ResolveIntent:
             )
 
         best = candidates[0]
+        # A skill accounts for a sentence when it does what the sentence asked
+        # for, not when it contains every word of it. "Show the list of all
+        # transport modes" was read as list/transport mode with confidence, the
+        # right skill was matched, and the reply still asked "did you mean?"
+        # because "show" and "all" appear in no objective key -- hedging at the
+        # operator about words the reading had already resolved.
+        understood = (
+            reading.confidence >= _READ_FLOOR
+            and reading.verb.lower() in best.skill.objective_key.objective_type.lower()
+        )
         supplied = set(parameters or {})
         missing = tuple(
             sorted(
@@ -234,10 +244,10 @@ class ResolveIntent:
             choices=candidates[1:3],
             missing_parameters=missing,
             runnable=runnable,
-            confident=best.confident,
+            confident=best.confident or understood,
             items=items,
             note=note,
-            question=_question_for(best, missing, runnable),
+            question=_question_for(best, missing, runnable, confident=best.confident or understood),
             why=best.why,
         )
 
@@ -320,8 +330,10 @@ def _describe(candidate: Candidate) -> str:
     return f"{candidate.skill.name} ({key.target_system}/{key.facility})"
 
 
-def _question_for(candidate: Candidate, missing: tuple[str, ...], runnable: bool) -> str | None:
-    if not candidate.confident:
+def _question_for(
+    candidate: Candidate, missing: tuple[str, ...], runnable: bool, *, confident: bool | None = None
+) -> str | None:
+    if not (candidate.confident if confident is None else confident):
         return (
             f"Did you mean {_describe(candidate)}? "
             f"Nothing it does accounts for {', '.join(candidate.unexplained)}."

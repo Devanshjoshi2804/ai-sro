@@ -72,6 +72,10 @@ class BrowserProvider(Protocol):
         nothing happened to be watching that window."""
         ...
 
+    async def debugger_url(self, session_id: BrowserSessionId) -> str:
+        """Where to attach to this particular browser."""
+        ...
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         """Where a human drives this session, asked for after the fact.
 

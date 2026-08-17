@@ -36,7 +36,7 @@ from sro.application.execution.egress import EgressRefused, prepare
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.intent.pursue import Goal
-from sro.application.ports.browser import BrowserProvider, BrowserUnavailable
+from sro.application.ports.browser import BrowserProvider, BrowserSession, BrowserUnavailable
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
@@ -55,6 +55,13 @@ logger = logging.getLogger(__name__)
 GESTURE_BUDGET = 12
 """Enough to open a screen, fill a short form and save. Chosen to be obviously
 finite rather than tuned: the number that matters is that there is one."""
+
+_STUCK = 3
+"""Gestures in a row that change nothing before giving up.
+
+Watching the first live pursuit, the model clicked within a few pixels of the
+same point eight times. Nothing told it the screen had not moved, so nothing
+made it try something else."""
 
 _ALLOWED = (
     ActionKind.CLICK,
@@ -152,14 +159,23 @@ class PursueGoal:
             start = connection.base_url
 
         gestures: list[str] = []
+        seen_before = ""
+        repeated = 0
         reached = False
         detail = "the budget ran out before the screen showed the result"
 
-        session = await self._browser.open()
+        # A browser somebody is already signed into, before opening one that is
+        # not. Restoring cookies into a fresh browser lands on the identity
+        # provider here -- the WMS does not accept a transplanted session -- so
+        # a pursuit that opens its own browser spends its whole budget clicking
+        # a login page, which is exactly what it did.
+        session, borrowed = await self._browser_for(connection)
+        ui = self._ui.for_session(session.debugger_url)
         recording_id = ""
         skill_id = ""
         try:
-            await self._browser.restore(session.id, await self._session_of(connection))
+            if not borrowed:
+                await self._browser.restore(session.id, await self._session_of(connection))
 
             # Recorded exactly as a demonstration is, and before the first
             # gesture: what a pursuit does on screen is evidence of the same
@@ -178,7 +194,7 @@ class PursueGoal:
             await self._browser.navigate(session.id, start)
 
             for _ in range(GESTURE_BUDGET):
-                screen = await self._ui.capture()
+                screen = await ui.capture()
                 try:
                     shown = prepare(screen, enabled=self._egress_enabled).screen
                 except EgressRefused as refusal:
@@ -202,15 +218,31 @@ class PursueGoal:
                     detail = proposed.reasoning or "the model said the screen showed the result"
                     break
 
-                outcome = await self._ui.perform_at(
+                outcome = await ui.perform_at(
                     action=proposed.action,
                     x=proposed.x or 0,
                     y=proposed.y or 0,
                     value=proposed.value,
                 )
+                # What changed, not only what was attempted. The model was
+                # being handed its own past coordinates and nothing else, so it
+                # clicked the same place eight times without ever learning that
+                # the screen had not moved.
+                after = await ui.capture()
+                changed = after.text_digest != seen_before
+                repeated = 0 if changed else repeated + 1
+                seen_before = after.text_digest
+
                 gesture = (
                     f"{proposed.action.value} at ({proposed.x}, {proposed.y})"
                     + (f" = {proposed.value}" if proposed.value else "")
+                    + (
+                        ""
+                        if not outcome.performed
+                        else " — the screen changed"
+                        if changed
+                        else " — the screen did not change"
+                    )
                     + ("" if outcome.performed else " — nothing happened")
                 )
                 gestures.append(gesture)
@@ -220,13 +252,26 @@ class PursueGoal:
                     detail = "the screen did not respond to what was proposed"
                     break
 
-            landed = await self._ui.current_url() or start
+                if repeated >= _STUCK:
+                    # Three gestures, nothing moved. A model that has not
+                    # affected the screen in three tries is not about to, and
+                    # spending the rest of the budget proves it slowly.
+                    detail = (
+                        f"the screen did not change after {repeated} gestures; "
+                        "the goal may need a screen this one cannot reach"
+                    )
+                    break
+
+            landed = await ui.current_url() or start
         except UiUnavailable as error:
             raise BrowserUnavailable(str(error)) from error
         finally:
             if recording_id:
                 skill_id = await self._keep(ctx, RecordingId(recording_id), reached=reached)
-            await self._browser.close(session.id)
+            # Never close a browser we did not open: it belongs to whoever
+            # signed into it, and closing it logs a warehouse operator out.
+            if not borrowed:
+                await self._browser.close(session.id)
 
         return Pursued(
             goal=goal.intent,
@@ -263,6 +308,28 @@ class PursueGoal:
             return ""
         return understood.skill_id.value
 
+    async def _browser_for(self, connection: Connection) -> tuple[BrowserSession, bool]:
+        """A signed-in browser if one is open, otherwise a new one.
+
+        Returns whether it was borrowed, because a borrowed browser is not ours
+        to close and its session is not ours to overwrite.
+        """
+        try:
+            for session_id in await self._browser.live_sessions():
+                cookies = await self._browser.session_cookies(session_id)
+                if _holds_a_session(cookies, connection.base_url):
+                    return (
+                        BrowserSession(
+                            id=session_id,
+                            live_view_url=await self._browser.live_view_url(session_id) or "",
+                            debugger_url=await self._browser.debugger_url(session_id),
+                        ),
+                        True,
+                    )
+        except BrowserUnavailable:
+            logger.info("could not look for a signed-in browser; opening one")
+        return await self._browser.open(), False
+
     def _brief(self, goal: Goal, values: dict[str, str]) -> str:
         """The goal, plus the values the operator gave for it.
 
@@ -285,3 +352,18 @@ class PursueGoal:
             return []
         cookies: list[dict[str, object]] = json.loads(stored).get("cookies", [])
         return cookies
+
+
+def _holds_a_session(cookies: tuple[dict[str, object], ...], base_url: str) -> bool:
+    """Whether this browser carries the application's own cookie.
+
+    The identity provider's cookies are set before anybody signs in, so their
+    presence proves nothing. The application's do not exist until a login
+    finished.
+    """
+    host = urlsplit(base_url).hostname or ""
+    return any(
+        host.endswith(str(cookie.get("domain", "")).lstrip("."))
+        or str(cookie.get("domain", "")).lstrip(".") in host
+        for cookie in cookies
+    )

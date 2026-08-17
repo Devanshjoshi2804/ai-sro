@@ -166,6 +166,9 @@ class FakeBrowserProvider:
     async def live_sessions(self) -> tuple[BrowserSessionId, ...]:
         return tuple(s for s in self.opened if s not in self.closed)
 
+    async def debugger_url(self, session_id: BrowserSessionId) -> str:
+        return f"ws://steel.test/devtools/{session_id}"
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         if session_id in self.closed:
             return None
@@ -513,6 +516,11 @@ class FakeUiDriver:
             height=800,
             text_digest=self.digest,
         )
+
+    def for_session(self, debugger_url: str) -> FakeUiDriver:
+        """The same fake: what matters is that callers ask for the browser they
+        opened rather than the configured one."""
+        return self
 
     async def perform_at(
         self, *, action: ActionKind, x: int, y: int, value: str | None = None

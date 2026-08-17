@@ -591,6 +591,11 @@ function Result({
         step.found_rows !== undefined,
     );
   const failed = run.status !== "succeeded";
+  // A rehearsal builds the write and holds it. Its last performed step is
+  // whatever the screen read on the way in, and showing that as the result
+  // told an operator who had just asked to create a transport mode that three
+  // consolidation rules were found. A withheld write is the answer.
+  const withheld = run.steps.find((step) => step.disposition === "withheld");
 
   if (failed) {
     const explained = run.steps.find((step) => step.detail);
@@ -599,6 +604,32 @@ function Result({
         {run.failure ?? "It did not finish"}
         {explained?.detail && <span style={{ color: ink.textSoft }}> — {explained.detail}</span>}
       </span>
+    );
+  }
+
+  if (withheld) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+        <span style={{ fontSize: 12.5, fontWeight: 700 }}>Built, not sent</span>
+        <span style={{ fontSize: 12, color: ink.textSoft }}>
+          This is a rehearsal — the request was produced so it can be read before anything is
+          changed. Run it again to send it.
+        </span>
+        <div
+          style={{
+            fontFamily: mono,
+            fontSize: 11,
+            background: ink.infoWash,
+            borderRadius: 7,
+            padding: "8px 10px",
+            overflowX: "auto",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-all",
+          }}
+        >
+          {`${withheld.method ?? ""} ${withheld.url ?? ""}`.trim()}
+        </div>
+      </div>
     );
   }
 
@@ -613,7 +644,10 @@ function Result({
     ? read.found_columns
     : Array.from(new Set(read.found.flatMap((row) => Object.keys(row))));
   const pages = Math.max(1, Math.ceil(read.found.length / perPage));
-  const shown = read.found.slice(page * perPage, page * perPage + perPage);
+  // Clamped: a page number kept from a longer result would open on an empty
+  // page, or on the last row of the new one, which reads as "1 found".
+  const safePage = Math.min(page, pages - 1);
+  const shown = read.found.slice(safePage * perPage, safePage * perPage + perPage);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", minWidth: 0 }}>
@@ -626,11 +660,15 @@ function Result({
         <span style={{ flex: 1 }} />
         {pages > 1 && (
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Step label="‹" onClick={() => setPage(page - 1)} disabled={page === 0} />
+            <Step label="‹" onClick={() => setPage(safePage - 1)} disabled={safePage === 0} />
             <span style={{ fontSize: 11.5, color: ink.textMuted, fontFamily: mono }}>
-              {page * perPage + 1}–{page * perPage + shown.length} of {read.found.length}
+              {safePage * perPage + 1}–{safePage * perPage + shown.length} of {read.found.length}
             </span>
-            <Step label="›" onClick={() => setPage(page + 1)} disabled={page >= pages - 1} />
+            <Step
+              label="›"
+              onClick={() => setPage(safePage + 1)}
+              disabled={safePage >= pages - 1}
+            />
           </span>
         )}
       </div>

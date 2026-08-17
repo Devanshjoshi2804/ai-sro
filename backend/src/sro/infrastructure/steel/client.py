@@ -303,6 +303,12 @@ class SteelClient:
         """Every session Steel currently has a browser for."""
         return tuple(BrowserSessionId(str(held["id"])) for held in await self._live_sessions())
 
+    async def debugger_url(self, session_id: BrowserSessionId) -> str:
+        """A self-hosted Steel has one browser, so this is the same endpoint for
+        every session it reports. Asked per session anyway, because that is what
+        the port promises and what a pool would have to honour."""
+        return await self._websocket_debugger_url()
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         """Ask Steel where the session can be driven.
 

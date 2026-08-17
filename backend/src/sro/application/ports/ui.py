@@ -58,6 +58,14 @@ class UiDriver(Protocol):
         """What is on screen, for a rung that has to look at it."""
         ...
 
+    def for_session(self, debugger_url: str) -> UiDriver:
+        """The same driver, bound to a particular browser.
+
+        Anything that opens its own browser has to drive that one: a driver
+        pointed at the deployment's default will navigate one Chrome and look
+        at another, which is indistinguishable from a model that cannot see."""
+        ...
+
     async def perform_at(
         self, *, action: ActionKind, x: int, y: int, value: str | None = None
     ) -> UiOutcome:

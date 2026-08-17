@@ -124,6 +124,12 @@ services:
   # ---------------------------------------------------------------------------
   steel:
     image: ghcr.io/steel-dev/steel-browser:latest
+    # Steel exits 1 when Chrome dies under it -- the fingerprint injector opens
+    # a CDP session against a browser that has already gone, and the failure is
+    # not caught. Left stopped, every teaching session and every repair after
+    # that reports "could not start a Steel session" and an operator has no way
+    # to tell a crashed browser from a broken feature.
+    restart: unless-stopped
     environment:
       # Steel builds every URL it hands out from this: the session viewer, the
       # player's websocket, the CDP endpoint. Unset, it uses its own inside-the-

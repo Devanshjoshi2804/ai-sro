@@ -88,7 +88,13 @@ def reads_about(frames: tuple[ActionFrame, ...], entity: str) -> tuple[ReadCapab
             # one capability, not two.
             found.setdefault(normalise(resource), ReadCapability(request, resource, rows))
 
-    return tuple(found.values())
+    # The subject itself, ahead of everything merely named after it.
+    # `warehouseTransportModeUoms` contains `transportmode` and is a list of
+    # unit conversions -- it was empty, it sorted first, and the skill built
+    # from it announced that there were 0 transport modes while seventeen were
+    # on screen. Containment finds the candidates; only equality identifies the
+    # subject.
+    return tuple(sorted(found.values(), key=lambda read: (normalise(read.entity) != wanted,)))
 
 
 def _is_a_read(request: CapturedRequest) -> bool:

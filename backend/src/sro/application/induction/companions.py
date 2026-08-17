@@ -37,7 +37,14 @@ def read_skills(
     at: datetime,
     new_id: object,
 ) -> tuple[Skill, ...]:
-    """One skill per read the demonstration made about its own entity."""
+    """The read that answers questions about this entity, if the demonstration
+    made one.
+
+    One, not several. A screen reads its subject, and then reads three things
+    named after its subject -- unit conversions, defaults, permissions -- and a
+    library with four "List transport mode" skills in it is worse than one with
+    none, because now somebody has to pick.
+    """
     return tuple(
         _skill(
             capability,
@@ -48,7 +55,7 @@ def read_skills(
             at=at,
             skill_id=new_id(),  # type: ignore[operator]
         )
-        for capability in reads_about(frames, taught.entity_type)
+        for capability in reads_about(frames, taught.entity_type)[:1]
     )
 
 
@@ -81,7 +88,7 @@ def _skill(
         id=SkillId(str(skill_id)),
         tenant_id=tenant_id,  # type: ignore[arg-type]
         objective_key=objective,
-        name=f"{'List' if listing else 'View'} {entity}",
+        name=f"{'List' if listing else 'View'} {entity}s" if listing else f"View {entity}",
         created_at=at,
     )
     version = SkillVersion(
@@ -121,9 +128,13 @@ def _skill(
             ),
         ),
         summary=(
-            f"{'List the' if listing else 'View a'} {entity} "
+            f"{'List every' if listing else 'View a'} {entity} "
             f"at {taught.facility} on {taught.target_system}."
-            + (f" {capability.rows} were there when this was observed." if listing else "")
+            + (
+                f" There were {capability.rows} when this was observed."
+                if listing and capability.rows
+                else ""
+            )
         ),
         when_to_use=(
             f"Use to answer questions about {entity} — how many there are, "

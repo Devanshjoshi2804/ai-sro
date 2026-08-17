@@ -38,6 +38,10 @@ class OpenedConnection:
     debugger_url: str
     """For the capture adapter. Never put on the wire."""
 
+    target_system: str
+    name: str
+    """Derived from the address when the operator did not name them."""
+
 
 class ConnectSystem:
     def __init__(
@@ -56,11 +60,13 @@ class ConnectSystem:
         self,
         ctx: RequestContext,
         *,
-        name: str,
-        target_system: str,
         base_url: str,
+        name: str | None = None,
+        target_system: str | None = None,
     ) -> OpenedConnection:
         """Create or reuse the connection, and open a browser at its login page."""
+        target_system = (target_system or "").strip() or _system_from(base_url)
+        name = (name or "").strip() or _name_from(base_url)
         async with self._uow as uow:
             existing = await uow.connections.find_by_system(ctx.tenant_id, target_system)
             connection = existing or Connection(
@@ -85,7 +91,42 @@ class ConnectSystem:
             live_view_url=session.live_view_url,
             browser_session_id=session.id,
             debugger_url=session.debugger_url,
+            target_system=connection.target_system,
+            name=connection.name,
         )
+
+
+_KNOWN_SYSTEMS = {
+    "jdadelivers.com": "blue_yonder",
+    "blueyonder.com": "blue_yonder",
+    "manh.com": "manhattan",
+    "sap.com": "sap",
+}
+"""Vendors whose hostnames say nothing useful. ``bf56-kms-wms-web-np2`` is an
+environment, not a system, and two environments of one WMS must land on one
+system key or a skill taught in QA is a skill about a different system."""
+
+
+def _system_from(base_url: str) -> str:
+    """A stable key for the system this address belongs to.
+
+    Derived rather than asked for. Two operators naming one system produce two
+    keys, and everything that pairs -- sessions, skills, knowledge -- pairs on
+    that key being identical.
+    """
+    host = (urlsplit(base_url).hostname or "").lower()
+    for domain, system in _KNOWN_SYSTEMS.items():
+        if host == domain or host.endswith(f".{domain}"):
+            return system
+    # Otherwise the registrable-looking part, without the environment prefix:
+    # wms.acme.com and wms.acme.co.uk both become "acme".
+    parts = [part for part in host.split(".") if part not in {"www", "com", "co", "uk", "net"}]
+    return (parts[-1] if parts else host).replace("-", "_") or "system"
+
+
+def _name_from(base_url: str) -> str:
+    """Something a human recognises in a sidebar, from the same one field."""
+    return urlsplit(base_url).hostname or base_url
 
 
 def _cookie_header(cookies: list[dict[str, object]], origin: str) -> str:
@@ -128,10 +169,16 @@ class StoreSession:
         browser_session_id: BrowserSessionId,
     ) -> Connection:
         cookies = list(await self._browser.session_cookies(browser_session_id))
-        if not cookies:
+        async with self._uow as uow:
+            connection = await uow.connections.get(ctx.tenant_id, connection_id)
+        # Cookies alone prove nothing: an identity provider sets its own before
+        # anybody types a password, so "has cookies" said signed-in while the
+        # login page was still on screen. What signing in produces is a cookie
+        # for the system's own host, and that is what is waited for -- which is
+        # also what lets the console watch instead of asking.
+        if not _cookie_header(cookies, connection.base_url):
             raise NotAuthenticated(
-                "the browser holds no cookies, so the login did not complete. Sign in inside "
-                "the session, then try again."
+                "nobody has signed in yet: the browser holds no session for this system."
             )
 
         async with self._uow as uow:

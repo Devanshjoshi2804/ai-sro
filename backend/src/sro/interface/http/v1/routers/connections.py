@@ -81,6 +81,8 @@ async def connect_system(
         connection_id=opened.connection_id.value,
         live_view_url=opened.live_view_url,
         browser_session_id=opened.browser_session_id.value,
+        target_system=opened.target_system,
+        name=opened.name,
     )
 
 

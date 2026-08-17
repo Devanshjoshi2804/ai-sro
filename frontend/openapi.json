@@ -2592,26 +2592,39 @@
       },
       "ConnectSystemRequest": {
         "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "target_system": {
-            "type": "string",
-            "title": "Target System"
-          },
           "base_url": {
             "type": "string",
             "title": "Base Url"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "target_system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target System"
           }
         },
         "type": "object",
         "required": [
-          "name",
-          "target_system",
           "base_url"
         ],
-        "title": "ConnectSystemRequest"
+        "title": "ConnectSystemRequest",
+        "description": "An address, and nothing anybody has to think of a word for.\n\nA name and a system key are things the URL already knows. Asking for them\nmade connecting a form to fill in rather than a link to paste, and got two\npeople naming one system two ways."
       },
       "ConnectionModel": {
         "properties": {
@@ -3279,13 +3292,23 @@
           "browser_session_id": {
             "type": "string",
             "title": "Browser Session Id"
+          },
+          "target_system": {
+            "type": "string",
+            "title": "Target System"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
           }
         },
         "type": "object",
         "required": [
           "connection_id",
           "live_view_url",
-          "browser_session_id"
+          "browser_session_id",
+          "target_system",
+          "name"
         ],
         "title": "OpenedConnectionResponse"
       },

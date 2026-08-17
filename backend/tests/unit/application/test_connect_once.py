@@ -12,7 +12,12 @@ from datetime import UTC, datetime
 import pytest
 
 from sro.application.connection.check_session import CheckSession
-from sro.application.connection.connect_system import RefreshSession
+from sro.application.connection.connect_system import (
+    NotAuthenticated,
+    RefreshSession,
+    StoreSession,
+    _system_from,
+)
 from sro.application.connection.sign_in import (
     PASSWORD,
     USERNAME,
@@ -21,7 +26,7 @@ from sro.application.connection.sign_in import (
     SignIn,
 )
 from sro.application.context import RequestContext
-from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from tests import factories as f
 from tests.unit.fakes import (
     FakeBrowserProvider,
@@ -176,3 +181,43 @@ async def test_a_login_that_needs_a_human_says_so_rather_than_looping() -> None:
     )
     assert await ensure.execute(CTX, target_system="blue_yonder") is False
     assert browser.closed == [browser.opened[-1]]
+
+
+@pytest.mark.parametrize(
+    ("url", "system"),
+    [
+        # Two environments of one WMS have to land on one key, or a skill taught
+        # in QA is a skill about a different system.
+        ("https://bf56-kms-wms-web-np2.jdadelivers.com/portal", "blue_yonder"),
+        ("https://prod-wms.jdadelivers.com/portal", "blue_yonder"),
+        ("https://wms.acme.com/portal", "acme"),
+        ("https://wms.acme.co.uk/portal", "acme"),
+    ],
+)
+def test_the_system_key_comes_from_the_address_not_from_a_person(url: str, system: str) -> None:
+    assert _system_from(url) == system
+
+
+@pytest.mark.asyncio
+async def test_the_console_can_watch_because_identity_cookies_are_not_a_session() -> None:
+    """What makes "I have signed in" unnecessary.
+
+    An identity provider sets cookies before anybody types a password, so
+    "the browser has cookies" said signed-in while the login page was still on
+    screen. Keeping is refused until a cookie exists for the system's own host,
+    which is what the console polls for.
+    """
+    uow, vault, browser = FakeUnitOfWork(), FakeCredentialVault(), FakeBrowserProvider()
+    connection = await _connection(uow)
+    keep = StoreSession(uow, vault, FakeClock(), browser)
+    session = await browser.open()
+
+    browser.cookies = ({"name": "x-ms-cpim-csrf", "value": "n", "domain": ".login.example.org"},)
+    with pytest.raises(NotAuthenticated):
+        await keep.execute(CTX, connection_id=connection.id, browser_session_id=session.id)
+
+    browser.cookies = ({"name": "SESSIONID", "value": "real", "domain": "wms.example.com"},)
+    kept = await keep.execute(CTX, connection_id=connection.id, browser_session_id=session.id)
+
+    assert kept.status is ConnectionStatus.CONNECTED
+    assert await vault.get(connection.cookie_key) == "SESSIONID=real"

@@ -718,14 +718,21 @@ export interface components {
             /** Unexplained */
             unexplained: string[];
         };
-        /** ConnectSystemRequest */
+        /**
+         * ConnectSystemRequest
+         * @description An address, and nothing anybody has to think of a word for.
+         *
+         *     A name and a system key are things the URL already knows. Asking for them
+         *     made connecting a form to fill in rather than a link to paste, and got two
+         *     people naming one system two ways.
+         */
         ConnectSystemRequest: {
-            /** Name */
-            name: string;
-            /** Target System */
-            target_system: string;
             /** Base Url */
             base_url: string;
+            /** Name */
+            name?: string | null;
+            /** Target System */
+            target_system?: string | null;
         };
         /** ConnectionModel */
         ConnectionModel: {
@@ -986,6 +993,10 @@ export interface components {
             live_view_url: string;
             /** Browser Session Id */
             browser_session_id: string;
+            /** Target System */
+            target_system: string;
+            /** Name */
+            name: string;
         };
         /** ParameterModel */
         ParameterModel: {

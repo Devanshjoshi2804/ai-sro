@@ -72,9 +72,16 @@ class StartRecordingResponse(BaseModel):
 
 
 class ConnectSystemRequest(BaseModel):
-    name: str
-    target_system: str
+    """An address, and nothing anybody has to think of a word for.
+
+    A name and a system key are things the URL already knows. Asking for them
+    made connecting a form to fill in rather than a link to paste, and got two
+    people naming one system two ways.
+    """
+
     base_url: str
+    name: str | None = None
+    target_system: str | None = None
 
 
 class ConnectionModel(BaseModel):
@@ -122,6 +129,11 @@ class OpenedConnectionResponse(BaseModel):
     browser_session_id: str
     """Handed back when the operator says they have signed in, so the session
     they created is the one that gets kept."""
+
+    target_system: str
+    name: str
+    """What was derived from the address, so the console can show what it
+    decided rather than making somebody type it."""
 
 
 class MediaModel(BaseModel):

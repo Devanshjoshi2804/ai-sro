@@ -441,7 +441,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
                 </Assistant>
 
                 {(conversation.data?.messages ?? []).map((message) => (
-                  <ChatTurn key={message.id} message={message} />
+                  <ChatTurn key={message.id} message={message} onAsk={setDraft} />
                 ))}
 
                 {ask.isPending && <Assistant>Looking through what has been taught…</Assistant>}
@@ -913,7 +913,7 @@ function PlusItem({
  * matched. A skill that was found is offered with its card — running it stays a
  * separate, deliberate click.
  */
-function ChatTurn({ message }: { message: ChatMessage }) {
+function ChatTurn({ message, onAsk }: { message: ChatMessage; onAsk?: (text: string) => void }) {
   if (message.speaker === "operator") return <Operator>{message.text}</Operator>;
 
   const decision = message.decision as {
@@ -964,6 +964,7 @@ function ChatTurn({ message }: { message: ChatMessage }) {
             skillId={decision.matched_skill_id}
             parameters={items.length === 1 ? items[0] : {}}
             missing={items.length ? [] : (decision.missing_parameters ?? [])}
+            onAsk={onAsk}
           />
         )}
       </div>

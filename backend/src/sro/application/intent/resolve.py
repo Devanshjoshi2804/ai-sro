@@ -11,13 +11,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from sro.application.context import RequestContext
-from sro.application.intent.match import Candidate, ambiguous, asks, rank, refers_back
+from sro.application.intent.match import FLOOR, Candidate, ambiguous, asks, rank, refers_back
 from sro.application.intent.plan_task import PlanTask, Proposal
 from sro.application.intent.pursue import Pursuit, compose
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.skill.parameter import ParameterKind
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.skill import Skill
 
 _LIBRARY_PAGE = 200
 """Skills are ranked in memory. A tenant's library is dozens, not millions.
@@ -91,6 +92,7 @@ class ResolveIntent:
         system: str | None = None,
         parameters: dict[str, str] | None = None,
         after: str | None = None,
+        pinned: str | None = None,
     ) -> Resolution:
         async with self._uow as uow:
             skills = await uow.skills.list_for_tenant(ctx.tenant_id, limit=_LIBRARY_PAGE)
@@ -98,7 +100,20 @@ class ResolveIntent:
         if system:
             skills = tuple(s for s in skills if s.objective_key.target_system == system)
 
+        # A skill already under discussion, waiting for values it asked for.
+        # Without this the answer to "what should the code be?" was resolved as
+        # a fresh request, matched nothing, and the operator was asked the same
+        # question again -- which is how a system teaches people not to answer
+        # its questions.
+        pending = next((s for s in skills if pinned and s.id.value == pinned), None)
+
         candidates = rank(skills, utterance)
+        carrying_on = pending is not None and not _names_another(candidates, pending)
+        if pending is not None and carrying_on:
+            candidates = (
+                _pinned_candidate(pending),
+                *(c for c in candidates if c.skill.id != pending.id),
+            )
         # A follow-up carries none of its own nouns: "I want them in detail"
         # says nothing about transport modes, and resolving it alone sent the
         # operator back to the knowledge base for a subject they had just been
@@ -110,7 +125,11 @@ class ResolveIntent:
         if not candidates:
             return await self._nothing_taught(ctx, utterance, system)
 
-        if ambiguous(candidates):
+        # Not while carrying on: the skill under discussion is not one of
+        # several possibilities, it is the one that asked the question being
+        # answered. Offering a choice here made the operator pick the same
+        # skill again and lose what they had just typed.
+        if ambiguous(candidates) and not carrying_on:
             return Resolution(
                 utterance=utterance,
                 choices=candidates[:3],
@@ -212,6 +231,26 @@ class ResolveIntent:
                 )
             ),
         )
+
+
+def _names_another(candidates: tuple[Candidate, ...], pending: Skill) -> bool:
+    """Whether this sentence is plainly about something else.
+
+    Answering a question with a new request is allowed: an operator who asked
+    for a transport mode and then said "actually, release the wave" means the
+    second thing. What is not allowed is a pinned skill quietly swallowing it.
+    """
+    best = candidates[0] if candidates else None
+    return best is not None and best.skill.id != pending.id and best.confident
+
+
+def _pinned_candidate(skill: Skill) -> Candidate:
+    return Candidate(
+        skill=skill,
+        version=skill.versions[-1],
+        score=FLOOR,
+        why=("carried on from the question before it",),
+    )
 
 
 def _describe(candidate: Candidate) -> str:

@@ -84,10 +84,14 @@ class Converse:
             ctx,
             utterance=text,
             system=system,
-            parameters=parameters,
+            # Values already given for the skill under discussion. An operator
+            # who answers one question at a time should not lose the first
+            # answer when they give the second.
+            parameters={**_gathered(thread), **(parameters or {})},
             # What was being talked about a moment ago. A conversation whose
             # every sentence is resolved alone is not a conversation.
             after=_last_asked(thread),
+            pinned=_awaiting(thread),
         )
 
         async with self._uow as uow:
@@ -173,3 +177,34 @@ def _last_asked(thread: Thread) -> str | None:
         if message.speaker is Speaker.OPERATOR:
             return message.text
     return None
+
+
+def _awaiting(thread: Thread) -> str | None:
+    """The skill the last reply asked for values for, if it is still waiting."""
+    for message in reversed(thread.messages):
+        if message.speaker is not Speaker.ASSISTANT or not message.decision:
+            continue
+        decision = message.decision
+        if decision.get("missing_parameters"):
+            matched = decision.get("matched_skill_id")
+            return str(matched) if matched else None
+        return None
+    return None
+
+
+def _gathered(thread: Thread) -> dict[str, str]:
+    """Every value established so far for the skill under discussion.
+
+    Read back off the decisions rather than held in memory: the thread is what
+    survives a restart, and an operator answering three questions over five
+    minutes should not depend on a process staying up.
+    """
+    values: dict[str, str] = {}
+    for message in thread.messages:
+        items = (message.decision or {}).get("items")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict):
+                values.update({str(key): str(value) for key, value in item.items() if value})
+    return values

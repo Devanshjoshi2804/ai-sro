@@ -21,10 +21,14 @@ export function SkillCard({
   skillId,
   parameters,
   missing = [],
+  onAsk,
 }: {
   skillId: string;
   parameters?: Record<string, string>;
   missing?: string[];
+  /** Put a sentence in the composer. What follows a result is the operator's
+   * next question, so the suggestions write it rather than act on it. */
+  onAsk?: (text: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const skill = useQuery({ queryKey: skillKeys.detail(skillId), queryFn: () => getSkill(skillId) });
@@ -202,6 +206,9 @@ export function SkillCard({
         </div>
       )}
 
+      {/* The result gets the whole card. It shared a row with the provenance
+          line before, which left a table of sixteen rows in half the width it
+          needed while the other half said which recording it came from. */}
       <div
         style={{
           padding: "11px 16px",
@@ -209,26 +216,28 @@ export function SkillCard({
           fontSize: 12,
           color: ink.textSoft,
           display: "flex",
-          gap: 8,
-          alignItems: "center",
+          flexDirection: "column",
+          gap: 10,
+          minWidth: 0,
         }}
       >
-        <span>
-          Provenance:{" "}
-          <span style={{ fontFamily: mono, fontSize: 11 }}>
-            {version.recording_ids.map((id) => id.slice(0, 10)).join(", ")}
-          </span>{" "}
-          · {version.induced_by}
-        </span>
-        <span style={{ flex: 1 }} />
         {parameters !== undefined && (
           <RunButton
             skillId={skillId}
             version={version}
             parameters={parameters}
             missing={missing}
+            subject={skill.data.objective_key.entity_type.replace(/_/g, " ")}
+            onAsk={onAsk}
           />
         )}
+        <span style={{ fontSize: 11 }}>
+          Provenance:{" "}
+          <span style={{ fontFamily: mono, fontSize: 10.5 }}>
+            {version.recording_ids.map((id) => id.slice(0, 10)).join(", ")}
+          </span>{" "}
+          · {version.induced_by}
+        </span>
       </div>
     </div>
   );
@@ -377,7 +386,11 @@ function RunButton({
   version,
   parameters,
   missing,
+  subject,
+  onAsk,
 }: {
+  subject: string;
+  onAsk?: (text: string) => void;
   skillId: string;
   version: SkillVersionModel;
   parameters: Record<string, string>;
@@ -406,7 +419,7 @@ function RunButton({
   });
 
   if (finished) {
-    return <Result run={finished} />;
+    return <Result run={finished} subject={subject} onAsk={onAsk} />;
   }
 
   const blocked = missing.length > 0 || version.stage === "recorded";
@@ -447,8 +460,17 @@ function RunButton({
  * answer, the rows are the evidence, and the rest stays where it is rather than
  * being poured through a chat message.
  */
-function Result({ run }: { run: RunModel }) {
-  const [expanded, setExpanded] = useState(false);
+function Result({
+  run,
+  subject,
+  onAsk,
+}: {
+  run: RunModel;
+  subject: string;
+  onAsk?: (text: string) => void;
+}) {
+  const [page, setPage] = useState(0);
+  const perPage = 8;
   const read = run.steps.find((step) => step.found_rows !== null && step.found_rows !== undefined);
   const failed = run.status !== "succeeded";
 
@@ -472,31 +494,26 @@ function Result({ run }: { run: RunModel }) {
   const columns = read.found_columns.length
     ? read.found_columns
     : Array.from(new Set(read.found.flatMap((row) => Object.keys(row))));
-  const shown = expanded ? read.found : read.found.slice(0, 5);
+  const pages = Math.max(1, Math.ceil(read.found.length / perPage));
+  const shown = read.found.slice(page * perPage, page * perPage + perPage);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", minWidth: 0 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 15, fontWeight: 700 }}>{read.found_rows}</span>
         <span style={{ fontSize: 12.5, color: ink.textSoft }}>
-          found{read.found.length < read.found_rows ? `, showing ${shown.length}` : ""}
+          found
+          {read.found.length < read.found_rows ? ` · ${read.found.length} carried back` : ""}
         </span>
         <span style={{ flex: 1 }} />
-        {read.found.length > 5 && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: ink.accentDeep,
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            {expanded ? "Show less" : `Show all ${read.found.length}`}
-          </button>
+        {pages > 1 && (
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Step label="‹" onClick={() => setPage(page - 1)} disabled={page === 0} />
+            <span style={{ fontSize: 11.5, color: ink.textMuted, fontFamily: mono }}>
+              {page * perPage + 1}–{page * perPage + shown.length} of {read.found.length}
+            </span>
+            <Step label="›" onClick={() => setPage(page + 1)} disabled={page >= pages - 1} />
+          </span>
         )}
       </div>
 
@@ -550,6 +567,75 @@ function Result({ run }: { run: RunModel }) {
           </tbody>
         </table>
       </div>
+
+      {onAsk && <NextActions subject={subject} onPick={onAsk} />}
+    </div>
+  );
+}
+
+function Step({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        border: `1px solid ${ink.line}`,
+        borderRadius: 6,
+        background: "transparent",
+        color: disabled ? ink.textMuted : ink.text,
+        width: 22,
+        height: 22,
+        fontSize: 13,
+        lineHeight: 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+/**
+ * What to do next, from what just happened.
+ *
+ * A result that ends in silence makes the operator invent the next sentence.
+ * These are the three things anybody does after reading a list — look at one,
+ * add one, narrow it — offered as text they can edit rather than buttons that
+ * act, because the sentence is still theirs.
+ */
+function NextActions({ subject, onPick }: { subject: string; onPick: (text: string) => void }) {
+  const suggestions = [
+    `show me one ${subject} in detail`,
+    `create a new ${subject}`,
+    `which ${subject} are used for parcel`,
+  ];
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {suggestions.map((suggestion) => (
+        <button
+          key={suggestion}
+          onClick={() => onPick(suggestion)}
+          style={{
+            border: `1px solid ${ink.line}`,
+            borderRadius: 999,
+            background: "transparent",
+            padding: "5px 11px",
+            fontSize: 11.5,
+            color: ink.textSoft,
+            cursor: "pointer",
+          }}
+        >
+          {suggestion}
+        </button>
+      ))}
     </div>
   );
 }

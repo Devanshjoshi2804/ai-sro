@@ -144,7 +144,11 @@ async def test_nothing_taught_falls_to_the_knowledge_base_not_to_the_ladder() ->
     assert resolution.proposal is not None
     assert "Carriers" in resolution.proposal.steps[0].what
     assert "index/app-map.json" in resolution.proposal.sources
-    assert "teach me" in (resolution.question or "").lower()
+    # Knowledge without a demonstration is now a pursuit rather than a refusal:
+    # the screen is known, so it can be worked out on the screen. A write still
+    # asks first.
+    assert resolution.pursuit is not None
+    assert resolution.pursuit.needs_confirmation
 
 
 async def test_a_proposal_is_never_mistaken_for_a_skill() -> None:
@@ -177,7 +181,10 @@ async def test_nothing_taught_and_nothing_known_asks_to_be_taught() -> None:
     resolution = await _resolver(uow).execute(CTX, utterance="do the thing")
 
     assert resolution.matched is None and resolution.proposal is None
-    assert "Teach me" in (resolution.question or "")
+    # Nothing taught and nothing known: there is no screen to open, so the
+    # honest answer is still to be shown once.
+    assert resolution.pursuit is None
+    assert "Show me" in (resolution.question or "") or "Teach me" in (resolution.question or "")
 
 
 async def test_a_skill_that_cannot_explain_the_verb_is_offered_as_a_question() -> None:

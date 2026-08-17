@@ -168,6 +168,7 @@ class ResolveIntent:
         # a goal, and the browser is driven toward it -- slowly, watched, and
         # captured, so the next time it is a taught skill over the API.
         pursuit = Pursuit.of(ctx, compose(utterance, proposal))
+        pursuable = bool(pursuit.goal.facts)
         if asks(utterance):
             # A question that reached here did so because every skill that
             # matched it writes, and those were excluded rather than ranked.
@@ -176,7 +177,7 @@ class ResolveIntent:
             return Resolution(
                 utterance=utterance,
                 proposal=proposal,
-                pursuit=pursuit,
+                pursuit=pursuit if pursuable else None,
                 question=(
                     "Nobody has demonstrated reading that, so I will work it out on the "
                     "screen and keep what I learn."
@@ -188,9 +189,12 @@ class ResolveIntent:
         return Resolution(
             utterance=utterance,
             proposal=proposal,
-            pursuit=pursuit,
+            pursuit=pursuit if pursuable else None,
             question=(
-                pursuit.question
+                # A pursuit with nothing known behind it is not a pursuit: there
+                # is no screen to open and no field to fill, and pointing a model
+                # at a blank browser is guessing with extra steps.
+                (pursuit.question if pursuit.goal.facts else None)
                 or "Nothing has been taught for that. "
                 + (
                     "Here is what the knowledge base says about it — review it, or teach me "

@@ -605,6 +605,37 @@
       "consequence": "Targeted reads are now possible, which is what verification needs: a post-condition on a 61,912-row table no longer means paging it. The caution is that a parseable but wrong clause returns 200 with ZERO rows, indistinguishable from a genuine no-match, so a filtered read that comes back empty must be re-checked against an unfiltered count before concluding a record is absent.",
       "method_note": "Eighteen hand-invented spellings were tried first and every one failed. What worked was reading the grid store proxy (RPUX.rest.RestProxy) and then watching a server-paged screen make its own call — the same lesson as payloads: the application already knows, so watch it.",
       "evidence_level": "reproduced"
+    },
+    {
+      "id": "most-columns-are-not-filterable-and-fail-silently",
+      "source": "tools/cdp/probe-filterable-columns.mjs — 2026-08-17",
+      "claim": "The query grammar is honoured on a minority of columns. The rest return 200 with zero rows for a value taken from the row itself.",
+      "verdict": "REPRODUCED",
+      "evidence": "index/filterable-columns.json; http/exchanges/{addresses,carriers,locations,items,shipments,trailers}.jsonl case filterable-columns",
+      "observed": [
+        "Across six resources, 41 of 110 probed columns filtered correctly and 69 did not.",
+        "addresses filters on addressId and addressName but NOT on city, state or requestState — with a value copied straight out of a row that is definitely present.",
+        "trailers is the most filterable at 12 of 22; shipments manages 5 of 23; carriers 1 of 2.",
+        "There is no error. The unfilterable column answers 200 and an empty data array, which is indistinguishable from \"no such record\"."
+      ],
+      "consequence": "This is the most dangerous read shape in the system. An agent asking \"is there an address in BURLINGTON\" is told no, confidently. Any filtered read must check its column against index/filterable-columns.json first, and an empty result on an unproven column must be treated as unknown rather than as absence.",
+      "method_note": "A first pass reported items as filterable on one column. That was my own cap: the probe took the first 24 keys alphabetically and spent them all on attributeDate1..attributeText5, never reaching itemNumber. Probing identifying columns first showed 9 of 24, itemNumber among them.",
+      "evidence_level": "reproduced"
+    },
+    {
+      "id": "operational-state-vocabulary-recorded",
+      "source": "tools/cdp/capture-status-vocabulary.mjs — 2026-08-17",
+      "claim": "The state vocabularies of the operational tier can be read out of the data, including a full shipment lifecycle.",
+      "verdict": "RECORDED",
+      "evidence": "index/status-vocabulary.json — 23 resources, 151 distinct status values, 12 confirmed through the filter grammar",
+      "observed": [
+        "shipmentStatusChangeNotifications.toShipmentStatus carries the whole shipment lifecycle with labels: R Ready, I In-Process, S Staged, L Loading, D Loaded, C Load Complete, X Transfer, B Cancelled.",
+        "trailers.trailerStatus: EX Expected, D Dispatched, OR Open For Receiving, R Receiving, C Closed. trailers.inboundShipmentStatus: C Closed, CI Checked In, R Receiving. trailers.safetyCheckStatus: U Unknown, P Passed, W Pending.",
+        "structuredInventory.inventoryStatus: AV AVAILABLE, AG AGE HOLD, DE DAMAGE DESTROY. shorts.replenishmentStatus: I Issued, S Failed to Allocate, X Processing.",
+        "A live shipments sample showed only 4 of the 8 statuses the notification table defines, so sampling a table under-reports the vocabulary — the definition table is the better source where one exists."
+      ],
+      "consequence": "Verification can now ask the question that matters: not \"did the call return 200\" but \"is this thing in the state it should be\". The codes are short and unguessable — no automation would have invented OR for Open For Receiving — and they are what a post-condition has to assert against.",
+      "evidence_level": "observed"
     }
   ],
   "still_asserted_not_reproduced": [],

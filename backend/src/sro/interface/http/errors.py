@@ -13,9 +13,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from sro.application.connection.connect_system import NotAuthenticated
+from sro.application.connection.sign_in import NoCredentials
 from sro.application.execution.execute_skill import Refused
 from sro.application.induction.errors import InductionFailed
 from sro.application.ports.browser import BrowserUnavailable
+from sro.application.ports.sign_in import SignInFailed
 from sro.application.ports.vault import VaultUnavailable
 from sro.application.recording.start_recording import NoSessionForSystem
 from sro.domain.shared.errors import Conflict, DomainError, InvariantViolation, NotFound
@@ -30,6 +32,11 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     NotAuthenticated: status.HTTP_409_CONFLICT,
     Refused: status.HTTP_409_CONFLICT,
     NoSessionForSystem: status.HTTP_409_CONFLICT,
+    NoCredentials: status.HTTP_409_CONFLICT,
+    # A login that did not complete is about the system's state, not the
+    # request's shape: a stale password, a second factor, a changed page. All
+    # of them are resolved by a human signing in once.
+    SignInFailed: status.HTTP_409_CONFLICT,
 }
 
 _TITLES = {
@@ -99,5 +106,8 @@ def install_error_handlers(app: FastAPI) -> None:
         BrowserUnavailable,
         VaultUnavailable,
         NotAuthenticated,
+        # Not a DomainError, so it needs saying: without this a failed login is
+        # a 500 and the operator is told nothing they can act on.
+        SignInFailed,
     ):
         app.add_exception_handler(error_type, _problem)

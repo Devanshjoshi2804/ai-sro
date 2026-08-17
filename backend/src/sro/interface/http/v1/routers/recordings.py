@@ -31,6 +31,12 @@ async def start_recording(
     body: StartRecordingRequest, container: ContainerDep, ctx: ContextDep
 ) -> StartRecordingResponse:
     objective = body.objective_key.to_domain() if body.objective_key else None
+    # Before the browser opens, not after: a system whose session has expired
+    # signs itself back in here, so the operator types a URL and gets a
+    # demonstration rather than a login page. Silent when the session is fine,
+    # which is the common case and must stay free.
+    if not body.attach_to:
+        await container.ensure_signed_in().for_url(ctx, body.start_url)
     started = await container.start_recording().execute(
         ctx,
         objective_key=objective,

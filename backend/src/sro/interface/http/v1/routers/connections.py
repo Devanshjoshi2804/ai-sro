@@ -15,10 +15,12 @@ from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     ConnectionModel,
     ConnectSystemRequest,
+    CredentialsRequest,
     OpenedConnectionResponse,
     SessionCheckModel,
     SessionHeadersRequest,
     SessionHeadersResponse,
+    SignedInResponse,
 )
 
 router = APIRouter(prefix="/connections", tags=["connections"])
@@ -100,6 +102,44 @@ async def store_session(
         browser_session_id=BrowserSessionId(browser_session_id),
     )
     return _model(connection)
+
+
+@router.put("/{connection_id}/credentials", status_code=status.HTTP_204_NO_CONTENT)
+async def store_credentials(
+    connection_id: str,
+    body: CredentialsRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+) -> None:
+    """What the connection signs itself back in with, entered once.
+
+    This is the difference between a saved session and a connector: a session
+    dies on the system's schedule, and something has to be able to make a new
+    one at 3am without waking anybody.
+
+    Encrypted into the vault on arrival. No endpoint returns it, nothing logs
+    it, no recording contains it, and it is typed into no page but the login
+    page of the host this connection names.
+    """
+    await container.store_credentials().execute(
+        ctx,
+        connection_id=ConnectionId(connection_id),
+        username=body.username,
+        password=body.password,
+    )
+
+
+@router.post("/{connection_id}/sign-in")
+async def sign_in(
+    connection_id: str, target_system: str, container: ContainerDep, ctx: ContextDep
+) -> SignedInResponse:
+    """Sign in now with what is stored, and keep the session it produces."""
+    signed_in = await container.sign_in().execute(ctx, target_system=target_system)
+    return SignedInResponse(
+        target_system=signed_in.target_system,
+        landed_at=signed_in.landed_at,
+        steps=list(signed_in.steps),
+    )
 
 
 @router.post("/{connection_id}/session-headers")

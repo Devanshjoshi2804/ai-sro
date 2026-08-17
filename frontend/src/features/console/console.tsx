@@ -24,6 +24,7 @@ import {
   checkSessions,
   connectionKeys,
   listConnections,
+  signInAgain,
   type SessionCheck,
 } from "@/features/console/connect-panel";
 import {
@@ -253,6 +254,7 @@ export function Console() {
                   <SessionState
                     check={(health.data ?? []).find((c) => c.connection_id === connection.id)}
                     status={connection.status}
+                    connection={connection}
                     onReconnect={() => setConnecting(true)}
                   />
                 </div>
@@ -935,12 +937,26 @@ function ChatTurn({ message }: { message: ChatMessage }) {
 function SessionState({
   check,
   status,
+  connection,
   onReconnect,
 }: {
   check?: SessionCheck;
   status: string;
+  connection: { id: string; target_system: string };
   onReconnect: () => void;
 }) {
+  const queryClient = useQueryClient();
+  // Tried first, because a connection that holds credentials should never make
+  // anybody type them a second time. Only when there are none does the operator
+  // get the login page.
+  const retry = useMutation({
+    mutationFn: () => signInAgain(connection.id, connection.target_system),
+    onSuccess: () => {
+      toast.success("Signed back in", { description: "Nobody had to be asked." });
+      void queryClient.invalidateQueries({ queryKey: connectionKeys.health });
+    },
+    onError: onReconnect,
+  });
   const state = check?.health ?? (status === "connected" ? "checking" : "never_connected");
   const { dot, label } = {
     signed_in: { dot: ink.goodDot, label: "signed in" },
@@ -960,7 +976,8 @@ function SessionState({
       </span>
       {(state === "signed_out" || state === "never_connected") && (
         <button
-          onClick={onReconnect}
+          onClick={() => retry.mutate()}
+          disabled={retry.isPending}
           style={{
             alignSelf: "flex-start",
             padding: 0,
@@ -972,7 +989,7 @@ function SessionState({
             cursor: "pointer",
           }}
         >
-          Sign in once more
+          {retry.isPending ? "Signing in…" : "Sign in again"}
         </button>
       )}
     </span>

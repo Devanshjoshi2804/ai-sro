@@ -161,9 +161,15 @@ are upper-case and few: `EQ NE GT GE LT LE`. There is no `LIKE` — a `%` wildca
 value does prefix matching. Columns are the camelCase JSON names the resource returns, **not** the DB
 column names its 422 errors quote. Full spec in `index/query-dsl.json`.
 
-The trap: a parseable but wrong clause returns **200 with zero rows**, which is indistinguishable
-from a genuine no-match. A filtered read that comes back empty must be re-checked against an
-unfiltered count before concluding the record is absent.
+**Most columns are not filterable, and they fail silently.** Across six resources only 41 of 110
+columns honoured a filter; the other 69 returned 200 and zero rows for a value taken out of their own
+row. `addresses` filters on `addressId` and `addressName` but not on `city` or `state`. Check
+`index/filterable-columns.json` before trusting an empty result — on an unproven column, empty means
+unknown, not absent.
+
+**State vocabularies** for 23 operational resources are in `index/status-vocabulary.json`, including
+the shipment lifecycle: `R` Ready, `I` In-Process, `S` Staged, `L` Loading, `D` Loaded, `C` Load
+Complete, `X` Transfer, `B` Cancelled.
 
 ## Two findings worth reading before writing any client
 

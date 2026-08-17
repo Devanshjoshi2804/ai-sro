@@ -51,6 +51,12 @@ class CheckSession:
             connections = await uow.connections.list_for_tenant(ctx.tenant_id)
         return tuple([await self._check(c) for c in connections])
 
+    async def for_system(self, ctx: RequestContext, *, target_system: str) -> SessionCheck | None:
+        """None when the tenant has no such connection at all."""
+        async with self._uow as uow:
+            connection = await uow.connections.find_by_system(ctx.tenant_id, target_system)
+        return await self._check(connection) if connection else None
+
     async def _check(self, connection: Connection) -> SessionCheck:
         connection_id, system = connection.id.value, connection.target_system
 

@@ -27,7 +27,9 @@ from tests.unit.fakes import (
     FakeClock,
     FakeCredentialVault,
     FakeDurableExecution,
+    FakeHttpCaller,
     FakeIdFactory,
+    FakeSignInDriver,
     FakeTranscriber,
     FakeUnitOfWork,
 )
@@ -54,6 +56,12 @@ class _FakeContainer(Container):
         self.capture = FakeCaptureSupervisor()
         self.durable = FakeDurableExecution(self.induce_skill())
         self.vault = FakeCredentialVault()
+        # Teaching asks whether the system is open before it opens a browser.
+        # Here nothing is reachable and nothing is stored, so the answer is "no"
+        # and the endpoint's own refusal is what the tests see.
+        self.http = FakeHttpCaller()
+        self.http.unreachable = True
+        self.sign_in_driver = FakeSignInDriver()
 
     def unit_of_work(self) -> UnitOfWork:
         return self._uow

@@ -1,0 +1,1157 @@
+{
+  "generated_by": "tools/cdp/capture-status-vocabulary.mjs",
+  "resources": {
+    "addresses": {
+      "sampled_rows": 200,
+      "fields": {
+        "requestState": {
+          "distinct_values": [
+            {
+              "value": "ACCEPTED",
+              "rows_in_sample": 200
+            }
+          ],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        },
+        "state": {
+          "distinct_values": [
+            {
+              "value": "ON",
+              "rows_in_sample": 122
+            },
+            {
+              "value": "NH",
+              "rows_in_sample": 41
+            },
+            {
+              "value": "BC",
+              "rows_in_sample": 10
+            },
+            {
+              "value": "AB",
+              "rows_in_sample": 10
+            },
+            {
+              "value": "CA",
+              "rows_in_sample": 5
+            },
+            {
+              "value": "SC",
+              "rows_in_sample": 3
+            },
+            {
+              "value": "NY",
+              "rows_in_sample": 3
+            },
+            {
+              "value": "QC",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "IN",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "NS",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "TN",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "LA",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        }
+      }
+    },
+    "buildings": {
+      "sampled_rows": 1,
+      "fields": {
+        "sortAttributeLocationStatus": {
+          "distinct_values": [
+            {
+              "value": "P",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "value": "P",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 1
+          }
+        }
+      }
+    },
+    "customers": {
+      "sampled_rows": 200,
+      "fields": {
+        "addressState": {
+          "distinct_values": [
+            {
+              "value": "FL",
+              "rows_in_sample": 42
+            },
+            {
+              "value": "GA",
+              "rows_in_sample": 24
+            },
+            {
+              "value": "TX",
+              "rows_in_sample": 21
+            },
+            {
+              "value": "NC",
+              "rows_in_sample": 17
+            },
+            {
+              "value": "IL",
+              "rows_in_sample": 14
+            },
+            {
+              "value": "AL",
+              "rows_in_sample": 10
+            },
+            {
+              "value": "IA",
+              "rows_in_sample": 8
+            },
+            {
+              "value": "SC",
+              "rows_in_sample": 7
+            },
+            {
+              "value": "LA",
+              "rows_in_sample": 6
+            },
+            {
+              "value": "MO",
+              "rows_in_sample": 5
+            },
+            {
+              "value": "KY",
+              "rows_in_sample": 5
+            },
+            {
+              "value": "TN",
+              "rows_in_sample": 5
+            },
+            {
+              "value": "AR",
+              "rows_in_sample": 5
+            },
+            {
+              "value": "CA",
+              "rows_in_sample": 4
+            },
+            {
+              "value": "MS",
+              "rows_in_sample": 4
+            },
+            {
+              "value": "PA",
+              "rows_in_sample": 3
+            },
+            {
+              "value": "VA",
+              "rows_in_sample": 3
+            },
+            {
+              "value": "WI",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "WA",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "KS",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "CO",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "IN",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "NY",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "MN",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "AB",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "OH",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "07",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "NE",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "OK",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "value": "FL",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 42
+          }
+        }
+      }
+    },
+    "holdDefinitions": {
+      "sampled_rows": 200,
+      "fields": {
+        "inventoryStatus": {
+          "distinct_values": [],
+          "verified_by_filter": null
+        }
+      }
+    },
+    "hotItemsByLoc": {
+      "sampled_rows": 57,
+      "fields": {
+        "trailerStatus": {
+          "distinct_values": [
+            {
+              "value": "LDG",
+              "rows_in_sample": 45,
+              "label": "Loading"
+            },
+            {
+              "value": "OR",
+              "rows_in_sample": 6,
+              "label": "Open For Receiving"
+            },
+            {
+              "value": "CI",
+              "rows_in_sample": 4,
+              "label": "Checked In"
+            },
+            {
+              "value": "R",
+              "rows_in_sample": 2,
+              "label": "Receiving"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "LDG",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 45
+          }
+        }
+      }
+    },
+    "itemLots": {
+      "sampled_rows": 200,
+      "fields": {
+        "defaultInventoryStatus": {
+          "distinct_values": [
+            {
+              "value": "AV",
+              "rows_in_sample": 9
+            }
+          ],
+          "verified_by_filter": {
+            "value": "AV",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": true,
+            "count_in_sample": 9
+          }
+        },
+        "lotStatus": {
+          "distinct_values": [
+            {
+              "value": "U",
+              "rows_in_sample": 200,
+              "label": "Unrestricted"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "U",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 200
+          }
+        }
+      }
+    },
+    "items": {
+      "sampled_rows": 200,
+      "fields": {
+        "receiveStatus": {
+          "distinct_values": [
+            {
+              "value": "AV",
+              "rows_in_sample": 200,
+              "label": "AVAILABLE"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "AV",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": true,
+            "count_in_sample": 200
+          }
+        }
+      }
+    },
+    "locationTypes": {
+      "sampled_rows": 38,
+      "fields": {
+        "receivingInventoryStatus": {
+          "distinct_values": [],
+          "verified_by_filter": null
+        }
+      }
+    },
+    "locations": {
+      "sampled_rows": 200,
+      "fields": {
+        "generatedLocationStatus": {
+          "distinct_values": [],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        },
+        "locationStatus": {
+          "distinct_values": [
+            {
+              "value": "E",
+              "rows_in_sample": 200,
+              "label": "Empty"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "E",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": true,
+            "count_in_sample": 200
+          }
+        },
+        "trailerStatus": {
+          "distinct_values": [],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        }
+      }
+    },
+    "outboundLoads": {
+      "sampled_rows": 200,
+      "fields": {
+        "trailerSafetyStatus": {
+          "distinct_values": [
+            {
+              "value": "U",
+              "rows_in_sample": 177
+            },
+            {
+              "value": "P",
+              "rows_in_sample": 20
+            },
+            {
+              "value": "W",
+              "rows_in_sample": 2
+            }
+          ],
+          "verified_by_filter": {
+            "value": "U",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 177
+          }
+        },
+        "trailerStatus": {
+          "distinct_values": [
+            {
+              "value": "D",
+              "rows_in_sample": 171,
+              "label": "Dispatched"
+            },
+            {
+              "value": "EX",
+              "rows_in_sample": 28,
+              "label": "Expected"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "D",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": true,
+            "count_in_sample": 171
+          }
+        },
+        "warehouseStatus": {
+          "distinct_values": [
+            {
+              "value": "WHCOMPLETE",
+              "rows_in_sample": 171
+            }
+          ],
+          "verified_by_filter": {
+            "value": "WHCOMPLETE",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": true,
+            "count_in_sample": 171
+          }
+        }
+      }
+    },
+    "overrideLocationCodes": {
+      "sampled_rows": 3,
+      "fields": {
+        "locationStatus": {
+          "distinct_values": [
+            {
+              "value": "N",
+              "rows_in_sample": 2,
+              "label": "No Change"
+            },
+            {
+              "value": "F",
+              "rows_in_sample": 1,
+              "label": "Full"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "N",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 2
+          }
+        }
+      }
+    },
+    "postalCodes": {
+      "sampled_rows": 11,
+      "fields": {
+        "state": {
+          "distinct_values": [
+            {
+              "value": "ON",
+              "rows_in_sample": 4
+            },
+            {
+              "value": "CMX",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "QC",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "MA",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "MI",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "NY",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "OH",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "value": "ON",
+            "filtered_status": 200,
+            "rows_returned": 4,
+            "every_row_matches": true,
+            "count_in_sample": 4
+          }
+        }
+      }
+    },
+    "printers": {
+      "sampled_rows": 8,
+      "fields": {
+        "printerStatus": {
+          "distinct_values": [
+            {
+              "value": "C",
+              "rows_in_sample": 8,
+              "label": "Connected"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "C",
+            "filtered_status": 200,
+            "rows_returned": 8,
+            "every_row_matches": true,
+            "count_in_sample": 8
+          }
+        }
+      }
+    },
+    "receivableInboundOrderStatuses": {
+      "sampled_rows": 1,
+      "fields": {
+        "receivableInboundOrderStatus": {
+          "distinct_values": [
+            {
+              "value": "OPEN",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "value": "OPEN",
+            "filtered_status": 200,
+            "rows_returned": 1,
+            "every_row_matches": true,
+            "count_in_sample": 1
+          }
+        }
+      }
+    },
+    "replenishmentConfigurations": {
+      "sampled_rows": 200,
+      "fields": {
+        "inventoryStatus": {
+          "distinct_values": [
+            {
+              "value": "AV",
+              "rows_in_sample": 200,
+              "label": "AVAILABLE"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "AV",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": true,
+            "count_in_sample": 200
+          }
+        }
+      }
+    },
+    "shipmentStatusChangeNotifications": {
+      "sampled_rows": 8,
+      "fields": {
+        "toShipmentStatus": {
+          "distinct_values": [
+            {
+              "value": "R",
+              "rows_in_sample": 1,
+              "label": "Ready"
+            },
+            {
+              "value": "I",
+              "rows_in_sample": 1,
+              "label": "In-Process"
+            },
+            {
+              "value": "S",
+              "rows_in_sample": 1,
+              "label": "Staged"
+            },
+            {
+              "value": "L",
+              "rows_in_sample": 1,
+              "label": "Loading"
+            },
+            {
+              "value": "D",
+              "rows_in_sample": 1,
+              "label": "Loaded"
+            },
+            {
+              "value": "C",
+              "rows_in_sample": 1,
+              "label": "Load Complete"
+            },
+            {
+              "value": "X",
+              "rows_in_sample": 1,
+              "label": "Transfer"
+            },
+            {
+              "value": "B",
+              "rows_in_sample": 1,
+              "label": "Cancelled"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "R",
+            "filtered_status": 200,
+            "rows_returned": 3,
+            "every_row_matches": false,
+            "count_in_sample": 1
+          }
+        }
+      }
+    },
+    "shipments": {
+      "sampled_rows": 200,
+      "fields": {
+        "addressState": {
+          "distinct_values": [
+            {
+              "value": "GA",
+              "rows_in_sample": 84
+            },
+            {
+              "value": "FL",
+              "rows_in_sample": 68
+            },
+            {
+              "value": "NC",
+              "rows_in_sample": 15
+            },
+            {
+              "value": "TN",
+              "rows_in_sample": 12
+            },
+            {
+              "value": "AL",
+              "rows_in_sample": 9
+            },
+            {
+              "value": "SC",
+              "rows_in_sample": 3
+            },
+            {
+              "value": "VA",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "LA",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "CA",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        },
+        "parcelValidationStatus": {
+          "distinct_values": [],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        },
+        "planningStatus": {
+          "distinct_values": [],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        },
+        "priceStatus": {
+          "distinct_values": [],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        },
+        "shipmentStatus": {
+          "distinct_values": [
+            {
+              "value": "C",
+              "rows_in_sample": 139
+            },
+            {
+              "value": "R",
+              "rows_in_sample": 45
+            },
+            {
+              "value": "S",
+              "rows_in_sample": 13
+            },
+            {
+              "value": "I",
+              "rows_in_sample": 3
+            }
+          ],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        }
+      }
+    },
+    "shorts": {
+      "sampled_rows": 88,
+      "fields": {
+        "inventoryStatus": {
+          "distinct_values": [],
+          "verified_by_filter": null
+        },
+        "pickStatus": {
+          "distinct_values": [
+            {
+              "value": "P",
+              "rows_in_sample": 88
+            }
+          ],
+          "verified_by_filter": {
+            "value": "P",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 88
+          }
+        },
+        "replenishmentStatus": {
+          "distinct_values": [
+            {
+              "value": "I",
+              "rows_in_sample": 78,
+              "label": "Issued"
+            },
+            {
+              "value": "S",
+              "rows_in_sample": 9,
+              "label": "Failed to Allocate Initial Storage Location"
+            },
+            {
+              "value": "X",
+              "rows_in_sample": 1,
+              "label": "Processing through Cross Dock"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "I",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 78
+          }
+        }
+      }
+    },
+    "storageConfigurations": {
+      "sampled_rows": 45,
+      "fields": {
+        "inventoryStatus": {
+          "distinct_values": [
+            {
+              "value": "AG",
+              "rows_in_sample": 5
+            },
+            {
+              "value": "EX",
+              "rows_in_sample": 5
+            },
+            {
+              "value": "FR",
+              "rows_in_sample": 5
+            },
+            {
+              "value": "ED",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "DN",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "DE",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "HZ",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "value": "AG",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 5
+          }
+        }
+      }
+    },
+    "structuredInventory": {
+      "sampled_rows": 200,
+      "fields": {
+        "inventoryStatus": {
+          "distinct_values": [
+            {
+              "value": "AV",
+              "rows_in_sample": 194,
+              "label": "AVAILABLE"
+            },
+            {
+              "value": "AG",
+              "rows_in_sample": 5,
+              "label": "AGE HOLD"
+            },
+            {
+              "value": "DE",
+              "rows_in_sample": 1,
+              "label": "DAMAGE DESTROY"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "AV",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": true,
+            "count_in_sample": 194
+          }
+        },
+        "locationStatus": {
+          "distinct_values": [
+            {
+              "value": "F",
+              "rows_in_sample": 125
+            },
+            {
+              "value": "P",
+              "rows_in_sample": 40
+            },
+            {
+              "value": "L",
+              "rows_in_sample": 30
+            },
+            {
+              "value": "E",
+              "rows_in_sample": 5
+            }
+          ],
+          "verified_by_filter": {
+            "value": "F",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": false,
+            "count_in_sample": 125
+          }
+        },
+        "trailerStatus": {
+          "distinct_values": [
+            {
+              "value": "D",
+              "rows_in_sample": 95
+            },
+            {
+              "value": "LDG",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "value": "D",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 95
+          }
+        }
+      }
+    },
+    "suppliers": {
+      "sampled_rows": 200,
+      "fields": {
+        "receiveStatus": {
+          "distinct_values": [
+            {
+              "value": "AV",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "value": "AV",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 1
+          }
+        },
+        "state": {
+          "distinct_values": [
+            {
+              "value": "IL",
+              "rows_in_sample": 28
+            },
+            {
+              "value": "MI",
+              "rows_in_sample": 8
+            },
+            {
+              "value": "TX",
+              "rows_in_sample": 7
+            },
+            {
+              "value": "GA",
+              "rows_in_sample": 7
+            },
+            {
+              "value": "IA",
+              "rows_in_sample": 6
+            },
+            {
+              "value": "MO",
+              "rows_in_sample": 6
+            },
+            {
+              "value": "PA",
+              "rows_in_sample": 6
+            },
+            {
+              "value": "CA",
+              "rows_in_sample": 6
+            },
+            {
+              "value": "KY",
+              "rows_in_sample": 4
+            },
+            {
+              "value": "NM",
+              "rows_in_sample": 4
+            },
+            {
+              "value": "IN",
+              "rows_in_sample": 4
+            },
+            {
+              "value": "NY",
+              "rows_in_sample": 3
+            },
+            {
+              "value": "MN",
+              "rows_in_sample": 3
+            },
+            {
+              "value": "OH",
+              "rows_in_sample": 3
+            },
+            {
+              "value": "QC",
+              "rows_in_sample": 3
+            },
+            {
+              "value": "WI",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "ON",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "NE",
+              "rows_in_sample": 2
+            },
+            {
+              "value": "MT",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "SC",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "GT",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "NJ",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "ND",
+              "rows_in_sample": 1
+            },
+            {
+              "value": "MS",
+              "rows_in_sample": 1
+            }
+          ],
+          "verified_by_filter": {
+            "value": "IL",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 28
+          }
+        }
+      }
+    },
+    "trailers": {
+      "sampled_rows": 200,
+      "fields": {
+        "inboundShipmentStatus": {
+          "distinct_values": [
+            {
+              "value": "C",
+              "rows_in_sample": 26,
+              "label": "Closed"
+            },
+            {
+              "value": "CI",
+              "rows_in_sample": 5,
+              "label": "Checked In"
+            },
+            {
+              "value": "R",
+              "rows_in_sample": 3,
+              "label": "Receiving"
+            }
+          ],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        },
+        "locationStatus": {
+          "distinct_values": [
+            {
+              "value": "F",
+              "rows_in_sample": 12,
+              "label": "Full"
+            }
+          ],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        },
+        "safetyCheckStatus": {
+          "distinct_values": [
+            {
+              "value": "U",
+              "rows_in_sample": 180,
+              "label": "Unknown"
+            },
+            {
+              "value": "P",
+              "rows_in_sample": 11,
+              "label": "Passed"
+            },
+            {
+              "value": "W",
+              "rows_in_sample": 9,
+              "label": "Pending (Waiting)"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "U",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": true,
+            "count_in_sample": 180
+          }
+        },
+        "trailerStatus": {
+          "distinct_values": [
+            {
+              "value": "EX",
+              "rows_in_sample": 164,
+              "label": "Expected"
+            },
+            {
+              "value": "D",
+              "rows_in_sample": 24,
+              "label": "Dispatched"
+            },
+            {
+              "value": "OR",
+              "rows_in_sample": 7,
+              "label": "Open For Receiving"
+            },
+            {
+              "value": "R",
+              "rows_in_sample": 3,
+              "label": "Receiving"
+            },
+            {
+              "value": "C",
+              "rows_in_sample": 2,
+              "label": "Closed"
+            }
+          ],
+          "verified_by_filter": {
+            "value": "EX",
+            "filtered_status": 200,
+            "rows_returned": 200,
+            "every_row_matches": true,
+            "count_in_sample": 164
+          }
+        },
+        "yardStatus": {
+          "distinct_values": [
+            {
+              "value": "FULL",
+              "rows_in_sample": 22,
+              "label": "Full"
+            }
+          ],
+          "verified_by_filter": {
+            "skipped": "this column is not filterable on this resource"
+          }
+        }
+      }
+    },
+    "workOperations": {
+      "sampled_rows": 73,
+      "fields": {
+        "initialCreationStatus": {
+          "distinct_values": [
+            {
+              "value": "PEND",
+              "rows_in_sample": 66
+            },
+            {
+              "value": "SUSP",
+              "rows_in_sample": 4
+            },
+            {
+              "value": "LOCK",
+              "rows_in_sample": 3
+            }
+          ],
+          "verified_by_filter": {
+            "value": "PEND",
+            "filtered_status": 200,
+            "rows_returned": 0,
+            "every_row_matches": false,
+            "count_in_sample": 66
+          }
+        }
+      }
+    }
+  },
+  "totals": {
+    "resources": 23,
+    "distinct_status_values": 151,
+    "filters_verified": 12
+  }
+}

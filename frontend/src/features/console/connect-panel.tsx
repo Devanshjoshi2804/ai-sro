@@ -9,14 +9,19 @@ import { ink, mono } from "@/features/console/theme";
 /**
  * Connecting a system.
  *
- * The operator signs in on the system's own login page, inside a browser we
- * opened for them. Their password is typed into that page and nowhere else — no
- * field here accepts one, no request from this screen carries one, and the
- * capture recorder drops credential values where they are typed.
+ * Two ways in, and the difference matters.
  *
- * What is kept is the session the login produced, encrypted in the vault, so
- * the next demonstration starts already logged in and the executor can replay a
- * call tomorrow without anybody present.
+ * Leave the credential fields empty and the operator signs in on the system's
+ * own login page, inside a browser we opened for them. Nothing here sees the
+ * password; what is kept is the session it produced.
+ *
+ * Fill them in and the connection becomes a connector: the credentials are
+ * encrypted into the vault, and the system signs itself back in whenever its
+ * session expires — at 3am, mid-batch, or before a demonstration that would
+ * otherwise have opened on a login page. Nobody is asked a second time.
+ *
+ * Either way the capture recorder drops credential values where they are typed,
+ * so no recording contains one, and no endpoint reads one back out.
  */
 export type Connection = Schemas["ConnectionModel"];
 type Opened = Schemas["OpenedConnectionResponse"];
@@ -37,19 +42,60 @@ export const listConnections = () => api.get<Connection[]>("/v1/connections");
  */
 export const checkSessions = () => api.get<SessionCheck[]>("/v1/connections/health");
 
+/**
+ * Sign a connection back in with what it already holds.
+ *
+ * No credential crosses this call — they were entered once and live in the
+ * vault. This only says "now".
+ */
+export const signInAgain = (connectionId: string, targetSystem: string) =>
+  api.post(
+    `/v1/connections/${connectionId}/sign-in?target_system=${encodeURIComponent(targetSystem)}`,
+  );
+
 export function ConnectPanel({ onDone }: { onDone: () => void }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: "", target_system: "", base_url: "" });
+  const [form, setForm] = useState({
+    name: "",
+    target_system: "",
+    base_url: "",
+    username: "",
+    password: "",
+  });
   const [opened, setOpened] = useState<Opened | null>(null);
 
   const connect = useMutation({
-    mutationFn: () =>
-      api.post<Opened>("/v1/connections", {
+    mutationFn: async () => {
+      const connection = await api.post<Opened>("/v1/connections", {
         name: form.name.trim(),
         target_system: form.target_system.trim(),
         base_url: form.base_url.trim(),
-      }),
-    onSuccess: setOpened,
+      });
+      // Given credentials, the connection signs itself in — now and every time
+      // the system expires it afterwards. That is the whole difference between
+      // a saved session and a connector: nobody is asked a second time.
+      if (form.password) {
+        await api.put(`/v1/connections/${connection.connection_id}/credentials`, {
+          username: form.username.trim(),
+          password: form.password,
+        });
+        await signInAgain(connection.connection_id, form.target_system.trim());
+        return null;
+      }
+      return connection;
+    },
+    onSuccess: (connection) => {
+      if (connection) {
+        setOpened(connection);
+        return;
+      }
+      toast.success(`${form.name} connected`, {
+        description: "It will sign itself back in whenever the system expires the session.",
+      });
+      void queryClient.invalidateQueries({ queryKey: connectionKeys.all });
+      void queryClient.invalidateQueries({ queryKey: connectionKeys.health });
+      onDone();
+    },
     onError: (error) =>
       toast.error("Could not open the system", {
         description: error instanceof ApiError ? error.problem.detail : String(error),
@@ -75,7 +121,12 @@ export function ConnectPanel({ onDone }: { onDone: () => void }) {
       }),
   });
 
-  const complete = Object.values(form).every((value) => value.trim().length > 0);
+  // Credentials are optional, so they are not part of "complete" -- but half a
+  // credential is worse than none, since it would be stored and then fail every
+  // unattended sign-in from here on.
+  const complete =
+    [form.name, form.target_system, form.base_url].every((value) => value.trim().length > 0) &&
+    Boolean(form.username.trim()) === Boolean(form.password);
 
   if (opened) {
     return (
@@ -223,6 +274,39 @@ export function ConnectPanel({ onDone }: { onDone: () => void }) {
               }}
             />
           </label>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {(
+            [
+              ["username", "Username", "text", "operator@company.com"],
+              ["password", "Password", "password", "kept encrypted, never shown again"],
+            ] as const
+          ).map(([key, label, type, placeholder]) => (
+            <label key={key} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: ink.textMuted }}>{label}</span>
+              <input
+                type={type}
+                value={form[key]}
+                placeholder={placeholder}
+                autoComplete={key === "password" ? "new-password" : "username"}
+                onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+                style={{
+                  border: `1px solid ${ink.line}`,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  fontSize: 13,
+                  fontFamily: mono,
+                  outline: "none",
+                }}
+              />
+            </label>
+          ))}
+        </div>
+        <div style={{ fontSize: 11.5, color: ink.textSoft, lineHeight: 1.6 }}>
+          Optional. With them, this system signs itself back in whenever its session expires — you
+          are never asked again. They are encrypted in the vault, never shown, never returned by any
+          request, never written into a recording, and typed into no page but this system&rsquo;s
+          own login. Leave them empty to sign in by hand instead.
         </div>
         <button
           onClick={() => connect.mutate()}

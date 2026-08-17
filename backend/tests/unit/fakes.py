@@ -24,6 +24,7 @@ from sro.application.ports.repositories import (
     SkillRepository,
     ThreadRepository,
 )
+from sro.application.ports.sign_in import SignInFailed, SignInResult
 from sro.application.ports.ui import ResolvedLocator, UiOutcome, UiUnavailable
 from sro.application.ports.vision import (
     ProposedGesture,
@@ -95,12 +96,40 @@ class FakeIdFactory:
         return MessageId(f"msg-{next(self._messages)}")
 
 
+class FakeSignInDriver:
+    """Types what it is given, and remembers only that it was asked."""
+
+    def __init__(
+        self, *, lands_at: str = "https://wms.example.com/portal", fails: str = ""
+    ) -> None:
+        self.lands_at = lands_at
+        self.fails = fails
+        self.calls = 0
+
+    async def sign_in(
+        self,
+        *,
+        debugger_url: str,
+        url: str,
+        username: str,
+        password: str,
+        timeout_s: float = 90.0,
+    ) -> SignInResult:
+        self.calls += 1
+        if self.fails:
+            raise SignInFailed(self.fails)
+        return SignInResult(landed_at=self.lands_at, steps=("entered the username",))
+
+
 class FakeBrowserProvider:
     def __init__(self, *, available: bool = True) -> None:
         self.available = available
         self.opened: list[BrowserSessionId] = []
         self.closed: list[BrowserSessionId] = []
         self.navigated: list[tuple[BrowserSessionId, str]] = []
+        self.cookies: tuple[dict[str, object], ...] = (
+            {"name": "JSESSIONID", "value": "fake-session", "domain": "wms.test"},
+        )
         self._counter = count(1)
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
@@ -123,7 +152,7 @@ class FakeBrowserProvider:
         self.navigated.append((session_id, url))
 
     async def session_cookies(self, session_id: BrowserSessionId) -> tuple[dict[str, object], ...]:
-        return ({"name": "JSESSIONID", "value": "fake-session", "domain": "wms.test"},)
+        return self.cookies
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         if session_id in self.closed:

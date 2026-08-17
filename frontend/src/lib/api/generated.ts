@@ -109,6 +109,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/connections/{connection_id}/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Store Credentials
+         * @description What the connection signs itself back in with, entered once.
+         *
+         *     This is the difference between a saved session and a connector: a session
+         *     dies on the system's schedule, and something has to be able to make a new
+         *     one at 3am without waking anybody.
+         *
+         *     Encrypted into the vault on arrival. No endpoint returns it, nothing logs
+         *     it, no recording contains it, and it is typed into no page but the login
+         *     page of the host this connection names.
+         */
+        put: operations["store_credentials_v1_connections__connection_id__credentials_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign In
+         * @description Sign in now with what is stored, and keep the session it produces.
+         */
+        post: operations["sign_in_v1_connections__connection_id__sign_in_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/connections/{connection_id}/session-headers": {
         parameters: {
             query?: never;
@@ -696,6 +744,19 @@ export interface components {
             /** Last Error */
             last_error: string | null;
         };
+        /**
+         * CredentialsRequest
+         * @description Entered once, by a human, and never read back out.
+         *
+         *     There is no matching response model on purpose: an endpoint that returned a
+         *     password would put it in every proxy log between here and the caller.
+         */
+        CredentialsRequest: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+        };
         /** DescribeRequest */
         DescribeRequest: {
             /** Version */
@@ -1143,6 +1204,15 @@ export interface components {
             /** Stored */
             stored: string[];
         };
+        /** SignedInResponse */
+        SignedInResponse: {
+            /** Target System */
+            target_system: string;
+            /** Landed At */
+            landed_at: string;
+            /** Steps */
+            steps: string[];
+        };
         /** SkillDetail */
         SkillDetail: {
             /** Id */
@@ -1565,6 +1635,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectionModel"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    store_credentials_v1_connections__connection_id__credentials_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_in_v1_connections__connection_id__sign_in_post: {
+        parameters: {
+            query: {
+                target_system: string;
+            };
+            header?: {
+                "X-Tenant-Id"?: string;
+                "X-Principal-Id"?: string;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedInResponse"];
                 };
             };
             /** @description Validation Error */

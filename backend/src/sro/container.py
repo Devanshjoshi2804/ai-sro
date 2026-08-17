@@ -24,6 +24,7 @@ from sro.application.connection.connect_system import (
     StoreSession,
 )
 from sro.application.connection.session_headers import StoreSessionHeaders
+from sro.application.connection.sign_in import EnsureSignedIn, SignIn, StoreCredentials
 from sro.application.execution.batch import RunBatch
 from sro.application.execution.execute_skill import (
     ExecuteSkill,
@@ -51,6 +52,7 @@ from sro.application.ports.http import HttpCaller
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.sign_in import SignInDriver
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.transcription import Transcriber
 from sro.application.ports.ui import UiDriver
@@ -79,6 +81,7 @@ from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
 from sro.infrastructure.steel.client import SteelClient
+from sro.infrastructure.steel.sign_in import PlaywrightSignIn
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
 from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
 from sro.infrastructure.system import SystemClock, UuidFactory
@@ -110,6 +113,7 @@ class Container:
     vault: CredentialVault
     http: HttpCaller
     ui: UiDriver
+    sign_in_driver: SignInDriver
     durable: DurableExecution
     session_factory: async_sessionmaker[AsyncSession]
 
@@ -146,6 +150,21 @@ class Container:
 
     def store_session(self) -> StoreSession:
         return StoreSession(self.unit_of_work(), self.vault, self.clock, self.browser)
+
+    def store_credentials(self) -> StoreCredentials:
+        return StoreCredentials(self.unit_of_work(), self.vault)
+
+    def sign_in(self) -> SignIn:
+        return SignIn(
+            self.unit_of_work(),
+            self.vault,
+            self.browser,
+            self.sign_in_driver,
+            self.refresh_session(),
+        )
+
+    def ensure_signed_in(self) -> EnsureSignedIn:
+        return EnsureSignedIn(self.sign_in(), self.check_session(), self.unit_of_work())
 
     def check_session(self) -> CheckSession:
         return CheckSession(self.unit_of_work(), self.vault, self.http)
@@ -366,6 +385,7 @@ def build_container(settings: Settings | None = None) -> Container:
         vault=_build_vault(settings),
         http=HttpxCaller(),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
+        sign_in_driver=PlaywrightSignIn(),
         durable=TemporalDurableExecution(
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),

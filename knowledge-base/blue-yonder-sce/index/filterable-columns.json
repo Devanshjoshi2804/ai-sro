@@ -1,0 +1,163 @@
+{
+  "generated_by": "tools/cdp/probe-filterable-columns.mjs",
+  "resources": {
+    "addresses": {
+      "probed_columns": 15,
+      "filterable": [
+        "addressId",
+        "addressLine1",
+        "addressLine2",
+        "addressName",
+        "addressType",
+        "clientId",
+        "countryName"
+      ],
+      "not_filterable": [
+        "city",
+        "contactName",
+        "hostExternalId",
+        "localeId",
+        "phoneNumber",
+        "postalCode",
+        "requestState",
+        "state"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "carriers": {
+      "probed_columns": 2,
+      "filterable": [
+        "carrierCode"
+      ],
+      "not_filterable": [
+        "carrierName"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "locations": {
+      "probed_columns": 24,
+      "filterable": [
+        "areaCode",
+        "buildingId",
+        "defaultMaximumCapacity",
+        "locationCode",
+        "locationStatus",
+        "locationTypeCategory",
+        "locationTypeId"
+      ],
+      "not_filterable": [
+        "allocateToEmptySequence",
+        "backfillLocationFlag",
+        "borderPadding",
+        "bottomLeftX",
+        "bottomLeftY",
+        "bottomRightX",
+        "bottomRightY",
+        "deviceCode",
+        "escalationThreshold",
+        "lastUser",
+        "locationCodeDescription",
+        "locationStatusDescription",
+        "locationTypeCategoryDescription",
+        "locationTypeDescription",
+        "locationTypeName",
+        "maxWeight",
+        "maximumCapacity"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "items": {
+      "probed_columns": 24,
+      "filterable": [
+        "abcCode",
+        "commodityCode",
+        "dateCode",
+        "itemClassName",
+        "itemClientId",
+        "itemNumber",
+        "itemTypeCode",
+        "lotFormatId",
+        "receiveStatus"
+      ],
+      "not_filterable": [
+        "agingProfileName",
+        "associationKey",
+        "currencyCode",
+        "customsCommodityCode",
+        "dateWindowType",
+        "displayItemNumber",
+        "timeCode",
+        "warehouseId",
+        "weightCode",
+        "abcCodeDescription",
+        "attributeDate1",
+        "attributeDate2",
+        "attributeDecimal1",
+        "attributeDecimal2",
+        "attributeDecimal3"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "shipments": {
+      "probed_columns": 23,
+      "filterable": [
+        "clientId",
+        "routeToAddressId",
+        "shipmentId",
+        "carrier",
+        "deliverySequenceLoadingOrder"
+      ],
+      "not_filterable": [
+        "addressCountryName",
+        "addressName",
+        "addressPostalCode",
+        "shipmentStatus",
+        "warehouseId",
+        "addressCity",
+        "addressLineOne",
+        "addressState",
+        "dateAdded",
+        "dateEntered",
+        "dateLastModified",
+        "deliverySequenceLoadingOrderDescription",
+        "destinationLocation",
+        "earlyShipDate",
+        "freightRate",
+        "lastModifiedBy",
+        "serviceLevel",
+        "shipmentStatusLongDescription"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    },
+    "trailers": {
+      "probed_columns": 22,
+      "filterable": [
+        "carrier",
+        "laborEstimate",
+        "safetyCheckStatus",
+        "safetyCheckStatusDescription",
+        "storageLocation",
+        "trailerCode",
+        "trailerCodeDescription",
+        "trailerId",
+        "trailerNumber",
+        "trailerStatus",
+        "trailerStatusDescription",
+        "trailerWeight"
+      ],
+      "not_filterable": [
+        "associationKey",
+        "dateLastModified",
+        "frontAxlePosition",
+        "lastModifiedBy",
+        "maximumRearAxlePosition",
+        "minimumRearAxlePosition",
+        "shipToCustomerCount",
+        "storageLocationWarehouseId",
+        "supplierCount",
+        "trailerSize"
+      ],
+      "note": "Columns in not_filterable returned 200 with zero rows for a value taken from a real row. An empty result from those proves nothing."
+    }
+  }
+}

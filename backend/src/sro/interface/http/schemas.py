@@ -87,6 +87,25 @@ class ConnectionModel(BaseModel):
     last_error: str | None
 
 
+class CredentialsRequest(BaseModel):
+    """Entered once, by a human, and never read back out.
+
+    There is no matching response model on purpose: an endpoint that returned a
+    password would put it in every proxy log between here and the caller.
+    """
+
+    username: str
+    password: str
+
+
+class SignedInResponse(BaseModel):
+    target_system: str
+    landed_at: str
+    steps: list[str]
+    """What the driver did, in order, with no values -- enough to debug a login
+    that stalled without recording what was typed."""
+
+
 class SessionCheckModel(BaseModel):
     connection_id: str
     target_system: str

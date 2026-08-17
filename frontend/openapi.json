@@ -298,6 +298,144 @@
         }
       }
     },
+    "/v1/connections/{connection_id}/credentials": {
+      "put": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Store Credentials",
+        "description": "What the connection signs itself back in with, entered once.\n\nThis is the difference between a saved session and a connector: a session\ndies on the system's schedule, and something has to be able to make a new\none at 3am without waking anybody.\n\nEncrypted into the vault on arrival. No endpoint returns it, nothing logs\nit, no recording contains it, and it is typed into no page but the login\npage of the host this connection names.",
+        "operationId": "store_credentials_v1_connections__connection_id__credentials_put",
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Connection Id"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connections/{connection_id}/sign-in": {
+      "post": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Sign In",
+        "description": "Sign in now with what is stored, and keep the session it produces.",
+        "operationId": "sign_in_v1_connections__connection_id__sign_in_post",
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Connection Id"
+            }
+          },
+          {
+            "name": "target_system",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target System"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev",
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "X-Principal-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "dev-operator",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedInResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/connections/{connection_id}/session-headers": {
       "post": {
         "tags": [
@@ -2533,6 +2671,25 @@
         ],
         "title": "ConnectionModel"
       },
+      "CredentialsRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "CredentialsRequest",
+        "description": "Entered once, by a human, and never read back out.\n\nThere is no matching response model on purpose: an endpoint that returned a\npassword would put it in every proxy log between here and the caller."
+      },
       "DescribeRequest": {
         "properties": {
           "version": {
@@ -3777,6 +3934,32 @@
           "stored"
         ],
         "title": "SessionHeadersResponse"
+      },
+      "SignedInResponse": {
+        "properties": {
+          "target_system": {
+            "type": "string",
+            "title": "Target System"
+          },
+          "landed_at": {
+            "type": "string",
+            "title": "Landed At"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_system",
+          "landed_at",
+          "steps"
+        ],
+        "title": "SignedInResponse"
       },
       "SkillDetail": {
         "properties": {

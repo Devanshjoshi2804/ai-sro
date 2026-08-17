@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from sro.application.context import RequestContext
-from sro.application.intent.match import Candidate, ambiguous, asks, rank
+from sro.application.intent.match import Candidate, ambiguous, asks, rank, refers_back
 from sro.application.intent.plan_task import PlanTask, Proposal
 from sro.application.intent.pursue import Pursuit, compose
 from sro.application.ports.intent import IntentParser
@@ -90,6 +90,7 @@ class ResolveIntent:
         utterance: str,
         system: str | None = None,
         parameters: dict[str, str] | None = None,
+        after: str | None = None,
     ) -> Resolution:
         async with self._uow as uow:
             skills = await uow.skills.list_for_tenant(ctx.tenant_id, limit=_LIBRARY_PAGE)
@@ -98,6 +99,13 @@ class ResolveIntent:
             skills = tuple(s for s in skills if s.objective_key.target_system == system)
 
         candidates = rank(skills, utterance)
+        # A follow-up carries none of its own nouns: "I want them in detail"
+        # says nothing about transport modes, and resolving it alone sent the
+        # operator back to the knowledge base for a subject they had just been
+        # shown. The previous sentence supplies the subject; this one still has
+        # to match something, so nothing is invented -- only remembered.
+        if not candidates and after and refers_back(utterance):
+            candidates = rank(skills, f"{after} {utterance}")
 
         if not candidates:
             return await self._nothing_taught(ctx, utterance, system)

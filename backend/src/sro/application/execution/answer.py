@@ -27,15 +27,18 @@ MAX_VALUE = 60
 _IDENTIFYING = (
     "code",
     "name",
-    "id",
     "description",
+    "id",
     "status",
     "type",
     "mode",
     "number",
 )
-"""Field names that tell one record from another, best first. A row shown as
-its internal surrogate key identifies nothing to the person reading it."""
+"""Field names that tell one record from another, best first.
+
+Description ahead of id, learned by showing an operator sixteen rows reading
+`AF*!SG` while the screen beside them said `Air Freight`. A composite surrogate
+key is how the system refers to a record; it is not how anybody else does."""
 
 
 @dataclass(frozen=True, slots=True)

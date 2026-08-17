@@ -57,8 +57,17 @@ class Converse:
         system: str | None = None,
         parameters: dict[str, str] | None = None,
     ) -> Thread:
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+
         resolution = await self._resolver.execute(
-            ctx, utterance=text, system=system, parameters=parameters
+            ctx,
+            utterance=text,
+            system=system,
+            parameters=parameters,
+            # What was being talked about a moment ago. A conversation whose
+            # every sentence is resolved alone is not a conversation.
+            after=_last_asked(thread),
         )
 
         async with self._uow as uow:
@@ -131,3 +140,16 @@ def _decision(resolution: Resolution) -> dict[str, object]:
         "note": resolution.note,
         "proposal_sources": (list(resolution.proposal.sources) if resolution.proposal else []),
     }
+
+
+def _last_asked(thread: Thread) -> str | None:
+    """The operator's previous sentence, which is where a follow-up's subject is.
+
+    Theirs rather than the assistant's: the reply is full of words the system
+    chose, and letting those steer the next match would have the console
+    talking to itself.
+    """
+    for message in reversed(thread.messages):
+        if message.speaker is Speaker.OPERATOR:
+            return message.text
+    return None

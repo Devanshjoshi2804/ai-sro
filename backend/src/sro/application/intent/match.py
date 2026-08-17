@@ -199,3 +199,25 @@ def _score(skill: Skill, asked: frozenset[str]) -> Candidate | None:
         why=tuple(why),
         unexplained=tuple(sorted(asked - accounted)),
     )
+
+
+_REFERRING = frozenset(
+    {"them", "these", "those", "they", "it", "that", "this", "same", "again", "ones"}
+)
+"""Words that point at something already said rather than naming it.
+
+A follow-up is recognised by referring, not by failing to match. "Release the
+wave" names a different task and matches nothing taught; carrying the previous
+subject into it produced a confident offer to list transport modes, which is
+the wrong-task failure arriving through the back door.
+"""
+
+
+def refers_back(utterance: str) -> bool:
+    """Whether this sentence leans on the one before it for its subject.
+
+    Read off the raw words rather than the filtered ones: "it" and "this" are
+    noise when matching a skill and are the whole signal here, so "run it" would
+    otherwise never be recognised as referring to anything.
+    """
+    return bool(set(_WORD.findall(utterance.lower())) & _REFERRING)

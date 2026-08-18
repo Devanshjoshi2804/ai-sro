@@ -106,6 +106,7 @@ class FakeSignInDriver:
         self.lands_at = lands_at
         self.fails = fails
         self.calls = 0
+        self.chose: tuple[str, ...] = ()
 
     async def sign_in(
         self,
@@ -114,9 +115,11 @@ class FakeSignInDriver:
         url: str,
         username: str,
         password: str,
+        choose: tuple[str, ...] = (),
         timeout_s: float = 90.0,
     ) -> SignInResult:
         self.calls += 1
+        self.chose = choose
         if self.fails:
             raise SignInFailed(self.fails)
         return SignInResult(landed_at=self.lands_at, steps=("entered the username",))

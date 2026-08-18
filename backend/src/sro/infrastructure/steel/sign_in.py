@@ -53,6 +53,7 @@ class PlaywrightSignIn(SignInDriver):
         url: str,
         username: str,
         password: str,
+        choose: tuple[str, ...] = (),
         timeout_s: float = 90.0,
     ) -> SignInResult:
         steps: list[str] = []
@@ -78,9 +79,15 @@ class PlaywrightSignIn(SignInDriver):
                     elif _on(page.url, host):
                         break
                     else:
-                        # No field, not home. A consent screen or an account
-                        # picker: the one button that moves it forward is the
-                        # submit-shaped one, and if there is none we are stuck.
+                        # No field, not home: an account picker or a consent
+                        # screen. Azure B2C opens by asking which tenant the
+                        # operator belongs to, and that page has links rather
+                        # than inputs -- the driver filled nothing, found no
+                        # submit button, and stopped one click from the login
+                        # form every time.
+                        if await _chose(page, choose):
+                            steps.append("chose how to sign in")
+                            continue
                         if not await _submit(page):
                             break
                         steps.append("continued")
@@ -143,4 +150,29 @@ async def _submit(page: Page) -> bool:
     if await _visible(page, _PASSWORD) or await _visible(page, _IDENTIFIER):
         await page.keyboard.press("Enter")
         return True
+    return False
+
+
+async def _chose(page: Page, choose: tuple[str, ...]) -> bool:
+    """Click the identity provider a demonstration showed us choosing.
+
+    Matched on the text somebody was recorded clicking rather than on anything
+    this code believes about tenants: "Local WMS users (bf56-001-eus2) (SSO)"
+    means nothing to anyone who has not seen this deployment.
+    """
+    for wanted in choose:
+        if not wanted.strip():
+            continue
+        for element in await page.query_selector_all("a, button, [role=link], [role=button]"):
+            try:
+                if not await element.is_visible():
+                    continue
+                text = ((await element.inner_text()) or "").strip()
+            except Exception:
+                # A chooser redraws itself as it is read. Not the option.
+                logger.debug("an option would not describe itself", exc_info=True)
+                continue
+            if (text and text[:80] in wanted) or wanted[:80] in text:
+                await element.click()
+                return True
     return False

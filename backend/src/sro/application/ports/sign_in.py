@@ -35,9 +35,16 @@ class SignInDriver(Protocol):
         url: str,
         username: str,
         password: str,
+        choose: tuple[str, ...] = (),
         timeout_s: float = 90.0,
     ) -> SignInResult:
-        """Drive this browser from ``url`` to signed in, or raise."""
+        """Drive this browser from ``url`` to signed in, or raise.
+
+        ``choose`` names the identity provider options to click when a page
+        offers a choice rather than a form. Taken from a demonstration of this
+        system's own login, because which of six tenants an operator belongs to
+        is not something to guess at.
+        """
         ...
 
 

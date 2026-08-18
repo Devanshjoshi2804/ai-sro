@@ -29,6 +29,7 @@ from sro.application.ports.sign_in import SignInDriver, SignInFailed
 from sro.application.ports.vault import CredentialVault
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.shared.errors import DomainError
+from sro.domain.skill.skill import Skill
 
 USERNAME = "username"
 PASSWORD = "password"  # noqa: S105 -- a vault key's name, not a value
@@ -96,6 +97,7 @@ class SignIn:
                 url=connection.base_url,
                 username=username,
                 password=password,
+                choose=await self._chooser(ctx, connection.target_system),
             )
             cookies = list(await self._browser.session_cookies(session.id))
         finally:
@@ -114,6 +116,34 @@ class SignIn:
             landed_at=result.landed_at,
             steps=result.steps,
         )
+
+    async def _chooser(self, ctx: RequestContext, system: str) -> tuple[str, ...]:
+        """What a demonstration of this login clicked before the form appeared.
+
+        Azure B2C opens by asking which tenant somebody belongs to, and that
+        page offers links rather than fields. Which of them is right is a fact
+        about this deployment, so it is read from a recording of somebody
+        choosing rather than guessed at -- and where nobody has demonstrated a
+        login, nothing is chosen and the driver behaves as before.
+        """
+        async with self._uow as uow:
+            skills = await uow.skills.list_for_tenant(ctx.tenant_id, limit=200)
+
+        # Preferring this system's own demonstration, but not requiring it: the
+        # login taught here is filed under the system name derived when it was
+        # sealed, and an early one landed under "ai". Passing an option that
+        # belongs to another system costs nothing -- the driver clicks only text
+        # that is actually on the page in front of it.
+        matching = [s for s in skills if _is_a_login(s)]
+        preferred = [s for s in matching if s.objective_key.target_system == system]
+
+        wanted: list[str] = []
+        for skill in preferred + [s for s in matching if s not in preferred]:
+            for step in (skill.versions[-1].steps if skill.versions else ())[:3]:
+                for locator in step.ui_plan.locators if step.ui_plan else ():
+                    if locator.strategy.value in {"text", "role_and_name"} and locator.query:
+                        wanted.append(str(locator.query).split("|")[-1])
+        return tuple(dict.fromkeys(wanted))[:6]
 
     async def _credentials(self, connection: Connection) -> tuple[str, str]:
         username = await self._vault.get(connection.credential_key(USERNAME))
@@ -166,3 +196,14 @@ class EnsureSignedIn:
         except (NoCredentials, SignInFailed):
             return False
         return True
+
+
+def _is_a_login(skill: Skill) -> bool:
+    """Whether this skill is somebody signing in.
+
+    By what it was called and what it was for, because a login recorded before
+    the system name was derived properly is still a demonstration of this
+    login.
+    """
+    said = f"{skill.name} {skill.objective_key.objective_type}".lower()
+    return any(word in said for word in ("login", "log in", "sign in", "authenticate", "auth"))

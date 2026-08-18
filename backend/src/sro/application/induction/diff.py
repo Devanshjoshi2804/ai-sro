@@ -267,12 +267,24 @@ def _diff_request(index: int, frame_a: ActionFrame, frame_b: ActionFrame) -> lis
     request_a, request_b = frame_a.primary_request, frame_b.primary_request
     if request_a is None and request_b is None:
         return []
+
     if request_a is None or request_b is None:
+        # One run fetched something the other did not. Whether that matters
+        # depends entirely on what it was.
+        lonely = request_a or request_b
+        if lonely is not None and not lonely.is_mutation:
+            # A read. The second demonstration of a task does not refetch what
+            # the browser still has, and refusing the pair over a cache made
+            # the operator record the whole task again to no purpose -- the
+            # writes were identical both times. The step is kept; there is
+            # simply nothing to diff at it.
+            return []
         raise InductionFailed(
-            "one run made a network call here and the other did not; the demonstrations "
-            "diverged (a cached page, or a different branch of the flow)",
+            "one run changed the system here and the other did not; the demonstrations "
+            "diverged (a different branch of the flow, or something already done)",
             step_index=index,
         )
+
     if request_a.method.upper() != request_b.method.upper():
         raise InductionFailed(
             f"different HTTP methods ({request_a.method} and {request_b.method})",

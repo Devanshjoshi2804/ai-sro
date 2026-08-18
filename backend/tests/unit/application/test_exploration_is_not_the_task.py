@@ -117,3 +117,38 @@ def test_a_cache_buster_is_not_a_parameter() -> None:
 
     assert not any("dc" in name for name in names), names
     assert any("SROTES1" in p.observed_values for p in parameterise(run_a, run_b).parameters)
+
+
+def test_a_read_only_one_run_made_is_not_a_divergence() -> None:
+    """The browser cached it. That is a fact about the browser, not the task.
+
+    The transport-mode pair was refused because run 2 fetched an address list
+    run 1 already had -- while the write, a PUT to the same address, was
+    identical in both. The operator was told to record the whole thing again to
+    no purpose.
+    """
+    run_a = (_click(0, "Add", requests=()), _click(1, "Row", requests=()), _write(2, "Save"))
+    run_b = (
+        _click(0, "Add", requests=()),
+        _click(
+            1, "Row", requests=(f.request(method="GET", url=f"{CREATE}/addresses", status=200),)
+        ),
+        _write(2, "Save"),
+    )
+
+    assert len(align(run_a, run_b)) == 3
+    parameterise(run_a, run_b)  # does not raise
+
+
+def test_a_write_only_one_run_made_is_still_a_divergence() -> None:
+    """The line stays where it was: a call that changed something is evidence,
+    and one run having it means the two runs did different things."""
+    run_a = (_click(0, "Add", requests=()), _click(1, "Row", requests=()), _write(2, "Save"))
+    run_b = (
+        _click(0, "Add", requests=()),
+        _write(1, "Row", f"{CREATE}/extra"),
+        _write(2, "Save"),
+    )
+
+    with pytest.raises(InductionFailed, match="changed the system"):
+        parameterise(run_a, run_b)

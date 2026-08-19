@@ -16,6 +16,7 @@ to run as script rather than as a selector.
 from __future__ import annotations
 
 import logging
+import struct
 
 from playwright.async_api import Frame, Page, async_playwright
 
@@ -26,7 +27,7 @@ from sro.domain.skill.locator import LocatorStrategy
 
 logger = logging.getLogger(__name__)
 
-_TEXT_DIGEST = """() => {
+_TEXT_DIGEST = r"""(page) => {
     const seen = [];
     document.querySelectorAll('input, select, textarea, button, a, .x-grid-cell, label')
         .forEach((el) => {
@@ -38,15 +39,26 @@ _TEXT_DIGEST = """() => {
             // answers in. Mixing pixels here and 0-1000 there made a model
             // repeat a digest coordinate verbatim and land a quarter of the way
             // up the page.
-            const nx = Math.round((rect.x + rect.width / 2) / window.innerWidth * 1000);
-            const ny = Math.round((rect.y + rect.height / 2) / window.innerHeight * 1000);
+            // In the page's space, not this frame's. The screen the model is
+            // shown is the whole page; a control inside an iframe that starts
+            // 90px down was described as if the iframe were the screen, so
+            // every hint it gave was that much too high.
+            const nx = Math.round((rect.x + rect.width / 2 + page.dx) / page.width * 1000);
+            const ny = Math.round((rect.y + rect.height / 2 + page.dy) / page.height * 1000);
             if (label) seen.push(`${label}: ${nx},${ny}`);
         });
     return seen.slice(0, 200).join('\n');
 }"""
 """Visible controls, with where they are. Names come from the DOM rather than
 from the picture: the redaction step can only reason about text, and a control's
-own name beats one inferred from pixels."""
+own name beats one inferred from pixels.
+
+Raw, and it has to be: without the ``r`` Python turns the ``\n`` in the final
+``join`` into a real newline, JS receives an unterminated string literal, and
+every call raised ``SyntaxError`` into an ``except`` that answered with an empty
+digest. The rung that is meant to prefer exact names over pixels had been
+running on pixels alone since it was written.
+"""
 
 _TYPE_DELAY_MS = 60
 """Typed rather than set. ExtJS combo boxes filter on keystrokes, and a value
@@ -126,17 +138,21 @@ class PlaywrightUiDriver:
         async with self._page() as page:
             frame = await _visible_screen(page)
             image = await page.screenshot(type="png")
-            size = page.viewport_size or {"width": 1280, "height": 800}
+            width, height = await _screen_size(page, image)
             try:
-                digest = await frame.evaluate(_TEXT_DIGEST)
+                offset = await _offset_of(frame, page)
+                digest = await frame.evaluate(
+                    _TEXT_DIGEST,
+                    {"dx": offset[0], "dy": offset[1], "width": width, "height": height},
+                )
             except Exception:
                 logger.debug("the visible frame would not describe itself", exc_info=True)
                 digest = ""
             return Screen(
                 image=image,
                 mime_type="image/png",
-                width=int(size["width"]),
-                height=int(size["height"]),
+                width=width,
+                height=height,
                 text_digest=str(digest)[:8000],
             )
 
@@ -220,6 +236,53 @@ class _AttachedPage:
     async def __aexit__(self, *exc: object) -> None:
         await self._browser.close()
         await self._playwright.stop()
+
+
+async def _offset_of(frame: Frame, page: Page) -> tuple[float, float]:
+    """Where this frame sits inside the page it is part of.
+
+    The screenshot is of the page. A control described in the coordinates of an
+    iframe that begins 90 pixels down is described 90 pixels wrong.
+    """
+    if frame == page.main_frame:
+        return (0.0, 0.0)
+    try:
+        element = await frame.frame_element()
+        box = await element.bounding_box()
+    except Exception:
+        logger.debug("a frame would not say where it is", exc_info=True)
+        return (0.0, 0.0)
+    return (float(box["x"]), float(box["y"])) if box else (0.0, 0.0)
+
+
+async def _screen_size(page: Page, image: bytes) -> tuple[int, int]:
+    """How big the screen really is, measured rather than assumed.
+
+    This is the number every proposed gesture is scaled by: the model answers in
+    a normalised space and the caller multiplies by this to get a pixel. Guessed
+    wrong, every click lands somewhere else -- ``viewport_size`` is None for a
+    page attached over CDP, so the fallback of 1280x800 was used against a real
+    screen of 800x600 and every gesture landed 1.6 times too far right. The
+    model was aiming correctly at a menu and clicking the space beneath it,
+    twelve times, and reporting that the screen would not respond.
+    """
+    try:
+        measured = await page.evaluate(
+            "() => ({ width: window.innerWidth, height: window.innerHeight })"
+        )
+        if measured and int(measured["width"]) > 0 and int(measured["height"]) > 0:
+            return int(measured["width"]), int(measured["height"])
+    except Exception:
+        logger.debug("the page would not say how big it is", exc_info=True)
+
+    # The image itself, which is the thing the model actually looked at. A PNG
+    # says its own size in the eight bytes after the IHDR marker.
+    marker = image.find(b"IHDR")
+    if marker != -1:
+        width, height = struct.unpack(">II", image[marker + 4 : marker + 12])
+        if width and height:
+            return int(width), int(height)
+    return 1280, 800
 
 
 async def _visible_screen(page: Page) -> Frame:

@@ -32,11 +32,14 @@ _ACTIONS: dict[str, ActionKind] = {
     "scroll_document": ActionKind.SCROLL,
     "scroll_at": ActionKind.SCROLL,
     "hover_at": ActionKind.HOVER,
-    "wait_5_seconds": ActionKind.HOVER,
 }
 """Its predefined functions to ours. Absence is a refusal, never a nearest
 match: a `drag_and_drop` turned into a click is a different gesture performed
-confidently. Navigation is absent on purpose and excluded at the tool as well."""
+confidently. Navigation is absent on purpose and excluded at the tool as well.
+
+``wait_5_seconds`` is handled separately, before this table: it carries no
+coordinates at all, and mapping it onto ``HOVER`` turned "let this finish
+loading" into a real click at whatever an absent x/y defaulted to."""
 
 _INSTRUCTIONS = (
     "You are helping finish one step of a warehouse task that was demonstrated "
@@ -166,6 +169,8 @@ def _gesture(
     allowed: tuple[ActionKind, ...],
 ) -> ProposedGesture:
     """A named call becomes a gesture, or a refusal. Never an approximation."""
+    if name.lower() == "wait_5_seconds":
+        return ProposedGesture(action=ActionKind.HOVER, wait=True, reasoning=said[:400])
     kind = _ACTIONS.get(name.lower())
     if kind is None:
         return ProposedGesture(

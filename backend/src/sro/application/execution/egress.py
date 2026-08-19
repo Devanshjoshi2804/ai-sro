@@ -14,6 +14,7 @@ for the vision rung. Two rules, in this order:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 
 from sro.application.ports.vision import Screen
@@ -22,7 +23,22 @@ from sro.domain.recording.sensitivity import is_secret_field
 _SECRET_ON_SCREEN = ("password", "passcode", "pin", "secret", "token", "otp", "mfa")
 """Words that, seen on a page, mean a credential is being entered. Matched on the
 digest rather than on the image, because we cannot read pixels here -- and when
-one appears the image is withheld rather than blurred."""
+one appears the image is withheld rather than blurred.
+
+Matched as whole words. As substrings, "pin" is inside "shipping" and "picking",
+so a warehouse screen refused to be looked at for showing the word Shipping --
+and the rung that exists for screens nobody has demonstrated could not see any
+of them."""
+
+
+def _words_on(digest: str) -> set[str]:
+    """The digest as separate lowercase words.
+
+    Split on camel case as well as on punctuation, so ``passwordField`` still
+    names a password while ``Shipping`` does not name a PIN.
+    """
+    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", digest)
+    return {word.lower() for word in re.findall(r"[A-Za-z]+", spaced)}
 
 
 class EgressRefused(Exception):
@@ -47,8 +63,8 @@ def prepare(screen: Screen, *, enabled: bool) -> Redacted:
             "egress is switched off for this deployment; nothing is sent to a hosted model"
         )
 
-    lowered = screen.text_digest.lower()
-    if compromising := [word for word in _SECRET_ON_SCREEN if word in lowered]:
+    shown = _words_on(screen.text_digest)
+    if compromising := [word for word in _SECRET_ON_SCREEN if word in shown]:
         raise EgressRefused(
             "the screen appears to be showing a credential field "
             f"({', '.join(compromising)}); it is not sent"

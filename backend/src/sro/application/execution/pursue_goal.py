@@ -25,6 +25,7 @@ exists to make itself unnecessary.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import Callable
@@ -42,7 +43,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.ports.ui import UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
-from sro.application.ports.vision import VisionDriver, VisionUnavailable
+from sro.application.ports.vision import Screen, VisionDriver, VisionUnavailable
 from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.start_recording import StartRecording
 from sro.domain.connection.connection import Connection
@@ -55,6 +56,10 @@ logger = logging.getLogger(__name__)
 GESTURE_BUDGET = 12
 """Enough to open a screen, fill a short form and save. Chosen to be obviously
 finite rather than tuned: the number that matters is that there is one."""
+
+_WAIT_SECONDS = 5
+"""What the model means by "wait": time for a screen that is still loading to
+finish, not a gesture at whatever coordinates an absent x/y defaulted to."""
 
 _STUCK = 3
 """Gestures in a row that change nothing before giving up.
@@ -134,11 +139,16 @@ class PursueGoal:
         target_system: str,
         values: dict[str, str],
         watching: Callable[[str], None] | None = None,
+        using: Callable[[str], None] | None = None,
     ) -> Pursued:
         """``watching`` is told each gesture as it happens.
 
         A browser being driven on somebody's behalf with nothing on screen for
         two minutes is indistinguishable from a hang.
+
+        ``using`` is told which browser this took, so whoever is watching can
+        say so -- and so the reaper that releases forgotten sessions can tell
+        this one is not forgotten.
         """
         if self._vision is None or self._ui is None:
             raise VisionUnavailable(
@@ -170,6 +180,10 @@ class PursueGoal:
         # a pursuit that opens its own browser spends its whole budget clicking
         # a login page, which is exactly what it did.
         session, borrowed = await self._browser_for(connection)
+        # Claimed, so the reaper leaves it alone: a browser being driven and a
+        # browser somebody forgot about look identical from outside.
+        if using is not None:
+            using(str(session.id))
         ui = self._ui.for_session(session.debugger_url)
         recording_id = ""
         skill_id = ""
@@ -192,6 +206,20 @@ class PursueGoal:
             )
 
             await self._browser.navigate(session.id, start)
+            if (landed := await _arrived(ui, start)) is not None:
+                # Nothing to look at. Twelve screenshots of a blank page cost a
+                # model call each and end in "the screen did not change", which
+                # reads as the task being impossible -- it was the browser.
+                detail = landed
+                return Pursued(
+                    goal=goal.intent,
+                    reached=False,
+                    detail=detail,
+                    gestures=tuple(gestures),
+                    landed_at="",
+                    recording_id=recording_id,
+                    skill_id=skill_id,
+                )
 
             for _ in range(GESTURE_BUDGET):
                 screen = await ui.capture()
@@ -217,6 +245,15 @@ class PursueGoal:
                     reached = True
                     detail = proposed.reasoning or "the model said the screen showed the result"
                     break
+                if proposed.wait:
+                    # Not a gesture: nothing was clicked, so nothing about the
+                    # screen not changing afterwards means the model is stuck.
+                    gesture = "waited — " + (proposed.reasoning or "letting the screen finish")
+                    gestures.append(gesture)
+                    if watching is not None:
+                        watching(gesture)
+                    await asyncio.sleep(_WAIT_SECONDS)
+                    continue
 
                 outcome = await ui.perform_at(
                     action=proposed.action,
@@ -228,7 +265,7 @@ class PursueGoal:
                 # being handed its own past coordinates and nothing else, so it
                 # clicked the same place eight times without ever learning that
                 # the screen had not moved.
-                after = await ui.capture()
+                after = await _settled(ui, seen_before)
                 changed = after.text_digest != seen_before
                 repeated = 0 if changed else repeated + 1
                 seen_before = after.text_digest
@@ -352,6 +389,65 @@ class PursueGoal:
             return []
         cookies: list[dict[str, object]] = json.loads(stored).get("cookies", [])
         return cookies
+
+
+_SETTLE_SECONDS = 1.0
+_SETTLE_TRIES = 8
+"""How long the screen is given to arrive. A WMS portal redirects twice through
+an identity provider before it renders, so the first read after `navigate` is
+regularly still `about:blank`."""
+
+
+_SETTLE_TICKS = 4
+"""How many times a screen is re-read before it is called unchanged.
+
+The driver already waits after acting, and against this application that wait
+was not enough: an ExtJS panel swap took longer than it, so the read came back
+identical and the gesture was recorded as having changed nothing. The model was
+then told its correct click had done nothing, three times, and gave up on a
+screen that had in fact moved every time.
+
+Polled rather than lengthened, because most gestures do land inside the wait
+and paying the slowest case on every one of twelve is most of a minute.
+"""
+
+
+async def _settled(ui: UiDriver, before: str) -> Screen:
+    """The screen once it has finished reacting, or as it is after long enough."""
+    screen = await ui.capture()
+    for _ in range(_SETTLE_TICKS):
+        if screen.text_digest != before:
+            return screen
+        await asyncio.sleep(1.0)
+        screen = await ui.capture()
+    return screen
+
+
+async def _arrived(ui: UiDriver, wanted: str) -> str | None:
+    """``None`` once the screen is really there; otherwise why it is not.
+
+    Checked because a pursuit is expensive and a blank page is indistinguishable
+    from a hard task: self-hosted Steel hands every session the same Chrome, and
+    a pursuit handed one sitting on `about:blank` spent its whole budget
+    clicking a page that was never loaded.
+    """
+    host = urlsplit(wanted).hostname or ""
+    where = ""
+    for _ in range(_SETTLE_TRIES):
+        where = await ui.current_url() or ""
+        if (urlsplit(where).hostname or "") == host:
+            return None
+        await asyncio.sleep(_SETTLE_SECONDS)
+
+    if not where or where.startswith("about:"):
+        return (
+            f"the browser never left {where or 'a blank page'} — it is not showing "
+            f"{host}, so there was nothing to work on"
+        )
+    return (
+        f"the browser is on {urlsplit(where).hostname}, not {host} — another session may be "
+        "driving it, or the sign-in did not complete"
+    )
 
 
 def _holds_a_session(cookies: tuple[dict[str, object], ...], base_url: str) -> bool:

@@ -58,3 +58,14 @@ def test_a_call_with_no_coordinates_yields_none_rather_than_a_guess() -> None:
     gesture = _call("click_at")
 
     assert gesture.x is None and gesture.y is None
+
+
+def test_waiting_for_a_screen_to_load_is_not_a_hover_at_the_corner() -> None:
+    """`wait_5_seconds` carries no x/y at all. Mapped onto HOVER, an absent
+    coordinate defaulted to (0, 0) in the caller, and "let this page finish
+    loading" became a real click at the screen's top-left corner instead."""
+    gesture = _call("wait_5_seconds")
+
+    assert gesture.wait is True
+    assert gesture.x is None and gesture.y is None
+    assert gesture.refusal is None

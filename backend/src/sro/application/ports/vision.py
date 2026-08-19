@@ -53,6 +53,12 @@ class ProposedGesture:
     refusal: str | None = None
     """The model declined. A refusal is an outcome with a reason, not an error."""
 
+    wait: bool = False
+    """The model asked to pause rather than act -- a screen still loading, most
+    often. Not a gesture with coordinates: a driver that turned this into a
+    click "at" wherever an absent x/y defaulted to would perform a real,
+    pointless click instead of the wait that was actually asked for."""
+
 
 class VisionDriver(Protocol):
     async def propose(

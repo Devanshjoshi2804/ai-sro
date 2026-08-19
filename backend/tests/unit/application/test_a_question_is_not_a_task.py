@@ -103,3 +103,39 @@ def test_writing_is_read_from_the_plan_not_from_the_name() -> None:
 
     assert not writes(reading.versions[-1])
     assert writes(writing.versions[-1])
+
+
+def test_a_skill_that_explains_the_verb_and_not_the_subject_is_not_a_candidate() -> None:
+    """"give me list of clients" offered List suppliers, List addresses and List
+    transport modes -- three answers about the wrong thing, matched on the word
+    "list" alone. One structural hit clears the floor, and the matcher had
+    already recorded "clients" as a word it could not explain."""
+    library = (
+        _skill("List suppliers at SG", method="GET", objective_type="list", entity="supplier"),
+        _skill("List addresses at SG", method="GET", objective_type="list", entity="address"),
+    )
+
+    offered = rank(library, "give me list of clients", question=True, entity="client")
+
+    assert offered == ()
+
+
+def test_the_subject_still_matches_the_skill_that_is_about_it() -> None:
+    library = (
+        _skill("List suppliers at SG", method="GET", objective_type="list", entity="supplier"),
+        _skill("List addresses at SG", method="GET", objective_type="list", entity="address"),
+    )
+
+    offered = rank(library, "give me list of suppliers", question=True, entity="supplier")
+
+    assert [c.skill.name for c in offered] == ["List suppliers at SG"]
+
+
+def test_a_subject_nobody_read_changes_nothing() -> None:
+    """Without a confident reading there is no subject to insist on, and the
+    matcher behaves exactly as it did."""
+    library = (
+        _skill("List suppliers at SG", method="GET", objective_type="list", entity="supplier"),
+    )
+
+    assert len(rank(library, "give me list of clients", question=True)) == 1

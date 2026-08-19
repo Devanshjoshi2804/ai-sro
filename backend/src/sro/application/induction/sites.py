@@ -87,6 +87,116 @@ def parse_json(body: str | None) -> jsonutil.JsonValue | None:
         return None
 
 
+_RECENT_MILLIS = range(1_600_000_000_000, 4_000_000_000_000)
+"""2020 to 2096, in milliseconds. What a cache-buster's value looks like."""
+
+
+def without_clocks(url: str) -> str:
+    """The same address, minus the parameters that only mean "now".
+
+    Ext JS appends `_dc=<epoch millis>` to defeat caching and jQuery's `_` does
+    the same. Replaying yesterday's "now" is at best meaningless; dropping the
+    whole query instead is worse, because a site-scoped collection needs its
+    site parameter and answers nothing without it.
+    """
+    parts = urlsplit(url)
+    kept = [
+        (key, value)
+        for key, value in url_query_pairs(url)
+        if not (value.isdigit() and int(value) in _RECENT_MILLIS)
+    ]
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(kept), parts.fragment))
+
+
+def as_a_filter(
+    url: str, column: str, placeholder: str, shape: dict[str, str] | None = None
+) -> str | None:
+    """The same query, asking the server for one column instead of the other.
+
+    The demonstration searched for what its operator was looking for -- ten rows
+    where the name contained an "h" -- and replaying that searches for their
+    record, not this one. But it also proves how this system is asked: the
+    filter's own shape, in its own vocabulary, with a real 200 behind it.
+
+    So the query is kept and its terms are replaced: same parameter, same
+    dialect, this run's value. ``None`` when nothing here looks like a filter,
+    because inventing one for an API that never showed us one is a guess.
+    """
+    parts = urlsplit(url)
+    rebuilt: list[tuple[str, str]] = []
+    found = False
+    written = False
+    for key, value in url_query_pairs(url):
+        terms = _filter_terms(value)
+        if terms is None:
+            # Offsets belong to the page somebody was looking at, not to a
+            # search for one record.
+            if key.lower() not in {"offset", "start", "page"}:
+                rebuilt.append((key, value))
+            continue
+        found = True
+        # An empty list is a filter slot: the endpoint takes this parameter and
+        # was sent nothing in it. What a term looks like then has to come from
+        # somewhere this system has been seen filling one in -- never from a
+        # shape invented here.
+        term = terms[0] if terms else shape
+        if term is None:
+            # An empty slot and no proven shape to fill it with. Composing the
+            # request without the filter would ask for everything, which is a
+            # different question from the one that was asked.
+            continue
+        written = True
+        rebuilt.append(
+            (
+                key,
+                json.dumps(
+                    [{**term, "column": column, "value": placeholder}], separators=(",", ":")
+                ),
+            )
+        )
+    if not found or not written:
+        return None
+    return urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, urlencode(rebuilt, safe="${}"), parts.fragment)
+    )
+
+
+def without_filter(url: str) -> str:
+    """The same address with nobody's search on it.
+
+    A dropdown opening for the first time should show what is there, not what
+    the operator who taught the task was looking for that afternoon.
+    """
+    parts = urlsplit(url)
+    kept = [
+        (key, value)
+        for key, value in url_query_pairs(url)
+        if _filter_terms(value) is None and key.lower() not in {"offset", "start", "page"}
+    ]
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(kept), parts.fragment))
+
+
+def filter_terms_of(url: str) -> list[dict[str, str]]:
+    """Every filter term this address carries, across its query parameters."""
+    return [term for _, value in url_query_pairs(url) for term in (_filter_terms(value) or [])]
+
+
+def _filter_terms(value: str) -> list[dict[str, str]] | None:
+    """The filter this query parameter carried, or ``None`` if it is not one.
+
+    An empty list is a filter -- an empty one. The distinction matters: it says
+    this endpoint accepts a filter here, which is the difference between
+    composing a narrower request and inventing a parameter.
+    """
+    parsed = parse_json(value)
+    if not isinstance(parsed, list):
+        return None
+    terms = [term for term in parsed if isinstance(term, dict) and "column" in term]
+    if parsed and not terms:
+        return None
+    return [{str(k): str(v) for k, v in term.items()} for term in terms]
+
+
 def substitute_url(url: str, replacements: dict[Site, str]) -> str:
     """Rebuild a URL with placeholders at the given sites.
 

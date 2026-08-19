@@ -230,8 +230,8 @@ def _skill(
                 else ""
             )
             + (
-                f" There were {capability.rows} when this was observed."
-                if listing and capability.rows > 0
+                f" There were {capability.counted} when this was observed."
+                if listing and capability.counted
                 else ""
             )
         ),

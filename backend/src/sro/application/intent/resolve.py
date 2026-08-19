@@ -51,6 +51,10 @@ is already a pure function of (skills, utterance), so only the fetch moves.
 @dataclass(frozen=True, slots=True)
 class Resolution:
     utterance: str
+    verb: str = ""
+    """What the reading said they want done. Carried so nothing downstream
+    mistakes it for a value: "count the addresses" is not a question about a
+    field called Count Type."""
 
     matched: Candidate | None = None
     """The one skill this asks for, if exactly one does."""
@@ -148,7 +152,15 @@ class ResolveIntent:
         # its questions.
         pending = next((s for s in skills if pinned and s.id.value == pinned), None)
 
-        candidates = rank(skills, utterance)
+        # What the sentence wants, read before anything is matched against it:
+        # a question never matches a skill that writes, and which sentences are
+        # questions is something a model reads better than a phrase list.
+        asking = reading.wants == "ask" if reading.confidence >= _READ_FLOOR else asks(utterance)
+        # The subject, where the reading was confident enough to name one. A
+        # skill that explains the verb and not the subject answers about the
+        # wrong thing, however well it scores.
+        subject = reading.entity if reading.confidence >= _READ_FLOOR else ""
+        candidates = rank(skills, utterance, question=asking, entity=subject)
         # A question is never an answer. "How many transport modes are there,
         # list them all" was swallowed by the create skill that was waiting for
         # a code and a description, because it named no other task confidently
@@ -160,7 +172,6 @@ class ResolveIntent:
         # Asked something, or plainly about something else. Read rather than
         # pattern-matched: a pinned skill that writes has no business answering
         # a question, however the question happens to be phrased.
-        asking = reading.wants == "ask" if reading.confidence >= _READ_FLOOR else asks(utterance)
         interrupted = (
             pending is not None
             and writes(pending.versions[-1])
@@ -180,7 +191,30 @@ class ResolveIntent:
         # shown. The previous sentence supplies the subject; this one still has
         # to match something, so nothing is invented -- only remembered.
         if not candidates and after and (reading.continues or refers_back(utterance)):
-            candidates = rank(skills, f"{after} {utterance}")
+            candidates = rank(skills, f"{after} {utterance}", question=asking, entity=subject)
+
+        # A verb nothing does. "Delete all suppliers" shares its entity with
+        # every supplier skill and scores well on all of them, so the reply was
+        # "did you mean create or list?" -- offering two things that are not
+        # what was asked, one of which writes. Nothing taught deletes anything,
+        # and saying so is the only true answer.
+        # Only for an instruction. A question is served by any read of the
+        # entity -- "how many", "count", "show" and "list" are one another's
+        # synonyms to everybody except a string comparison, and gating them on
+        # the verb sent every question to the planner.
+        if (
+            candidates
+            and reading.wants == "act"
+            and reading.confidence >= _READ_FLOOR
+            and reading.verb
+        ):
+            wanted = reading.verb.lower()
+            if not any(
+                wanted in candidate.skill.objective_key.objective_type.lower()
+                or candidate.skill.objective_key.objective_type.lower() in wanted
+                for candidate in candidates
+            ):
+                candidates = ()
 
         if not candidates:
             return await self._nothing_taught(ctx, utterance, system)
@@ -208,9 +242,13 @@ class ResolveIntent:
         # right skill was matched, and the reply still asked "did you mean?"
         # because "show" and "all" appear in no objective key -- hedging at the
         # operator about words the reading had already resolved.
-        understood = (
-            reading.confidence >= _READ_FLOOR
-            and reading.verb.lower() in best.skill.objective_key.objective_type.lower()
+        understood = reading.confidence >= _READ_FLOOR and (
+            reading.verb.lower() in best.skill.objective_key.objective_type.lower()
+            # A question answered by a read is understood, whatever verb they
+            # used: "count the addresses" is served by the skill that lists
+            # them, and hedging about the word "count" is hedging about a
+            # synonym the reading already resolved.
+            or (asking and not writes(best.version))
         )
         supplied = set(parameters or {})
         missing = tuple(
@@ -240,6 +278,7 @@ class ResolveIntent:
 
         return Resolution(
             utterance=utterance,
+            verb=reading.verb,
             matched=best,
             choices=candidates[1:3],
             missing_parameters=missing,

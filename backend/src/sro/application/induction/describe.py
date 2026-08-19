@@ -47,6 +47,16 @@ def compose(
         summary += f' In the demonstrator\'s words: "{spoken}"'
 
     when = f"Use to {action} {subject} at {objective.facility} in {objective.target_system}."
+    if not write:
+        # The words people actually use to ask a read for something. Retrieval
+        # matches an operator's sentence against this text, and a description
+        # that never says "how many" loses to one that does -- which is how
+        # regenerating these descriptions made "how many addresses are there"
+        # start hedging at a skill that answers exactly that.
+        when += (
+            f" Answers questions about {subject} — how many there are, which exist, "
+            "what one of them says."
+        )
     if inputs:
         when += f" Needs {', '.join(inputs)}."
     if any(step.requires_human for step in steps):
@@ -59,12 +69,19 @@ def compose(
 
 
 def _write(steps: tuple[SkillStep, ...]) -> str | None:
-    """The mutating call the skill exists to make, named by method and path."""
-    for step in steps:
-        plan = step.network_plan
-        if plan is not None and plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}:
-            return f"{plan.method} {urlsplit(str(plan.url)).path}"
-    return None
+    """Every mutating call the skill makes, named by method and path.
+
+    All of them, because one Save can create a record and address it, and a
+    summary naming only the first tells a reviewer the skill does half of what
+    it does.
+    """
+    written = [
+        f"{step.network_plan.method} {urlsplit(str(step.network_plan.url)).path}"
+        for step in steps
+        if step.network_plan is not None
+        and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
+    ]
+    return " then ".join(dict.fromkeys(written)) or None
 
 
 def _closing_words(steps: tuple[SkillStep, ...]) -> str | None:

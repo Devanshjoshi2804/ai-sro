@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from sro.domain.shared.errors import InvariantViolation
+from sro.domain.skill.lookup import Options
 
 
 class ParameterKind(StrEnum):
@@ -42,6 +43,14 @@ class Parameter:
 
     source_step_index: int | None = None
     source_pointer: str | None = None
+
+    options: Options | None = None
+    """Where this value can be chosen from, where the screen chose it.
+
+    A parameter with options is a dropdown, not a text box: the console fetches
+    them from the system itself when it draws the field, so the operator picks a
+    supplier's address the way they would have on the screen instead of
+    reciting an id."""
 
     def __post_init__(self) -> None:
         if not self.name.isidentifier():

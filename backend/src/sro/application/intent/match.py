@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from sro.application.induction.naming import singular
 from sro.domain.skill.skill import Skill, SkillVersion
 
 _WORD = re.compile(r"[a-z0-9]+")
@@ -130,10 +131,31 @@ class Candidate:
 
 
 def words(text: str) -> frozenset[str]:
-    return frozenset(word for word in _WORD.findall(text.lower()) if word not in _NOISE)
+    """The meaningful words of a sentence, in one number.
+
+    Singular and plural are the same word here. "How many suppliers are there"
+    shares no token with an objective key that says `supplier`, so the sentence
+    every operator types to ask for a count matched nothing at all and went to
+    the planner while the taught skill sat one row away. Counting is asked for
+    in the plural; things are named in the singular. That is not two subjects.
+    """
+    return frozenset(_one(word) for word in _WORD.findall(text.lower()) if word not in _NOISE)
 
 
-def rank(skills: tuple[Skill, ...], utterance: str) -> tuple[Candidate, ...]:
+def _one(word: str) -> str:
+    """See :func:`naming.singular`. Shared with induction on purpose: the words
+    a skill is named after and the words a sentence is matched on have to be
+    reduced the same way, or the match fails on spelling."""
+    return singular(word)
+
+
+def rank(
+    skills: tuple[Skill, ...],
+    utterance: str,
+    *,
+    question: bool | None = None,
+    entity: str = "",
+) -> tuple[Candidate, ...]:
     """Every skill that structurally matches, best first.
 
     A question never matches a skill that writes. "How many transport modes are
@@ -144,17 +166,31 @@ def rank(skills: tuple[Skill, ...], utterance: str) -> tuple[Candidate, ...]:
 
     Ranking a writer lower would not do: the question that asks for a count and
     the instruction that asks for a creation are not two points on one scale.
+
+    ``entity`` is what the sentence says it is about, where that was read. A
+    skill that accounts for the verb and not the subject is not a candidate:
+    "give me list of clients" matched three skills on the word "list" alone and
+    offered suppliers, addresses and transport modes -- three answers about the
+    wrong thing, from a matcher that had already recorded "clients" as a word it
+    could not explain.
     """
     asked = words(utterance)
     if not asked:
         return ()
 
-    question = asks(utterance)
+    # The reading, where there is one. "Show me one supplier in detail" opens
+    # with none of the phrases this recognises and ends in no question mark, so
+    # it was taken for an instruction and the skill that *creates* a supplier
+    # was offered as one of two things it might have meant.
+    if question is None:
+        question = asks(utterance)
+    subject = words(entity) & asked
     scored = [
         candidate
         for skill in skills
         if (candidate := _score(skill, asked)) is not None
         and not (question and writes(candidate.version))
+        and not (subject and subject.issubset(candidate.unexplained))
     ]
     return tuple(sorted(scored, key=lambda candidate: -candidate.score))
 

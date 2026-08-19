@@ -21,7 +21,7 @@ from sro.application.capture.identity import derive_objective_key, system_of
 from sro.application.context import RequestContext
 from sro.application.induction import narration as narration_alignment
 from sro.application.induction.assertions import StepEvidence
-from sro.application.induction.diff import Parameterisation, Substitution
+from sro.application.induction.diff import Parameterisation, Substitution, unfold
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.sites import (
@@ -34,7 +34,9 @@ from sro.application.induction.sites import (
 from sro.application.ports.interpretation import Reading, WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.events import ActionFrame
+from sro.domain.recording.network import CapturedRequest
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.skill.assertion import Assertion, AssertionKind
@@ -96,7 +98,7 @@ class UnderstandRecording:
             )
 
         reading = (
-            await self._interpreter.read(_as_evidence(recording))
+            await self._interpreter.read(as_evidence(recording))
             if self._interpreter.available
             else Reading(
                 caveat="no interpreter is configured; the steps are described mechanically"
@@ -166,7 +168,7 @@ class UnderstandRecording:
         )
 
 
-def _as_evidence(recording: Recording) -> str:
+def as_evidence(recording: Recording) -> str:
     """The demonstration as text a model can read.
 
     Bodies are included because they are where the values are, and they have
@@ -179,8 +181,7 @@ def _as_evidence(recording: Recording) -> str:
         target = action.target.describe() if action.target else ""
         value = "«secret»" if action.secret else (action.value or "")
         lines.append(f"[{frame.index}] {action.kind} {target} {value}".rstrip())
-        request = frame.primary_request
-        if request is not None:
+        for request in _calls(frame):
             lines.append(f"     {request.method} {request.url} -> {request.status}")
             if request.request_text:
                 lines.append(f"     sent: {request.request_text[:600]}")
@@ -189,6 +190,12 @@ def _as_evidence(recording: Recording) -> str:
     for segment in recording.narration:
         lines.append(f"said: {segment.text}")
     return "\n".join(lines)[:_MAX_EVIDENCE_CHARS]
+
+
+def _calls(frame: ActionFrame) -> tuple[CapturedRequest, ...]:
+    """Every call this gesture made. Not the "primary" one: reading only that
+    hid the call that created the record from the model doing the reading."""
+    return tuple(r for r in frame.requests if not is_background_traffic(r.url))
 
 
 def _believable(reading: Reading, frames: tuple[ActionFrame, ...]) -> dict[str, tuple[str, str]]:
@@ -215,8 +222,7 @@ def _as_text(frames: tuple[ActionFrame, ...]) -> str:
     for frame in frames:
         if frame.action.value and not frame.action.secret:
             parts.append(frame.action.value)
-        request = frame.primary_request
-        if request is not None:
+        for request in _calls(frame):
             parts.append(request.url)
             parts.append(request.request_text or "")
             parts.append(request.response_text or "")
@@ -231,9 +237,11 @@ def _steps(
     read_by_index = {step.index: step for step in reading.steps}
 
     steps: list[SkillStep] = []
-    for frame in recording.frames:
+    # Unfolded, so a Save that created a record and then addressed it becomes
+    # two steps rather than one step that replays half the task.
+    for position, frame in enumerate(unfold(recording.frames)):
         step = emit_step(
-            frame.index,
+            position,
             frame,
             _substitutions(frame, proposed),
             _no_assertions(frame),

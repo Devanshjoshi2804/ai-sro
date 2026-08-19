@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from sro.application.execution.answer import read_answer
 from sro.application.induction.sites import parse_json
 from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.events import ActionFrame
@@ -39,9 +40,16 @@ class ReadCapability:
     and ``transport_mode`` are the same subject asked about two ways."""
 
     rows: int
-    """How many records came back. A collection is what answers "how many"; a
-    single record answers "what is". Both are useful, and telling them apart
-    costs one length check."""
+    """How many records came back in the response the demonstration captured.
+    A collection is what answers "how many"; a single record answers "what
+    is". Both are useful, and telling them apart costs one length check."""
+
+    counted: int | None = None
+    """How many existed when this was demonstrated, where the response said so.
+
+    ``None`` when it came back as one page of something longer -- and then
+    nothing about that afternoon is worth repeating as a number, because the
+    length of a page is a fact about the request."""
 
     @property
     def is_collection(self) -> bool:
@@ -81,12 +89,23 @@ def reads_about(frames: tuple[ActionFrame, ...], entity: str) -> tuple[ReadCapab
             resource = _resource_of(request.url)
             if not resource or wanted not in normalise(resource):
                 continue
-            rows = _rows(request.response_text)
-            if rows is None:
+            counted = read_answer(request.response_text, url=request.url)
+            if counted is None:
+                continue
+            rows = counted.rows
+            if not _records_of(request, frames):
+                # The name is not enough. `/rpux/filter/columns/WMSupplier`
+                # ends in the entity, answers 200, and returns five rows -- of
+                # column definitions. A skill built from it told an operator
+                # there were five suppliers, which is the confident wrong
+                # answer this system exists to not give.
                 continue
             # First one wins: a screen that fetches the same list twice taught
             # one capability, not two.
-            found.setdefault(normalise(resource), ReadCapability(request, resource, rows))
+            found.setdefault(
+                normalise(resource),
+                ReadCapability(request, resource, rows, counted=counted.counted),
+            )
 
     # The subject itself, ahead of everything merely named after it.
     # `warehouseTransportModeUoms` contains `transportmode` and is a list of
@@ -95,6 +114,47 @@ def reads_about(frames: tuple[ActionFrame, ...], entity: str) -> tuple[ReadCapab
     # on screen. Containment finds the candidates; only equality identifies the
     # subject.
     return tuple(sorted(found.values(), key=lambda read: (normalise(read.entity) != wanted,)))
+
+
+def _records_of(request: CapturedRequest, frames: tuple[ActionFrame, ...]) -> bool:
+    """Whether this response carries the entity's own records.
+
+    Judged against what the demonstration wrote, because that payload is the
+    entity as the system itself describes it: a supplier has a
+    `supplierNumber`, an `addressName`, a `clientId`. A response sharing none of
+    those field names is about something else, whatever its URL says.
+
+    Where the demonstration wrote nothing there is nothing to compare against,
+    and the read is taken at its word -- a reading recording is all reads, and
+    refusing every one of them would leave nothing at all.
+    """
+    shape = _written_shape(frames)
+    if not shape:
+        return True
+    return len(shape & _record_fields(request.response_text)) >= 2
+
+
+def _written_shape(frames: tuple[ActionFrame, ...]) -> frozenset[str]:
+    """The field names the demonstration sent when it changed the entity."""
+    for frame in frames:
+        for request in frame.requests:
+            if not request.is_mutation or not request.succeeded:
+                continue
+            document = parse_json(request.request_text)
+            payload = document.get("data") if isinstance(document, dict) else None
+            if isinstance(payload, dict):
+                return frozenset(payload)
+            if isinstance(document, dict):
+                return frozenset(document)
+    return frozenset()
+
+
+def _record_fields(text: str | None) -> frozenset[str]:
+    document = parse_json(text) if text else None
+    data = document.get("data") if isinstance(document, dict) else None
+    if isinstance(data, list):
+        data = data[0] if data and isinstance(data[0], dict) else None
+    return frozenset(data) if isinstance(data, dict) else frozenset()
 
 
 def _is_a_read(request: CapturedRequest) -> bool:
@@ -117,22 +177,6 @@ def _resource_of(url: str) -> str:
     return ""
 
 
-def _rows(text: str | None) -> int | None:
-    """How many records the response carried, or None if it is not one.
-
-    ``None`` means this is not a resource read at all -- HTML, an empty body, a
-    payload with no recognisable records -- and a capability is not claimed from
-    something we cannot read.
-    """
-    document = parse_json(text) if text else None
-    if not isinstance(document, dict):
-        return None
-    data = document.get("data")
-    if isinstance(data, list):
-        return len(data)
-    return 1 if isinstance(data, dict) else None
-
-
 def wrote_to(frames: tuple[ActionFrame, ...]) -> str | None:
     """The collection the demonstration changed, if it changed one.
 
@@ -145,5 +189,26 @@ def wrote_to(frames: tuple[ActionFrame, ...]) -> str | None:
     for frame in reversed(frames):
         for request in frame.requests:
             if request.is_mutation and request.status and 200 <= request.status < 300:
-                return _resource_of(request.url)
+                collection = _collection_of(request.url)
+                if collection:
+                    return collection
     return None
+
+
+def _collection_of(url: str) -> str:
+    """The collection a call acted on, never the record inside it.
+
+    `PUT /wm/addresses/A000144886` acts on the addresses collection. Reading the
+    last segment gave `A000144886`, and that id was then offered to an operator
+    as one of two collections their question might mean, and written into a
+    skill summary as "writes to A000144886, which is a wider collection".
+    """
+    for segment in reversed([s for s in urlsplit(url).path.split("/") if s]):
+        if any(character.isalpha() for character in segment) and not _is_a_record(segment):
+            return segment
+    return ""
+
+
+def _is_a_record(segment: str) -> bool:
+    """A record's id names the record, not the collection it lives in."""
+    return any(character.isdigit() for character in segment) or len(segment) > 24

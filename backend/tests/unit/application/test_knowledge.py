@@ -125,6 +125,27 @@ async def test_the_store_is_scoped_to_one_system_before_anything_is_measured() -
     assert [entry.system for entry in found] == ["blue_yonder"]
 
 
+async def test_terms_still_narrow_once_an_embedding_is_available() -> None:
+    """A ternary here used to run backwards: the moment embedding succeeded --
+    the common case -- term narrowing switched off, leaving nothing between a
+    question and a confident nearest neighbour from an unrelated entity."""
+    uow = FakeUnitOfWork()
+    unrelated = Claim(
+        system="blue_yonder",
+        kind=EntryKind.ENDPOINT,
+        key="/data/WM/wm/transportModes",
+        title="transportModes (collection)",
+        body={},
+        source="index/api-endpoints.json",
+        evidence=EvidenceLevel.ASSERTED,
+    )
+    await _recorder(uow).execute(CTX, (SCRAPED, unrelated))
+
+    found = await Retrieve(uow, FakeEmbedder()).execute(CTX, Question(text="adjust"))
+
+    assert [entry.key for entry in found] == [SCRAPED.key]
+
+
 async def test_claims_are_embedded_in_one_call_rather_than_one_each() -> None:
     uow, embedder = FakeUnitOfWork(), FakeEmbedder()
     many = tuple(

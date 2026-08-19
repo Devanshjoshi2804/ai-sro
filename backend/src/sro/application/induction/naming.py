@@ -73,6 +73,29 @@ def suggest_name(site: Site, *, url: str = "", field_label: str | None = None) -
             return "request_body"
 
 
+def singular(word: str) -> str:
+    """One of whatever this is, as far as spelling alone can say.
+
+    Deliberately shallow -- no dictionary, no stemmer. `addresses` has to give
+    back `address` and not `addresse`, which is what a bare trailing-s rule
+    produced and what then appeared in every sentence the system said out loud:
+    "list every addresse at SG". `-es` only collapses after the endings that
+    take it, because `modes` is not `mod`.
+    """
+    lowered = word
+    if len(lowered) > 3 and lowered.endswith("ies"):
+        return f"{lowered[:-3]}y"
+    if (
+        len(lowered) > 4
+        and lowered.endswith("es")
+        and lowered[:-2].endswith(("s", "x", "z", "ch", "sh"))
+    ):
+        return lowered[:-2]
+    if len(lowered) > 3 and lowered.endswith("s") and not lowered.endswith(("ss", "us", "is")):
+        return lowered[:-1]
+    return lowered
+
+
 def deduplicate(preferred: str, taken: set[str]) -> str:
     """Suffix a colliding name rather than merging two distinct parameters."""
     if preferred not in taken:

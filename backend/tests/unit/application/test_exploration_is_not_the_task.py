@@ -152,3 +152,58 @@ def test_a_write_only_one_run_made_is_still_a_divergence() -> None:
 
     with pytest.raises(InductionFailed, match="changed the system"):
         parameterise(run_a, run_b)
+
+
+def _unnamed(index: int, css: str, **overrides: Any) -> ActionFrame:
+    """A control the page gave no accessible name -- most of an ExtJS form."""
+    return f.frame(
+        index=index,
+        action=InputAction(
+            kind=ActionKind.CLICK,
+            target=f.fingerprint(accessible_name=None, css_path=css),
+            value=None,
+        ),
+        **overrides,
+    )
+
+
+def test_a_generated_id_is_not_a_different_button() -> None:
+    """ExtJS numbers its own ids per page load, so the same Save button is
+    `button-1347-btnIconEl` in one demonstration and `button-1494-btnIconEl` in
+    the next. Compared verbatim, every unnamed control in this application was a
+    different control every session."""
+    run_a = (_unnamed(0, "span#button-1347-btnIconEl", requests=()), _write(1, "Save"))
+    run_b = (_unnamed(0, "span#button-1494-btnIconEl", requests=()), _write(1, "Save"))
+
+    assert len(align(run_a, run_b)) == 2
+
+
+def test_the_same_call_is_the_same_step_however_the_page_named_it() -> None:
+    """The page reported an accessible name of "Save" in one demonstration and
+    none at all in the next, for the button that sent the same POST both times.
+    Judged on the control alone, that was "the runs are not two runs of one
+    task" -- for the one step in the whole recording that proves they are."""
+    run_a = (_click(0, "Add", requests=()), _write(1, "Save"))
+    run_b = (
+        _click(0, "Add", requests=()),
+        _unnamed(1, "span#button-1494-btnIconEl", requests=(f.request(method="POST", url=CREATE),)),
+    )
+
+    assert len(align(run_a, run_b)) == 2
+
+
+def test_a_keep_alive_does_not_make_reading_the_screen_evidence() -> None:
+    """A keep-alive fires on a timer and lands on whichever gesture is open. It
+    made clicking a paragraph of help text a step that "changed the system", so
+    one operator pausing to read refused the whole pair."""
+    beacon = f.request(
+        method="POST", url="https://wms.test/refs/data/api/v1/rp/admin/sessionKeepAlive"
+    )
+    run_a = (
+        _click(0, "Add", requests=()),
+        _click(1, "Clients use third party logistics providers", requests=(beacon,)),
+        _write(2, "Save"),
+    )
+    run_b = (_click(0, "Add", requests=()), _write(1, "Save"))
+
+    assert len(align(run_a, run_b)) == 2

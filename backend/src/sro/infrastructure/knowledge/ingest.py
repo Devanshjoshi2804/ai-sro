@@ -23,7 +23,12 @@ from sro.observability import configure_logging
 # every line of the job's own progress would go nowhere.
 logger = logging.getLogger("sro.knowledge.ingest")
 
-_DEFAULT_ROOT = Path(__file__).resolve().parents[5] / "knowledge-base" / "blue-yonder-sce"
+_DEFAULT_ROOT = Path(__file__).resolve().parents[5] / "knowledge-base"
+"""``index/`` and ``http/`` sit directly under this. There is no
+``blue-yonder-sce`` subdirectory -- an extra path segment here meant every
+default-args run of `make ingest-kb` found nothing and exited 1 without
+anybody noticing, because the module also logs a clean warning per missing
+file first, which reads as "an empty knowledge base" rather than as broken."""
 
 
 async def ingest(*, tenant: str, system: str, root: Path) -> None:

@@ -48,8 +48,12 @@ class Retrieve:
                 kinds=question.kinds,
                 # Terms still narrow when a vector is present: similarity is an
                 # ordering, and on a store this size it will always return
-                # twenty of something.
-                terms=question.text if not vector else "",
+                # twenty of something. The ternary here used to run backwards
+                # -- it dropped the WHERE the moment embedding succeeded,
+                # which is the common case, and left nothing but system/kind
+                # between a question and a confident nearest neighbour from
+                # another entity entirely.
+                terms=question.text,
                 embedding=vector,
                 min_evidence=SUPPORTS_AUTOMATION if question.automation_only else None,
                 limit=question.limit,

@@ -396,7 +396,7 @@ def parameterise(
     )
 
 
-def typed_values(run: tuple[ActionFrame, ...]) -> tuple[Choice, ...]:
+def typed_values(run: tuple[ActionFrame, ...], taken: set[str] | None = None) -> tuple[Choice, ...]:
     """Values a person typed, and where the calls afterwards carried them.
 
     Only for a demonstration with no partner. Two runs settle this by
@@ -409,7 +409,14 @@ def typed_values(run: tuple[ActionFrame, ...]) -> tuple[Choice, ...]:
     Typing is not an inference: the frame records that a human entered this
     value, and the control records what it was called. Everything else the call
     carried stays exactly as demonstrated, because nothing says it varies.
+
+    ``taken`` is the names the rest of the induction has already handed out.
+    This used to pass an empty set, so a typed value whose control suggested a
+    name a parameter already had either merged the two into one -- one box
+    filling another box's value -- or collided outright and failed the whole
+    induction with "parameter names must be unique".
     """
+    already = set(taken or ())
     pairs = align(run, run)
     frames = tuple(pair[0] for pair in pairs)
     entered = {
@@ -429,7 +436,9 @@ def typed_values(run: tuple[ActionFrame, ...]) -> tuple[Choice, ...]:
                 continue
             target = source.action.target
             label = (target.accessible_name or target.text) if target else None
-            name = deduplicate(suggest_name(site, url=request.url, field_label=label), set())
+            # Not added to ``taken`` afterwards: two sites that suggest the
+            # same name are the same box, and merging them is the point.
+            name = deduplicate(suggest_name(site, url=request.url, field_label=label), already)
             existing = found.get(name)
             sites = (*(existing.sites if existing else ()), site)
             found[name] = Choice(

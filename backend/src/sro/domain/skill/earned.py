@@ -70,6 +70,15 @@ def earned_stage(
             # where a human confirms costs nothing and means one less thing
             # running unattended.
             return None
+        if values_are_fixed:
+            # The same refusal as the rung below, and it has to be repeated
+            # here: this branch was reached without re-checking, so a skill
+            # induced from one demonstration -- every value the one the
+            # demonstration happened to carry -- ran ten clean assisted runs and
+            # arrived at nobody being asked at all. Ten confirmations of the
+            # same fixed request are not evidence that anybody wants it sent
+            # unattended; they are the same confirmation ten times.
+            return None
         return _capped(PromotionStage.AUTONOMOUS)
 
     return None

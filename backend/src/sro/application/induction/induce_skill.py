@@ -192,7 +192,10 @@ class InduceSkill:
                 # typed. Those are asked for: a box the operator filled in is
                 # the clearest evidence in the whole recording that the next run
                 # wants a different answer.
-                typed = typed_values(run_a.frames)
+                typed = typed_values(
+                    run_a.frames,
+                    {parameter.name for parameter in parameterisation.parameters},
+                )
                 if typed:
                     parameterisation = parameterise(
                         run_a.frames,

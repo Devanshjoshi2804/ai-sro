@@ -10,12 +10,12 @@ of the parameters the skill could have offered.
 
 from __future__ import annotations
 
+import json
 import re
-from pathlib import Path
 
 import pytest
 
-_RECORDER = Path(__file__).resolve().parents[3] / "src/sro/infrastructure/steel/recorder.js"
+from sro.infrastructure.steel.capture import _recorder_script
 
 
 def _words(text: str) -> list[str]:
@@ -25,9 +25,12 @@ def _words(text: str) -> list[str]:
 
 
 def _secret_words() -> set[str]:
-    source = _RECORDER.read_text()
-    start = source.index("SECRET_WORDS = new Set([")
-    return set(re.findall(r"'([a-z]+)'", source[start : source.index("]);", start)]))
+    """Read out of the script as it is actually injected, list and all: the JS
+    used to carry its own copy of these words, and the copies drifted."""
+    source = _recorder_script()
+    start = source.index("SECRET_WORDS = new Set(")
+    listing = source[source.index("[", start) : source.index("]", start) + 1]
+    return set(json.loads(listing))
 
 
 def _hidden(name: str) -> bool:
@@ -63,5 +66,17 @@ def test_a_credential_never_leaves_the_page(field: str) -> None:
 def test_the_page_s_own_declaration_is_still_believed() -> None:
     """`type=password` and the autocomplete tokens are decisions the site made,
     not guesses about a name, and they stay authoritative."""
-    source = _RECORDER.read_text()
+    source = _recorder_script()
     assert "'password'" in source and "one-time-code" in source
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["Verification Code", "One-time code", "Passcode", "verificationCode", "otp"],
+)
+def test_a_code_that_lives_for_a_minute_is_still_a_credential(field: str) -> None:
+    """None of the three lists had these. A WMS that mails a six-digit code
+    called it a "Verification Code", so the recorder kept it verbatim and
+    induction went on to offer it as a parameter to store, display and replay.
+    """
+    assert _hidden(field)

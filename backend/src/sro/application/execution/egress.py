@@ -28,7 +28,15 @@ one appears the image is withheld rather than blurred.
 Matched as whole words. As substrings, "pin" is inside "shipping" and "picking",
 so a warehouse screen refused to be looked at for showing the word Shipping --
 and the rung that exists for screens nobody has demonstrated could not see any
-of them."""
+of them.
+
+A deliberate subset of ``SECRET_TOKENS`` rather than the whole of it: this
+refuses the entire screen, and "credential" or "ssn" appearing somewhere on a
+warehouse page is not reason enough to blind the rung. The check below keeps it
+a subset, so a word can be added there and considered here rather than the two
+drifting apart, which is how "passcode" came to be in one and not the other.
+
+A test keeps it a subset."""
 
 
 def _words_on(digest: str) -> set[str]:

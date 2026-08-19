@@ -82,3 +82,27 @@ def test_a_failing_run_earns_nothing() -> None:
 
 def test_the_top_of_the_ladder_stays_the_top() -> None:
     assert _earned(PromotionStage.AUTONOMOUS, record=_record(REQUIRED_CLEAN_RUNS * 3)) is None
+
+
+def test_one_demonstration_does_not_reach_autonomous_by_running_ten_times() -> None:
+    """The rung below refuses a skill whose every value is the one its single
+    demonstration happened to carry. This branch never re-checked, so the same
+    skill arrived at nobody being asked after ten clean assisted runs -- which
+    is the same confirmation ten times, not evidence that anybody wants that
+    exact request sent unattended.
+    """
+    assert (
+        _earned(
+            PromotionStage.ASSISTED,
+            record=_record(REQUIRED_CLEAN_RUNS),
+            values_are_fixed=True,
+        )
+        is None
+    )
+
+
+def test_a_parameterised_skill_still_earns_it() -> None:
+    assert (
+        _earned(PromotionStage.ASSISTED, record=_record(REQUIRED_CLEAN_RUNS))
+        is PromotionStage.AUTONOMOUS
+    )

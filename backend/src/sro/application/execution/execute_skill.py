@@ -238,6 +238,7 @@ class ExecuteStep:
             scope=str(ctx.tenant_id),
             session_scope=session_scope,
             produces=produces,
+            parameters=tuple(version.parameters),
         )
 
         # A session that aged out is not a broken skill, and the run should not
@@ -512,6 +513,7 @@ class ExecuteStep:
         scope: str,
         session_scope: str,
         produces: tuple[Parameter, ...] = (),
+        parameters: tuple[Parameter, ...] = (),
     ) -> tuple[StepOutcome, dict[str, str], FailureKind | None]:
         plan = step.network_plan
         if plan is None:
@@ -546,8 +548,27 @@ class ExecuteStep:
             url = plan.url.render(values)
             body = plan.body.render(values) if plan.body is not None else None
         except KeyError as missing:
+            # The step that would have minted this value, not merely some step
+            # that was withheld. Any withheld step used to count, so a step that
+            # failed for an unrelated reason -- a parameter nobody ever filled
+            # in -- was recorded as cleanly withheld, and the run it belonged to
+            # earned its way up the ladder on the strength of it.
+            producer = next(
+                (
+                    parameter
+                    for parameter in parameters
+                    if parameter.name == missing.args[0] and parameter.kind is ParameterKind.DERIVED
+                ),
+                None,
+            )
             withheld = next(
-                (s for s in reversed(run.steps) if s.disposition is StepDisposition.WITHHELD),
+                (
+                    s
+                    for s in run.steps
+                    if s.disposition is StepDisposition.WITHHELD
+                    and producer is not None
+                    and s.index == producer.source_step_index
+                ),
                 None,
             )
             if withheld is not None:

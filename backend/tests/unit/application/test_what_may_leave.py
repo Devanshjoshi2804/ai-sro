@@ -41,3 +41,15 @@ def test_a_screen_entering_a_credential_is_never_sent(digest: str) -> None:
 def test_nothing_is_sent_when_egress_is_switched_off() -> None:
     with pytest.raises(EgressRefused, match="switched off"):
         prepare(_screen("anything at all"), enabled=False)
+
+
+def test_the_words_that_blind_the_rung_are_words_something_calls_a_credential() -> None:
+    """This list refuses a whole screen, so it is deliberately narrower than the
+    shared one -- "ssn" printed somewhere on a warehouse page is not reason to
+    stop looking at it. Narrower, not different: two lists that could disagree
+    are how "passcode" came to be in one and not the other.
+    """
+    from sro.application.execution.egress import _SECRET_ON_SCREEN
+    from sro.domain.recording.sensitivity import SECRET_TOKENS
+
+    assert set(_SECRET_ON_SCREEN) <= SECRET_TOKENS

@@ -30,6 +30,7 @@ from sro.application.capture.events import CaptureEvent, InputEvent, RequestEven
 from sro.application.ports.blob import BlobStore
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.recording.network import Body, CapturedRequest, Cookie, RedirectHop
+from sro.domain.recording.sensitivity import SECRET_TOKENS
 from sro.domain.recording.state import ConsoleMessage, PageEvent
 from sro.infrastructure.steel.cdp_mapping import (
     CdpPayload,
@@ -49,6 +50,18 @@ from sro.infrastructure.steel.video import Recorded, ScreencastRecorder
 logger = logging.getLogger(__name__)
 
 _RECORDER_JS = Path(__file__).with_name("recorder.js")
+
+
+def _recorder_script() -> str:
+    """The page script, with the one list of credential words put into it.
+
+    Loudly rather than silently: a script still carrying the marker would run,
+    redact nothing, and keep every password an operator typed.
+    """
+    source = _RECORDER_JS.read_text(encoding="utf-8")
+    if "__SECRET_WORDS__" not in source:
+        raise RuntimeError("recorder.js has no place to put the credential word list")
+    return source.replace("__SECRET_WORDS__", json.dumps(sorted(SECRET_TOKENS)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,7 +173,7 @@ class CaptureSession:
         The script's own guard makes re-injection a no-op when it is not needed.
         """
         context, page = self._require_context(), self._require_page()
-        self._recorder_source = _RECORDER_JS.read_text(encoding="utf-8")
+        self._recorder_source = _recorder_script()
 
         await context.expose_binding("__sroRecord", self._on_gesture)
         await context.add_init_script(self._recorder_source)

@@ -42,11 +42,10 @@
   // could not say what was searched for, the model narrating it described a
   // hole, and the value that would have become a parameter was gone. A
   // redaction that eats business data is how people learn to switch it off.
-  const SECRET_WORDS = new Set([
-    'password', 'passwd', 'passphrase', 'pwd', 'secret', 'token', 'otp', 'mfa',
-    'cvv', 'ssn', 'pin', 'credential', 'credentials', 'apikey', 'accesstoken',
-    'refreshtoken', 'securitycode', 'securityanswer',
-  ]);
+  // Substituted from sensitivity.SECRET_TOKENS when this file is injected --
+  // there is one list, on the Python side, and this used to be a second copy of
+  // it that drifted. Injection fails loudly rather than shipping the marker.
+  const SECRET_WORDS = new Set(__SECRET_WORDS__);
   const wordsOf = (text) =>
     (text || '')
       .replace(/([a-z0-9])([A-Z])/g, '$1 $2')

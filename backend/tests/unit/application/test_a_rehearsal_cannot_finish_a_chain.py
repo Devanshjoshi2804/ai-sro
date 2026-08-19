@@ -97,3 +97,62 @@ async def test_the_run_a_rehearsal_produces_is_a_clean_one() -> None:
 
     assert run.status is RunStatus.SUCCEEDED
     assert run.failure is None
+
+
+async def test_a_value_no_withheld_step_would_have_minted_is_a_real_failure() -> None:
+    """The guard said "some step was withheld", not "the step that would have
+    produced this value was". So a step that failed for its own reasons was
+    recorded as cleanly withheld whenever anything earlier had been -- and the
+    run went on to earn its way up the ladder on the strength of it.
+
+    Here: the write at step 0 is withheld, as a rehearsal withholds writes. The
+    read at step 1 is sent and answers without the field it was supposed to
+    yield, so step 2 has no value -- a fault in the skill, at a step nothing was
+    withheld at.
+    """
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    skill = f.skill(versions=0)
+    version = f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                network_plan=f.network_plan(
+                    method="POST", url=Template(f"{WMS}/addresses"), body=Template("{}")
+                ),
+            ),
+            f.step(
+                index=1,
+                network_plan=f.network_plan(method="GET", url=Template(f"{WMS}/codes"), body=None),
+            ),
+            f.step(
+                index=2,
+                network_plan=f.network_plan(
+                    method="POST",
+                    url=Template(f"{WMS}/clients"),
+                    body=Template('{"code": "${client_code}"}'),
+                ),
+            ),
+        ),
+        parameters=(
+            Parameter(
+                name="client_code",
+                kind=ParameterKind.DERIVED,
+                source_step_index=1,
+                source_pointer="/code",
+            ),
+        ),
+    )
+    skill.add_version(version)
+    version.promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
+    await uow.skills.add(skill)
+
+    run = await StartRun(uow, FakeClock(), FakeIdFactory()).execute(
+        CTX, ExecutionRequest(skill_id=f.skill().id, parameters={})
+    )
+    step = ExecuteStep(uow, http, vault)
+    for index in (0, 1):
+        await step.execute(CTX, run_id=run.id, index=index)
+    third = await step.execute(CTX, run_id=run.id, index=2)
+
+    assert third.disposition is not StepDisposition.WITHHELD
+    assert "client_code" in (third.detail or "")

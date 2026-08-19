@@ -277,12 +277,29 @@ async def _screen_size(page: Page, image: bytes) -> tuple[int, int]:
 
     # The image itself, which is the thing the model actually looked at. A PNG
     # says its own size in the eight bytes after the IHDR marker.
+    #
+    # In device pixels, though, and the branch above answers in CSS pixels --
+    # the units every caller scales by. At deviceScaleFactor 2 that is the same
+    # doubling that had every gesture landing off-screen, reintroduced in the
+    # path taken exactly when the page will not answer.
     marker = image.find(b"IHDR")
     if marker != -1:
         width, height = struct.unpack(">II", image[marker + 4 : marker + 12])
         if width and height:
-            return int(width), int(height)
+            ratio = await _device_pixel_ratio(page)
+            return int(width / ratio), int(height / ratio)
     return 1280, 800
+
+
+async def _device_pixel_ratio(page: Page) -> float:
+    """How many device pixels the screenshot spends per CSS pixel. 1.0 when the
+    page cannot be asked -- the same assumption as measuring nothing at all."""
+    try:
+        ratio = float(await page.evaluate("() => window.devicePixelRatio"))
+    except Exception:
+        logger.debug("the page would not say its pixel ratio", exc_info=True)
+        return 1.0
+    return ratio if ratio > 0 else 1.0
 
 
 async def _visible_screen(page: Page) -> Frame:

@@ -114,7 +114,7 @@ def classify_header(name: str) -> Sensitivity:
     return Sensitivity.SEMANTIC
 
 
-_SECRET_TOKENS = frozenset(
+SECRET_TOKENS = frozenset(
     {
         "password",
         "passwd",
@@ -134,8 +134,26 @@ _SECRET_TOKENS = frozenset(
         "refreshtoken",
         "securitycode",
         "securityanswer",
+        # A one-time code is a credential for the minute it lives. These were
+        # missing from every list: a WMS that mails a six-digit code called it a
+        # "Verification Code", the recorder kept it verbatim, and induction then
+        # offered it as a parameter to be stored, displayed and replayed.
+        "passcode",
+        "mfa",
+        "onetimecode",
+        "onetimepasscode",
+        "verificationcode",
     }
 )
+"""Every word that names a credential, in one place.
+
+There were three of these lists -- here, in ``recorder.js``, and in the egress
+guard -- and they had drifted apart in both directions. The recorder is now
+generated from this one, so a word added here reaches the page that does the
+redacting rather than only the code that checks it afterwards.
+"""
+
+_SECRET_TOKENS = SECRET_TOKENS
 
 _WORDS = re.compile(r"[A-Za-z][a-z0-9]*")
 

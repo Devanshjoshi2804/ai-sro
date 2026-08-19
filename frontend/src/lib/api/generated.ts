@@ -86,6 +86,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/connections/browsers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open Browsers
+         * @description Browsers this deployment is driving, and where to watch them.
+         *
+         *     Shown in the console while anything is happening in one: the system signing
+         *     itself in, a UI replay, a pursuit. Watching it is how somebody tells "stuck
+         *     on a consent screen" from "slow", and neither is visible from a spinner.
+         */
+        get: operations["open_browsers_v1_connections_browsers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/connections/{connection_id}/session": {
         parameters: {
             query?: never;
@@ -151,6 +175,35 @@ export interface paths {
          * @description Sign in now with what is stored, and keep the session it produces.
          */
         post: operations["sign_in_v1_connections__connection_id__sign_in_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/connections/{connection_id}/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Establish Token
+         * @description Exchange one login for a credential that outlives the browser.
+         *
+         *     Everything else here replays a human's browser session, which works and
+         *     expires on the identity provider's schedule. An offline token is not bound
+         *     to that session at all: it survives the operator logging out and going
+         *     home, and refreshing it on a schedule keeps it alive indefinitely.
+         *
+         *     The password is used to make the exchange and is not what gets kept -- the
+         *     token is, and the identity provider can revoke it without anybody changing
+         *     a password.
+         */
+        post: operations["establish_token_v1_connections__connection_id__token_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -318,6 +371,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/skills/{skill_id}/choices/{parameter}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Choices
+         * @description What this field's dropdown holds, from the system, now.
+         *
+         *     The field was a dropdown when the task was taught, and it stays one: the
+         *     console fills it from the endpoint the screen used rather than asking an
+         *     operator to type back an id. Fetched live on every open, because a list of
+         *     what used to exist is a way of writing to a record that no longer does.
+         */
+        get: operations["choices_v1_skills__skill_id__choices__parameter__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills/induct": {
         parameters: {
             query?: never;
@@ -463,6 +541,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/runs/{run_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Run
+         * @description Server-sent events: one per step as it completes, then the finished run.
+         *
+         *     Events are `step` and `done`. A client that arrives late gets every step so
+         *     far immediately, because what is sent is derived from the row rather than
+         *     from what happened to be published while it was connected.
+         */
+        get: operations["stream_run_v1_runs__run_id__stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/knowledge/questions": {
         parameters: {
             query?: never;
@@ -557,6 +659,30 @@ export interface paths {
         put?: never;
         /** Start Thread */
         post: operations["start_thread_v1_threads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/threads/{thread_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run From Thread
+         * @description Start a run and write it into the conversation that asked for it.
+         *
+         *     The same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator
+         *     who filled in a card and pressed the button has had a conversation, and a
+         *     result that lives only in the browser's memory is gone on the next render.
+         */
+        post: operations["run_from_thread_v1_threads__thread_id__runs_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -664,7 +790,11 @@ export interface paths {
          *
          *     What the stage means here: `shadow` sends every read and withholds every
          *     write, producing the exact request it would have sent. Above shadow the
-         *     writes go out, and the request must name the human who authorised that.
+         *     writes go out, and somebody is on the record for that.
+         *
+         *     Who, is the authenticated caller -- never a name in the body. A request
+         *     that says who authorised it is a signature nobody checked, and the audit
+         *     trail on a warehouse write is worth more than that.
          */
         post: operations["run_skill_v1_skills__skill_id__runs_post"];
         delete?: never;
@@ -841,6 +971,16 @@ export interface components {
             unexplained: string[];
         };
         /**
+         * ChoiceModel
+         * @description One row of a field's dropdown: what runs, and what a person reads.
+         */
+        ChoiceModel: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+        };
+        /**
          * ConnectSystemRequest
          * @description An address, and nothing anybody has to think of a word for.
          *
@@ -969,7 +1109,7 @@ export interface components {
             /** First Recording Id */
             first_recording_id: string;
             /** Second Recording Id */
-            second_recording_id: string;
+            second_recording_id?: string | null;
             /** Name */
             name?: string | null;
         };
@@ -1107,6 +1247,16 @@ export interface components {
             facility: string;
             direction: components["schemas"]["Direction"];
         };
+        /**
+         * OpenBrowserModel
+         * @description A browser this deployment is driving right now.
+         */
+        OpenBrowserModel: {
+            /** Session Id */
+            session_id: string;
+            /** Live View Url */
+            live_view_url: string | null;
+        };
         /** OpenQuestionModel */
         OpenQuestionModel: {
             /** System */
@@ -1133,6 +1283,19 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * OptionsModel
+         * @description Where a field's values come from. Its presence is what makes the console
+         *     draw a dropdown instead of a text box.
+         */
+        OptionsModel: {
+            /** Label */
+            label: string[];
+            /** Value */
+            value: string;
+            /** Searchable */
+            searchable: boolean;
+        };
         /** ParameterModel */
         ParameterModel: {
             /** Name */
@@ -1145,14 +1308,24 @@ export interface components {
             observed_values: string[];
             /** Source Step Index */
             source_step_index: number | null;
+            options?: components["schemas"]["OptionsModel"] | null;
         };
         /** PromoteRequest */
         PromoteRequest: {
             /** Version */
             version: number;
-            /** To */
-            to: string;
+            to: components["schemas"]["PromotionStage"];
+            /**
+             * Acknowledging Fixed Values
+             * @default false
+             */
+            acknowledging_fixed_values: boolean;
         };
+        /**
+         * PromotionStage
+         * @enum {string}
+         */
+        PromotionStage: "recorded" | "shadow" | "assisted" | "autonomous";
         /** ProposalModel */
         ProposalModel: {
             /** Steps */
@@ -1206,6 +1379,11 @@ export interface components {
             detail: string;
             /** Landed At */
             landed_at: string;
+            /**
+             * Session Id
+             * @default
+             */
+            session_id: string;
             /**
              * Recording Id
              * @default
@@ -1349,6 +1527,8 @@ export interface components {
         };
         /** RunSkillRequest */
         RunSkillRequest: {
+            /** Skill Id */
+            skill_id?: string | null;
             /** Parameters */
             parameters: {
                 [key: string]: string;
@@ -1543,6 +1723,13 @@ export interface components {
             detail: string | null;
             /** Found Rows */
             found_rows?: number | null;
+            /** Found Total */
+            found_total?: number | null;
+            /**
+             * Found Partial
+             * @default false
+             */
+            found_partial: boolean;
             /**
              * Found
              * @default []
@@ -1555,6 +1742,13 @@ export interface components {
              * @default []
              */
             found_columns: string[];
+            /**
+             * Found Values
+             * @default {}
+             */
+            found_values: {
+                [key: string]: string[];
+            };
             /**
              * Found Labels
              * @default []
@@ -1617,6 +1811,13 @@ export interface components {
             opened_at: string;
             /** Message Count */
             message_count: number;
+        };
+        /** TokenEstablishedResponse */
+        TokenEstablishedResponse: {
+            /** Target System */
+            target_system: string;
+            /** Held */
+            held: boolean;
         };
         /** TrackRecordModel */
         TrackRecordModel: {
@@ -1730,8 +1931,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1762,8 +1962,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1798,8 +1997,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1826,14 +2024,44 @@ export interface operations {
             };
         };
     };
+    open_browsers_v1_connections_browsers_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenBrowserModel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     store_session_v1_connections__connection_id__session_post: {
         parameters: {
             query: {
                 browser_session_id: string;
             };
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 connection_id: string;
@@ -1866,8 +2094,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 connection_id: string;
@@ -1904,8 +2131,7 @@ export interface operations {
                 target_system: string;
             };
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 connection_id: string;
@@ -1934,12 +2160,48 @@ export interface operations {
             };
         };
     };
+    establish_token_v1_connections__connection_id__token_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenEstablishedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     resume_v1_connections__connection_id__resume_post: {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 connection_id: string;
@@ -1976,8 +2238,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 connection_id: string;
@@ -2022,8 +2283,7 @@ export interface operations {
                 offset?: number;
             };
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2054,8 +2314,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2090,8 +2349,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 recording_id: string;
@@ -2124,8 +2382,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 recording_id: string;
@@ -2158,8 +2415,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 recording_id: string;
@@ -2192,8 +2448,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 recording_id: string;
@@ -2230,8 +2485,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 recording_id: string;
@@ -2264,12 +2518,48 @@ export interface operations {
             };
         };
     };
+    choices_v1_skills__skill_id__choices__parameter__get: {
+        parameters: {
+            query?: {
+                q?: string;
+                version?: number | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                skill_id: string;
+                parameter: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoiceModel"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     induce_skill_v1_skills_induct_post: {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2304,8 +2594,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2343,8 +2632,7 @@ export interface operations {
                 offset?: number;
             };
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2375,8 +2663,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 skill_id: string;
@@ -2409,8 +2696,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 skill_id: string;
@@ -2447,8 +2733,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 skill_id: string;
@@ -2485,8 +2770,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2517,12 +2801,44 @@ export interface operations {
             };
         };
     };
+    stream_run_v1_runs__run_id__stream_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     open_questions_v1_knowledge_questions_get: {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2553,8 +2869,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2587,8 +2902,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2625,8 +2939,7 @@ export interface operations {
                 limit?: number;
             };
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2657,8 +2970,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2689,8 +3001,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2717,12 +3028,48 @@ export interface operations {
             };
         };
     };
+    run_from_thread_v1_threads__thread_id__runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunSkillRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_thread_v1_threads__thread_id__get: {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 thread_id: string;
@@ -2755,8 +3102,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 thread_id: string;
@@ -2793,8 +3139,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 thread_id: string;
@@ -2828,8 +3173,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 thread_id: string;
@@ -2866,8 +3210,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 skill_id: string;
@@ -2904,8 +3247,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 skill_id: string;
@@ -2946,8 +3288,7 @@ export interface operations {
                 offset?: number;
             };
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -2978,8 +3319,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "X-Tenant-Id"?: string;
-                "X-Principal-Id"?: string;
+                authorization?: string | null;
             };
             path: {
                 run_id: string;

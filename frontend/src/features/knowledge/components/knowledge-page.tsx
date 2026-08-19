@@ -9,6 +9,7 @@ import {
   searchKnowledge,
   type KnowledgeEntry,
 } from "@/features/knowledge/api";
+import { OpenQuestions } from "@/features/knowledge/components/open-questions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,8 @@ export function KnowledgePage() {
           it; every verified run adds to what is known here.
         </p>
       </div>
+
+      <OpenQuestions />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Figure label="claims" value={known} hint={Object.keys(summary.data.system_counts).join(", ")} />

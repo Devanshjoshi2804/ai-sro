@@ -30,16 +30,38 @@ export function SkillDetail({ skillId }: { skillId: string }) {
   });
 
   const promote = useMutation({
-    mutationFn: ({ version, to }: { version: number; to: string }) =>
-      promoteSkill(skillId, version, to),
+    mutationFn: ({
+      version,
+      to,
+      acknowledging = false,
+    }: {
+      version: number;
+      to: string;
+      acknowledging?: boolean;
+    }) => promoteSkill(skillId, version, to, acknowledging),
     onSuccess: (version) => {
       toast.success(`Promoted to ${version.stage}`);
       void queryClient.invalidateQueries({ queryKey: skillKeys.detail(skillId) });
     },
-    onError: (error) =>
-      toast.error("Promotion refused", {
-        description: error instanceof ApiError ? error.problem.detail : String(error),
-      }),
+    onError: (error, variables) => {
+      const detail = error instanceof ApiError ? error.problem.detail : String(error);
+      // A version induced from one demonstration sends the same values every
+      // time, and above shadow it sends them for real. That is a decision for
+      // the person promoting it, so it is offered as one rather than reported
+      // as a failure they have no way past.
+      if (detail.includes("one demonstration")) {
+        toast.warning("This skill sends fixed values", {
+          description: detail,
+          duration: 20_000,
+          action: {
+            label: "Promote anyway",
+            onClick: () => promote.mutate({ ...variables, acknowledging: true }),
+          },
+        });
+        return;
+      }
+      toast.error("Promotion refused", { description: detail });
+    },
   });
 
   if (skill.isLoading) return <Skeleton className="h-96 w-full" />;
@@ -149,7 +171,9 @@ export function SkillDetail({ skillId }: { skillId: string }) {
             ))}
             {latest.parameters.length === 0 && (
               <p className="text-muted-foreground text-sm">
-                Nothing varied between the two runs, so every value is fixed.
+                {latest.recording_ids.length === 1
+                  ? "Induced from one demonstration, so there was nothing to diff: every value is fixed as it was demonstrated."
+                  : "Nothing varied between the two runs, so every value is fixed."}
               </p>
             )}
           </section>

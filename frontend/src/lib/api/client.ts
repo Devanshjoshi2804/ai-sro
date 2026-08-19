@@ -1,3 +1,4 @@
+import { credential } from "@/lib/api/credential";
 import { env } from "@/lib/env";
 import type { components } from "@/lib/api/generated";
 
@@ -36,13 +37,14 @@ export class ApiError extends Error {
 }
 
 /**
- * Identity is stubbed to headers in v0, matching the backend. When a real
- * identity provider arrives this is the only place that changes.
+ * Every request carries the operator's own credential. The tenant and the name
+ * on a warehouse write come out of that token's signature, not out of a header
+ * this code could put anything in.
  */
 function headers(extra?: HeadersInit): HeadersInit {
+  const token = credential();
   return {
-    "X-Tenant-Id": env.NEXT_PUBLIC_TENANT_ID,
-    "X-Principal-Id": env.NEXT_PUBLIC_PRINCIPAL_ID,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
   };
 }

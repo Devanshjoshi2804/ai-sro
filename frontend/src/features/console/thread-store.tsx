@@ -35,6 +35,14 @@ type ThreadState = {
   entries: Entry[];
   add: (entry: NewEntry) => void;
   reset: () => void;
+  /**
+   * Forget a run that is being demonstrated again.
+   *
+   * A redone run is not history: induction pairs run 1 with run 2, and a
+   * transcript holding three sealed recordings has to decide which two, which
+   * is a decision nobody asked for. Dropping it keeps the pair exactly two.
+   */
+  forgetRun: (run: number) => void;
   /** Recordings sealed in this transcript, oldest first — the induction pair. */
   sealedRecordings: string[];
 };
@@ -52,6 +60,16 @@ export function ThreadProvider({ children }: { children: ReactNode }) {
       entries,
       add: (entry) => setEntries((current) => [...current, { ...entry, id: nextId() } as Entry]),
       reset: () => setEntries([]),
+      forgetRun: (run) =>
+        setEntries((current) =>
+          current.filter(
+            (entry) =>
+              !(
+                (entry.kind === "sealed" || entry.kind === "session") &&
+                entry.run === run
+              ),
+          ),
+        ),
       sealedRecordings: entries
         .filter((entry): entry is Extract<Entry, { kind: "sealed" }> => entry.kind === "sealed")
         .map((entry) => entry.recordingId),

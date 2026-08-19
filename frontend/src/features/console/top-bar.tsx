@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ink } from "@/features/console/theme";
+import { whoAmI } from "@/lib/api/credential";
 
 /**
  * One bar across every surface.
@@ -12,7 +13,12 @@ import { ink } from "@/features/console/theme";
  * promoted. Two visual languages would make the review page look like a
  * different, older tool — which is exactly how a reviewer stops trusting it.
  */
-export function TopBar({ children, tenant = "acme" }: { children?: ReactNode; tenant?: string }) {
+export function TopBar({ children, tenant }: { children?: ReactNode; tenant?: string }) {
+  // Read from the credential, never defaulted. A hardcoded "acme" said acme
+  // over a console signed in as another tenant, which is the one label in the
+  // whole application that has to be right: it is what tells somebody which
+  // warehouse they are about to write to.
+  const signedInAs = tenant ?? whoAmI()?.tenant ?? "—";
   return (
     <nav
       style={{
@@ -64,7 +70,7 @@ export function TopBar({ children, tenant = "acme" }: { children?: ReactNode; te
         }}
       >
         <span>
-          tenant <span style={{ color: ink.barText }}>{tenant}</span>
+          tenant <span style={{ color: ink.barText }}>{signedInAs}</span>
         </span>
         <span
           style={{

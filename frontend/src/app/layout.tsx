@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { QueryProvider } from "@/lib/query";
+import { SignInGate } from "@/features/console/sign-in-gate";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -21,7 +22,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="bg-background text-foreground flex min-h-full flex-col">
         <QueryProvider>
-          {children}
+          {/* Nothing renders until this browser holds a credential: every
+              screen below reads a tenant's recordings and can authorise a
+              write into their warehouse. */}
+          <SignInGate>{children}</SignInGate>
           <Toaster />
         </QueryProvider>
       </body>

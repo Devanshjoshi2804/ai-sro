@@ -58,23 +58,19 @@
         "operationId": "list_connections_v1_connections_get",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -114,23 +110,19 @@
         "operationId": "connect_system_v1_connections_post",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -178,23 +170,19 @@
         "operationId": "check_sessions_v1_connections_health_get",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -209,6 +197,60 @@
                     "$ref": "#/components/schemas/SessionCheckModel"
                   },
                   "title": "Response Check Sessions V1 Connections Health Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connections/browsers": {
+      "get": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Open Browsers",
+        "description": "Browsers this deployment is driving, and where to watch them.\n\nShown in the console while anything is happening in one: the system signing\nitself in, a UI replay, a pursuit. Watching it is how somebody tells \"stuck\non a consent screen\" from \"slow\", and neither is visible from a spinner.",
+        "operationId": "open_browsers_v1_connections_browsers_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OpenBrowserModel"
+                  },
+                  "title": "Response Open Browsers V1 Connections Browsers Get"
                 }
               }
             }
@@ -254,23 +296,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -317,23 +355,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -392,23 +426,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -419,6 +449,75 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SignedInResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connections/{connection_id}/token": {
+      "post": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Establish Token",
+        "description": "Exchange one login for a credential that outlives the browser.\n\nEverything else here replays a human's browser session, which works and\nexpires on the identity provider's schedule. An offline token is not bound\nto that session at all: it survives the operator logging out and going\nhome, and refreshing it on a schedule keeps it alive indefinitely.\n\nThe password is used to make the exchange and is not what gets kept -- the\ntoken is, and the identity provider can revoke it without anybody changing\na password.",
+        "operationId": "establish_token_v1_connections__connection_id__token_post",
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Connection Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenEstablishedResponse"
                 }
               }
             }
@@ -455,23 +554,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -528,23 +623,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -591,23 +682,19 @@
         "operationId": "start_recording_v1_recordings_post",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -755,23 +842,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -821,23 +904,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -884,23 +963,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -947,23 +1022,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1014,23 +1085,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1086,23 +1153,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1140,6 +1203,104 @@
         }
       }
     },
+    "/v1/skills/{skill_id}/choices/{parameter}": {
+      "get": {
+        "tags": [
+          "skills"
+        ],
+        "summary": "Choices",
+        "description": "What this field's dropdown holds, from the system, now.\n\nThe field was a dropdown when the task was taught, and it stays one: the\nconsole fills it from the endpoint the screen used rather than asking an\noperator to type back an id. Fetched live on every open, because a list of\nwhat used to exist is a way of writing to a record that no longer does.",
+        "operationId": "choices_v1_skills__skill_id__choices__parameter__get",
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          },
+          {
+            "name": "parameter",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Parameter"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChoiceModel"
+                  },
+                  "title": "Response Choices V1 Skills  Skill Id  Choices  Parameter  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/skills/induct": {
       "post": {
         "tags": [
@@ -1150,23 +1311,19 @@
         "operationId": "induce_skill_v1_skills_induct_post",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1214,23 +1371,19 @@
         "operationId": "understand_recording_v1_skills_understand_post",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1300,23 +1453,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1366,23 +1515,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1429,23 +1574,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1501,23 +1642,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1565,23 +1702,19 @@
         "operationId": "resolve_intent_v1_intent_resolve_post",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1619,6 +1752,63 @@
         }
       }
     },
+    "/v1/runs/{run_id}/stream": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Stream Run",
+        "description": "Server-sent events: one per step as it completes, then the finished run.\n\nEvents are `step` and `done`. A client that arrives late gets every step so\nfar immediately, because what is sent is derived from the row rather than\nfrom what happened to be published while it was connected.",
+        "operationId": "stream_run_v1_runs__run_id__stream_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/knowledge/questions": {
       "get": {
         "tags": [
@@ -1629,23 +1819,19 @@
         "operationId": "open_questions_v1_knowledge_questions_get",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1687,23 +1873,19 @@
         "operationId": "answer_question_v1_knowledge_questions_answer_post",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1744,23 +1926,19 @@
         "operationId": "summary_v1_knowledge_summary_get",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1867,23 +2045,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1924,23 +2098,19 @@
         "operationId": "start_thread_v1_threads_post",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1975,23 +2145,19 @@
         "operationId": "list_threads_v1_threads_get",
         "parameters": [
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2006,6 +2172,75 @@
                     "$ref": "#/components/schemas/ThreadSummary"
                   },
                   "title": "Response List Threads V1 Threads Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/threads/{thread_id}/runs": {
+      "post": {
+        "tags": [
+          "threads"
+        ],
+        "summary": "Run From Thread",
+        "description": "Start a run and write it into the conversation that asked for it.\n\nThe same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator\nwho filled in a card and pressed the button has had a conversation, and a\nresult that lives only in the browser's memory is gone on the next render.",
+        "operationId": "run_from_thread_v1_threads__thread_id__runs_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Thread Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunSkillRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadDetail"
                 }
               }
             }
@@ -2041,23 +2276,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2104,23 +2335,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2186,23 +2413,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2249,23 +2472,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2309,7 +2528,7 @@
           "runs"
         ],
         "summary": "Run Skill",
-        "description": "Perform the skill at L1.\n\nWhat the stage means here: `shadow` sends every read and withholds every\nwrite, producing the exact request it would have sent. Above shadow the\nwrites go out, and the request must name the human who authorised that.",
+        "description": "Perform the skill at L1.\n\nWhat the stage means here: `shadow` sends every read and withholds every\nwrite, producing the exact request it would have sent. Above shadow the\nwrites go out, and somebody is on the record for that.\n\nWho, is the authenticated caller -- never a name in the body. A request\nthat says who authorised it is a signature nobody checked, and the audit\ntrail on a warehouse write is worth more than that.",
         "operationId": "run_skill_v1_skills__skill_id__runs_post",
         "parameters": [
           {
@@ -2322,23 +2541,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2395,23 +2610,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2497,23 +2708,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2563,23 +2770,19 @@
             }
           },
           {
-            "name": "X-Tenant-Id",
+            "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "dev",
-              "title": "X-Tenant-Id"
-            }
-          },
-          {
-            "name": "X-Principal-Id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "dev-operator",
-              "title": "X-Principal-Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2782,6 +2985,7 @@
               "type": "object"
             },
             "type": "array",
+            "minItems": 1,
             "title": "Items"
           },
           "authorized_by": {
@@ -2945,6 +3149,25 @@
           "unexplained"
         ],
         "title": "CandidateModel"
+      },
+      "ChoiceModel": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "ChoiceModel",
+        "description": "One row of a field's dropdown: what runs, and what a person reads."
       },
       "ConnectSystemRequest": {
         "properties": {
@@ -3261,7 +3484,14 @@
             "title": "First Recording Id"
           },
           "second_recording_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Second Recording Id"
           },
           "name": {
@@ -3278,8 +3508,7 @@
         },
         "type": "object",
         "required": [
-          "first_recording_id",
-          "second_recording_id"
+          "first_recording_id"
         ],
         "title": "InduceSkillRequest"
       },
@@ -3636,6 +3865,32 @@
         ],
         "title": "ObjectiveKeyModel"
       },
+      "OpenBrowserModel": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "live_view_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live View Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "live_view_url"
+        ],
+        "title": "OpenBrowserModel",
+        "description": "A browser this deployment is driving right now."
+      },
       "OpenQuestionModel": {
         "properties": {
           "system": {
@@ -3708,6 +3963,33 @@
         ],
         "title": "OpenedConnectionResponse"
       },
+      "OptionsModel": {
+        "properties": {
+          "label": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Label"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "searchable": {
+            "type": "boolean",
+            "title": "Searchable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "value",
+          "searchable"
+        ],
+        "title": "OptionsModel",
+        "description": "Where a field's values come from. Its presence is what makes the console\ndraw a dropdown instead of a text box."
+      },
       "ParameterModel": {
         "properties": {
           "name": {
@@ -3739,6 +4021,16 @@
               }
             ],
             "title": "Source Step Index"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OptionsModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -3758,8 +4050,12 @@
             "title": "Version"
           },
           "to": {
-            "type": "string",
-            "title": "To"
+            "$ref": "#/components/schemas/PromotionStage"
+          },
+          "acknowledging_fixed_values": {
+            "type": "boolean",
+            "title": "Acknowledging Fixed Values",
+            "default": false
           }
         },
         "type": "object",
@@ -3768,6 +4064,16 @@
           "to"
         ],
         "title": "PromoteRequest"
+      },
+      "PromotionStage": {
+        "type": "string",
+        "enum": [
+          "recorded",
+          "shadow",
+          "assisted",
+          "autonomous"
+        ],
+        "title": "PromotionStage"
       },
       "ProposalModel": {
         "properties": {
@@ -3892,6 +4198,11 @@
           "landed_at": {
             "type": "string",
             "title": "Landed At"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id",
+            "default": ""
           },
           "recording_id": {
             "type": "string",
@@ -4319,6 +4630,17 @@
       },
       "RunSkillRequest": {
         "properties": {
+          "skill_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Id"
+          },
           "parameters": {
             "additionalProperties": {
               "type": "string"
@@ -4933,6 +5255,22 @@
             ],
             "title": "Found Rows"
           },
+          "found_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Found Total"
+          },
+          "found_partial": {
+            "type": "boolean",
+            "title": "Found Partial",
+            "default": false
+          },
           "found": {
             "items": {
               "additionalProperties": {
@@ -4951,6 +5289,17 @@
             "type": "array",
             "title": "Found Columns",
             "default": []
+          },
+          "found_values": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Found Values",
+            "default": {}
           },
           "found_labels": {
             "items": {
@@ -5112,6 +5461,24 @@
           "message_count"
         ],
         "title": "ThreadSummary"
+      },
+      "TokenEstablishedResponse": {
+        "properties": {
+          "target_system": {
+            "type": "string",
+            "title": "Target System"
+          },
+          "held": {
+            "type": "boolean",
+            "title": "Held"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_system",
+          "held"
+        ],
+        "title": "TokenEstablishedResponse"
       },
       "TrackRecordModel": {
         "properties": {

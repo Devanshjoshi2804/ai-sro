@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { runBatch, runKeys, type BatchItem, type BatchResult } from "@/features/run/api";
 import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
-import { env } from "@/lib/env";
 
 /**
  * What was read from the sentence, before anything is sent.
@@ -32,7 +31,9 @@ export function BatchCard({
   const [result, setResult] = useState<BatchResult | null>(null);
 
   const go = useMutation({
-    mutationFn: () => runBatch(skillId, items, { authorizedBy: env.NEXT_PUBLIC_PRINCIPAL_ID }),
+    // Confirming is what this click means. Who confirmed comes from the
+    // credential on the request, not from anything this page can set.
+    mutationFn: () => runBatch(skillId, items, { authorizedBy: "confirmed" }),
     onSuccess: (batch) => {
       setResult(batch);
       void queryClient.invalidateQueries({ queryKey: runKeys.all });

@@ -23,3 +23,47 @@ export const say = (threadId: string, text: string, parameters?: Record<string, 
     system: null,
     parameters: parameters ?? {},
   });
+
+/**
+ * Start a run and keep it in the conversation that asked for it.
+ *
+ * The same run as `/v1/skills/{id}/runs`, recorded as a message: a result held
+ * only in component state was gone on the next render and on every reload, so
+ * a card that had just created a supplier came back as an empty form.
+ */
+export const runInThread = (
+  threadId: string,
+  skillId: string,
+  parameters: Record<string, string>,
+  options: { version?: number; authorized?: boolean } = {},
+) =>
+  api.post<ThreadDetail>(`/v1/threads/${threadId}/runs`, {
+    skill_id: skillId,
+    parameters,
+    version: options.version ?? null,
+    authorized_by: options.authorized === false ? null : "confirmed",
+    medium: "network",
+  });
+
+export type Pursuit = Schemas["PursuitProgressModel"];
+
+/**
+ * Work a task out on the screen, when nobody has demonstrated it.
+ *
+ * Accepted, not performed: a pursuit is a dozen gestures, each a screenshot to
+ * a model and back. What comes back is something to watch.
+ */
+export const pursue = (
+  threadId: string,
+  intent: string,
+  targetSystem: string,
+  values: Record<string, string> = {},
+) =>
+  api.post<Pursuit>(`/v1/threads/${threadId}/pursue`, {
+    intent,
+    target_system: targetSystem,
+    values,
+  });
+
+export const pursuitProgress = (threadId: string, pursuitId: string) =>
+  api.get<Pursuit>(`/v1/threads/${threadId}/pursue/${pursuitId}`);

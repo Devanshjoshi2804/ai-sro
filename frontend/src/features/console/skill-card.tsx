@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { toast } from "sonner";
 import { describeSkill, getSkill, skillKeys, type SkillVersionModel } from "@/features/skill/api";
 import { getRun, runKeys, startRun, type RunModel } from "@/features/run/api";
+import { runInThread, threadKeys } from "@/features/console/chat-api";
+import { useRunStream } from "@/features/run/stream";
 import { ApiError } from "@/lib/api/client";
-import { env } from "@/lib/env";
+import { whoAmI } from "@/lib/api/credential";
+import { ChoiceField } from "@/features/console/choice-field";
 import { ink, mono } from "@/features/console/theme";
 
 /**
@@ -19,12 +21,18 @@ import { ink, mono } from "@/features/console/theme";
  */
 export function SkillCard({
   skillId,
+  threadId,
+  suggestions = [],
+  folded = false,
   parameters,
   missing = [],
   onAsk,
   answeredBy,
 }: {
   skillId: string;
+  threadId?: string;
+  suggestions?: string[];
+  folded?: boolean;
   parameters?: Record<string, string>;
   missing?: string[];
   /** Put a sentence in the composer. What follows a result is the operator's
@@ -110,12 +118,14 @@ export function SkillCard({
               color: ink.textMuted,
             }}
           >
-            PARAMETERS · from the diff
+            PARAMETERS · {version.recording_ids.length === 1 ? "one run, nothing to diff" : "from the diff"}
           </div>
           <div style={{ fontFamily: mono, fontSize: 11.5, lineHeight: 1.9, color: "#3F4145" }}>
             {version.parameters.length === 0 && (
               <span style={{ color: ink.textMuted }}>
-                Nothing varied between the runs — every value is fixed.
+                {version.recording_ids.length === 1
+                  ? "One demonstration, so nothing was diffed — every value is fixed as it was demonstrated."
+                  : "Nothing varied between the runs — every value is fixed."}
               </span>
             )}
             {version.parameters.map((parameter) => (
@@ -232,6 +242,9 @@ export function SkillCard({
             skillId={skillId}
             version={version}
             parameters={parameters}
+            threadId={threadId}
+            suggestions={suggestions}
+            folded={folded}
             missing={missing}
             subject={skill.data.objective_key.entity_type.replace(/_/g, " ")}
             onAsk={onAsk}
@@ -390,6 +403,9 @@ const inputStyle = {
  */
 function RunButton({
   skillId,
+  threadId,
+  suggestions = [],
+  folded = false,
   version,
   parameters,
   missing,
@@ -401,35 +417,63 @@ function RunButton({
   subject: string;
   onAsk?: (text: string) => void;
   skillId: string;
+  threadId?: string;
+  suggestions?: string[];
+  folded?: boolean;
   version: SkillVersionModel;
   parameters: Record<string, string>;
   missing: string[];
 }) {
   const queryClient = useQueryClient();
   const [finished, setFinished] = useState<RunModel | null>(null);
+  const [watching, setWatching] = useState<string | null>(null);
   const [given, setGiven] = useState<Record<string, string>>({});
+  // A run in progress, step by step. The card shows what has happened so far
+  // rather than a spinner over what might be happening.
+  //
+  // `still` matters on a reload: the message says a run started, the run is
+  // not over, and rendering its stored row as a result read "It did not
+  // finish" — which was a card describing a run that was still going.
+  const [still, setStill] = useState(false);
+  const streamed = useRunStream(watching ?? answeredBy, Boolean(watching) || still);
   // Already answered when the question was asked. Fetched rather than passed:
   // the reply is stored, and reopening the thread tomorrow should show what
   // the run found, not an empty card.
   const already = useQuery({
     queryKey: runKeys.detail(answeredBy ?? ""),
-    queryFn: () => getRun(answeredBy as string),
+    queryFn: async () => {
+      const run = await getRun(answeredBy as string);
+      setStill(run.status === "running");
+      return run;
+    },
     enabled: Boolean(answeredBy) && !finished,
   });
 
   const run = useMutation({
-    mutationFn: () =>
-      startRun(
+    mutationFn: async () => {
+      // Inside a conversation, the run is recorded there: the transcript is
+      // what survives a re-render, a reload and tomorrow morning. Outside one
+      // (the skills page), it is still just a run.
+      if (threadId) {
+        const thread = await runInThread(threadId, skillId, { ...parameters, ...given }, {
+          version: version.version,
+        });
+        const last = thread.messages.at(-1)?.decision as { run_id?: string } | undefined;
+        // Started, not finished: the card watches it happen from here.
+        setWatching(last?.run_id ?? null);
+        return null;
+      }
+      return startRun(
         skillId,
         { ...parameters, ...given },
-        {
-          authorizedBy: env.NEXT_PUBLIC_PRINCIPAL_ID,
-          version: version.version,
-        },
-      ),
+        { authorizedBy: "confirmed", version: version.version },
+      );
+    },
     onSuccess: (started) => {
-      setFinished(started);
+      if (started) setFinished(started);
       void queryClient.invalidateQueries({ queryKey: runKeys.all });
+      void queryClient.invalidateQueries({ queryKey: threadKeys.all });
+      if (!started) return;
       toast.success(`Run ${started.status}`, {
         // What was sent, not how many steps a demonstration had. Four of the
         // six are the operator's typing, which produces no call at L1 because
@@ -446,9 +490,23 @@ function RunButton({
       }),
   });
 
-  const done = finished ?? already.data;
+  const settled = already.data?.status === "running" ? null : already.data;
+  const done = finished ?? streamed.run ?? settled;
   if (done) {
-    return <Result run={done} subject={subject} onAsk={onAsk} />;
+    return (
+      <Result
+        run={done}
+        subject={subject}
+        onAsk={onAsk}
+        suggestions={suggestions}
+        folded={folded}
+      />
+    );
+  }
+  if (watching || still) {
+    // Steps as they land, and whatever the row already had for a run that
+    // started before this browser was looking.
+    return <AsItHappens steps={streamed.steps.length ? streamed.steps : (already.data?.steps ?? [])} />;
   }
 
   // What it still needs, asked for here rather than in the next sentence. Chat
@@ -476,19 +534,30 @@ function RunButton({
               <span style={{ fontSize: 10.5, fontWeight: 700, color: ink.textMuted }}>
                 {parameter.name.replace(/_/g, " ")}
               </span>
-              <input
-                value={supplied[parameter.name] ?? ""}
-                placeholder={parameter.observed_values[0] ?? ""}
-                onChange={(event) => setGiven({ ...given, [parameter.name]: event.target.value })}
-                style={{
-                  border: `1px solid ${ink.line}`,
-                  borderRadius: 7,
-                  padding: "7px 9px",
-                  fontSize: 12.5,
-                  fontFamily: mono,
-                  outline: "none",
-                }}
-              />
+              {/* A field the screen offered as a list stays a list. Typing an
+                  address id back from memory is not something anybody does. */}
+              {parameter.options ? (
+                <ChoiceField
+                  skillId={skillId}
+                  parameter={parameter}
+                  value={supplied[parameter.name] ?? ""}
+                  onPick={(value) => setGiven({ ...given, [parameter.name]: value })}
+                />
+              ) : (
+                <input
+                  value={supplied[parameter.name] ?? ""}
+                  placeholder={parameter.observed_values[0] ?? ""}
+                  onChange={(event) => setGiven({ ...given, [parameter.name]: event.target.value })}
+                  style={{
+                    border: `1px solid ${ink.line}`,
+                    borderRadius: 7,
+                    padding: "7px 9px",
+                    fontSize: 12.5,
+                    fontFamily: mono,
+                    outline: "none",
+                  }}
+                />
+              )}
               {parameter.description && (
                 <span style={{ fontSize: 10.5, color: ink.textMuted }}>
                   {parameter.description}
@@ -528,7 +597,7 @@ function RunButton({
             ? `Still needs ${stillMissing.join(", ")}`
             : version.stage === "recorded"
               ? "Nobody has reviewed this yet"
-              : `Runs as ${env.NEXT_PUBLIC_PRINCIPAL_ID}`
+              : `Runs as ${whoAmI()?.principal ?? "whoever this token belongs to"}`
         }
         style={{
           padding: "6px 12px",
@@ -562,14 +631,119 @@ function render(template: string, values: Record<string, string>): string {
  * answer, the rows are the evidence, and the rest stays where it is rather than
  * being poured through a chat message.
  */
+/**
+ * A run while it is running.
+ *
+ * Every step appears as it completes, with what it called and what came back.
+ * Twelve seconds of spinner and twelve seconds of watching calls land are the
+ * same twelve seconds; only one of them tells you the system is working.
+ */
+function AsItHappens({ steps }: { steps: RunModel["steps"] }) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${ink.line}`,
+        borderRadius: 9,
+        overflow: "hidden",
+        background: ink.panel,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 12px",
+          background: ink.accentWash,
+          borderBottom: `1px solid ${ink.lineSoft}`,
+        }}
+      >
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 999,
+            background: ink.accent,
+            animation: "sro-beat 1.1s ease-in-out infinite",
+          }}
+        />
+        <span style={{ fontSize: 12, fontWeight: 700 }}>
+          Running · {steps.length} step{steps.length === 1 ? "" : "s"} so far
+        </span>
+      </div>
+      <ol style={{ margin: 0, padding: "8px 12px", listStyle: "none", display: "grid", gap: 4 }}>
+        {steps.map((step) => (
+          <li
+            key={step.index}
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "baseline",
+              fontFamily: mono,
+              fontSize: 11,
+              color: ink.textSoft,
+              animation: "sro-land 220ms ease-out",
+            }}
+          >
+            <Mark disposition={step.disposition} />
+            <span style={{ color: ink.text }}>{step.method ?? "·"}</span>
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {step.url ? new URL(step.url).pathname : step.intent}
+            </span>
+            {step.status_code !== null && <span>{step.status_code}</span>}
+            {step.found_total !== null && step.found_total !== undefined && (
+              <span style={{ color: ink.textMuted }}>{step.found_total} found</span>
+            )}
+          </li>
+        ))}
+        {steps.length === 0 && (
+          <li style={{ fontSize: 11.5, color: ink.textMuted }}>Opening the connection…</li>
+        )}
+      </ol>
+      <style>{`
+        @keyframes sro-beat { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+        @keyframes sro-land { from { opacity: 0; transform: translateY(-2px) } to { opacity: 1 } }
+        @media (prefers-reduced-motion: reduce) { li, span { animation: none !important } }
+      `}</style>
+    </div>
+  );
+}
+
+function Mark({ disposition }: { disposition: string }) {
+  const colour =
+    disposition === "performed"
+      ? ink.goodDot
+      : disposition === "failed"
+        ? ink.danger
+        : ink.textMuted;
+  return <span style={{ color: colour, fontWeight: 700 }}>•</span>;
+}
+
+
 function Result({
   run,
   subject,
   onAsk,
+  suggestions = [],
+  folded = false,
 }: {
   run: RunModel;
   subject: string;
   onAsk?: (text: string) => void;
+  /** Earned by the backend from this answer's own columns and the skills
+   * taught for this entity. Empty is a valid answer: no chips. */
+  suggestions?: string[];
+  /** An older turn in the transcript. Six copies of a 239-row table is a wall
+   * nobody scrolls past; the answer is kept, the table waits to be asked for. */
+  folded?: boolean;
   /** A run that already answered this, made the moment the question was asked.
    * A read is safe and it is the whole point of asking, so it does not wait
    * behind a button — and what it shows is the system now, not what the
@@ -577,6 +751,7 @@ function Result({
   answeredBy?: string;
 }) {
   const [page, setPage] = useState(0);
+  const [open, setOpen] = useState(!folded);
   const perPage = 8;
   // The last step that found anything, not the first. A create opens by
   // reading the screen's policies, and showing that as the answer told an
@@ -590,7 +765,10 @@ function Result({
         step.found_rows !== null &&
         step.found_rows !== undefined,
     );
-  const failed = run.status !== "succeeded";
+  // Failed, not "not succeeded". A run still going is not a run that went
+  // wrong, and treating it as one put "It did not finish" under a task that
+  // was three seconds into finishing.
+  const failed = run.status === "failed";
   // A rehearsal builds the write and holds it. Its last performed step is
   // whatever the screen read on the way in, and showing that as the result
   // told an operator who had just asked to create a transport mode that three
@@ -598,7 +776,14 @@ function Result({
   const withheld = run.steps.find((step) => step.disposition === "withheld");
 
   if (failed) {
-    const explained = run.steps.find((step) => step.detail);
+    // The step that actually failed, not the first one with anything to say. A
+    // run whose seventh step could not run showed the second step's note --
+    // "the demonstration produced no call here; only the UI moved" -- and sent
+    // the operator looking at a UI step that was fine.
+    const explained =
+      run.steps.find(
+        (step) => step.disposition === "failed" || (step.assertion_failures ?? []).length > 0,
+      ) ?? run.steps.find((step) => step.detail);
     return (
       <span style={{ fontSize: 12.5, color: ink.danger }}>
         {run.failure ?? "It did not finish"}
@@ -637,6 +822,27 @@ function Result({
     return <span style={{ fontSize: 12.5, color: ink.textSoft }}>Done.</span>;
   }
 
+  if (!open) {
+    const many = read.found_total ?? read.found_rows;
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          alignSelf: "flex-start",
+          padding: "6px 10px",
+          borderRadius: 7,
+          border: `1px solid ${ink.line}`,
+          background: ink.panel,
+          fontSize: 12,
+          color: ink.textSoft,
+          cursor: "pointer",
+        }}
+      >
+        <b style={{ color: ink.text }}>{many}</b> {subject} found · show
+      </button>
+    );
+  }
+
   // The columns the result decided on, in its order. Never the row's own key
   // order: jsonb sorts an object's keys by length, so a row does not remember
   // how it was arranged.
@@ -652,9 +858,15 @@ function Result({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", minWidth: 0 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>{read.found_rows}</span>
+        {/* What exists, where the system said so — not what one page held.
+            This number read 50 for a warehouse with 330,140 addresses. */}
+        <span style={{ fontSize: 15, fontWeight: 700 }}>
+          {read.found_partial ? `${read.found_rows}+` : (read.found_total ?? read.found_rows)}
+        </span>
         <span style={{ fontSize: 12.5, color: ink.textSoft }}>
-          found
+          {read.found_partial
+            ? `at least — one page held ${read.found_rows}, and the system did not say how many there are`
+            : "found"}
           {read.found.length < read.found_rows ? ` · ${read.found.length} carried back` : ""}
         </span>
         <span style={{ flex: 1 }} />
@@ -724,7 +936,7 @@ function Result({
         </table>
       </div>
 
-      {onAsk && <NextActions subject={subject} onPick={onAsk} />}
+      {onAsk && <NextActions suggestions={suggestions} onPick={onAsk} />}
     </div>
   );
 }
@@ -762,17 +974,23 @@ function Step({
 /**
  * What to do next, from what just happened.
  *
- * A result that ends in silence makes the operator invent the next sentence.
- * These are the three things anybody does after reading a list — look at one,
- * add one, narrow it — offered as text they can edit rather than buttons that
- * act, because the sentence is still theirs.
+ * The suggestions come from the backend, which earns each one: a skill taught
+ * for this entity, or a column in this very answer with few enough values to
+ * be a category. They used to be three sentences written here — including
+ * "which X are used for parcel", produced for one demo and then offered under
+ * every result in the system, for entities where nothing could answer it.
+ *
+ * Offered as text the operator can edit rather than buttons that act, because
+ * the sentence is still theirs.
  */
-function NextActions({ subject, onPick }: { subject: string; onPick: (text: string) => void }) {
-  const suggestions = [
-    `show me one ${subject} in detail`,
-    `create a new ${subject}`,
-    `which ${subject} are used for parcel`,
-  ];
+function NextActions({
+  suggestions,
+  onPick,
+}: {
+  suggestions: string[];
+  onPick: (text: string) => void;
+}) {
+  if (suggestions.length === 0) return null;
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
       {suggestions.map((suggestion) => (

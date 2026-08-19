@@ -140,7 +140,9 @@ describe("SkillDetail", () => {
     renderWithQuery(<SkillDetail skillId="skl-1" />);
     await userEvent.click(await screen.findByRole("button", { name: /promote to shadow/i }));
 
-    await waitFor(() => expect(promote).toHaveBeenCalledWith("skl-1", 1, "shadow"));
+    // The last argument is the acknowledgement a one-demonstration skill needs
+    // before it may send fixed values for real. False unless somebody said so.
+    await waitFor(() => expect(promote).toHaveBeenCalledWith("skl-1", 1, "shadow", false));
   });
 
   it("warns when a step cannot be replayed", async () => {

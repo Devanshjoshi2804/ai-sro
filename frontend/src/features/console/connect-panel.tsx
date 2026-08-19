@@ -28,10 +28,23 @@ type Opened = Schemas["OpenedConnectionResponse"];
 
 export type SessionCheck = Schemas["SessionCheckModel"];
 
+export type OpenBrowser = Schemas["OpenBrowserModel"];
+
 export const connectionKeys = {
   all: ["connections"] as const,
   health: ["connections", "health"] as const,
+  browsers: ["connections", "browsers"] as const,
 };
+
+/**
+ * Browsers this deployment is driving right now.
+ *
+ * Signing in, replaying a screen, pursuing a goal — all of it happens in a
+ * window nobody can see, and "it did not finish" is not something anybody can
+ * act on. A link to watch it is the difference between diagnosing a consent
+ * screen and guessing.
+ */
+export const openBrowsers = () => api.get<OpenBrowser[]>("/v1/connections/browsers");
 
 export const listConnections = () => api.get<Connection[]>("/v1/connections");
 

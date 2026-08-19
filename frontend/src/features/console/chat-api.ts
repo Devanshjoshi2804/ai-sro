@@ -58,11 +58,15 @@ export const pursue = (
   intent: string,
   targetSystem: string,
   values: Record<string, string> = {},
+  authorizedBy = "",
 ) =>
   api.post<Pursuit>(`/v1/threads/${threadId}/pursue`, {
     intent,
     target_system: targetSystem,
     values,
+    // Their say-so, not their name. Who is on the record comes out of the
+    // token's signature at the other end.
+    authorized_by: authorizedBy || null,
   });
 
 export const pursuitProgress = (threadId: string, pursuitId: string) =>

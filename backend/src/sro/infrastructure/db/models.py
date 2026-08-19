@@ -219,3 +219,22 @@ class ThreadRow(Base):
     messages: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
 
     __table_args__ = (Index("ix_threads_tenant_opened", "tenant_id", "opened_at"),)
+
+
+class BrowserSessionRow(Base):
+    """Which tenant a browser session belongs to.
+
+    No status column: the provider is the only truth about what is still live,
+    and this row answers one question -- whose. The primary key on the
+    provider's own id is the security property. A second claim means one browser
+    was handed to two callers, and that has to fail rather than transfer.
+    """
+
+    __tablename__ = "browser_sessions"
+
+    session_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    opened_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (Index("ix_browser_sessions_tenant", "tenant_id"),)

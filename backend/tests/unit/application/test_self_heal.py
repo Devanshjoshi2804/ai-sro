@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from sro.application.connection.browsers import Browsers
 from sro.application.connection.check_session import CheckSession
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn
@@ -158,6 +159,7 @@ async def test_an_outage_is_never_answered_by_signing_in() -> None:
         EnsureSignedIn(sign_in, check, uow),
         RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
         RefreshSession(uow, vault, FakeClock()),
+        Browsers(browser, uow, FakeClock(), FakeIdFactory()),
     )
 
     healed = await healer.attempt(
@@ -223,6 +225,7 @@ async def test_a_live_session_with_a_rejected_call_is_repaired_as_context() -> N
         EnsureSignedIn(sign_in, check, uow),
         RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
         RefreshSession(uow, vault, FakeClock()),
+        Browsers(browser, uow, FakeClock(), FakeIdFactory()),
     )
 
     healed = await healer.attempt(
@@ -292,6 +295,7 @@ async def test_the_token_and_the_session_that_minted_it_are_taken_together() -> 
         EnsureSignedIn(sign_in, check, uow),
         RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
         RefreshSession(uow, vault, FakeClock()),
+        Browsers(browser, uow, FakeClock(), FakeIdFactory()),
     )
 
     healed = await healer.attempt(
@@ -353,6 +357,7 @@ async def test_a_provider_with_no_browser_says_so_instead_of_going_quiet() -> No
         EnsureSignedIn(sign_in, CheckSession(uow, vault, http), uow),
         RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
         RefreshSession(uow, vault, FakeClock()),
+        Browsers(browser, uow, FakeClock(), FakeIdFactory()),
     )
 
     healed = await healer.attempt(

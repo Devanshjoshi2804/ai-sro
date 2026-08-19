@@ -38,8 +38,15 @@ def _hidden(name: str) -> bool:
 
 @pytest.mark.parametrize(
     "field",
-    ["wmAddress-1423-inputEl", "Supplier* What is the supplier number?", "shippingNotes",
-     "passenger_count", "pincode", "description", "clientId"],
+    [
+        "wmAddress-1423-inputEl",
+        "Supplier* What is the supplier number?",
+        "shippingNotes",
+        "passenger_count",
+        "pincode",
+        "description",
+        "clientId",
+    ],
 )
 def test_ordinary_business_fields_are_kept(field: str) -> None:
     assert not _hidden(field), f"{field} is not a credential"

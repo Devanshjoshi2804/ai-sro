@@ -92,15 +92,15 @@ async def connect_system(
 
 @router.get("/browsers")
 async def open_browsers(container: ContainerDep, ctx: ContextDep) -> list[OpenBrowserModel]:
-    """Browsers this deployment is driving, and where to watch them.
+    """Browsers being driven for you, and where to watch them.
 
     Shown in the console while anything is happening in one: the system signing
     itself in, a UI replay, a pursuit. Watching it is how somebody tells "stuck
     on a consent screen" from "slow", and neither is visible from a spinner.
     """
     return [
-        OpenBrowserModel(session_id=b.session_id, live_view_url=b.live_view_url)
-        for b in await container.watch_browsers().execute()
+        OpenBrowserModel(session_id=str(session.id), live_view_url=session.live_view_url or None)
+        for session in await container.browsers().mine(ctx)
     ]
 
 

@@ -229,8 +229,7 @@ def _evidential(frame: ActionFrame) -> bool:
     # clicking a paragraph of help text "evidence" -- and one operator reading
     # the screen for a moment longer than the other refused the whole pair.
     return any(
-        request.is_mutation and not is_background_traffic(request.url)
-        for request in frame.requests
+        request.is_mutation and not is_background_traffic(request.url) for request in frame.requests
     )
 
 
@@ -287,9 +286,7 @@ def _longest_common(
     for i in range(len(run_a) - 1, -1, -1):
         for j in range(len(run_b) - 1, -1, -1):
             table[i][j] = (
-                table[i + 1][j + 1] + 1
-                if matches[i][j]
-                else max(table[i + 1][j], table[i][j + 1])
+                table[i + 1][j + 1] + 1 if matches[i][j] else max(table[i + 1][j], table[i][j + 1])
             )
 
     pairs: list[tuple[ActionFrame, ActionFrame]] = []
@@ -416,9 +413,7 @@ def typed_values(run: tuple[ActionFrame, ...]) -> tuple[Choice, ...]:
     pairs = align(run, run)
     frames = tuple(pair[0] for pair in pairs)
     entered = {
-        frame.action.value: frame
-        for frame in run
-        if frame.action.value and not frame.action.secret
+        frame.action.value: frame for frame in run if frame.action.value and not frame.action.secret
     }
     if not entered:
         return ()

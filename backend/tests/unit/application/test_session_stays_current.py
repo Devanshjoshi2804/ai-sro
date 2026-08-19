@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from sro.application.connection.browsers import Browsers
 from sro.application.connection.check_session import CheckSession, SessionHealth
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.context import RequestContext
@@ -23,6 +24,7 @@ from tests.unit.fakes import (
     FakeClock,
     FakeCredentialVault,
     FakeHttpCaller,
+    FakeIdFactory,
     FakeUnitOfWork,
 )
 
@@ -171,11 +173,14 @@ async def test_a_login_nobody_was_watching_is_adopted() -> None:
     await vault.store(connection.cookie_key, "SESSIONID=expired")
     http.answer(status_code=302, headers={"location": "https://login.example.org/authorize"})
 
-    # A browser this deployment opened, in which somebody has signed in.
-    await browser.open()
+    # A browser *this tenant* opened, in which somebody has signed in.
+    browsers = Browsers(browser, uow, FakeClock(), FakeIdFactory())
+    await browsers.open(CTX)
     browser.cookies = ({"name": "SESSIONID", "value": "signed-in", "domain": "wms.example.com"},)
 
-    check = CheckSession(uow, vault, http, browser, RefreshSession(uow, vault, FakeClock()))
+    check = CheckSession(
+        uow, vault, http, browser, RefreshSession(uow, vault, FakeClock()), browsers
+    )
     (found,) = await check.execute(CTX)
 
     assert found.health is SessionHealth.SIGNED_IN

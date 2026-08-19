@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 
+from sro.application.connection.browsers import Browsers
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.application.recording.start_recording import StartRecording
@@ -31,9 +32,10 @@ class _OneBrowser(FakeBrowserProvider):
 
 async def test_teaching_uses_the_browser_that_is_already_open() -> None:
     uow, browser = FakeUnitOfWork(), _OneBrowser()
-    already = await browser.open()
+    browsers = Browsers(browser, uow, FakeClock(), FakeIdFactory())
+    already = await browsers.open(CTX)
 
-    started = await StartRecording(uow, browser, FakeClock(), FakeIdFactory()).execute(
+    started = await StartRecording(uow, browser, FakeClock(), FakeIdFactory(), browsers).execute(
         CTX, label="run 1"
     )
 
@@ -44,10 +46,13 @@ async def test_teaching_uses_the_browser_that_is_already_open() -> None:
 async def test_a_browser_somebody_is_demonstrating_in_is_never_taken() -> None:
     """Two recordings capturing one screen record each other's gestures."""
     uow, browser = FakeUnitOfWork(), _OneBrowser()
-    theirs = await browser.open()
+    browsers = Browsers(browser, uow, FakeClock(), FakeIdFactory())
+    theirs = await browsers.open(CTX)
     recording = f.recording()
     recording.attach_browser_session(theirs.id)
     await uow.recordings.add(recording)
 
     with pytest.raises(BrowserUnavailable):
-        await StartRecording(uow, browser, FakeClock(), FakeIdFactory()).execute(CTX, label="run 1")
+        await StartRecording(uow, browser, FakeClock(), FakeIdFactory(), browsers).execute(
+            CTX, label="run 1"
+        )

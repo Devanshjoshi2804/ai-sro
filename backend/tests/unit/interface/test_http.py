@@ -384,3 +384,38 @@ class TestTheDoor:
 
         assert [s["name"] for s in (await client.get("/v1/skills")).json()] == ["Adjust inventory"]
         assert theirs.json() == []
+
+
+class TestBrowsersAreNotShared:
+    """A live browser is a signed-in WMS. Before ownership was recorded, the
+    listing endpoint handed every session id in the deployment to any caller
+    with a token, and both endpoints below took one on the caller's word.
+    """
+
+    async def test_the_listing_shows_only_your_own_browsers(
+        self, client: httpx.AsyncClient, container: _FakeContainer
+    ) -> None:
+        await container.browsers().open(
+            RequestContext(tenant_id=TenantId("rival"), principal_id=PrincipalId("somebody-else"))
+        )
+
+        response = await client.get("/v1/connections/browsers")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    async def test_storing_a_session_from_a_browser_that_is_not_yours_is_refused(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+    ) -> None:
+        """This one emptied their cookies into the caller's vault: naming
+        somebody else's browser was the entire attack."""
+        theirs = await container.browsers().open(
+            RequestContext(tenant_id=TenantId("rival"), principal_id=PrincipalId("somebody-else"))
+        )
+        await _connected(uow, container)
+
+        response = await client.post(
+            f"/v1/connections/con-1/session?browser_session_id={theirs.id}"
+        )
+
+        assert response.status_code == 404

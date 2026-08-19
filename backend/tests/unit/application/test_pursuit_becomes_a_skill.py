@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pytest
 
+from sro.application.connection.browsers import Browsers
 from sro.application.context import RequestContext
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.intent.pursue import compose
@@ -24,6 +25,7 @@ from tests.unit.fakes import (
     FakeBrowserProvider,
     FakeClock,
     FakeCredentialVault,
+    FakeIdFactory,
     FakeUnitOfWork,
 )
 
@@ -66,10 +68,11 @@ def _pursuit(
     finish: object = None,
     understand: object = None,
 ) -> PursueGoal:
+    provider = FakeBrowserProvider()
     return PursueGoal(
         uow,
         FakeCredentialVault(),
-        FakeBrowserProvider(),
+        provider,
         None,
         None,
         FakeClock(),
@@ -77,6 +80,7 @@ def _pursuit(
         None,  # type: ignore[arg-type]
         finish,  # type: ignore[arg-type]
         understand,  # type: ignore[arg-type]
+        Browsers(provider, uow, FakeClock(), FakeIdFactory()),
         egress_enabled=True,
     )
 
@@ -90,6 +94,9 @@ async def test_a_deployment_without_a_vision_rung_says_so() -> None:
             goal=compose("create a transport mode", None),
             target_system="blue_yonder",
             values={},
+            # Confirmed, because that gate comes first now: permission is
+            # decided before whether this deployment could act on it.
+            authorized_by="clerk@acme.test",
         )
 
 

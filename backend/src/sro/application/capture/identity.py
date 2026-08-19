@@ -97,18 +97,19 @@ def system_of(connections: Iterable[Connection], *urls: str | None) -> str | Non
     the vault scope and the knowledge base all call it, and the hostname
     (`bf56-kms-wms-web-np2.jdadelivers.com`) is not.
     """
-    hosts = {_host(url) for url in urls if _host(url)}
+    hosts = {host_of(url) for url in urls if host_of(url)}
     return next(
         (
             connection.target_system
             for connection in connections
-            if _host(connection.base_url) in hosts
+            if host_of(connection.base_url) in hosts
         ),
         None,
     )
 
 
-def _host(url: str | None) -> str:
+def host_of(url: str | None) -> str:
+    """The hostname of a URL, or "" when it has none."""
     return urlsplit(url or "").hostname or ""
 
 
@@ -189,6 +190,6 @@ def _direction(url: str) -> Direction:
 
 
 def _system_from(url: str, start_url: str | None) -> str:
-    host = _host(url) or _host(start_url)
+    host = host_of(url) or host_of(start_url)
     labels = [label for label in host.split(".") if label not in ("www", "com", "net", "org")]
     return snake_case(labels[-1]) if labels else "unknown"

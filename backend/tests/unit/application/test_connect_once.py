@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from sro.application.connection.browsers import Browsers
 from sro.application.connection.check_session import CheckSession, SessionHealth
 from sro.application.connection.connect_system import (
     ConnectSystem,
@@ -28,6 +29,8 @@ from sro.application.connection.sign_in import (
 )
 from sro.application.context import RequestContext
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
+from sro.domain.shared.errors import NotFound
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.template import Template
 from tests import factories as f
 from tests.unit.fakes import (
@@ -212,8 +215,9 @@ async def test_the_console_can_watch_because_identity_cookies_are_not_a_session(
     """
     uow, vault, browser = FakeUnitOfWork(), FakeCredentialVault(), FakeBrowserProvider()
     connection = await _connection(uow)
-    keep = StoreSession(uow, vault, FakeClock(), browser)
-    session = await browser.open()
+    browsers = Browsers(browser, uow, FakeClock(), FakeIdFactory())
+    keep = StoreSession(uow, vault, FakeClock(), browser, browsers)
+    session = await browsers.open(CTX)
 
     browser.cookies = ({"name": "x-ms-cpim-csrf", "value": "n", "domain": ".login.example.org"},)
     with pytest.raises(NotAuthenticated):
@@ -311,3 +315,26 @@ async def test_a_browser_is_emptied_before_a_human_signs_into_it() -> None:
 
     assert browser.emptied == [opened.browser_session_id], "emptied, and before it was navigated"
     assert browser.cookies == (), "whatever the last tenant left is gone"
+
+
+@pytest.mark.asyncio
+async def test_a_session_belonging_to_another_tenant_is_never_vaulted() -> None:
+    """`browser_session_id` arrives as a query parameter. Without an ownership
+    check any operator could name another tenant's browser and have its live
+    session encrypted into their own vault -- after which every run they made
+    authenticated as that tenant's operator, while the audit trail named them.
+    """
+    uow, vault, browser = FakeUnitOfWork(), FakeCredentialVault(), FakeBrowserProvider()
+    connection = await _connection(uow)
+    browsers = Browsers(browser, uow, FakeClock(), FakeIdFactory())
+    theirs = await browsers.open(
+        RequestContext(tenant_id=TenantId("rival"), principal_id=PrincipalId("somebody-else"))
+    )
+    browser.cookies = ({"name": "SESSIONID", "value": "theirs", "domain": "wms.example.com"},)
+
+    with pytest.raises(NotFound):
+        await StoreSession(uow, vault, FakeClock(), browser, browsers).execute(
+            CTX, connection_id=connection.id, browser_session_id=theirs.id
+        )
+
+    assert await vault.get(connection.cookie_key) is None, "their session stays theirs"

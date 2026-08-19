@@ -10,10 +10,12 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.ports.repositories import (
+    BrowserSessionRepository,
     ConnectionRepository,
     KnowledgeRepository,
     ModelCallRepository,
@@ -29,8 +31,14 @@ from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.recording.recording import Recording, RecordingStatus
-from sro.domain.shared.errors import NotFound
-from sro.domain.shared.identifiers import RecordingId, SkillId, TenantId
+from sro.domain.shared.errors import Conflict, NotFound
+from sro.domain.shared.identifiers import (
+    BrowserSessionId,
+    PrincipalId,
+    RecordingId,
+    SkillId,
+    TenantId,
+)
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
 from sro.infrastructure.db.mappers import (
@@ -57,6 +65,7 @@ from sro.infrastructure.db.mappers import (
     update_thread_row,
 )
 from sro.infrastructure.db.models import (
+    BrowserSessionRow,
     ConnectionRow,
     KnowledgeRow,
     ModelCallRow,
@@ -429,6 +438,61 @@ class SqlModelCallRepository(ModelCallRepository):
         return tuple(row_to_model_call(row) for row in rows)
 
 
+class SqlBrowserSessionRepository(BrowserSessionRepository):
+    """Ownership of a browser, and nothing else about it.
+
+    No ``_row(tenant_id, id)`` helper here because nothing fetches one row by
+    id: the two-predicate check is ``held_by``, and ``release`` is untenanted on
+    purpose -- the sweep and crash recovery are not anybody's request.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def claim(
+        self,
+        tenant_id: TenantId,
+        session_id: BrowserSessionId,
+        opened_by: PrincipalId,
+        opened_at: datetime,
+    ) -> None:
+        self._session.add(
+            BrowserSessionRow(
+                session_id=session_id.value,
+                tenant_id=tenant_id.value,
+                opened_by=opened_by.value,
+                opened_at=opened_at,
+            )
+        )
+        try:
+            # Flushed here rather than at commit: the caller is about to hand a
+            # browser to somebody, and "who owns this" has to be settled before
+            # they get it, not after the request has already done its work.
+            await self._session.flush()
+        except IntegrityError as clash:
+            await self._session.rollback()
+            raise Conflict(f"browser session {session_id} is already held") from clash
+
+    async def held_by(self, tenant_id: TenantId) -> tuple[BrowserSessionId, ...]:
+        rows = await self._session.execute(
+            select(BrowserSessionRow.session_id).where(
+                BrowserSessionRow.tenant_id == tenant_id.value
+            )
+        )
+        return tuple(BrowserSessionId(held) for held in rows.scalars())
+
+    async def all_held(self) -> tuple[tuple[BrowserSessionId, datetime], ...]:
+        rows = await self._session.execute(
+            select(BrowserSessionRow.session_id, BrowserSessionRow.opened_at)
+        )
+        return tuple((BrowserSessionId(held), opened_at) for held, opened_at in rows)
+
+    async def release(self, session_id: BrowserSessionId) -> None:
+        await self._session.execute(
+            delete(BrowserSessionRow).where(BrowserSessionRow.session_id == session_id.value)
+        )
+
+
 class SqlUnitOfWork(UnitOfWork):
     """One session per block. The session opens on entry, not on construction,
     so a unit of work can be built once and used per request."""
@@ -446,6 +510,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.knowledge = SqlKnowledgeRepository(self._session)
         self.model_calls = SqlModelCallRepository(self._session)
         self.threads = SqlThreadRepository(self._session)
+        self.browser_sessions = SqlBrowserSessionRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

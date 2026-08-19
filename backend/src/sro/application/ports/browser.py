@@ -96,7 +96,6 @@ class BrowserProvider(Protocol):
         """
         ...
 
-
     def frames(self, session_id: BrowserSessionId) -> AsyncIterator[bytes]:
         """This session's screen, as JPEG frames, for as long as it is read.
 

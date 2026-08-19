@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from urllib.parse import urlsplit
 
+from sro.application.connection.browsers import Browsers
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.context import RequestContext
 from sro.application.execution.headers import client_headers, resolve_headers
@@ -56,12 +57,14 @@ class CheckSession:
         http: HttpCaller,
         browser: BrowserProvider | None = None,
         refresh: RefreshSession | None = None,
+        browsers: Browsers | None = None,
     ) -> None:
         self._uow = uow
         self._vault = vault
         self._http = http
         self._browser = browser
         self._refresh = refresh
+        self._browsers = browsers
 
     async def execute(self, ctx: RequestContext) -> tuple[SessionCheck, ...]:
         async with self._uow as uow:
@@ -191,21 +194,26 @@ class CheckSession:
     async def _adopt(self, ctx: RequestContext, connection: Connection) -> bool:
         """Take a session from a browser that is signed in, if one is open.
 
-        Nothing here signs anybody in: it looks at browsers this deployment
+        Nothing here signs anybody in: it looks at browsers **this tenant**
         already has open and keeps what an operator has already done. A live
         browser holding a cookie for this system is a completed login that
         nobody wrote down.
+
+        It used to look at every browser in the deployment. Since the write is
+        into the caller's vault and the only remaining check was a host name,
+        one tenant's health check could take another tenant's live session and
+        act as their operator from then on.
         """
-        if self._browser is None or self._refresh is None:
+        if self._browsers is None or self._browser is None or self._refresh is None:
             return False
         try:
-            live = await self._browser.live_sessions()
+            live = await self._browsers.mine(ctx)
         except BrowserUnavailable:
             return False
 
-        for session_id in live:
+        for session in live:
             try:
-                cookies = list(await self._browser.session_cookies(session_id))
+                cookies = list(await self._browser.session_cookies(session.id))
             except BrowserUnavailable:
                 continue
             # Trusted: the browser is open and holds the application's own

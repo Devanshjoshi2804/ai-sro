@@ -26,7 +26,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
-from sro.application.connection.borrow import a_browser
+from sro.application.connection.browsers import Browsers
 from sro.application.connection.check_session import CheckSession, SessionHealth
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.connection.sign_in import EnsureSignedIn
@@ -86,6 +86,7 @@ class SelfHeal:
         ensure: EnsureSignedIn,
         record: RecordClaims,
         refresh: RefreshSession,
+        browsers: Browsers,
     ) -> None:
         self._uow = uow
         self._vault = vault
@@ -94,6 +95,7 @@ class SelfHeal:
         self._ensure = ensure
         self._record = record
         self._refresh = refresh
+        self._browsers = browsers
 
     async def attempt(
         self,
@@ -189,7 +191,7 @@ class SelfHeal:
 
         # A provider with no browser to give is not "no repair available": it
         # is the reason, and it is reported rather than swallowed.
-        session = await a_browser(self._browser, self._uow)
+        session = await self._browsers.open(ctx)
         try:
             await self._browser.restore(session.id, await self._load(ctx, connection))
             headers = await self._browser.session_headers(session.id, connection.base_url)

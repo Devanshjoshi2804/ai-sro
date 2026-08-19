@@ -100,9 +100,7 @@ async def test_an_unpaired_write_stops_at_shadow_until_somebody_says_otherwise()
     with pytest.raises(InvariantViolation, match="one demonstration"):
         version.promote(PromotionStage.ASSISTED, f.at(500), f.OPERATOR)
 
-    version.promote(
-        PromotionStage.ASSISTED, f.at(500), f.OPERATOR, acknowledging_fixed_values=True
-    )
+    version.promote(PromotionStage.ASSISTED, f.at(500), f.OPERATOR, acknowledging_fixed_values=True)
     assert version.stage is PromotionStage.ASSISTED
 
 

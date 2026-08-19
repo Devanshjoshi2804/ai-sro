@@ -106,7 +106,7 @@ def test_writing_is_read_from_the_plan_not_from_the_name() -> None:
 
 
 def test_a_skill_that_explains_the_verb_and_not_the_subject_is_not_a_candidate() -> None:
-    """"give me list of clients" offered List suppliers, List addresses and List
+    """ "give me list of clients" offered List suppliers, List addresses and List
     transport modes -- three answers about the wrong thing, matched on the word
     "list" alone. One structural hit clears the floor, and the matcher had
     already recorded "clients" as a word it could not explain."""

@@ -11,6 +11,7 @@ import warnings
 
 import pytest
 
+from sro.application.context import RequestContext
 from sro.interface.http.app import create_app
 
 with warnings.catch_warnings():
@@ -19,6 +20,8 @@ with warnings.catch_warnings():
     # HTTP library to the dependency tree.
     warnings.simplefilter("ignore")
     from starlette.testclient import TestClient
+    from starlette.websockets import WebSocketDisconnect
+from tests import factories as f
 from tests.unit.fakes import FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
 
@@ -31,13 +34,16 @@ def app_and_container() -> tuple[TestClient, _FakeContainer]:
     return TestClient(app), container
 
 
-def test_the_frames_are_of_the_session_that_was_asked_for(
+async def test_the_frames_are_of_the_session_that_was_asked_for(
     app_and_container: tuple[TestClient, _FakeContainer],
 ) -> None:
     client, container = app_and_container
+    mine = await container.browsers().open(
+        RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    )
 
     with client.websocket_connect(
-        "/v1/browser/sess-1/live", subprotocols=["bearer", token_for()]
+        f"/v1/browser/{mine.id}/live", subprotocols=["bearer", token_for()]
     ) as socket:
         assert socket.receive_bytes() == container.browser.screen[0]
         assert socket.receive_bytes() == container.browser.screen[1]
@@ -51,11 +57,30 @@ def test_a_socket_without_a_credential_is_closed_rather_than_served(
     anybody who can guess a session id."""
     client, _ = app_and_container
 
-    from starlette.websockets import WebSocketDisconnect
-
     with (
         pytest.raises(WebSocketDisconnect) as refused,
         client.websocket_connect("/v1/browser/sess-1/live") as socket,
+    ):
+        socket.receive_bytes()
+
+    assert refused.value.code == 1008
+
+
+async def test_another_tenant_is_refused_the_browser_it_did_not_open(
+    app_and_container: tuple[TestClient, _FakeContainer],
+) -> None:
+    """Session ids are handed out by `/v1/connections/browsers`, so a token and
+    one listing was the whole cost of watching somebody else's warehouse."""
+    client, container = app_and_container
+    mine = await container.browsers().open(
+        RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+    )
+
+    with (
+        pytest.raises(WebSocketDisconnect) as refused,
+        client.websocket_connect(
+            f"/v1/browser/{mine.id}/live", subprotocols=["bearer", token_for(tenant="rival")]
+        ) as socket,
     ):
         socket.receive_bytes()
 

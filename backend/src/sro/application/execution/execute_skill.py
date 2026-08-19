@@ -60,6 +60,32 @@ class NotRunnable(DomainError):
     code = "not_runnable"
 
 
+async def refuse_if_breaker_is_open(
+    uow: UnitOfWork, ctx: RequestContext, system: str, now: datetime
+) -> None:
+    """Whether anything at all may be driven against this system right now.
+
+    About the system's recent behaviour, not about what is being asked of it, so
+    every rung asks it: a replay, and a pursuit working a task out on the screen.
+    The pursuit did not, and the rung with no demonstration behind it was the one
+    allowed to keep going after the others had been stopped.
+    """
+    recent = await uow.runs.finished_since(
+        ctx.tenant_id, target_system=system, since=now - FAILURE_WINDOW - WRITE_WINDOW
+    )
+    # Failures somebody has already looked at stop counting. Without this the
+    # breaker asks for a person and gives them nothing to do: every run is
+    # refused until the window ages out, including the one that would show the
+    # fault is already fixed.
+    connection = await uow.connections.find_by_system(ctx.tenant_id, system)
+    cleared = connection.failures_acknowledged_at if connection else None
+    if cleared is not None:
+        recent = tuple(run for run in recent if run.ended_at is None or run.ended_at > cleared)
+    verdict = assess(tuple(_fact(run) for run in recent), now)
+    if not verdict.permitted:
+        raise Refused(verdict.reason or "recent runs against this system have failed")
+
+
 @dataclass(frozen=True, slots=True)
 class ExecutionRequest:
     skill_id: SkillId
@@ -120,21 +146,7 @@ class StartRun:
         # Checked here because here is where nothing has happened yet. A
         # limit enforced after the first write is a limit that has already
         # been exceeded.
-        system = skill.objective_key.target_system
-        recent = await uow.runs.finished_since(
-            ctx.tenant_id, target_system=system, since=now - FAILURE_WINDOW - WRITE_WINDOW
-        )
-        # Failures somebody has already looked at stop counting. Without
-        # this the breaker asks for a person and gives them nothing to do:
-        # every run is refused until the window ages out, including the one
-        # that would show the fault is already fixed.
-        connection = await uow.connections.find_by_system(ctx.tenant_id, system)
-        cleared = connection.failures_acknowledged_at if connection else None
-        if cleared is not None:
-            recent = tuple(run for run in recent if run.ended_at is None or run.ended_at > cleared)
-        verdict = assess(tuple(_fact(run) for run in recent), now)
-        if not verdict.permitted:
-            raise Refused(verdict.reason or "recent runs against this system have failed")
+        await refuse_if_breaker_is_open(uow, ctx, skill.objective_key.target_system, now)
         return skill, version
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:

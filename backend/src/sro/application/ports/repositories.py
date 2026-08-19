@@ -16,7 +16,13 @@ from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.recording.recording import Recording
-from sro.domain.shared.identifiers import RecordingId, SkillId, TenantId
+from sro.domain.shared.identifiers import (
+    BrowserSessionId,
+    PrincipalId,
+    RecordingId,
+    SkillId,
+    TenantId,
+)
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
 
@@ -183,6 +189,51 @@ class ModelCallRepository(Protocol):
         ...
 
 
+class BrowserSessionRepository(Protocol):
+    """Who a browser belongs to.
+
+    The only durable answer to that question. The API and the Temporal worker
+    each open and close browsers in their own process, so an in-memory map is
+    one process's opinion about a resource both of them touch.
+    """
+
+    async def claim(
+        self,
+        tenant_id: TenantId,
+        session_id: BrowserSessionId,
+        opened_by: PrincipalId,
+        opened_at: datetime,
+    ) -> None:
+        """Record the owner.
+
+        Raises ``Conflict`` when somebody already holds this id, which means the
+        provider handed one browser to two callers. Serving it to the second is
+        the bug this record exists to prevent, so it fails rather than transfers.
+        """
+        ...
+
+    async def held_by(self, tenant_id: TenantId) -> tuple[BrowserSessionId, ...]:
+        """Every session this tenant has claimed, live or not.
+
+        Liveness belongs to the provider; the caller intersects the two.
+        """
+        ...
+
+    async def all_held(self) -> tuple[tuple[BrowserSessionId, datetime], ...]:
+        """Every claim in the deployment, and when it was made.
+
+        Crosses the tenant boundary for the same reason ``list_capturing`` does:
+        the browser sweep has to know which sessions are spoken for, and nobody
+        is making that request. Ids and timestamps, never a tenant.
+        """
+        ...
+
+    async def release(self, session_id: BrowserSessionId) -> None:
+        """Forget the claim. Idempotent, and deliberately not tenant-scoped:
+        crash recovery and the sweep are not anybody's request."""
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -193,6 +244,7 @@ class UnitOfWork(Protocol):
     knowledge: KnowledgeRepository
     model_calls: ModelCallRepository
     threads: ThreadRepository
+    browser_sessions: BrowserSessionRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

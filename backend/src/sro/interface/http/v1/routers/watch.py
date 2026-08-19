@@ -17,9 +17,11 @@ import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
+from sro.application.context import RequestContext
 from sro.application.ports.auth import CredentialRejected, Unconfigured
 from sro.application.ports.browser import BrowserUnavailable
 from sro.container import Container
+from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import BrowserSessionId
 
 logger = logging.getLogger(__name__)
@@ -42,10 +44,17 @@ async def watch_session(websocket: WebSocket, session_id: str) -> None:
     token = protocols[1] if len(protocols) > 1 and protocols[0] == _BEARER else ""
 
     try:
-        container.credentials.verify(f"Bearer {token}")
-    except (CredentialRejected, Unconfigured):
+        caller = container.credentials.verify(f"Bearer {token}")
+        # Signed by this deployment is not the same as yours. Session ids are
+        # handed out by another endpoint, so proving only the credential let
+        # anybody list a browser and then watch it -- somebody else's warehouse,
+        # live, for the price of one request.
+        ctx = RequestContext(tenant_id=caller.tenant_id, principal_id=caller.principal_id)
+        await container.browsers().session(ctx, BrowserSessionId(session_id))
+    except (CredentialRejected, Unconfigured, NotFound):
         # Closed rather than refused with a status: the handshake has not been
-        # accepted, so there is no response body a browser would ever show.
+        # accepted, so there is no response body a browser would ever show. A
+        # browser that is not yours closes exactly like one that is not there.
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 

@@ -8,6 +8,7 @@ from dataclasses import replace
 from fastapi import APIRouter, status
 
 from sro.application.execution.execute_skill import ExecutionRequest
+from sro.application.execution.pursue_goal import Unauthorised
 from sro.application.execution.pursuits import PursuitProgress, PursuitState
 from sro.application.intent.pursue import compose
 from sro.domain.chat.thread import ThreadId
@@ -23,6 +24,7 @@ from sro.interface.http.schemas import (
     ThreadDetail,
     ThreadSummary,
 )
+from sro.interface.http.v1.routers.authorising import authorising
 
 router = APIRouter(prefix="/threads", tags=["threads"])
 
@@ -122,6 +124,15 @@ async def pursue(
         )
     pursuit_id = f"pur_{uuid.uuid4().hex}"
     goal = replace(compose(body.intent, None), start_url=body.start_url)
+    # Answered here as well as refused inside, because 202 with a pursuit that
+    # fails a second later reads as "it tried and could not" rather than "you
+    # have not confirmed this".
+    if goal.changes_the_system and not body.authorized_by:
+        raise Unauthorised(
+            "this would change the warehouse. Confirm it first: a pursuit has no "
+            "demonstration behind it, so your say-so is the only thing between a "
+            "model's reading of a screen and a real write"
+        )
     progress = container.pursuits.start(pursuit_id, goal.intent, tenant_id=ctx.tenant_id.value)
 
     async def drive() -> None:
@@ -131,6 +142,7 @@ async def pursue(
                 goal=goal,
                 target_system=body.target_system,
                 values=body.values,
+                authorized_by=authorising(body.authorized_by, ctx),
                 watching=progress.gestures.append,
                 using=lambda session_id: setattr(progress, "session_id", session_id),
             )

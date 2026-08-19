@@ -32,14 +32,23 @@ export function PursuitCard({
 }) {
   const client = useQueryClient();
   const [pursuitId, setPursuitId] = useState<string | null>(null);
+  // Set when the backend says this goal would change the warehouse. Nothing has
+  // been driven at that point: the refusal happens before a browser opens.
+  const [confirm, setConfirm] = useState("");
 
   const start = useMutation({
-    mutationFn: () => pursue(threadId, intent, system),
+    mutationFn: (confirmed: boolean) =>
+      pursue(threadId, intent, system, {}, confirmed ? "yes" : ""),
     onSuccess: (started) => setPursuitId(started.id),
-    onError: (error) =>
+    onError: (error) => {
+      if (error instanceof ApiError && error.problem.type.endsWith("/unauthorised")) {
+        setConfirm(error.problem.detail);
+        return;
+      }
       toast.error("It could not start", {
         description: error instanceof ApiError ? error.problem.detail : String(error),
-      }),
+      });
+    },
   });
 
   const progress = useQuery({
@@ -60,10 +69,35 @@ export function PursuitCard({
     }
   }, [live, client]);
 
+  if (!pursuitId && confirm) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <p style={{ margin: 0, fontSize: 12.5, color: ink.textSoft }}>{confirm}</p>
+        <button
+          onClick={() => start.mutate(true)}
+          disabled={start.isPending}
+          style={{
+            alignSelf: "flex-start",
+            padding: "8px 14px",
+            borderRadius: 8,
+            border: "none",
+            background: ink.accent,
+            color: "#fff",
+            fontSize: 12.5,
+            fontWeight: 700,
+            cursor: start.isPending ? "wait" : "pointer",
+          }}
+        >
+          {start.isPending ? "Opening a browser…" : "Yes — go ahead"}
+        </button>
+      </div>
+    );
+  }
+
   if (!pursuitId) {
     return (
       <button
-        onClick={() => start.mutate()}
+        onClick={() => start.mutate(false)}
         disabled={start.isPending}
         style={{
           alignSelf: "flex-start",

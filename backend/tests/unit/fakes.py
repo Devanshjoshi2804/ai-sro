@@ -18,6 +18,7 @@ from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.application.ports.http import HttpResponse, TargetUnreachable
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.repositories import (
+    BrowserSessionRepository,
     ConnectionRepository,
     KnowledgeRepository,
     ModelCallRepository,
@@ -45,9 +46,10 @@ from sro.domain.knowledge.entry import (
 )
 from sro.domain.recording.events import ActionKind
 from sro.domain.recording.recording import Recording, RecordingStatus
-from sro.domain.shared.errors import NotFound
+from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import (
     BrowserSessionId,
+    PrincipalId,
     RecordingId,
     SkillId,
     TenantId,
@@ -707,6 +709,38 @@ class FakeModelCallRepository:
         )
 
 
+class FakeBrowserSessionRepository:
+    """Ownership, in a dict. The conflict on a second claim is the behaviour
+    under test, not an implementation detail of Postgres."""
+
+    def __init__(self) -> None:
+        self.rows: dict[str, tuple[str, datetime]] = {}
+
+    async def claim(
+        self,
+        tenant_id: TenantId,
+        session_id: BrowserSessionId,
+        opened_by: PrincipalId,
+        opened_at: datetime,
+    ) -> None:
+        if str(session_id) in self.rows:
+            raise Conflict(f"browser session {session_id} is already held")
+        self.rows[str(session_id)] = (str(tenant_id), opened_at)
+
+    async def held_by(self, tenant_id: TenantId) -> tuple[BrowserSessionId, ...]:
+        return tuple(
+            BrowserSessionId(held)
+            for held, (owner, _) in self.rows.items()
+            if owner == str(tenant_id)
+        )
+
+    async def all_held(self) -> tuple[tuple[BrowserSessionId, datetime], ...]:
+        return tuple((BrowserSessionId(held), when) for held, (_, when) in self.rows.items())
+
+    async def release(self, session_id: BrowserSessionId) -> None:
+        self.rows.pop(str(session_id), None)
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -720,6 +754,7 @@ class FakeUnitOfWork:
     knowledge: KnowledgeRepository
     model_calls: ModelCallRepository
     threads: ThreadRepository
+    browser_sessions: BrowserSessionRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
@@ -729,6 +764,7 @@ class FakeUnitOfWork:
         self.knowledge = FakeKnowledgeRepository()
         self.model_calls = FakeModelCallRepository()
         self.threads = FakeThreadRepository()
+        self.browser_sessions = FakeBrowserSessionRepository()
         self.commits = 0
         self.rollbacks = 0
 

@@ -8,7 +8,6 @@ file, which is the whole point of the dependency rule.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import text
@@ -17,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_threads import ReadThreads
+from sro.application.connection.browsers import Browsers
 from sro.application.connection.check_session import CheckSession
 from sro.application.connection.connect_system import (
     AcknowledgeFailures,
@@ -139,9 +139,6 @@ class Container:
 
     pursuits: Pursuits = field(default_factory=Pursuits)
 
-    _sessions_first_seen: dict[str, datetime] = field(default_factory=dict)
-    """When the stray sweep first saw a browser nothing claims. Held here
-    because a use case is built per call and this has to outlive one sweep."""
     """Pursuits this process is driving. In memory on purpose: the browser one
     was driving does not survive a restart either, and a half-finished pursuit
     resumed against a screen nobody can see is worse than one that stopped."""
@@ -162,8 +159,23 @@ class Container:
             return False
         return True
 
+    def browsers(self) -> Browsers:
+        """The only way to open, find or release a browser.
+
+        Everything that used to take ``self.browser`` takes this instead, so
+        an unowned session cannot be produced by anything this system runs.
+        """
+        return Browsers(self.browser, self.unit_of_work(), self.clock, self.ids)
+
     def start_recording(self) -> StartRecording:
-        return StartRecording(self.unit_of_work(), self.browser, self.clock, self.ids)
+        return StartRecording(
+            self.unit_of_work(),
+            self.browser,
+            self.clock,
+            self.ids,
+            self.browsers(),
+            self.settings.attach_hosts,
+        )
 
     def ingest_capture_events(self) -> IngestCaptureEvents:
         return IngestCaptureEvents(self.unit_of_work())
@@ -178,7 +190,9 @@ class Container:
         return ConnectSystem(self.unit_of_work(), self.browser, self.clock, self.ids)
 
     def store_session(self) -> StoreSession:
-        return StoreSession(self.unit_of_work(), self.vault, self.clock, self.browser)
+        return StoreSession(
+            self.unit_of_work(), self.vault, self.clock, self.browser, self.browsers()
+        )
 
     def store_credentials(self) -> StoreCredentials:
         return StoreCredentials(self.unit_of_work(), self.vault)
@@ -216,7 +230,6 @@ class Container:
             self.watch_browsers(),
             self.pursuits,
             self.clock,
-            self._sessions_first_seen,
         )
 
     def keep_sessions_open(self) -> KeepSessionsOpen:
@@ -234,6 +247,7 @@ class Container:
             self.http,
             self.browser,
             self.refresh_session(),
+            self.browsers(),
         )
 
     def refresh_session(self) -> RefreshSession:
@@ -317,6 +331,7 @@ class Container:
             self.start_recording(),
             self.finish_recording(),
             self.understand_recording(),
+            self.browsers(),
             egress_enabled=self.settings.vision_enabled,
             model=self.settings.gemini_vision_model,
         )
@@ -330,6 +345,7 @@ class Container:
             self.ensure_signed_in(),
             self.record_claims(),
             self.refresh_session(),
+            self.browsers(),
         )
 
     def execute_step(self) -> ExecuteStep:

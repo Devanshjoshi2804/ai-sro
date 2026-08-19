@@ -5,6 +5,10 @@ nobody can see. That is the right default for something running at 3am and the
 wrong one for a person waiting: "it did not finish" is a sentence, and a window
 they can watch is evidence. Every provider we use has a live view already --
 this only says which sessions are open and where to look at them.
+
+Deployment-wide and deliberately tenant-blind, which is why nothing a caller
+reaches serves it any more: the stray sweep has to see browsers nobody claimed,
+and that is the whole set. Ask ``Browsers.mine(ctx)`` for a person's browsers.
 """
 
 from __future__ import annotations
@@ -26,8 +30,8 @@ class WatchBrowsers:
     def __init__(self, browser: BrowserProvider) -> None:
         self._browser = browser
 
-    async def execute(self) -> tuple[OpenBrowser, ...]:
-        """Every browser open right now. Empty when the provider is down --
+    async def all_in_deployment(self) -> tuple[OpenBrowser, ...]:
+        """Every browser open right now, whoever it belongs to. Empty when the provider is down --
         which is a fact about the provider, not something to raise over."""
         try:
             sessions = await self._browser.live_sessions()

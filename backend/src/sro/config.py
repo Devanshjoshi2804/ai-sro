@@ -46,6 +46,17 @@ class Settings(BaseSettings):
 
     steel_session_timeout_seconds: int = 3600
 
+    attach_hosts: tuple[str, ...] = ("127.0.0.1", "localhost", "[::1]")
+    """Hosts a recording may attach to a browser on.
+
+    Attaching hands this system a debugger URL taken from the request body and
+    connects to it. Unbounded, that is a request forgery primitive with a
+    scripting engine on the end: any address the backend can reach, including
+    cloud metadata endpoints. The operator's own Chrome is on this machine, so
+    loopback is the whole legitimate set; widen it only for a remote debugger
+    somebody actually runs.
+    """
+
     temporal_address: str = "localhost:7233"
     temporal_namespace: str = "default"
 

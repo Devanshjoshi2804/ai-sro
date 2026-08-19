@@ -3,17 +3,30 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
-from sro.application.capture.identity import system_of
-from sro.application.connection.borrow import a_browser
+from sro.application.capture.identity import host_of, system_of
+from sro.application.connection.browsers import Browsers
 from sro.application.context import RequestContext
-from sro.application.ports.browser import BrowserProvider, BrowserSession
+from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import BrowserSessionId, RecordingId
 from sro.domain.shared.objective import ObjectiveKey
+
+
+class BrowserNotAttachable(DomainError):
+    """The debugger URL points somewhere this deployment will not connect.
+
+    ``attach_to`` arrives in the request body and is dialled by the backend, so
+    without a bound it reaches anything the backend can: another tenant's
+    container, an internal service, a cloud metadata endpoint. The browser being
+    attached to is the operator's own, which is on this machine.
+    """
+
+    code = "browser_not_attachable"
 
 
 class NoSessionForSystem(DomainError):
@@ -42,25 +55,6 @@ class StartedRecording:
     demonstration that names nothing still starts already signed in."""
 
 
-def _external_browser(debugger_url: str) -> BrowserSession:
-    """A browser the operator already has open, attached over CDP.
-
-    Teaching in the operator's own browser rather than a hosted one is not a
-    fallback: they see the real thing at full size, with their extensions,
-    printers and certificates, and there is no video stream between them and the
-    work. What we give up is being able to reopen the session later without
-    them, which is what a hosted session is for.
-
-    The provider does not own this browser, so the session id says so — closing
-    it is not ours to do.
-    """
-    return BrowserSession(
-        id=BrowserSessionId("attached"),
-        live_view_url="",
-        debugger_url=debugger_url,
-    )
-
-
 class StartRecording:
     def __init__(
         self,
@@ -68,11 +62,15 @@ class StartRecording:
         browser: BrowserProvider,
         clock: Clock,
         ids: IdFactory,
+        browsers: Browsers,
+        attach_hosts: tuple[str, ...] = (),
     ) -> None:
         self._uow = uow
         self._browser = browser
+        self._browsers = browsers
         self._clock = clock
         self._ids = ids
+        self._attach_hosts = attach_hosts
 
     async def execute(
         self,
@@ -83,6 +81,9 @@ class StartRecording:
         label: str | None = None,
         attach_to: str | None = None,
     ) -> StartedRecording:
+        if attach_to:
+            self._refuse_unless_allowed(attach_to)
+
         async with self._uow as uow:
             connections = await uow.connections.list_for_tenant(ctx.tenant_id)
         system = (
@@ -99,9 +100,9 @@ class StartRecording:
         # provider's login page and teaches signing in instead of the task.
         # Capture navigates after restoring them.
         session = (
-            _external_browser(attach_to)
+            await self._browsers.attach(ctx, attach_to)
             if attach_to
-            else await a_browser(self._browser, self._uow)
+            else await self._browsers.open(ctx)
         )
 
         recording = Recording(
@@ -125,3 +126,17 @@ class StartRecording:
             browser_session_id=session.id,
             target_system=system,
         )
+
+    def _refuse_unless_allowed(self, attach_to: str) -> None:
+        """Scheme and host, checked before anything dials it.
+
+        The scheme matters as much as the host: ``file:`` and ``gopher:`` are
+        not debugger endpoints, and neither is anything else a URL library will
+        happily open on our behalf.
+        """
+        if urlsplit(attach_to).scheme not in ("http", "https", "ws", "wss"):
+            raise BrowserNotAttachable(f"{attach_to} is not a debugger endpoint")
+        if host_of(attach_to) not in self._attach_hosts:
+            raise BrowserNotAttachable(
+                f"this deployment does not attach to browsers on {host_of(attach_to) or attach_to}"
+            )

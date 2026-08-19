@@ -91,9 +91,7 @@ class Pursuits:
         navigate it out from under each other. Two pursuits produced two runs of
         twelve gestures that each reported the screen would not respond.
         """
-        return next(
-            (progress for progress in self._live.values() if not progress.finished), None
-        )
+        return next((progress for progress in self._live.values() if not progress.finished), None)
 
     def get(self, pursuit_id: str) -> PursuitProgress | None:
         return self._live.get(pursuit_id)

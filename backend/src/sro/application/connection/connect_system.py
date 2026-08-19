@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import parse_qsl, urlsplit
 
+from sro.application.connection.browsers import Browsers
+from sro.application.connection.cookies import belongs_to
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.repositories import UnitOfWork
@@ -157,13 +159,7 @@ def _cookie_header(cookies: list[dict[str, object]], origin: str) -> str:
     domain and sending them to the application proves nothing, while the
     application's own session cookie is the thing being kept.
     """
-    host = urlsplit(origin).hostname or ""
-    wanted = [
-        cookie
-        for cookie in cookies
-        if host.endswith(str(cookie.get("domain", "")).lstrip("."))
-        or str(cookie.get("domain", "")).lstrip(".") in host
-    ]
+    wanted = [cookie for cookie in cookies if belongs_to(cookie, origin)]
     return "; ".join(f"{cookie['name']}={cookie['value']}" for cookie in wanted)
 
 
@@ -176,11 +172,13 @@ class StoreSession:
         vault: CredentialVault,
         clock: Clock,
         browser: BrowserProvider,
+        browsers: Browsers,
     ) -> None:
         self._uow = uow
         self._vault = vault
         self._clock = clock
         self._browser = browser
+        self._browsers = browsers
 
     async def execute(
         self,
@@ -189,6 +187,12 @@ class StoreSession:
         connection_id: ConnectionId,
         browser_session_id: BrowserSessionId,
     ) -> Connection:
+        # Whose browser this is, before a single cookie is read out of it. The
+        # id arrives as a query parameter, so without this any operator could
+        # name another tenant's browser and have its live session encrypted into
+        # their own vault -- and every run afterwards would authenticate as that
+        # tenant's operator while the audit trail named this one.
+        await self._browsers.session(ctx, browser_session_id)
         cookies = list(await self._browser.session_cookies(browser_session_id))
         async with self._uow as uow:
             connection = await uow.connections.get(ctx.tenant_id, connection_id)

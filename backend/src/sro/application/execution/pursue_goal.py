@@ -13,8 +13,12 @@ because nothing about this was demonstrated:
 - **One system.** The browser starts on the connection's own host and any
   gesture proposed against another is refused. A model that wandered off the
   WMS would be acting with the operator's session somewhere nobody agreed to.
-- **The operator said go.** A pursuit that changes anything carries their
-  confirmation, exactly as an assisted run does.
+- **The operator said go.** A pursuit whose goal changes anything is refused
+  unless somebody confirmed it, exactly as an assisted run is, and the name on
+  the record comes from the credential rather than from the request.
+- **The breaker applies.** A system whose recent runs have been failing is not
+  driven by this rung either. It used to be the one rung that kept going after
+  every other had been stopped, on a screen nobody had proved anything about.
 - **The model never decides it worked.** ``done`` is a claim, recorded as one.
   What the run reports is what the screen showed afterwards.
 
@@ -32,8 +36,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from sro.application.connection.browsers import Browsers
+from sro.application.connection.cookies import belongs_to
 from sro.application.context import RequestContext
 from sro.application.execution.egress import EgressRefused, prepare
+from sro.application.execution.execute_skill import refuse_if_breaker_is_open
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.intent.pursue import Goal
@@ -79,6 +86,16 @@ _ALLOWED = (
 a model that could navigate could take the operator's session anywhere."""
 
 
+class Unauthorised(DomainError):
+    """A pursuit that would change the warehouse, with nobody on the record.
+
+    The other rungs replay something a person demonstrated and a person
+    confirmed. This one has neither, so the confirmation is all there is.
+    """
+
+    code = "unauthorised"
+
+
 @dataclass(frozen=True, slots=True)
 class Pursued:
     goal: str
@@ -100,6 +117,11 @@ class Pursued:
     """The skill induced from it, when it reached the goal and the recording
     carried enough to build one."""
 
+    authorized_by: str = ""
+    """Who confirmed it, where the goal changes anything. Empty on a pursuit
+    that only reads. Taken from the credential, never from the request body:
+    whether somebody confirmed is the operator's to say, who they are is not."""
+
 
 class PursueGoal:
     def __init__(
@@ -114,6 +136,7 @@ class PursueGoal:
         start_recording: StartRecording,
         finish_recording: FinishRecording,
         understand: UnderstandRecording,
+        browsers: Browsers,
         *,
         egress_enabled: bool,
         model: str = "",
@@ -128,6 +151,7 @@ class PursueGoal:
         self._start_recording = start_recording
         self._finish_recording = finish_recording
         self._understand = understand
+        self._browsers = browsers
         self._egress_enabled = egress_enabled
         self._model = model
 
@@ -138,6 +162,7 @@ class PursueGoal:
         goal: Goal,
         target_system: str,
         values: dict[str, str],
+        authorized_by: str | None = None,
         watching: Callable[[str], None] | None = None,
         using: Callable[[str], None] | None = None,
     ) -> Pursued:
@@ -150,14 +175,25 @@ class PursueGoal:
         say so -- and so the reaper that releases forgotten sessions can tell
         this one is not forgotten.
         """
+        if goal.changes_the_system and not authorized_by:
+            raise Unauthorised(
+                "this would change the warehouse and nobody confirmed it. A pursuit has no "
+                "demonstration behind it, so the confirmation is the only thing standing "
+                "between a model's reading of a screen and a real write"
+            )
+
         if self._vision is None or self._ui is None:
             raise VisionUnavailable(
                 "this deployment has no rung that can look at a screen, so a task nobody "
                 "has demonstrated cannot be attempted"
             )
 
+        now = self._clock.now()
         async with self._uow as uow:
             connection = await uow.connections.find_by_system(ctx.tenant_id, target_system)
+            # Before the browser opens, so a system that is failing is not
+            # driven twelve more times to find that out.
+            await refuse_if_breaker_is_open(uow, ctx, target_system, now)
         if connection is None:
             raise BrowserUnavailable(f"{target_system} is not connected")
 
@@ -179,7 +215,7 @@ class PursueGoal:
         # provider here -- the WMS does not accept a transplanted session -- so
         # a pursuit that opens its own browser spends its whole budget clicking
         # a login page, which is exactly what it did.
-        session, borrowed = await self._browser_for(connection)
+        session, borrowed = await self._browser_for(ctx, connection)
         # Claimed, so the reaper leaves it alone: a browser being driven and a
         # browser somebody forgot about look identical from outside.
         if using is not None:
@@ -318,6 +354,7 @@ class PursueGoal:
             detail=detail,
             recording_id=recording_id,
             skill_id=skill_id,
+            authorized_by=authorized_by or "",
         )
 
     async def _keep(self, ctx: RequestContext, recording_id: RecordingId, *, reached: bool) -> str:
@@ -345,27 +382,27 @@ class PursueGoal:
             return ""
         return understood.skill_id.value
 
-    async def _browser_for(self, connection: Connection) -> tuple[BrowserSession, bool]:
-        """A signed-in browser if one is open, otherwise a new one.
+    async def _browser_for(
+        self, ctx: RequestContext, connection: Connection
+    ) -> tuple[BrowserSession, bool]:
+        """A signed-in browser if this tenant has one, otherwise a new one.
 
         Returns whether it was borrowed, because a borrowed browser is not ours
         to close and its session is not ours to overwrite.
+
+        The set searched used to be every browser in the deployment, matched on
+        a cookie host. So a pursuit could pick up another tenant's signed-in
+        browser, drive it, and capture everything it did into a recording filed
+        under the wrong customer.
         """
         try:
-            for session_id in await self._browser.live_sessions():
-                cookies = await self._browser.session_cookies(session_id)
+            for session in await self._browsers.mine(ctx):
+                cookies = await self._browser.session_cookies(session.id)
                 if _holds_a_session(cookies, connection.base_url):
-                    return (
-                        BrowserSession(
-                            id=session_id,
-                            live_view_url=await self._browser.live_view_url(session_id) or "",
-                            debugger_url=await self._browser.debugger_url(session_id),
-                        ),
-                        True,
-                    )
+                    return session, True
         except BrowserUnavailable:
             logger.info("could not look for a signed-in browser; opening one")
-        return await self._browser.open(), False
+        return await self._browsers.open(ctx), False
 
     def _brief(self, goal: Goal, values: dict[str, str]) -> str:
         """The goal, plus the values the operator gave for it.
@@ -457,9 +494,4 @@ def _holds_a_session(cookies: tuple[dict[str, object], ...], base_url: str) -> b
     presence proves nothing. The application's do not exist until a login
     finished.
     """
-    host = urlsplit(base_url).hostname or ""
-    return any(
-        host.endswith(str(cookie.get("domain", "")).lstrip("."))
-        or str(cookie.get("domain", "")).lstrip(".") in host
-        for cookie in cookies
-    )
+    return any(belongs_to(cookie, base_url) for cookie in cookies)

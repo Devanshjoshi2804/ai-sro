@@ -126,6 +126,11 @@ class PursueRequest(BaseModel):
 
     start_url: str | None = None
 
+    authorized_by: str | None = None
+    """Set when the operator confirmed a pursuit that would change something.
+    Their say-so, not their name: the name comes from the credential, so a
+    request cannot put somebody else on the record for a warehouse write."""
+
 
 class PursuitProgressModel(BaseModel):
     id: str

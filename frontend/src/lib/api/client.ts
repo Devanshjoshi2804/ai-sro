@@ -1,4 +1,4 @@
-import { credential } from "@/lib/api/credential";
+import { credential, forget } from "@/lib/api/credential";
 import { env } from "@/lib/env";
 import type { components } from "@/lib/api/generated";
 
@@ -57,6 +57,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      // The token this browser holds is not accepted any more -- expired, or
+      // minted by a deployment this is not. Holding on to it leaves the
+      // operator clicking a console where nothing works and nothing says why;
+      // dropping it puts them back at the paste screen.
+      forget();
+    }
     const body = (await response.json().catch(() => null)) as Partial<Problem> | null;
     throw new ApiError({
       type: typeof body?.type === "string" ? body.type : "about:blank",

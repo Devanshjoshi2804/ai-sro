@@ -14,7 +14,7 @@ import {
   type StartRecordingRequest,
 } from "@/features/recording/api";
 import { induceSkill, listSkills, skillKeys } from "@/features/skill/api";
-import { api, ApiError } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
 import { BatchCard } from "@/features/console/batch-card";
 import { SkillCard } from "@/features/console/skill-card";
@@ -24,11 +24,10 @@ import { useThread } from "@/features/console/thread-store";
 import { TopBar, BarLink } from "@/features/console/top-bar";
 import {
   ConnectPanel,
+  SessionState,
   checkSessions,
   connectionKeys,
   listConnections,
-  signInAgain,
-  type SessionCheck,
 } from "@/features/console/connect-panel";
 import {
   getThread,
@@ -1450,185 +1449,6 @@ function ChatTurn({
           </span>
         )}
       </div>
-    </div>
-  );
-}
-
-/**
- * What the stored session is actually worth, right now.
- *
- * The row used to read "session held" whenever the database said connected,
- * which stayed true for weeks after the system had forgotten the session. An
- * operator only found out by being shown a login page inside a demonstration.
- * Now a dead session says so here, with the one action that fixes it.
- */
-function SessionState({
-  check,
-  status,
-  connection,
-  onReconnect,
-}: {
-  check?: SessionCheck;
-  status: string;
-  connection: { id: string; target_system: string };
-  onReconnect: () => void;
-}) {
-  const queryClient = useQueryClient();
-  // Tried first, because a connection that holds credentials should never make
-  // anybody type them a second time. Only when there are none does the operator
-  // get the login page.
-  const retry = useMutation({
-    mutationFn: () => signInAgain(connection.id, connection.target_system),
-    onSuccess: () => {
-      toast.success("Signed back in", { description: "Nobody had to be asked." });
-      void queryClient.invalidateQueries({ queryKey: connectionKeys.health });
-    },
-    // No stored credentials is the common case, not an error worth a toast:
-    // it means this system is signed into by hand, so open the window and
-    // watch it. What went wrong before was opening one nothing was watching.
-    onError: onReconnect,
-  });
-  const state = check?.health ?? (status === "connected" ? "checking" : "never_connected");
-  const { dot, label } = {
-    signed_in: { dot: ink.goodDot, label: "signed in" },
-    signed_out: { dot: "#C0392B", label: "signed out" },
-    never_connected: { dot: ink.textMuted, label: "not connected" },
-    // An outage is not a bad session, and asking for a password would not fix
-    // one. Say what is true: we could not ask.
-    unreachable: { dot: "#B7791F", label: "system not answering" },
-    checking: { dot: ink.textMuted, label: "checking…" },
-  }[state] ?? { dot: ink.textMuted, label: state };
-
-  return (
-    <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ width: 5, height: 5, borderRadius: "50%", background: dot }} />
-        <span style={{ fontSize: 11, color: ink.textSoft }}>{label}</span>
-      </span>
-      {(state === "signed_out" || state === "never_connected") && (
-        <button
-          onClick={() => retry.mutate()}
-          disabled={retry.isPending}
-          style={{
-            alignSelf: "flex-start",
-            padding: 0,
-            border: "none",
-            background: "transparent",
-            fontSize: 11,
-            fontWeight: 700,
-            color: ink.accent,
-            cursor: "pointer",
-          }}
-        >
-          {retry.isPending ? "Signing in…" : "Sign in again"}
-        </button>
-      )}
-      {(state === "signed_out" || state === "never_connected") && (
-        <KeepSignedIn connectionId={connection.id} />
-      )}
-    </span>
-  );
-}
-
-/**
- * Sign this system in by itself, from now on.
- *
- * The identity provider will not issue this deployment a credential of its
- * own: the WMS client is public and permitted one flow, and the realm accepts
- * only the redirect the application itself registered. So the way to stop an
- * expired session interrupting work is the way a person would do it — open the
- * system's own login page and sign in — done by the system, on its own, at the
- * moment it finds itself signed out.
- *
- * The password is typed into that page and nowhere else. It is encrypted in
- * the vault, returned by no request, written into no recording, and used
- * against no host but this connection's own.
- */
-function KeepSignedIn({ connectionId }: { connectionId: string }) {
-  const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ username: "", password: "" });
-
-  const keep = useMutation({
-    mutationFn: async () => {
-      await api.put(`/v1/connections/${connectionId}/credentials`, {
-        username: form.username.trim(),
-        password: form.password,
-      });
-      return api.post(`/v1/connections/${connectionId}/sign-in?target_system=blue_yonder`);
-    },
-    onSuccess: () => {
-      toast.success("It will sign itself in from now on");
-      setOpen(false);
-      setForm({ username: "", password: "" });
-      void queryClient.invalidateQueries({ queryKey: connectionKeys.health });
-    },
-    onError: (error) =>
-      toast.error("Could not sign in", {
-        description: error instanceof ApiError ? error.problem.detail : String(error),
-      }),
-  });
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        style={{
-          alignSelf: "flex-start",
-          padding: 0,
-          border: "none",
-          background: "transparent",
-          fontSize: 11,
-          color: ink.textMuted,
-          cursor: "pointer",
-          textDecoration: "underline",
-        }}
-      >
-        Stop asking me
-      </button>
-    );
-  }
-
-  const ready = form.username.trim() && form.password;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5, paddingTop: 4 }}>
-      {(["username", "password"] as const).map((field) => (
-        <input
-          key={field}
-          type={field === "password" ? "password" : "text"}
-          value={form[field]}
-          placeholder={field}
-          autoComplete={field === "password" ? "new-password" : "username"}
-          onChange={(event) => setForm({ ...form, [field]: event.target.value })}
-          style={{
-            border: `1px solid ${ink.line}`,
-            borderRadius: 6,
-            padding: "5px 7px",
-            fontSize: 11.5,
-            fontFamily: mono,
-            outline: "none",
-          }}
-        />
-      ))}
-      <button
-        onClick={() => keep.mutate()}
-        disabled={!ready || keep.isPending}
-        style={{
-          border: "none",
-          borderRadius: 6,
-          padding: "5px 8px",
-          background: ready ? ink.accent : "#E7E7E4",
-          color: ready ? "#fff" : ink.textMuted,
-          fontSize: 11,
-          fontWeight: 700,
-          cursor: ready ? "pointer" : "not-allowed",
-        }}
-      >
-        {keep.isPending ? "Signing in…" : "Keep me signed in"}
-      </button>
-      <span style={{ fontSize: 10, color: ink.textMuted, lineHeight: 1.5 }}>
-        Encrypted in the vault, typed into this system&rsquo;s own login page and nowhere else.
-      </span>
     </div>
   );
 }

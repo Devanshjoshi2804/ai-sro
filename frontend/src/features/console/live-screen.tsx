@@ -19,7 +19,23 @@ import { ink, mono } from "@/features/console/theme";
  */
 export function LiveScreen({ sessionId, height = 420 }: { sessionId: string; height?: number }) {
   const image = useRef<HTMLImageElement>(null);
-  const [state, setState] = useState<"connecting" | "live" | "ended">("connecting");
+  const [state, setState] = useState<"connecting" | "live" | "ended" | "unreachable">(
+    "connecting",
+  );
+
+  // Back to "connecting" the moment the session changes, and the last frame
+  // cleared with it. Neither happened before, so browser B opened showing the
+  // last thing browser A painted -- presented as live, with a caption saying so.
+  // Adjusting during render rather than in an effect is React's own answer to
+  // this: an effect would paint the stale frame first.
+  // The frame itself is hidden whenever this is not "live", so clearing the
+  // element is unnecessary -- what mattered was that the caption and the
+  // visibility went back to connecting.
+  const [watching, setWatching] = useState(sessionId);
+  if (watching !== sessionId) {
+    setWatching(sessionId);
+    setState("connecting");
+  }
 
   useEffect(() => {
     const token = credential();
@@ -43,10 +59,20 @@ export function LiveScreen({ sessionId, height = 420 }: { sessionId: string; hei
       showing = next;
       setState("live");
     };
-    socket.onclose = () => setState("ended");
-    socket.onerror = () => setState("ended");
+    // Closed by the far end, which is the session really being over.
+    socket.onclose = () => setState((was) => (was === "live" ? "ended" : "unreachable"));
+    // Not the same thing: a socket that never opened is this deployment being
+    // unreachable, and reporting it as "the session has ended" sent operators
+    // to reconnect a system that was never disconnected.
+    socket.onerror = () => setState((was) => (was === "live" ? "ended" : "unreachable"));
 
     return () => {
+      // Every handler dropped first: a frame arriving during teardown creates
+      // one more object URL after the last revoke, and a session watched for an
+      // hour leaked one per frame.
+      socket.onmessage = null;
+      socket.onclose = null;
+      socket.onerror = null;
       socket.close();
       if (showing) URL.revokeObjectURL(showing);
     };
@@ -78,7 +104,9 @@ export function LiveScreen({ sessionId, height = 420 }: { sessionId: string; hei
         <span style={{ fontSize: 11.5, color: ink.textMuted, fontFamily: mono }}>
           {state === "connecting"
             ? "attaching to the session…"
-            : "the browser session has ended — nothing left to watch"}
+            : state === "ended"
+              ? "the browser session has ended — nothing left to watch"
+              : "cannot reach the live view from here"}
         </span>
       )}
     </div>

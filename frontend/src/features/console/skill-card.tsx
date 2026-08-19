@@ -435,6 +435,11 @@ function RunButton({
   // not over, and rendering its stored row as a result read "It did not
   // finish" — which was a card describing a run that was still going.
   const [still, setStill] = useState(false);
+  // Sent, whether or not a run id came back with it. A thread reply that
+  // asks a question rather than starting a run has no id, and the button
+  // stayed live -- so the operator pressed it again and the warehouse was
+  // written to twice for one instruction.
+  const [sent, setSent] = useState(false);
   const streamed = useRunStream(watching ?? answeredBy, Boolean(watching) || still);
   // Already answered when the question was asked. Fetched rather than passed:
   // the reply is stored, and reopening the thread tomorrow should show what
@@ -461,6 +466,7 @@ function RunButton({
         const last = thread.messages.at(-1)?.decision as { run_id?: string } | undefined;
         // Started, not finished: the card watches it happen from here.
         setWatching(last?.run_id ?? null);
+        setSent(true);
         return null;
       }
       return startRun(
@@ -484,10 +490,14 @@ function RunButton({
           `${started.steps.filter((step) => step.disposition === "performed").length} calls, over ${started.medium}`,
       });
     },
-    onError: (error) =>
+    onError: (error) => {
+      // Nothing was started, so the button comes back: the guard exists to
+      // stop a second write, not to strand somebody after a refusal.
+      setSent(false);
       toast.error("The run did not start", {
         description: error instanceof ApiError ? error.problem.detail : String(error),
-      }),
+      });
+    },
   });
 
   const settled = already.data?.status === "running" ? null : already.data;
@@ -591,7 +601,7 @@ function RunButton({
 
       <button
         onClick={() => run.mutate()}
-        disabled={blocked || run.isPending}
+        disabled={blocked || run.isPending || sent}
         title={
           stillMissing.length > 0
             ? `Still needs ${stillMissing.join(", ")}`
@@ -610,7 +620,7 @@ function RunButton({
           cursor: blocked ? "not-allowed" : "pointer",
         }}
       >
-        {run.isPending ? "Running…" : "Run it"}
+        {run.isPending ? "Running…" : sent ? "Sent" : "Run it"}
       </button>
     </div>
   );
@@ -696,7 +706,7 @@ function AsItHappens({ steps }: { steps: RunModel["steps"] }) {
                 whiteSpace: "nowrap",
               }}
             >
-              {step.url ? new URL(step.url).pathname : step.intent}
+              {pathOf(step.url) ?? step.intent}
             </span>
             {step.status_code !== null && <span>{step.status_code}</span>}
             {step.found_total !== null && step.found_total !== undefined && (
@@ -815,6 +825,17 @@ function Result({
           {`${withheld.method ?? ""} ${withheld.url ?? ""}`.trim()}
         </div>
       </div>
+    );
+  }
+
+  if (read && !read.found_rows) {
+    // Nought is the answer, not the absence of one. "Done." for a read that
+    // returned no rows left the operator unable to tell "there are none" from
+    // "it did not look", which are different facts about their warehouse.
+    return (
+      <span style={{ fontSize: 12.5, color: ink.textSoft }}>
+        None — the system has nothing matching that.
+      </span>
     );
   }
 
@@ -1012,4 +1033,18 @@ function NextActions({
       ))}
     </div>
   );
+}
+
+/** The path of a step's URL, or nothing when it does not parse.
+ *
+ * `new URL(...)` throws, and this ran inside render: one malformed URL in one
+ * step took the whole console to a white screen and lost the transcript with
+ * it, which lives only in the browser. */
+function pathOf(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
 }

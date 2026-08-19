@@ -55,9 +55,19 @@ export function PursuitCard({
     queryKey: ["pursuit", threadId, pursuitId],
     queryFn: () => pursuitProgress(threadId, pursuitId as string),
     enabled: pursuitId !== null,
+    retry: 2,
     // While it is working: often enough that gestures appear as they happen.
+    //
+    // A poll that keeps failing is not a pursuit that keeps working. With no
+    // data at all this read "working" forever, so a browser that had stopped --
+    // or an API that had gone away -- was reported as still being driven, with
+    // a spinner, indefinitely.
     refetchInterval: (query) =>
-      (query.state.data?.state ?? "working") === "working" ? 1200 : false,
+      query.state.status === "error"
+        ? false
+        : (query.state.data?.state ?? "working") === "working"
+          ? 1200
+          : false,
   });
 
   const live = progress.data;
@@ -116,13 +126,15 @@ export function PursuitCard({
     );
   }
 
-  return <Progress live={live} />;
+  return <Progress live={live} lost={progress.isError} />;
 }
 
-function Progress({ live }: { live: Pursuit | undefined }) {
+function Progress({ live, lost = false }: { live: Pursuit | undefined; lost?: boolean }) {
   const pursuit = live;
   const gestures = pursuit?.gestures ?? [];
-  const working = (pursuit?.state ?? "working") === "working";
+  // `lost` is the polling having given up. Without it a card whose every poll
+  // failed said "working" forever about a browser nothing was driving.
+  const working = !lost && (pursuit?.state ?? "working") === "working";
   // The pursuit already says which browser it took; nothing has to be matched
   // up against the provider's list, and the screen is this session's own rather
   // than whichever one the provider's single viewer happens to be showing.
@@ -151,9 +163,11 @@ function Progress({ live }: { live: Pursuit | undefined }) {
         <span style={{ fontSize: 12.5, fontWeight: 700 }}>
           {working
             ? "Working it out on the screen"
-            : pursuit?.state === "reached"
-              ? "Done on the screen"
-              : "Stopped"}
+            : lost
+              ? "Lost track of it — check the runs page for what it did"
+              : pursuit?.state === "reached"
+                ? "Done on the screen"
+                : "Stopped"}
         </span>
         <span style={{ flex: 1 }} />
       </div>

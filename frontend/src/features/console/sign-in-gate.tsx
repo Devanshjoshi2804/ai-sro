@@ -1,19 +1,14 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { credential, forget, remember, whoAmI } from "@/lib/api/credential";
+import {
+  forget,
+  onCredentialChange,
+  remember,
+  usableCredential,
+  whoAmI,
+} from "@/lib/api/credential";
 import { ink, mono } from "@/features/console/theme";
-
-const listeners = new Set<() => void>();
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function announce(): void {
-  for (const listener of listeners) listener();
-}
 
 /**
  * Nothing loads until this browser has a credential.
@@ -28,7 +23,7 @@ export function SignInGate({ children }: { children: React.ReactNode }) {
   // credential is read once the component is mounted in a browser. `useSyncExternalStore`
   // rather than an effect: it gives the server pass and the first client pass
   // the same answer without a setState that re-renders everything under it.
-  const held = useSyncExternalStore(subscribe, credential, () => null);
+  const held = useSyncExternalStore(onCredentialChange, usableCredential, () => null);
   const [typed, setTyped] = useState("");
   const [refused, setRefused] = useState<string | null>(null);
 
@@ -171,7 +166,6 @@ export function SignInGate({ children }: { children: React.ReactNode }) {
       <SignedInAs
         onForget={() => {
           forget();
-          announce();
           setTyped("");
         }}
       />
@@ -187,8 +181,8 @@ function accept(typed: string, refuse: (why: string | null) => void): void {
     refuse("That does not look like a credential this system issued.");
     return;
   }
+  // `remember` tells the gate itself; nothing else has to.
   remember(token);
-  announce();
 }
 
 

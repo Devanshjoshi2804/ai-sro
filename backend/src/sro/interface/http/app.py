@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sro.config import get_settings
 from sro.container import build_container
 from sro.interface.http.errors import install_error_handlers
+from sro.interface.http.schemas import PROBLEMS
 from sro.interface.http.v1.routers import (
     connections,
     health,
@@ -56,15 +57,15 @@ def create_app() -> FastAPI:
 
     install_error_handlers(app)
     app.include_router(health.router)
-    app.include_router(connections.router, prefix="/v1")
-    app.include_router(recordings.router, prefix="/v1")
-    app.include_router(skills.router, prefix="/v1")
-    app.include_router(intent.router, prefix="/v1")
-    app.include_router(stream.router, prefix="/v1")
-    app.include_router(knowledge.router, prefix="/v1")
-    app.include_router(threads.router, prefix="/v1")
-    app.include_router(runs.router, prefix="/v1")
-    app.include_router(watch.router, prefix="/v1")
+    app.include_router(connections.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(recordings.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(skills.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(intent.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(stream.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(knowledge.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(threads.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(runs.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(watch.router, prefix="/v1", responses=PROBLEMS)
     return app
 
 

@@ -81,7 +81,7 @@ lint: lint-backend lint-frontend ## Run every linter
 lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff check .
 	$(BACKEND) uv run ruff format --check .
-	$(BACKEND) uv run mypy src
+	$(BACKEND) uv run mypy src tests/unit/fakes.py
 	$(BACKEND) uv run lint-imports
 
 lint-frontend: ## eslint + tsc
@@ -104,4 +104,4 @@ test-integration: ## Tests against real Postgres/MinIO via testcontainers
 test-contract: ## Fuzz the API against its own OpenAPI schema
 	$(BACKEND) uv run pytest tests/contract -q
 
-check: lint test ## What CI runs
+check: lint test test-contract ## What CI runs

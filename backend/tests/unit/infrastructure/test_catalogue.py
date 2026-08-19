@@ -10,7 +10,10 @@ import pytest
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
 from sro.infrastructure.knowledge.catalogue import read_catalogue
 
-ROOT = Path(__file__).resolve().parents[3].parent / "knowledge-base" / "blue-yonder-sce"
+# The tree was restructured and this guard was not, so it pointed at a
+# directory that no longer exists and skipped every test in the file --
+# quietly, which is the only way a skip is worse than a failure.
+ROOT = Path(__file__).resolve().parents[3].parent / "knowledge-base"
 
 pytestmark = pytest.mark.skipif(
     not (ROOT / "index" / "app-map.json").is_file(),

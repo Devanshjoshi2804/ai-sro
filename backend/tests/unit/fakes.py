@@ -7,15 +7,18 @@ rather than a capability, and should be redesigned before it gets an adapter.
 from __future__ import annotations
 
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from datetime import UTC, datetime, timedelta
 from itertools import count
+from types import MappingProxyType
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
 from sro.application.induction.induce_skill import InducedSkill, InduceSkill
-from sro.application.ports.browser import BrowserSession, BrowserUnavailable
-from sro.application.ports.http import HttpResponse, TargetUnreachable
+from sro.application.ports.blob import BlobStore
+from sro.application.ports.browser import BrowserProvider, BrowserSession, BrowserUnavailable
+from sro.application.ports.embedding import Embedder
+from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
@@ -26,12 +29,17 @@ from sro.application.ports.repositories import (
     RunRepository,
     SkillRepository,
     ThreadRepository,
+    UnitOfWork,
 )
-from sro.application.ports.sign_in import SignInFailed, SignInResult
-from sro.application.ports.ui import ResolvedLocator, UiOutcome, UiUnavailable
+from sro.application.ports.sign_in import SignInDriver, SignInFailed, SignInResult
+from sro.application.ports.system import Clock, IdFactory
+from sro.application.ports.transcription import TranscribedSegment, Transcriber
+from sro.application.ports.ui import ResolvedLocator, UiDriver, UiOutcome, UiUnavailable
+from sro.application.ports.vault import CredentialVault
 from sro.application.ports.vision import (
     ProposedGesture,
     Screen,
+    VisionDriver,
     VisionUnavailable,
 )
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
@@ -220,11 +228,16 @@ class FakeTranscriber:
     def available(self) -> bool:
         return self._text is not None
 
-    async def transcribe(self, audio: bytes, *, content_type: str) -> str:
+    async def transcribe(
+        self, audio: bytes, *, content_type: str
+    ) -> tuple[TranscribedSegment, ...]:
         if self._text is None:
             raise RuntimeError("no transcriber configured")
         self.calls += 1
-        return self._text
+        # One segment covering the whole clip. This answered a bare string while
+        # the port answers timed segments, so every caller was exercised against
+        # a shape production never produces.
+        return (TranscribedSegment(start_ms=0, end_ms=1000, text=self._text),)
 
 
 class FakeDurableExecution:
@@ -369,9 +382,6 @@ class FakeSkillRepository:
         rows = [s for (t, _), s in self.rows.items() if t == str(tenant_id)]
         return tuple(rows[offset : offset + limit])
 
-    async def list_capturing(self) -> tuple[Recording, ...]:
-        return tuple(r for r in self.rows.values() if r.status is RecordingStatus.CAPTURING)
-
 
 class FakeConnectionRepository:
     def __init__(self) -> None:
@@ -469,7 +479,7 @@ class FakeHttpCaller:
         method: str,
         url: str,
         *,
-        headers: dict[str, str] | None = None,
+        headers: Mapping[str, str] = MappingProxyType({}),
         body: str | None = None,
         timeout_s: float = 30.0,
     ) -> HttpResponse:
@@ -803,3 +813,26 @@ class FakeIntentParser:
     async def read(self, utterance: str, *, after: str = "") -> Reading:
         self.asked.append(utterance)
         return self._reading
+
+
+# Every fake, held against the port it stands in for. One line each, and the
+# reason they are here rather than as base classes: a fake that inherits from a
+# Protocol satisfies it by inheritance and can still drift in signature. These
+# are structural checks, which is what the application actually depends on.
+#
+# The drift they exist to catch has happened more than once -- a port grew a
+# method and the fake did not, or answered a different shape, so a use case was
+# exercised against something production never produces. `make lint` type-checks
+# this file for exactly these lines.
+_blobs: BlobStore = FakeBlobStore()
+_browser: BrowserProvider = FakeBrowserProvider()
+_caller: HttpCaller = FakeHttpCaller()
+_embedder: Embedder = FakeEmbedder()
+_transcriber: Transcriber = FakeTranscriber()
+_ui: UiDriver = FakeUiDriver()
+_vault: CredentialVault = FakeCredentialVault()
+_vision: VisionDriver = FakeVisionDriver()
+_sign_in: SignInDriver = FakeSignInDriver()
+_uow: UnitOfWork = FakeUnitOfWork()
+_clock: Clock = FakeClock()
+_ids: IdFactory = FakeIdFactory()

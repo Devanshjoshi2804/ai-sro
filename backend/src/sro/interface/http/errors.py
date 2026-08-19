@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from sro.application.connection.connect_system import NotAuthenticated
 from sro.application.connection.sign_in import NoCredentials
@@ -59,7 +60,19 @@ _TITLES = {
     status.HTTP_422_UNPROCESSABLE_CONTENT: "Request cannot be processed",
     status.HTTP_503_SERVICE_UNAVAILABLE: "Dependency unavailable",
     status.HTTP_500_INTERNAL_SERVER_ERROR: "Internal error",
+    status.HTTP_401_UNAUTHORIZED: "No credential",
+    status.HTTP_403_FORBIDDEN: "Not allowed",
+    status.HTTP_405_METHOD_NOT_ALLOWED: "Method not allowed",
 }
+
+_SLUGS = {
+    status.HTTP_401_UNAUTHORIZED: "unauthenticated",
+    status.HTTP_403_FORBIDDEN: "forbidden",
+    status.HTTP_404_NOT_FOUND: "not_found",
+    status.HTTP_405_METHOD_NOT_ALLOWED: "method_not_allowed",
+}
+"""The ``type`` a client matches on. Only for the statuses FastAPI raises by
+itself; a domain error brings its own ``code``."""
 
 
 def _status_for(exc: Exception) -> int:
@@ -112,8 +125,32 @@ def _validation_problem(request: Request, exc: Exception) -> JSONResponse:
     )
 
 
+def _http_problem(request: Request, exc: Exception) -> JSONResponse:
+    """FastAPI's own HTTPException, said the way everything else here says it.
+
+    The credential checks raise it, so every 401 answered ``{"detail": "..."}``
+    while every other failure answered a problem document. A client that reads
+    ``problem.type`` -- which is how the console tells one refusal from another
+    -- got undefined for the one failure it sees most.
+    """
+    code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return JSONResponse(
+        status_code=code,
+        media_type="application/problem+json",
+        headers=getattr(exc, "headers", None),
+        content={
+            "type": f"https://ai-sro.dev/problems/{_SLUGS.get(code, 'error')}",
+            "title": _TITLES.get(code, "Error"),
+            "status": code,
+            "detail": str(getattr(exc, "detail", "") or ""),
+            "instance": str(request.url.path),
+        },
+    )
+
+
 def install_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RequestValidationError, _validation_problem)
+    app.add_exception_handler(StarletteHTTPException, _http_problem)
     for error_type in (
         DomainError,
         InductionFailed,

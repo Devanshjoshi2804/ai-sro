@@ -991,3 +991,43 @@ class KnowledgeEntryModel(BaseModel):
     evidence: str
     observed_at: datetime
     body: dict[str, Any]
+
+
+class ProblemModel(BaseModel):
+    """An RFC 9457 problem document, as `errors.py` writes them.
+
+    Declared so the generated client knows the shape. It did not: every failure
+    reached the browser as whatever the success model said it should be, and a
+    404 was read as a RecordingDetail with every field missing.
+    """
+
+    type: str
+    title: str
+    status: int
+    detail: str
+    instance: str | None = None
+
+
+def _problem(description: str) -> dict[str, Any]:
+    """Declared with the media type it is really sent as. RFC 9457 says
+    ``application/problem+json``, and a client generated against
+    ``application/json`` does not know these documents exist."""
+    return {
+        "description": description,
+        "content": {"application/problem+json": {"schema": ProblemModel.model_json_schema()}},
+    }
+
+
+PROBLEMS: dict[int | str, dict[str, Any]] = {
+    401: _problem("No credential, or one this deployment rejects."),
+    404: _problem("No such thing, or not yours."),
+    409: _problem("The system's state says no, not the request."),
+    422: _problem("The request cannot be processed as asked."),
+    503: _problem("Something this depends on is unavailable."),
+}
+"""What every v1 operation may answer with besides its own model.
+
+Declared once for the whole surface rather than per route. Slightly generous --
+a POST that creates a thread will not 404 -- and that is the right trade against
+the alternative these replaced, which was declaring none of them anywhere.
+"""

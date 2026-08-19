@@ -130,6 +130,11 @@ services:
     # that reports "could not start a Steel session" and an operator has no way
     # to tell a crashed browser from a broken feature.
     restart: unless-stopped
+    # Node is PID 1 in this image, and PID 1 that is not an init does not reap
+    # the orphans it adopts. Chrome forks a lot and dies a lot here, so the
+    # container accumulated 4,000 zombie processes in 42 hours and Steel got
+    # slower and flakier the whole way. tini reaps them.
+    init: true
     environment:
       # Steel builds every URL it hands out from this: the session viewer, the
       # player's websocket, the CDP endpoint. Unset, it uses its own inside-the-

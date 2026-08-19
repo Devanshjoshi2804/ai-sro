@@ -32,6 +32,11 @@ def _no_waiting(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _steel(*, status: str, others: list[dict[str, object]] | None = None) -> SteelClient:
     released: list[str] = []
+    # The list only holds a session once it has been created. Answering with it
+    # beforehand made the fixture time-blind -- and the check that refuses to
+    # take the browser from somebody else reads that list before it creates
+    # anything.
+    created: list[str] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -39,6 +44,7 @@ def _steel(*, status: str, others: list[dict[str, object]] | None = None) -> Ste
             released.append(path)
             return httpx.Response(200, json={"success": True})
         if request.method == "POST" and path == "/v1/sessions":
+            created.append("new-session")
             return httpx.Response(
                 201,
                 json={
@@ -49,9 +55,8 @@ def _steel(*, status: str, others: list[dict[str, object]] | None = None) -> Ste
                 },
             )
         if path == "/v1/sessions":
-            return httpx.Response(
-                200, json={"sessions": [*(others or []), {"id": "new-session", "status": status}]}
-            )
+            mine = [{"id": "new-session", "status": status}] if created else []
+            return httpx.Response(200, json={"sessions": [*(others or []), *mine]})
         if path.startswith("/v1/sessions/"):
             return httpx.Response(
                 200,
@@ -138,3 +143,19 @@ async def test_the_live_view_is_the_player_not_steel_s_own_console() -> None:
     session = await steel.open()
 
     assert session.live_view_url.endswith("/v1/sessions/debug")
+
+
+async def test_the_browser_is_never_taken_from_a_session_that_is_using_it() -> None:
+    """Measured against the real thing: creating a session while another is
+    `live` does not add a browser, it takes the one there is -- the previous
+    session vanishes from the list mid-task. So a sign-in, a session check or a
+    second pursuit silently killed whatever was on screen, and the thing that
+    lost its browser reported that the screen had stopped responding to it."""
+    steel = _steel(status="live", others=[{**GHOST, "id": "someone-working"}])
+
+    with pytest.raises(BrowserUnavailable) as refused:
+        await steel.open()
+
+    assert "already in use" in str(refused.value)
+    assert "someone-working" in str(refused.value)
+    assert steel.released == [], "nothing was created, so there is nothing to release"  # type: ignore[attr-defined]

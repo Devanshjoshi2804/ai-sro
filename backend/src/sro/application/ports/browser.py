@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -38,6 +39,17 @@ class BrowserProvider(Protocol):
 
         The only place cookie values are read on purpose. They are a bearer
         credential, so the caller puts them in the vault and nowhere else.
+        """
+        ...
+
+    async def forget_everything(self, session_id: BrowserSessionId) -> None:
+        """Empty this browser of whoever used it last.
+
+        Not a nicety. A provider that keeps one browser keeps one cookie jar, so
+        a session opened for a second tenant arrived already signed in as the
+        first -- the system under test said so, and the connect flow stored that
+        session under the new tenant's name. Nobody typed a password and one
+        tenant ended up holding another's warehouse session.
         """
         ...
 
@@ -81,6 +93,17 @@ class BrowserProvider(Protocol):
 
         The URL is not stored on the recording: it belongs to the provider, and
         a session that has ended has no live view. ``None`` says exactly that.
+        """
+        ...
+
+
+    def frames(self, session_id: BrowserSessionId) -> AsyncIterator[bytes]:
+        """This session's screen, as JPEG frames, for as long as it is read.
+
+        Separate from ``live_view_url`` because a provider's own viewer is a web
+        page we do not control: self-hosted Steel hands out one URL for the whole
+        deployment with no session in it, which shows the wrong browser or none.
+        Frames are the same picture with the provider's product taken out of it.
         """
         ...
 

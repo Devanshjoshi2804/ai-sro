@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
+from sro.application.connection.borrow import a_browser
 from sro.application.connection.check_session import CheckSession, SessionHealth
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.connection.sign_in import EnsureSignedIn
@@ -45,6 +46,16 @@ class Healed:
     because: str
     detail: str
     """What was actually done, for the step's record. Names no value."""
+
+    repaired: bool = True
+    """False when the symptom was diagnosed and the repair did not happen.
+
+    Worth returning rather than swallowing: a read that came back 302 was
+    reported to the operator as "assertion_failed", which describes the
+    assertion and not the reason -- the session was gone, and the healer could
+    not take a browser to renew it because the provider had none to give. Both
+    of those are things a person can act on; "assertion_failed" is not.
+    """
 
 
 @dataclass
@@ -116,9 +127,22 @@ class SelfHeal:
         if not budget.take(step_index, finding.remedy):
             return None
 
-        detail = await self._apply(ctx, finding.remedy, target_system, facility)
+        try:
+            detail = await self._apply(ctx, finding.remedy, target_system, facility)
+        except BrowserUnavailable as exc:
+            return Healed(
+                remedy=finding.remedy,
+                because=finding.because,
+                detail=f"could not take a browser to repair it: {exc}",
+                repaired=False,
+            )
         if detail is None:
-            return None
+            return Healed(
+                remedy=finding.remedy,
+                because=finding.because,
+                detail="nothing here repaired it",
+                repaired=False,
+            )
 
         await self._learn(ctx, target_system, finding, endpoint, missing_headers)
         return Healed(remedy=finding.remedy, because=finding.because, detail=detail)
@@ -163,10 +187,9 @@ class SelfHeal:
         if connection is None:
             return None
 
-        try:
-            session = await self._browser.open()
-        except BrowserUnavailable:
-            return None
+        # A provider with no browser to give is not "no repair available": it
+        # is the reason, and it is reported rather than swallowed.
+        session = await a_browser(self._browser, self._uow)
         try:
             await self._browser.restore(session.id, await self._load(ctx, connection))
             headers = await self._browser.session_headers(session.id, connection.base_url)

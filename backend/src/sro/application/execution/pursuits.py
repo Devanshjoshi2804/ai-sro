@@ -42,10 +42,20 @@ class PursuitState(StrEnum):
 class PursuitProgress:
     id: str
     goal: str
+    tenant_id: str = ""
+    """Whose pursuit this is. `id` is an unguessable uuid4, but every other
+    resource in this system 404s across tenants rather than relying on that,
+    and a pursuit is no different -- it drives a browser and writes to a
+    thread, both scoped to one tenant."""
+
     state: PursuitState = PursuitState.WORKING
     gestures: list[str] = field(default_factory=list)
     detail: str = ""
     landed_at: str = ""
+
+    session_id: str = ""
+    """The browser it is driving. Kept so the reaper can tell a session
+    somebody is using from one that outlived whatever opened it."""
 
     recording_id: str = ""
     """What it left behind. A pursuit is a demonstration nobody had to give."""
@@ -67,14 +77,34 @@ class Pursuits:
         self._tasks: set[asyncio.Task[None]] = set()
         self._keep = keep
 
-    def start(self, pursuit_id: str, goal: str) -> PursuitProgress:
-        progress = PursuitProgress(id=pursuit_id, goal=goal)
+    def start(self, pursuit_id: str, goal: str, *, tenant_id: str = "") -> PursuitProgress:
+        progress = PursuitProgress(id=pursuit_id, goal=goal, tenant_id=tenant_id)
         self._live[pursuit_id] = progress
         self._forget_old()
         return progress
 
+    def working(self) -> PursuitProgress | None:
+        """The pursuit driving a screen right now, if one is.
+
+        There is one browser behind a self-hosted provider, so a second pursuit
+        does not get a second screen -- it gets the same one, mid-task, and both
+        navigate it out from under each other. Two pursuits produced two runs of
+        twelve gestures that each reported the screen would not respond.
+        """
+        return next(
+            (progress for progress in self._live.values() if not progress.finished), None
+        )
+
     def get(self, pursuit_id: str) -> PursuitProgress | None:
         return self._live.get(pursuit_id)
+
+    def sessions(self) -> tuple[str, ...]:
+        """Browsers pursuits are driving right now, so nothing releases one."""
+        return tuple(
+            progress.session_id
+            for progress in self._live.values()
+            if progress.session_id and not progress.finished
+        )
 
     def spawn(self, coroutine: Coroutine[object, object, None]) -> None:
         """Run it detached, and keep a reference so it is not garbage collected.

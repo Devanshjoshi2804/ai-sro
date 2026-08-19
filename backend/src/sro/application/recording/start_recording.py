@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sro.application.capture.identity import system_of
+from sro.application.connection.borrow import a_browser
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserProvider, BrowserSession
 from sro.application.ports.repositories import UnitOfWork
@@ -97,7 +98,11 @@ class StartRecording:
         # cookies have been restored -- so the operator lands on the identity
         # provider's login page and teaches signing in instead of the task.
         # Capture navigates after restoring them.
-        session = _external_browser(attach_to) if attach_to else await self._browser.open()
+        session = (
+            _external_browser(attach_to)
+            if attach_to
+            else await a_browser(self._browser, self._uow)
+        )
 
         recording = Recording(
             id=self._ids.new_recording_id(),

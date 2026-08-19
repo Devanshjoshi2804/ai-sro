@@ -17,6 +17,7 @@ from sro.application.ports.browser import BrowserSession, BrowserUnavailable
 from sro.domain.recording.sensitivity import Sensitivity, classify_header
 from sro.domain.shared.identifiers import BrowserSessionId
 from sro.infrastructure.steel.capture import _addressed
+from sro.infrastructure.steel.screencast import stream_frames
 
 _CONTEXT = frozenset({"referer"})
 """Not a credential, and not replayable from the demonstration either.
@@ -63,6 +64,26 @@ class SteelClient:
         self._client = client or httpx.AsyncClient(timeout=30.0)
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
+        # Measured against this deployment: creating a session while another is
+        # `live` does not add a browser, it *takes* the one there is -- the
+        # previous session vanishes from the list mid-task. So a sign-in, a
+        # session check or a second pursuit silently killed whatever was already
+        # on screen, and the thing that lost its browser reported, truthfully,
+        # that the screen stopped responding to it.
+        #
+        # Refusing says which session holds it, which is something an operator
+        # can act on. An `idle` session has no browser behind it and is not
+        # holding anything, so it does not count.
+        holding = [
+            held
+            for held in await self._live_sessions()
+            if str(held.get("status", "")).lower() == "live"
+        ]
+        if holding:
+            raise BrowserUnavailable(
+                "this deployment has one browser and it is already in use; " + _held_by(holding)
+            )
+
         payload: dict[str, object] = {
             "timeout": self._timeout_seconds * 1000,
             "blockAds": True,
@@ -122,13 +143,7 @@ class SteelClient:
         raise BrowserUnavailable(
             f"Steel accepted the session but no browser attached to it (status {status!r})"
             + (
-                "; "
-                + ", ".join(
-                    f"{held.get('id')} has been {held.get('status')} since {held.get('createdAt')}"
-                    for held in holders[:3]
-                )
-                + " — a self-hosted Steel has one browser, and a session it still calls live "
-                "after its Chrome has gone will hold it forever. Restart the Steel container."
+                "; " + _held_by(holders)
                 if holders
                 else " — check that Chrome can start inside the Steel container."
             )
@@ -235,6 +250,16 @@ class SteelClient:
             cookies = await context.cookies() if context else []
         return tuple(dict(cookie) for cookie in cookies)
 
+    async def forget_everything(self, session_id: BrowserSessionId) -> None:
+        """Clear the cookie jar this deployment's one browser carries between
+        sessions, so what a session is signed into is only what it restored."""
+        async with self._attached() as browser:
+            context = browser.contexts[0] if browser.contexts else await browser.new_context()
+            page = context.pages[0] if context.pages else await context.new_page()
+            cdp = await context.new_cdp_session(page)
+            await cdp.send("Network.clearBrowserCookies")
+            await cdp.detach()
+
     async def restore(self, session_id: BrowserSessionId, cookies: list[dict[str, object]]) -> None:
         """Set stored cookies, addressed so the browser will accept them.
 
@@ -309,6 +334,11 @@ class SteelClient:
         the port promises and what a pool would have to honour."""
         return await self._websocket_debugger_url()
 
+    async def frames(self, session_id: BrowserSessionId) -> AsyncIterator[bytes]:
+        """The session's screen off CDP, rather than Steel's own viewer page."""
+        async for frame in stream_frames(await self.debugger_url(session_id)):
+            yield frame
+
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         """Ask Steel where the session can be driven.
 
@@ -361,6 +391,24 @@ class SteelClient:
         tb: TracebackType | None,
     ) -> None:
         await self.aclose()
+
+
+def _held_by(holders: list[dict[str, object]]) -> str:
+    """Which sessions are holding the only browser, and since when.
+
+    One sentence, two callers: refusing to take the browser from somebody, and
+    reporting that nothing attached to the session we were given. An operator
+    needs the same three facts either way -- who has it, how long they have had
+    it, and that a stuck one outlives its own Chrome.
+    """
+    return (
+        ", ".join(
+            f"{held.get('id')} has been {held.get('status')} since {held.get('createdAt')}"
+            for held in holders[:3]
+        )
+        + " — a self-hosted Steel has one browser, and a session it still calls live "
+        "after its Chrome has gone will hold it forever. Restart the Steel container."
+    )
 
 
 def _path_of(url: object) -> str:

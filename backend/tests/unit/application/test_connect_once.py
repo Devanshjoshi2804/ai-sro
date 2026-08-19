@@ -11,8 +11,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from sro.application.connection.check_session import CheckSession
+from sro.application.connection.check_session import CheckSession, SessionHealth
 from sro.application.connection.connect_system import (
+    ConnectSystem,
     NotAuthenticated,
     RefreshSession,
     StoreSession,
@@ -27,12 +28,14 @@ from sro.application.connection.sign_in import (
 )
 from sro.application.context import RequestContext
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
+from sro.domain.skill.template import Template
 from tests import factories as f
 from tests.unit.fakes import (
     FakeBrowserProvider,
     FakeClock,
     FakeCredentialVault,
     FakeHttpCaller,
+    FakeIdFactory,
     FakeSignInDriver,
     FakeUnitOfWork,
 )
@@ -221,3 +224,90 @@ async def test_the_console_can_watch_because_identity_cookies_are_not_a_session(
 
     assert kept.status is ConnectionStatus.CONNECTED
     assert await vault.get(connection.cookie_key) == "SESSIONID=real"
+
+
+@pytest.mark.asyncio
+async def test_the_health_probe_carries_the_session_it_is_asking_about() -> None:
+    """It was rebuilt without the cookie once a proved read was found, so every
+    check went out unauthenticated and every connection looked signed out --
+    leaving the verdict to rest entirely on adopting an open browser."""
+    uow, vault, http = FakeUnitOfWork(), FakeCredentialVault(), FakeHttpCaller()
+    connection = await _connection(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=alive")
+    # A skill whose read needs no parameter: that is what the probe picks, and
+    # it is the branch where the cookie went missing.
+    proved = f.skill(
+        versions=0,
+        objective_key=f.objective(target_system="blue_yonder"),
+    )
+    proved.add_version(
+        f.skill_version(
+            steps=(
+                f.step(
+                    network_plan=f.network_plan(
+                        method="GET",
+                        url=Template("https://wms.example.com/data/suppliers?limit=50"),
+                        body=None,
+                    )
+                ),
+            )
+        )
+    )
+    skill = proved
+    async with uow:
+        await uow.skills.add(skill)
+        await uow.commit()
+    http.answer(status_code=200)
+
+    health = await CheckSession(uow, vault, http).for_system(CTX, target_system="blue_yonder")
+
+    assert health is not None and health.health is SessionHealth.SIGNED_IN
+    assert http.sent[0]["headers"]["cookie"] == "SESSIONID=alive"
+
+
+@pytest.mark.asyncio
+async def test_an_open_browser_is_not_a_signed_in_one() -> None:
+    """A browser keeps its cookie jar in a profile that outlives the session in
+    it, so an expired cookie for the right host read as a completed login. That
+    reported "the session works" over a connection whose every call was being
+    redirected to the identity provider."""
+    uow, vault, http = FakeUnitOfWork(), FakeCredentialVault(), FakeHttpCaller()
+    browser = FakeBrowserProvider()
+    await browser.open()
+    browser.cookies = ({"name": "SESSIONID", "value": "stale", "domain": "wms.example.com"},)
+    connection = await _connection(uow)
+    await vault.store(connection.cookie_key, "SESSIONID=stale")
+    elsewhere = {"location": "https://identity.example.com/oauth2/authorize"}
+    # Turned away before adoption, and turned away again with what adoption
+    # found -- which is the whole question adoption was answering by itself.
+    http.answer(status_code=302, headers=elsewhere)
+    http.answer(status_code=302, headers=elsewhere)
+
+    health = await CheckSession(
+        uow, vault, http, browser, RefreshSession(uow, vault, FakeClock())
+    ).for_system(CTX, target_system="blue_yonder")
+
+    assert health is not None and health.health is SessionHealth.SIGNED_OUT
+
+
+@pytest.mark.asyncio
+async def test_a_browser_is_emptied_before_a_human_signs_into_it() -> None:
+    """A provider that keeps one browser keeps one cookie jar.
+
+    A second tenant opened a browser to connect the same system, the WMS showed
+    it already signed in as the first tenant, and this flow stored that session
+    under the second tenant's name. Nobody typed a password, and one tenant
+    ended up holding another's warehouse session -- found by connecting a fresh
+    tenant and watching it come up "signed in".
+    """
+    uow, browser = FakeUnitOfWork(), FakeBrowserProvider()
+    browser.cookies = (
+        {"name": "REFSSessionID", "value": "somebody-else", "domain": "wms.example.com"},
+    )
+
+    opened = await ConnectSystem(uow, browser, FakeClock(), FakeIdFactory()).execute(
+        CTX, base_url=WMS
+    )
+
+    assert browser.emptied == [opened.browser_session_id], "emptied, and before it was navigated"
+    assert browser.cookies == (), "whatever the last tenant left is gone"

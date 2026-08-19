@@ -171,7 +171,9 @@ async def test_an_outage_is_never_answered_by_signing_in() -> None:
         redirected_off_host=True,
     )
 
-    assert healed is None
+    # Reported rather than swallowed: nothing was signed in, and the step is
+    # told why instead of being left with the assertion that failed.
+    assert healed is not None and not healed.repaired
     assert await vault.get(connection.cookie_key) == "SESSIONID=maybe-fine"
 
 
@@ -311,3 +313,59 @@ async def test_the_token_and_the_session_that_minted_it_are_taken_together() -> 
     assert browser.restored
     assert await vault.get("acme/blue_yonder/SG/csrf-encrypt-token") == "fresh"
     assert await vault.get(connection.cookie_key) == "SESSIONID=minted-with-it"
+
+
+@pytest.mark.asyncio
+async def test_a_provider_with_no_browser_says_so_instead_of_going_quiet() -> None:
+    """What an operator was shown for a read that came back 302.
+
+    The step said "assertion_failed", which describes the assertion and not the
+    reason: the session was gone, and the healer could not renew it because the
+    browser provider had nothing to give -- a self-hosted Steel whose Chrome had
+    been orphaned on its own profile lock. Both facts are actionable; the one
+    that was reported is not.
+    """
+    uow, vault, http = FakeUnitOfWork(), FakeCredentialVault(), FakeHttpCaller()
+    browser = FakeBrowserProvider(available=False)
+    connection = Connection(
+        id=ConnectionId("con_1"),
+        tenant_id=f.TENANT,
+        name="WMS",
+        target_system="blue_yonder",
+        base_url="https://wms.example.com/portal",
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    connection.authenticated(datetime(2026, 1, 2, tzinfo=UTC))
+    async with uow:
+        await uow.connections.add(connection)
+        await uow.commit()
+    await vault.store(connection.cookie_key, "SESSIONID=alive")
+    http.answer(status_code=200)  # the portal answers; the data call did not
+
+    sign_in = SignIn(
+        uow, vault, browser, FakeSignInDriver(), RefreshSession(uow, vault, FakeClock())
+    )
+    healer = SelfHeal(
+        uow,
+        vault,
+        browser,
+        CheckSession(uow, vault, http),
+        EnsureSignedIn(sign_in, CheckSession(uow, vault, http), uow),
+        RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()),
+        RefreshSession(uow, vault, FakeClock()),
+    )
+
+    healed = await healer.attempt(
+        CTX,
+        target_system="blue_yonder",
+        facility="SG",
+        step_index=0,
+        mutating=False,
+        budget=HealBudget(),
+        status_code=302,
+        redirected_off_host=True,
+    )
+
+    assert healed is not None and not healed.repaired
+    assert "login page" in healed.because
+    assert "could not take a browser" in healed.detail

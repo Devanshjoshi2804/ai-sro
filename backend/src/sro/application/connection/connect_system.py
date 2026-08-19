@@ -82,6 +82,13 @@ class ConnectSystem:
             await uow.commit()
 
         session = await self._browser.open(start_url=connection.base_url)
+        # Empty first. This is the flow that decides who the system thinks we
+        # are, and a provider with one browser hands over the last tenant's
+        # cookie jar: a second tenant opened a browser, the WMS showed it
+        # already signed in as the first, and this flow stored that session
+        # under the second tenant's name. Nobody typed a password, and one
+        # tenant held another's warehouse session.
+        await self._browser.forget_everything(session.id)
         # Opening "at" a URL is two steps: the provider ignores the start URL
         # for an attached browser, so an unnavigated session would show the
         # operator a blank page to sign into.

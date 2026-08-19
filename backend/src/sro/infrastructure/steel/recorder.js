@@ -37,17 +37,35 @@
   // matched here has its value dropped before it leaves the page: the evidence
   // plane keeps everything a demonstration did, and a password is not that --
   // it is a key to the customer's system.
-  const SECRET_NAME = /pass|pwd|secret|token|otp|pin\b|cvv|ssn|security.?(code|answer)/i;
+  // Whole words, not substrings. Matched loosely this ate ordinary business
+  // data -- an address search box came back as «secret», so the demonstration
+  // could not say what was searched for, the model narrating it described a
+  // hole, and the value that would have become a parameter was gone. A
+  // redaction that eats business data is how people learn to switch it off.
+  const SECRET_WORDS = new Set([
+    'password', 'passwd', 'passphrase', 'pwd', 'secret', 'token', 'otp', 'mfa',
+    'cvv', 'ssn', 'pin', 'credential', 'credentials', 'apikey', 'accesstoken',
+    'refreshtoken', 'securitycode', 'securityanswer',
+  ]);
+  const wordsOf = (text) =>
+    (text || '')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .split(/[^A-Za-z]+/)
+      .filter(Boolean)
+      .map((word) => word.toLowerCase());
   const isSecretField = (el) => {
     if (!el || el.nodeType !== 1) return false;
+    // What the page itself says is a credential, which is the only signal here
+    // that is a decision rather than a guess.
     if ((el.type || '').toLowerCase() === 'password') return true;
     const autocomplete = (el.getAttribute('autocomplete') || '').toLowerCase();
     if (autocomplete.includes('password') || autocomplete === 'one-time-code') return true;
-    return SECRET_NAME.test(
-      [el.name, el.id, el.getAttribute('aria-label'), el.getAttribute('placeholder')]
-        .filter(Boolean)
-        .join(' '),
-    );
+    if (autocomplete === 'cc-csc' || autocomplete === 'cc-number') return true;
+    const named = [el.name, el.id, el.getAttribute('aria-label'), el.getAttribute('placeholder')]
+      .filter(Boolean)
+      .join(' ');
+    const words = wordsOf(named);
+    return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(''));
   };
 
   const cssPath = (el) => {

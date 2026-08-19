@@ -296,6 +296,23 @@ class Skill:
             raise InvariantViolation(f"skill {self.id} has no versions")
         return self._versions[-1]
 
+    @property
+    def runnable(self) -> SkillVersion | None:
+        """The newest version something may actually be asked to run.
+
+        A second demonstration lands at RECORDED, which the runner refuses, and
+        matching always offered the newest version there was -- so re-teaching a
+        working skill took it offline: every match answered with a version that
+        could not run, and the only way back was to promote the new one.
+
+        Falls back to nothing rather than to the newest: a skill with no
+        runnable version is a skill nobody should be offered.
+        """
+        for version in reversed(self._versions):
+            if version.stage is not PromotionStage.RECORDED:
+                return version
+        return None
+
     def version(self, number: int) -> SkillVersion:
         for candidate in self._versions:
             if candidate.version == number:

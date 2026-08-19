@@ -174,7 +174,7 @@ class ResolveIntent:
         # a question, however the question happens to be phrased.
         interrupted = (
             pending is not None
-            and writes(pending.versions[-1])
+            and writes(pending.runnable or pending.latest)
             and (asking or (reading.confidence >= _READ_FLOOR and not reading.continues))
         )
         carrying_on = (
@@ -356,7 +356,7 @@ def _names_another(candidates: tuple[Candidate, ...], pending: Skill) -> bool:
 def _pinned_candidate(skill: Skill) -> Candidate:
     return Candidate(
         skill=skill,
-        version=skill.versions[-1],
+        version=skill.runnable or skill.latest,
         score=FLOOR,
         why=("carried on from the question before it",),
     )

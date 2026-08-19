@@ -45,16 +45,29 @@ class Browsers:
         When the provider has none to give, one this tenant already holds and
         nobody is demonstrating in. Raises ``BrowserUnavailable`` if neither.
         """
+        session, _borrowed = await self.take(ctx, start_url=start_url)
+        return session
+
+    async def take(
+        self, ctx: RequestContext, *, start_url: str | None = None
+    ) -> tuple[BrowserSession, bool]:
+        """The browser, and whether it was borrowed rather than opened.
+
+        Callers that close what they took need the second half: a borrowed
+        browser belongs to whoever signed into it, and closing it logs a
+        warehouse operator out mid-shift. It is also already signed in, so
+        restoring stored cookies over the top of it is at best redundant.
+        """
         try:
             session = await self._browser.open(start_url=start_url)
         except BrowserUnavailable:
             borrowed = await self._spare(ctx)
             if borrowed is None:
                 raise
-            return borrowed
+            return borrowed, True
 
         await self._claim(ctx, session.id)
-        return session
+        return session, False
 
     async def attach(self, ctx: RequestContext, debugger_url: str) -> BrowserSession:
         """A browser the operator already has open, owned like any other.

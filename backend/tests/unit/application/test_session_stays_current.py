@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 import pytest
 
 from sro.application.connection.browsers import Browsers
-from sro.application.connection.check_session import CheckSession, SessionHealth
+from sro.application.connection.check_session import CheckSession, SessionHealth, _is_login
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.context import RequestContext
 from sro.domain.connection.connection import Connection, ConnectionId
@@ -209,3 +209,35 @@ async def test_nothing_is_adopted_from_a_browser_holding_nothing() -> None:
 
     assert found.health is SessionHealth.SIGNED_OUT
     assert await vault.get(connection.cookie_key) == "SESSIONID=expired"
+
+
+class TestALoginPageServedAsTwoHundred:
+    """The other half of the condition this module documents.
+
+    It detected the redirect to the identity provider and nothing else, so a
+    system that serves its sign-in form in place of what was asked for -- with a
+    200, which several do -- read as "the session works". The connection could
+    then never self-heal: the check everything depends on reported it healthy.
+    """
+
+    def test_a_page_with_a_password_field_is_a_login_page(self) -> None:
+        assert _is_login(
+            200,
+            None,
+            "https://wms.test/portal",
+            '<form action="/j_security_check"><input type="password" name="pw"></form>',
+        )
+
+    def test_an_ordinary_answer_is_not(self) -> None:
+        assert not _is_login(200, None, "https://wms.test/portal", '{"suppliers": [], "total": 0}')
+
+    def test_a_screen_that_merely_mentions_passwords_is_not(self) -> None:
+        """Any heuristic on words fires on the WMS page explaining its password
+        policy. A control the browser will autofill a credential into does not.
+        """
+        assert not _is_login(
+            200,
+            None,
+            "https://wms.test/portal",
+            "<h1>Password policy</h1><p>Passwords expire every 90 days.</p>",
+        )

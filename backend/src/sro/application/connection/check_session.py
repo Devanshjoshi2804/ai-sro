@@ -27,6 +27,10 @@ from sro.application.ports.vault import CredentialVault
 from sro.domain.connection.connection import Connection, ConnectionStatus
 from sro.domain.skill.plan import NetworkPlan
 
+_LOGIN_SCAN_CHARS = 200_000
+"""Enough of a page to find its form in. A login page is small; a data
+response this size is not one, and scanning all of it costs nothing useful."""
+
 _LIBRARY_PAGE = 200
 """How many skills to look through for something to probe with. A tenant with
 more than this has plenty to choose from in the first page."""
@@ -118,7 +122,12 @@ class CheckSession:
         except TargetUnreachable as error:
             return SessionCheck(connection_id, system, SessionHealth.UNREACHABLE, str(error))
 
-        if _is_login(response.status_code, response.headers.get("location"), connection.base_url):
+        if _is_login(
+            response.status_code,
+            response.headers.get("location"),
+            connection.base_url,
+            response.text,
+        ):
             # Before saying so: is somebody signed in right now in a browser we
             # opened? An operator who signs in and closes the tab has done the
             # whole job, and three times today a good session was thrown away
@@ -163,7 +172,10 @@ class CheckSession:
         except TargetUnreachable:
             return False
         return not _is_login(
-            answer.status_code, answer.headers.get("location"), connection.base_url
+            answer.status_code,
+            answer.headers.get("location"),
+            connection.base_url,
+            answer.text,
         )
 
     async def _proved_read(
@@ -224,15 +236,28 @@ class CheckSession:
         return False
 
 
-def _is_login(status_code: int, location: str | None, base_url: str) -> bool:
-    """A redirect off the system's own host is the identity provider taking over.
+def _is_login(status_code: int, location: str | None, base_url: str, body: str = "") -> bool:
+    """Whether the system answered with its login rather than with the thing.
 
-    Judged by host rather than by any word in the URL: "login", "auth" and
-    "signin" are all absent from at least one identity provider we work with,
-    and present in plenty of pages that are not one.
+    Two shapes, and this only ever detected one of them. A redirect off the
+    system's own host is the identity provider taking over -- judged by host
+    rather than by any word in the URL, because "login", "auth" and "signin" are
+    all absent from at least one identity provider we work with and present in
+    plenty of pages that are not one.
+
+    The other shape is a 200 that *is* the login page, served in place of what
+    was asked for. That read as "the session works", so a connection whose every
+    call came back as a sign-in form could never self-heal: the check it depends
+    on reported it healthy.
     """
-    if not 300 <= status_code < 400 or not location:
-        return False
-    here = urlsplit(base_url).hostname or ""
-    there = urlsplit(location).hostname
-    return bool(there) and there != here
+    if 300 <= status_code < 400 and location:
+        here = urlsplit(base_url).hostname or ""
+        there = urlsplit(location).hostname
+        return bool(there) and there != here
+    # A password field is the page saying what it is. Any heuristic on words
+    # would fire on a warehouse screen that happens to mention a password
+    # policy; a control the browser will autofill a credential into does not.
+    lowered = body[:_LOGIN_SCAN_CHARS].lower()
+    return status_code == 200 and (
+        'type="password"' in lowered or 'autocomplete="current-password"' in lowered
+    )

@@ -256,7 +256,7 @@ class ExecuteStep:
                 detail=f"{healed.because}; {healed.detail}"
                 + (f" -- {outcome.detail}" if outcome.detail else ""),
             )
-        elif healed is not None:
+        elif healed is not None and _may_be_retried(step, outcome):
             outcome, derived, failure = await self._perform(
                 run,
                 step,
@@ -268,6 +268,15 @@ class ExecuteStep:
             outcome = replace(
                 outcome,
                 detail=f"{healed.because}; {healed.detail}, then retried"
+                + (f" -- {outcome.detail}" if outcome.detail else ""),
+            )
+        elif healed is not None:
+            # Repaired, and deliberately not retried: this step's write reached
+            # the application. Sending it again is how one create becomes two.
+            outcome = replace(
+                outcome,
+                detail=f"{healed.because}; {healed.detail}, and not retried because "
+                "this step's write may already have landed"
                 + (f" -- {outcome.detail}" if outcome.detail else ""),
             )
 
@@ -871,6 +880,21 @@ def _derive(produces: tuple[Parameter, ...], response: HttpResponse) -> dict[str
         if value is not None:
             bound[parameter.name] = value
     return bound
+
+
+def _may_be_retried(step: SkillStep, outcome: StepOutcome) -> bool:
+    """Whether sending this step again is safe, on the evidence of the attempt.
+
+    Not on the diagnosis. The healer reads a 302 as proof the request was turned
+    away at a login page, which it sometimes is -- and is also exactly what a
+    successful form POST answers with. Both look identical from here, so the one
+    that decides is whether a mutating request went out at all: a status code
+    means the application answered, and an answered POST that is sent again is
+    how one create becomes two.
+    """
+    plan = step.network_plan
+    mutating = bool(plan and plan.method.upper() not in {"GET", "HEAD", "OPTIONS"})
+    return not (mutating and outcome.status_code is not None)
 
 
 def _fact(run: Run) -> RunFact:

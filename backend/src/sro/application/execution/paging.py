@@ -37,6 +37,14 @@ class Paging:
     page_key: str | None
     limit: int
 
+    first_page: int = 0
+    """The page number the demonstrated call itself asked for.
+
+    Counted from, rather than assumed to be zero. Against a one-based API the
+    first "next" page was page one -- the page already in hand -- so every row
+    on it was counted twice and the total was reported a page out.
+    """
+
     @property
     def pages(self) -> bool:
         return self.offset_key is not None or self.page_key is not None
@@ -53,7 +61,11 @@ def how_it_pages(url: str) -> Paging:
     )
     offset_key = next((original[key] for key in _OFFSET_KEYS if key in query), None)
     page_key = next((original[key] for key in _PAGE_KEYS if key in query), None)
-    return Paging(offset_key=offset_key, page_key=page_key, limit=limit)
+    first = next(
+        (int(query[key]) for key in _PAGE_KEYS if key in query and query[key].isdigit()),
+        0,
+    )
+    return Paging(offset_key=offset_key, page_key=page_key, limit=limit, first_page=first)
 
 
 def next_page(url: str, paging: Paging, *, so_far: int, page: int) -> str | None:
@@ -71,7 +83,7 @@ def next_page(url: str, paging: Paging, *, so_far: int, page: int) -> str | None
             key,
             str(so_far)
             if paging.offset_key and key == paging.offset_key
-            else str(page + 1)
+            else str(paging.first_page + page + 1)
             if paging.page_key and key == paging.page_key
             else value,
         )

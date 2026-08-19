@@ -55,3 +55,13 @@ def test_snake_case_handles_the_shapes_wms_payloads_actually_use() -> None:
 
 def test_a_collision_suffixes_rather_than_merges() -> None:
     assert deduplicate("wave_id", {"wave_id"}) == "wave_id_2"
+
+
+def test_a_name_that_is_not_plain_ascii_is_one_word() -> None:
+    """``[a-z0-9]+`` split "zürich" into "z" and "rich", so a facility or a
+    supplier whose name carries an accent was matched on fragments of itself --
+    and "rich" is a word that turns up elsewhere."""
+    from sro.application.intent.match import words
+
+    assert "zürich" in words("the Zürich facility")
+    assert "rich" not in words("the Zürich facility")

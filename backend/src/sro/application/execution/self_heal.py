@@ -191,9 +191,13 @@ class SelfHeal:
 
         # A provider with no browser to give is not "no repair available": it
         # is the reason, and it is reported rather than swallowed.
-        session = await self._browsers.open(ctx)
+        session, borrowed = await self._browsers.take(ctx)
         try:
-            await self._browser.restore(session.id, await self._load(ctx, connection))
+            if not borrowed:
+                # A borrowed browser is somebody's own, already signed in.
+                # Restoring stored cookies over the top of it replaces a live
+                # session with an older one.
+                await self._browser.restore(session.id, await self._load(ctx, connection))
             headers = await self._browser.session_headers(session.id, connection.base_url)
             # Both, from this browser, in this order. A token minted in one
             # session and a cookie kept from another authenticate nothing: the
@@ -201,7 +205,10 @@ class SelfHeal:
             # the retry was refused exactly as before.
             cookies = list(await self._browser.session_cookies(session.id))
         finally:
-            await self._browser.close(session.id)
+            # Never one we did not open: it belongs to whoever signed into it,
+            # and closing it logs a warehouse operator out mid-shift.
+            if not borrowed:
+                await self._browsers.release(session.id)
 
         if not headers:
             return None

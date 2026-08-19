@@ -116,7 +116,7 @@ class Converse:
             # Values already given for the skill under discussion. An operator
             # who answers one question at a time should not lose the first
             # answer when they give the second.
-            parameters={**_gathered(thread), **(parameters or {})},
+            parameters={**_gathered(thread, _awaiting(thread)), **(parameters or {})},
             # What was being talked about a moment ago. A conversation whose
             # every sentence is resolved alone is not a conversation.
             after=_last_asked(thread),
@@ -577,16 +577,31 @@ def _awaiting(thread: Thread) -> str | None:
     return None
 
 
-def _gathered(thread: Thread) -> dict[str, str]:
-    """Every value established so far for the skill under discussion.
+def _gathered(thread: Thread, skill_id: str | None) -> dict[str, str]:
+    """Every value established so far **for this skill**.
 
     Read back off the decisions rather than held in memory: the thread is what
     survives a restart, and an operator answering three questions over five
     minutes should not depend on a process staying up.
+
+    Filtered by skill, which the docstring always claimed and the code never
+    did: it merged the values from every decision in the thread, so a thread
+    where somebody asked about suppliers and then went on to create a client
+    carried the supplier's values into the client's parameters. Values arriving
+    from somewhere the operator never typed them is the worst possible way for a
+    write to be wrong -- it looks answered.
+
+    Nothing is gathered when nothing is being waited on. A fresh sentence brings
+    its own values; the thread's older ones belong to whatever they were for.
     """
+    if skill_id is None:
+        return {}
     values: dict[str, str] = {}
     for message in thread.messages:
-        items = (message.decision or {}).get("items")
+        decision = message.decision or {}
+        if str(decision.get("matched_skill_id") or "") != skill_id:
+            continue
+        items = decision.get("items")
         if not isinstance(items, list):
             continue
         for item in items:

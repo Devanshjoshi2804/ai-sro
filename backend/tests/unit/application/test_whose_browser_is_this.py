@@ -153,3 +153,16 @@ class _OneBrowser(FakeBrowserProvider):
         if [held for held in self.opened if held not in self.closed]:
             raise BrowserUnavailable("this deployment has one browser and it is in use")
         return await super().open(start_url=start_url)
+
+
+async def test_taking_one_says_whether_it_was_borrowed() -> None:
+    """The healer closed whatever it took. A borrowed browser belongs to
+    whoever signed into it, so closing it logs a warehouse operator out."""
+    uow, provider = FakeUnitOfWork(), _OneBrowser()
+    browsers = _browsers(uow, provider)
+
+    opened, borrowed_first = await browsers.take(MINE)
+    again, borrowed_second = await browsers.take(MINE)
+
+    assert not borrowed_first
+    assert borrowed_second and again.id == opened.id

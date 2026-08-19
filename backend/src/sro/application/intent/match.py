@@ -15,7 +15,11 @@ from dataclasses import dataclass
 from sro.application.induction.naming import singular
 from sro.domain.skill.skill import Skill, SkillVersion
 
-_WORD = re.compile(r"[a-z0-9]+")
+_WORD = re.compile(r"[^\W_]+", re.UNICODE)
+"""Letters and digits in any alphabet. ``[a-z0-9]+`` split "zürich" into "z"
+and "rich", so a facility, a supplier or a customer whose name is not plain
+ASCII was matched on fragments of itself -- and "rich" is a word that turns
+up elsewhere."""
 
 _NOISE = frozenset(
     {
@@ -200,7 +204,12 @@ def ambiguous(candidates: tuple[Candidate, ...]) -> bool:
 
 
 def _score(skill: Skill, asked: frozenset[str]) -> Candidate | None:
-    version = skill.versions[-1] if skill.versions else None
+    # The newest *runnable* one, falling back to the newest there is. A
+    # second demonstration lands at RECORDED, so always taking the newest
+    # took a working skill offline the moment somebody re-taught it -- while
+    # a skill that has only ever been recorded must still be found, and
+    # refused with a reason, rather than reading as never taught.
+    version = skill.runnable or (skill.latest if skill.versions else None)
     if version is None:
         return None
 

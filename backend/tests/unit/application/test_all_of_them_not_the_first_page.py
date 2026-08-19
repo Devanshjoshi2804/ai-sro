@@ -47,11 +47,24 @@ class TestHowItPages:
         assert next_page(plain, how_it_pages(plain), so_far=16, page=0) is None
 
     def test_a_page_numbered_api_is_walked_by_page(self) -> None:
+        """``page`` is the loop's own counter, starting at nought, and the page
+        it counts from is the one the demonstrated call asked for.
+
+        It used to be ``page + 1`` alone, so against this one-based API the
+        first "next" page was page one -- the page already in hand. Every row on
+        it was counted twice and the total came out a page over.
+        """
         numbered = "https://wms.test/things?page=1&pageSize=20"
+        paging = how_it_pages(numbered)
 
-        following = next_page(numbered, how_it_pages(numbered), so_far=20, page=1)
+        assert "page=2" in (next_page(numbered, paging, so_far=20, page=0) or "")
+        assert "page=3" in (next_page(numbered, paging, so_far=40, page=1) or "")
 
-        assert "page=2" in (following or "")
+    def test_a_zero_based_api_is_walked_from_nought(self) -> None:
+        numbered = "https://wms.test/things?page=0&pageSize=20"
+        paging = how_it_pages(numbered)
+
+        assert "page=1" in (next_page(numbered, paging, so_far=20, page=0) or "")
 
 
 class TestMerging:

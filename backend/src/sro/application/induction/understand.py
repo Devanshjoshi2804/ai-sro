@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sro.application.capture.identity import derive_objective_key, system_of
 from sro.application.context import RequestContext
@@ -38,6 +39,7 @@ from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.network import CapturedRequest
 from sro.domain.recording.recording import Recording, RecordingStatus
+from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.skill.assertion import Assertion, AssertionKind
 from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
@@ -174,6 +176,12 @@ def as_evidence(recording: Recording) -> str:
     Bodies are included because they are where the values are, and they have
     already had credentials removed at capture time -- this sends what is
     stored, and what is stored never held a password.
+
+    URLs are cleaned here rather than at capture, because the URL is the
+    evidence: which endpoint was called is the whole point of keeping it. What
+    a hosted model has no use for is the query string's values, and a system
+    that puts a session key or a one-time token in one -- several do -- was
+    sending it to Google in full.
     """
     lines: list[str] = []
     for frame in recording.frames:
@@ -182,7 +190,7 @@ def as_evidence(recording: Recording) -> str:
         value = "«secret»" if action.secret else (action.value or "")
         lines.append(f"[{frame.index}] {action.kind} {target} {value}".rstrip())
         for request in _calls(frame):
-            lines.append(f"     {request.method} {request.url} -> {request.status}")
+            lines.append(f"     {request.method} {_clean(request.url)} -> {request.status}")
             if request.request_text:
                 lines.append(f"     sent: {request.request_text[:600]}")
             if request.response_text:
@@ -190,6 +198,20 @@ def as_evidence(recording: Recording) -> str:
     for segment in recording.narration:
         lines.append(f"said: {segment.text}")
     return "\n".join(lines)[:_MAX_EVIDENCE_CHARS]
+
+
+def _clean(url: str) -> str:
+    """The URL with any credential-shaped query value taken out."""
+    parts = urlsplit(url)
+    if not parts.query:
+        return url
+    pairs = [
+        (key, "«redacted»" if is_secret_field(key) else value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+    ]
+    return urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, urlencode(pairs, safe="${}"), parts.fragment)
+    )
 
 
 def _calls(frame: ActionFrame) -> tuple[CapturedRequest, ...]:

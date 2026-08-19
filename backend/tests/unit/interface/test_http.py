@@ -13,11 +13,15 @@ import pytest
 from httpx import ASGITransport
 
 from sro.application.context import RequestContext
+from sro.application.execution.pursuits import Pursuits
+from sro.application.ports.auth import Caller
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
 from sro.container import Container
-from sro.domain.shared.identifiers import BrowserSessionId, RecordingId
+from sro.domain.shared.identifiers import BrowserSessionId, PrincipalId, RecordingId, TenantId
+from sro.infrastructure.auth.signed_tokens import SignedTokens
+from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests import factories as f
@@ -30,8 +34,10 @@ from tests.unit.fakes import (
     FakeEmbedder,
     FakeHttpCaller,
     FakeIdFactory,
+    FakeIntentParser,
     FakeSignInDriver,
     FakeTranscriber,
+    FakeUiDriver,
     FakeUnitOfWork,
 )
 
@@ -54,18 +60,32 @@ class _FakeContainer(Container):
         # Before the durable fake: it builds induction, which now records what it
         # could not decide, which needs somewhere to put it.
         self.embedder = FakeEmbedder()
+        # No reading of the demonstration in tests: the description is the one
+        # part of a skill a model writes, and asserting on model prose is how a
+        # suite starts failing for reasons nobody changed.
+        self.interpreter = NoInterpreter()
         self.vault = FakeCredentialVault()
         # A supervisor with no browser behind it: start/stop are no-ops, which
         # is what these tests want -- the capture loop has its own coverage in
         # tests/integration/test_steel_capture.py.
         self.capture = FakeCaptureSupervisor()
-        self.durable = FakeDurableExecution(self.induce_skill())
         # Teaching asks whether the system is open before it opens a browser.
         # Here nothing is reachable and nothing is stored, so the answer is "no"
         # and the endpoint's own refusal is what the tests see.
         self.http = FakeHttpCaller()
         self.http.unreachable = True
         self.sign_in_driver = FakeSignInDriver()
+        # Real credential checking, with a key that lives for the length of the
+        # test: the wiring under test includes who is allowed to ask.
+        self.credentials = SignedTokens(TEST_SECRET)
+        self.ui = FakeUiDriver()
+        self.vision = None
+        self.tokens = None
+        self.intent_parser = FakeIntentParser()
+        self.pursuits = Pursuits()
+        # Last: the executor it wraps reaches for the http caller and the
+        # driver above, so the fakes have to exist before it is built.
+        self.durable = FakeDurableExecution(self.induce_skill(), execute=self.execute_skill())
 
     def unit_of_work(self) -> UnitOfWork:
         return self._uow
@@ -99,6 +119,19 @@ class FakeCaptureSupervisor(CaptureController):
         return None
 
 
+TEST_SECRET = "a-key-that-exists-only-in-this-test"  # noqa: S105 -- not a credential
+
+
+def token_for(tenant: str = "", principal: str = "") -> str:
+    return SignedTokens(TEST_SECRET).issue(
+        Caller(
+            tenant_id=TenantId(tenant) if tenant else f.TENANT,
+            principal_id=PrincipalId(principal) if principal else f.OPERATOR,
+        ),
+        lasting_hours=1,
+    )
+
+
 @pytest.fixture
 def uow() -> FakeUnitOfWork:
     return FakeUnitOfWork()
@@ -119,7 +152,7 @@ async def client(
     async with httpx.AsyncClient(
         transport=transport,
         base_url="http://test",
-        headers={"X-Tenant-Id": f.TENANT.value, "X-Principal-Id": f.OPERATOR.value},
+        headers={"Authorization": f"Bearer {token_for()}"},
     ) as http:
         yield http
 
@@ -293,3 +326,61 @@ class TestProblemDocuments:
         problem = response.json()
         assert isinstance(problem["detail"], str)
         assert "objective_key" in problem["detail"]
+
+
+class TestTheDoor:
+    """What a stranger on the network can do, which should be nothing."""
+
+    async def test_without_a_credential_nothing_is_served(self, container: _FakeContainer) -> None:
+        app = create_app()
+        app.dependency_overrides[get_container] = lambda: container
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as anonymous:
+            response = await anonymous.get("/v1/skills")
+
+        assert response.status_code == 401
+        assert "credential" in response.json()["detail"]
+
+    async def test_a_forged_credential_is_refused(self, container: _FakeContainer) -> None:
+        forged = SignedTokens("not-this-deployments-key").issue(
+            Caller(tenant_id=f.TENANT, principal_id=f.OPERATOR), lasting_hours=1
+        )
+        app = create_app()
+        app.dependency_overrides[get_container] = lambda: container
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Authorization": f"Bearer {forged}"},
+        ) as impostor:
+            response = await impostor.get("/v1/skills")
+
+        assert response.status_code == 401
+
+    async def test_health_stays_open_because_a_load_balancer_has_no_token(
+        self, client: httpx.AsyncClient, container: _FakeContainer
+    ) -> None:
+        app = create_app()
+        app.dependency_overrides[get_container] = lambda: container
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as anonymous:
+            assert (await anonymous.get("/health")).status_code == 200
+
+    async def test_one_tenant_cannot_see_another_s_work(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+    ) -> None:
+        """The isolation every use case assumes, exercised through the door."""
+        await uow.skills.add(f.skill(name="Adjust inventory"))
+
+        app = create_app()
+        app.dependency_overrides[get_container] = lambda: container
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Authorization": f"Bearer {token_for(tenant='rival')}"},
+        ) as rival:
+            theirs = await rival.get("/v1/skills")
+
+        assert [s["name"] for s in (await client.get("/v1/skills")).json()] == ["Adjust inventory"]
+        assert theirs.json() == []

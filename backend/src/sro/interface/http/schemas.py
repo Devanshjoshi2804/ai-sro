@@ -19,6 +19,7 @@ from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Run, StepOutcome
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
+from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.track_record import why_not_autonomous
 
@@ -138,6 +139,10 @@ class PursuitProgressModel(BaseModel):
     detail: str
     landed_at: str
 
+    session_id: str = ""
+    """The browser it is driving, so the console can offer a window onto it.
+    Watching the thing happen is what turns a two-minute wait into progress."""
+
     recording_id: str = ""
     skill_id: str = ""
     """What it left behind, and what was induced from it."""
@@ -151,6 +156,7 @@ class PursuitProgressModel(BaseModel):
             gestures=list(progress.gestures),
             detail=progress.detail,
             landed_at=progress.landed_at,
+            session_id=progress.session_id,
             recording_id=progress.recording_id,
             skill_id=progress.skill_id,
         )
@@ -366,7 +372,10 @@ class UnderstoodResponse(BaseModel):
 
 class InduceSkillRequest(BaseModel):
     first_recording_id: str
-    second_recording_id: str
+    second_recording_id: str | None = None
+    """Absent when the operator asked for a skill from one demonstration. What
+    that costs is on the skill itself: with nothing to diff against, every value
+    stays exactly as it was demonstrated and the skill takes no parameters."""
     name: str | None = None
 
 
@@ -401,12 +410,22 @@ class SkillSummary(BaseModel):
         )
 
 
+class OptionsModel(BaseModel):
+    """Where a field's values come from. Its presence is what makes the console
+    draw a dropdown instead of a text box."""
+
+    label: list[str]
+    value: str
+    searchable: bool
+
+
 class ParameterModel(BaseModel):
     name: str
     kind: str
     description: str
     observed_values: list[str]
     source_step_index: int | None
+    options: OptionsModel | None = None
 
 
 class AssertionModel(BaseModel):
@@ -551,6 +570,15 @@ class SkillVersionModel(BaseModel):
                     kind=p.kind.value,
                     description=p.description,
                     observed_values=list(p.observed_values),
+                    options=(
+                        OptionsModel(
+                            label=list(p.options.label),
+                            value=p.options.value,
+                            searchable=p.options.search is not None,
+                        )
+                        if p.options is not None
+                        else None
+                    ),
                     source_step_index=p.source_step_index,
                 )
                 for p in version.parameters
@@ -578,9 +606,33 @@ class SkillDetail(SkillSummary):
         )
 
 
+class OpenBrowserModel(BaseModel):
+    """A browser this deployment is driving right now."""
+
+    session_id: str
+    live_view_url: str | None
+
+
+class ChoiceModel(BaseModel):
+    """One row of a field's dropdown: what runs, and what a person reads."""
+
+    value: str
+    label: str
+
+
 class PromoteRequest(BaseModel):
     version: int
-    to: str
+    to: PromotionStage
+    """The rung to move to, checked here rather than in the router: coercing an
+    unknown name inside the handler raised a bare ValueError, so asking to
+    promote something to "wizard" answered 500 — an internal fault for a typo."""
+
+    acknowledging_fixed_values: bool = False
+    """Yes, I have read what this sends and I mean it.
+
+    Only consulted for a version induced from one demonstration that writes:
+    with nothing to diff against, every value it sends is the one that run
+    happened to carry, and above shadow it is sent for real."""
 
 
 class DescribeRequest(BaseModel):
@@ -598,9 +650,11 @@ class InductionResponse(BaseModel):
 
 
 class BatchRequest(BaseModel):
-    items: list[dict[str, str]]
+    items: list[dict[str, str]] = Field(min_length=1)
     """One parameter set per thing to do. The operator confirmed this table;
-    that confirmation is what each assisted run records as its authorisation."""
+    that confirmation is what each assisted run records as its authorisation.
+    An empty table confirms nothing, so it is refused rather than answered
+    with a 201 and zero runs."""
 
     authorized_by: str | None = None
     version: int | None = None
@@ -624,6 +678,10 @@ class BatchResultModel(BaseModel):
 
 
 class RunSkillRequest(BaseModel):
+    skill_id: str | None = None
+    """Only used when a run is started from inside a thread, where the skill is
+    named in the body rather than in the path."""
+
     parameters: dict[str, str]
     version: int | None = None
 
@@ -650,11 +708,18 @@ class StepOutcomeModel(BaseModel):
     detail: str | None
 
     found_rows: int | None = None
+    found_total: int | None = None
+    """How many exist, where the system said. `found_rows` is what this page
+    carried, and the two are not the same question."""
+
+    found_partial: bool = False
     """How many records a read returned — the answer, when the question was a
     question. A step that reports only a status code has answered nothing."""
 
     found: list[dict[str, str]] = []
     found_columns: list[str] = []
+    found_values: dict[str, list[str]] = {}
+    """A few values each column holds. What the next question can be about."""
     """The result's columns, in the order to show them."""
 
     found_labels: list[str] = []
@@ -677,8 +742,11 @@ class StepOutcomeModel(BaseModel):
             matched_by=step.matched_by,
             detail=step.detail,
             found_rows=step.found_rows,
+            found_total=step.found_total,
+            found_partial=step.found_partial,
             found=[dict(row) for row in step.found],
             found_columns=list(step.found_columns),
+            found_values={key: list(values) for key, values in step.found_values},
             found_labels=list(step.found_labels),
         )
 

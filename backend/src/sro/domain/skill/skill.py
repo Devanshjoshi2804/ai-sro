@@ -131,6 +131,25 @@ class SkillVersion:
         self.when_to_use = when_to_use.strip()
 
     @property
+    def changes_the_system(self) -> bool:
+        """Whether performing this version writes anything."""
+        return any(
+            step.network_plan is not None
+            and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
+            for step in self.steps
+        )
+
+    @property
+    def from_one_demonstration(self) -> bool:
+        """Induced from a single run, so nothing was diffed.
+
+        Every value in it is the value that run happened to send. That is a
+        legitimate skill -- it replays one act exactly -- and it is a different
+        thing from a skill whose constants were held across two runs.
+        """
+        return len(self.provenance.recording_ids) == 1
+
+    @property
     def verifiable(self) -> bool:
         """Whether a run of this can be checked at all.
 
@@ -156,11 +175,8 @@ class SkillVersion:
             record=self.track_record,
             verdict=verdict,
             has_verifiable_outcome=self.verifiable,
-            sends_writes=any(
-                step.network_plan is not None
-                and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
-                for step in self.steps
-            ),
+            sends_writes=self.changes_the_system,
+            values_are_fixed=self.from_one_demonstration,
         )
         if target is None:
             return None
@@ -181,8 +197,34 @@ class SkillVersion:
         self.promoted_by = None
         self.demotion_reason = why
 
-    def promote(self, to: PromotionStage, at: datetime, by: PrincipalId) -> None:
+    def promote(
+        self,
+        to: PromotionStage,
+        at: datetime,
+        by: PrincipalId,
+        *,
+        acknowledging_fixed_values: bool = False,
+    ) -> None:
         check_promotion(self.stage, to)
+        if (
+            to.rung > PromotionStage.SHADOW.rung
+            and self.from_one_demonstration
+            and self.changes_the_system
+            and not acknowledging_fixed_values
+        ):
+            # Shadow is where an unpaired write belongs by default: it produces
+            # the request and withholds it, which is exactly what a reviewer
+            # needs to see. Above that it is sent, and every send is the same
+            # send -- one demonstration had nothing to diff against, so the
+            # values are the ones that run happened to carry. Creating the same
+            # record twice is the polite failure; the impolite one is a skill
+            # that quietly writes to the same id every night.
+            raise InvariantViolation(
+                "this version came from one demonstration, so every value it sends is fixed "
+                "as demonstrated -- running it assisted repeats that exact write. Teach it a "
+                "second time to turn those values into parameters, or promote it again saying "
+                "you have read what it sends"
+            )
         if to is PromotionStage.AUTONOMOUS and (
             refusal := why_not_autonomous(self.track_record, verifiable=self.verifiable)
         ):

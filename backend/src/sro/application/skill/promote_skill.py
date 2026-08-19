@@ -26,11 +26,25 @@ class PromoteSkill:
         skill_id: SkillId,
         version: int,
         to: PromotionStage,
+        acknowledging_fixed_values: bool = False,
     ) -> SkillVersion:
+        """Move one version up one rung.
+
+        ``acknowledging_fixed_values`` is the supervisor answering the one
+        refusal they are allowed to answer: a version induced from a single
+        demonstration sends the same values every time, and above shadow those
+        values are actually sent. Saying so is a decision with a name on it, not
+        a flag to default to true.
+        """
         async with self._uow as uow:
             skill = await uow.skills.get(ctx.tenant_id, skill_id)
             target = skill.version(version)
-            target.promote(to, self._clock.now(), ctx.principal_id)
+            target.promote(
+                to,
+                self._clock.now(),
+                ctx.principal_id,
+                acknowledging_fixed_values=acknowledging_fixed_values,
+            )
             await uow.skills.save(skill)
             await uow.commit()
         return target

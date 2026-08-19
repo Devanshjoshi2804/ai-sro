@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, replace
+from datetime import datetime
 from urllib.parse import urlsplit
 
 from sro.application.context import RequestContext
-from sro.application.execution.answer import read_answer
+from sro.application.execution.answer import MAX_ROWS, Answer, merge, read_answer
 from sro.application.execution.headers import client_headers, resolve_headers
+from sro.application.execution.paging import MOST_PAGES, how_it_pages, next_page
 from sro.application.execution.self_heal import HealBudget, Healed, SelfHeal
 from sro.application.execution.verify import check, extract
 from sro.application.execution.vision_step import PerformWithVision
@@ -65,6 +67,10 @@ class ExecutionRequest:
     version: int | None = None
     authorized_by: str | None = None
 
+    run_id: RunId | None = None
+    """Given by the caller when it has to know the id before the run ends --
+    a console streaming the steps as they happen, for instance."""
+
     medium: Medium = Medium.NETWORK
     """Which rung performs the whole task.
 
@@ -91,36 +97,57 @@ class StartRun:
         self._clock = clock
         self._ids = ids
 
+    async def check(self, ctx: RequestContext, request: ExecutionRequest) -> None:
+        """Everything ``execute`` would refuse for, without starting anything.
+
+        For a caller that schedules the run somewhere else and answers before it
+        begins. Without this, a refusal -- a skill at a stage that may not run, a
+        breaker asking for a person -- happened inside the workflow, after the
+        request had already answered 201 with a run id for a run that was never
+        created. The console then watched that id forever, which is the one
+        outcome a breaker exists to prevent.
+        """
+        async with self._uow as uow:
+            await self._may_run(uow, ctx, request, self._clock.now())
+
+    async def _may_run(
+        self, uow: UnitOfWork, ctx: RequestContext, request: ExecutionRequest, now: datetime
+    ) -> tuple[Skill, SkillVersion]:
+        skill = await uow.skills.get(ctx.tenant_id, request.skill_id)
+        version = _version_of(skill, request.version)
+        _check_runnable(version, request)
+
+        # Checked here because here is where nothing has happened yet. A
+        # limit enforced after the first write is a limit that has already
+        # been exceeded.
+        system = skill.objective_key.target_system
+        recent = await uow.runs.finished_since(
+            ctx.tenant_id, target_system=system, since=now - FAILURE_WINDOW - WRITE_WINDOW
+        )
+        # Failures somebody has already looked at stop counting. Without
+        # this the breaker asks for a person and gives them nothing to do:
+        # every run is refused until the window ages out, including the one
+        # that would show the fault is already fixed.
+        connection = await uow.connections.find_by_system(ctx.tenant_id, system)
+        cleared = connection.failures_acknowledged_at if connection else None
+        if cleared is not None:
+            recent = tuple(run for run in recent if run.ended_at is None or run.ended_at > cleared)
+        verdict = assess(tuple(_fact(run) for run in recent), now)
+        if not verdict.permitted:
+            raise Refused(verdict.reason or "recent runs against this system have failed")
+        return skill, version
+
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
         now = self._clock.now()
         async with self._uow as uow:
-            skill = await uow.skills.get(ctx.tenant_id, request.skill_id)
-            version = _version_of(skill, request.version)
-            _check_runnable(version, request)
-
-            # Checked here because here is where nothing has happened yet. A
-            # limit enforced after the first write is a limit that has already
-            # been exceeded.
+            skill, version = await self._may_run(uow, ctx, request, now)
             system = skill.objective_key.target_system
-            recent = await uow.runs.finished_since(
-                ctx.tenant_id, target_system=system, since=now - FAILURE_WINDOW - WRITE_WINDOW
-            )
-            # Failures somebody has already looked at stop counting. Without
-            # this the breaker asks for a person and gives them nothing to do:
-            # every run is refused until the window ages out, including the one
-            # that would show the fault is already fixed.
-            connection = await uow.connections.find_by_system(ctx.tenant_id, system)
-            cleared = connection.failures_acknowledged_at if connection else None
-            if cleared is not None:
-                recent = tuple(
-                    run for run in recent if run.ended_at is None or run.ended_at > cleared
-                )
-            verdict = assess(tuple(_fact(run) for run in recent), now)
-            if not verdict.permitted:
-                raise Refused(verdict.reason or "recent runs against this system have failed")
 
             run = Run(
-                id=self._ids.new_run_id(),
+                # Minted by whoever asked, where they need to know it before it
+                # finishes: a console cannot stream a run whose id only arrives
+                # with the last step.
+                id=request.run_id or self._ids.new_run_id(),
                 tenant_id=ctx.tenant_id,
                 skill_id=skill.id,
                 skill_version=version.version,
@@ -131,7 +158,7 @@ class StartRun:
                 authorized_by=_principal(request.authorized_by),
                 medium=request.medium,
                 target_system=system,
-                may_change_the_system=_writes(version),
+                may_change_the_system=version.changes_the_system,
             )
             await uow.runs.add(run)
             await uow.commit()
@@ -183,13 +210,12 @@ class ExecuteStep:
                 await uow.commit()
             return outcome
 
-        produces = next(
-            (
-                parameter
-                for parameter in version.parameters
-                if parameter.kind is ParameterKind.DERIVED and parameter.source_step_index == index
-            ),
-            None,
+        # Every value this step hands forward, not the first: one call can
+        # return an id and the code the next call needs alongside it.
+        produces = tuple(
+            parameter
+            for parameter in version.parameters
+            if parameter.kind is ParameterKind.DERIVED and parameter.source_step_index == index
         )
 
         session_scope = f"{skill.objective_key.target_system}/{skill.objective_key.facility}"
@@ -207,7 +233,17 @@ class ExecuteStep:
         # and let the step speak for itself; anything the healer cannot explain
         # is left exactly as it failed.
         healed = await self._heal(ctx, run, skill, step, outcome, failure)
-        if healed is not None:
+        if healed is not None and not healed.repaired:
+            # Diagnosed and not repaired. The diagnosis is the useful half: a
+            # step that says "assertion_failed" sends somebody to read the
+            # skill, and this one was turned away at a login page by a system
+            # nobody is signed into any more.
+            outcome = replace(
+                outcome,
+                detail=f"{healed.because}; {healed.detail}"
+                + (f" -- {outcome.detail}" if outcome.detail else ""),
+            )
+        elif healed is not None:
             outcome, derived, failure = await self._perform(
                 run,
                 step,
@@ -463,7 +499,7 @@ class ExecuteStep:
         values: dict[str, str],
         scope: str,
         session_scope: str,
-        produces: Parameter | None = None,
+        produces: tuple[Parameter, ...] = (),
     ) -> tuple[StepOutcome, dict[str, str], FailureKind | None]:
         plan = step.network_plan
         if plan is None:
@@ -498,6 +534,32 @@ class ExecuteStep:
             url = plan.url.render(values)
             body = plan.body.render(values) if plan.body is not None else None
         except KeyError as missing:
+            withheld = next(
+                (s for s in reversed(run.steps) if s.disposition is StepDisposition.WITHHELD),
+                None,
+            )
+            if withheld is not None:
+                # Not a fault: this rehearsal withheld the write that would have
+                # minted the value. A create chain -- post the address, then the
+                # client that names it -- can never be rehearsed to the end, and
+                # reporting that as a failed step meant every such skill failed
+                # its shadow run and could never earn its way off the rung.
+                return (
+                    StepOutcome(
+                        index=step.index,
+                        medium=Medium.NETWORK,
+                        disposition=StepDisposition.WITHHELD,
+                        intent=step.intent,
+                        method=plan.method,
+                        idempotency_key=key,
+                        detail=(
+                            f"needs {missing.args[0]!r}, which the withheld write at step "
+                            f"{withheld.index} would have produced"
+                        ),
+                    ),
+                    {},
+                    None,
+                )
             return (
                 self._failed(step, key, f"no value for parameter {missing.args[0]!r}"),
                 {},
@@ -556,7 +618,12 @@ class ExecuteStep:
         # created. A create returns the record it made, which is the one thing
         # the person who asked wants to see, and discarding it left them
         # looking at a status code for that too.
-        answer = read_answer(response.text)
+        answer = read_answer(response.text, url=url)
+        if answer is not None and not mutating:
+            # And the rest of it. An operator who asks which suppliers exist is
+            # not asking for the first page; the paging is the system's own and
+            # this walks it in the dialect the demonstration proved.
+            answer = await self._rest_of(url, headers, answer)
 
         failures = check(step.assertions, response, values=values)
         if plan.expected_status is not None and response.status_code != plan.expected_status:
@@ -577,13 +644,47 @@ class ExecuteStep:
                 idempotency_key=key,
                 assertion_failures=failures,
                 found_rows=answer.rows if answer else None,
+                found_total=answer.total if answer else None,
+                found_partial=bool(answer and answer.partial),
                 found=answer.sample if answer else (),
                 found_columns=answer.columns if answer else (),
+                found_values=(
+                    tuple((key, values) for key, values in answer.distinct.items())
+                    if answer
+                    else ()
+                ),
                 found_labels=answer.labels if answer else (),
             ),
             _derive(produces, response),
             FailureKind.ASSERTION_FAILED if failures else None,
         )
+
+    async def _rest_of(self, url: str, headers: dict[str, str], first: Answer) -> Answer:
+        """Follow this read's own paging until there is nothing after it."""
+        paging = how_it_pages(url)
+        if not paging.pages or first.rows < paging.limit:
+            return first
+
+        pages = [first]
+        so_far = first.rows
+        for page in range(MOST_PAGES):
+            following = next_page(url, paging, so_far=so_far, page=page)
+            if following is None:
+                break
+            try:
+                response = await self._http.send("GET", following, headers=headers)
+            except TargetUnreachable:
+                # What was read is still true. Stopping here reports fewer
+                # records than exist, which the count beside them already says.
+                break
+            answer = read_answer(response.text, url=following)
+            if answer is None or answer.rows == 0:
+                break
+            pages.append(answer)
+            so_far += answer.rows
+            if answer.rows < paging.limit or so_far >= MAX_ROWS:
+                break
+        return merge(tuple(pages)) or first
 
     @staticmethod
     def _failed(
@@ -698,15 +799,6 @@ def _version_of(skill: Skill, requested: int | None) -> SkillVersion:
     raise NotRunnable(f"skill has no version {requested}")
 
 
-def _writes(version: SkillVersion) -> bool:
-    """Whether performing this version changes the target system."""
-    return any(
-        step.network_plan is not None
-        and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
-        for step in version.steps
-    )
-
-
 def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
     if version.stage is PromotionStage.RECORDED:
         raise NotRunnable(
@@ -718,7 +810,7 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
     # a list -- which is both untrue and the kind of prompt that teaches people
     # to click past prompts.
     if (
-        _writes(version)
+        version.changes_the_system
         and version.stage.rung > PromotionStage.SHADOW.rung
         and not request.authorized_by
     ):
@@ -731,17 +823,21 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
         raise NotRunnable("no value supplied for " + ", ".join(absent))
 
 
-def _derive(produces: Parameter | None, response: HttpResponse) -> dict[str, str]:
-    """A value this step's response hands to a later one.
+def _derive(produces: tuple[Parameter, ...], response: HttpResponse) -> dict[str, str]:
+    """The values this step's response hands to later ones.
 
     A derived parameter that cannot be extracted is left unbound on purpose: the
     step that needs it then fails with the parameter's name, which points at the
     response that was supposed to carry it rather than at the step that broke.
     """
-    if produces is None or produces.source_pointer is None:
-        return {}
-    value = extract(response, produces.source_pointer)
-    return {} if value is None else {produces.name: value}
+    bound: dict[str, str] = {}
+    for parameter in produces:
+        if parameter.source_pointer is None:
+            continue
+        value = extract(response, parameter.source_pointer)
+        if value is not None:
+            bound[parameter.name] = value
+    return bound
 
 
 def _fact(run: Run) -> RunFact:

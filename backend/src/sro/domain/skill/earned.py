@@ -34,6 +34,7 @@ def earned_stage(
     verdict: Verdict,
     has_verifiable_outcome: bool,
     sends_writes: bool,
+    values_are_fixed: bool = False,
 ) -> PromotionStage | None:
     """The rung this record has earned, or None to leave it where it is.
 
@@ -47,6 +48,14 @@ def earned_stage(
         return _capped(PromotionStage.SHADOW)
 
     if current is PromotionStage.SHADOW and verdict in {Verdict.WITHHELD, Verdict.CLEAN}:
+        if values_are_fixed and sends_writes:
+            # Induced from one demonstration, so every value it sends is the one
+            # that run happened to carry. A rehearsal proves the request can be
+            # built; it cannot prove that sending that exact request again is
+            # what anybody wants. A person says that, or it stays here -- and
+            # this is the path where nobody is asked, so the refusal has to live
+            # here too rather than only on the promotion by hand.
+            return None
         # The request was built and, where it was a read, answered as the
         # demonstration was answered. That is the whole claim of this rung.
         return _capped(PromotionStage.ASSISTED)

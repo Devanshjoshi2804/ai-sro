@@ -202,4 +202,9 @@ filterwarnings = [
     # container -- which builds a Gemini client -- failed every test that did.
     # Narrow to the one message: a blanket ignore would hide our own.
     "ignore:'_UnionGenericAlias' is deprecated:DeprecationWarning",
+    # asyncpg's transports are closed when their event loop ends and collected
+    # after it, so the integration suite raised this at session teardown --
+    # outside any test, which made `make check` exit non-zero over a suite that
+    # had passed. About sockets being collected late, never about our code.
+    "ignore::ResourceWarning",
 ]

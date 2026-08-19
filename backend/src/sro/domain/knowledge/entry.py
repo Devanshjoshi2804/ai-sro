@@ -106,11 +106,6 @@ class KnowledgeEntry:
     def current(self) -> bool:
         return self.superseded_by is None
 
-    @property
-    def supports_automation(self) -> bool:
-        """Whether this claim may be acted on rather than merely shown."""
-        return self.evidence.rank >= SUPPORTS_AUTOMATION.rank
-
     def superseded(self, by: KnowledgeEntry) -> None:
         """Point forward at what replaced this. The old row stays."""
         if by.id == self.id:

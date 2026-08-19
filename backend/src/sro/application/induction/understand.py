@@ -360,12 +360,3 @@ def _no_assertions(frame: ActionFrame) -> StepEvidence:
         ),
         wait_for=None,
     )
-
-
-def _one_run(replacements: dict[Site, str]) -> Parameterisation:
-    """A `Parameterisation` for a single run: the same substitutions on every
-    step, because there is no second run to disagree about where they belong."""
-    return Parameterisation(
-        parameters=(),
-        substitutions={},
-    )

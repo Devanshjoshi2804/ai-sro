@@ -24,7 +24,6 @@ class Settings(BaseSettings):
     Empty by default, and an empty value is not a degraded mode: a run that
     would have escalated records that there was no browser rather than
     pretending the step was impossible."""
-    redis_url: str = "redis://localhost:6379/0"
 
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "sro"
@@ -146,6 +145,13 @@ class Settings(BaseSettings):
     parameters."""
 
     vision_enabled: bool = False
+    """Whether a screen may be sent to a hosted model at all.
+
+    The setting that governs a customer's warehouse screens leaving the
+    deployment, and it was the one with nothing written next to it -- the
+    paragraph above belongs to the switch above it. Off, the rungs that replay
+    what somebody demonstrated work exactly as they do now; what stops is the
+    rung that looks at a screen nobody has demonstrated."""
 
     keycloak_realm_url: str = ""
     """The realm that issues offline tokens for the connected system.

@@ -18,7 +18,7 @@ help: ## Show this help
 
 # --- infrastructure ---------------------------------------------------------
 
-up: ## Start the local stack (postgres, redis, minio, temporal, steel, otel)
+up: ## Start the local stack (postgres, minio, temporal, steel, otel)
 	$(COMPOSE) up -d --wait
 
 down: ## Stop the local stack

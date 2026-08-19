@@ -35,20 +35,6 @@ services:
       retries: 20
 
   # ---------------------------------------------------------------------------
-  # Redis. Short-lived caches and per-tenant rate-limit counters.
-  # ---------------------------------------------------------------------------
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  # ---------------------------------------------------------------------------
   # MinIO. S3-compatible object store for capture artifacts: raw CDP event
   # streams, screencast video, optional narration audio.
   # ---------------------------------------------------------------------------

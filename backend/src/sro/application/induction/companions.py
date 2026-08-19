@@ -15,10 +15,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime
-from urllib.parse import urlsplit
 
 from sro.application.induction.capabilities import ReadCapability, reads_about, wrote_to
 from sro.application.induction.headers import build_header_plans
+from sro.application.induction.sites import url_path_segments
 from sro.application.knowledge.open_questions import Ambiguity
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.network import CapturedRequest
@@ -132,7 +132,7 @@ def _write_request(frames: tuple[ActionFrame, ...]) -> CapturedRequest | None:
 
 
 def _resource(url: str) -> str:
-    return [part for part in urlsplit(url).path.split("/") if part][-1]
+    return url_path_segments(url)[-1]
 
 
 def objective_for(capability: ReadCapability, taught: ObjectiveKey) -> ObjectiveKey:

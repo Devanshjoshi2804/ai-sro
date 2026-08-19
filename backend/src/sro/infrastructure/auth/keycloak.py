@@ -106,9 +106,6 @@ class KeycloakTokens:
             await self._vault.store(self._key(tenant, system), str(rotated))
         return self._remember(tenant, system, answer)
 
-    async def has_token(self, *, tenant: str, system: str) -> bool:
-        return bool(await self._vault.get(self._key(tenant, system)))
-
     def _remember(self, tenant: str, system: str, answer: dict[str, object]) -> str:
         token = str(answer.get("access_token", ""))
         lifetime = float(answer.get("expires_in", 300) or 300)  # type: ignore[arg-type]

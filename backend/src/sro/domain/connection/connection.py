@@ -102,10 +102,6 @@ class Connection:
         """Vault key for one credential of this system, scoped per tenant."""
         return f"{self.tenant_id}/{self.target_system}/{field.lower()}"
 
-    @property
-    def is_usable(self) -> bool:
-        return self.status is ConnectionStatus.CONNECTED
-
     def authenticated(self, at: datetime) -> None:
         if at.tzinfo is None:
             raise InvariantViolation("timestamps must be timezone-aware")

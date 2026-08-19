@@ -93,6 +93,17 @@ class NetworkPlan:
             )
 
     @property
+    def is_mutation(self) -> bool:
+        """Whether replaying this changes the target system.
+
+        The same question `CapturedRequest.is_mutation` answers about the call
+        that was recorded, spelled out by hand in eight places before this --
+        each of them a chance for one of them to disagree about which methods
+        are safe.
+        """
+        return self.method.upper() not in {"GET", "HEAD", "OPTIONS"}
+
+    @property
     def placeholders(self) -> frozenset[str]:
         names = set(self.url.placeholders)
         for header in self.headers:

@@ -172,34 +172,3 @@ _ESSENTIAL = {
     "where": "which site",
     "what": "what value",
 }
-
-
-def questions_for(goal: Goal, known: dict[str, str] | None = None) -> tuple[str, ...]:
-    """What has to be pinned down before a browser is pointed at anything.
-
-    A goal precise enough to act on is not the same as a sentence somebody
-    typed. "Create a carrier" names no code, no description and no site, and a
-    model asked to work that out on screen will invent all three -- confidently,
-    into a live warehouse.
-
-    So the fields the knowledge base says this screen declares are asked for
-    before anything opens, and only the ones no value is known for. Asking about
-    something already answered is how a system teaches people to skim its
-    questions.
-    """
-    supplied = {key.lower() for key, value in (known or {}).items() if value}
-    asked: list[str] = []
-
-    for wanted in goal.fields:
-        if wanted.lower() in supplied:
-            continue
-        asked.append(f"What should {wanted} be?")
-
-    if goal.changes_the_system and not goal.fields and not supplied:
-        # Nothing is known about the shape of it, which is worth saying out
-        # loud rather than opening a browser and hoping.
-        asked.append(
-            "Nothing here names the fields that screen needs — tell me the values "
-            "you would type, or demonstrate it once and I will have it exactly."
-        )
-    return tuple(asked[:5])

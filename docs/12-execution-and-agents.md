@@ -255,7 +255,7 @@ that hides it hides the skill.
 
 ## The knowledge store
 
-`knowledge-base/blue-yonder-sce/` was a folder nothing read. It is now loaded
+`knowledge-base/` was a folder nothing read. It is now loaded
 into `knowledge_entries` by `make ingest-kb`: **1,917 claims** — 551 endpoints,
 398 fields, 316 screens, 216+ status observations, 84 create forms, 21 recorded
 quirks.

@@ -21,7 +21,6 @@ from sro.domain.recording.network import (
     StackFrame,
 )
 from sro.domain.recording.state import (
-    BrowserState,
     ConsoleLevel,
     ConsoleMessage,
     PageEvent,
@@ -285,23 +284,6 @@ def to_page_event(method: str, payload: CdpPayload, *, at: datetime) -> PageEven
         kind=kind,
         url=str(url) if url else None,
         detail=str(detail) if detail else None,
-    )
-
-
-def to_browser_state(
-    *,
-    at: datetime,
-    origin: str,
-    cookies: list[CdpPayload] | None,
-    local_storage: CdpPayload | None,
-    session_storage: CdpPayload | None,
-) -> BrowserState:
-    return BrowserState(
-        taken_at=at,
-        origin=origin,
-        cookies=to_cookies(cookies),
-        local_storage={str(k): str(v) for k, v in (local_storage or {}).items()},
-        session_storage={str(k): str(v) for k, v in (session_storage or {}).items()},
     )
 
 

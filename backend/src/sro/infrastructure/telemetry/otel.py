@@ -28,7 +28,3 @@ def configure_tracing(*, service_name: str, endpoint: str | None, environment: s
         BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{endpoint.rstrip('/')}/v1/traces"))
     )
     trace.set_tracer_provider(provider)
-
-
-def tracer(name: str) -> trace.Tracer:
-    return trace.get_tracer(name)

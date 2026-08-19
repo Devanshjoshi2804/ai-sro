@@ -78,8 +78,7 @@ def _write(steps: tuple[SkillStep, ...]) -> str | None:
     written = [
         f"{step.network_plan.method} {urlsplit(str(step.network_plan.url)).path}"
         for step in steps
-        if step.network_plan is not None
-        and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
+        if step.network_plan is not None and step.network_plan.is_mutation
     ]
     return " then ".join(dict.fromkeys(written)) or None
 

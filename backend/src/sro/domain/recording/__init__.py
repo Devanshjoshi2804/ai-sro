@@ -23,7 +23,6 @@ from sro.domain.recording.sensitivity import (
     is_secret,
 )
 from sro.domain.recording.state import (
-    BrowserState,
     ConsoleLevel,
     ConsoleMessage,
     PageEvent,
@@ -37,7 +36,6 @@ __all__ = [
     "AxGraph",
     "Body",
     "Bounds",
-    "BrowserState",
     "CapturedRequest",
     "ConsoleLevel",
     "ConsoleMessage",

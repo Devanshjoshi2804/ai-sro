@@ -311,7 +311,7 @@ class ExecuteStep:
             target_system=skill.objective_key.target_system,
             facility=skill.objective_key.facility,
             step_index=step.index,
-            mutating=bool(plan and plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}),
+            mutating=bool(plan and plan.is_mutation),
             budget=self._budget_for(run),
             failure=failure,
             status_code=outcome.status_code,
@@ -550,7 +550,7 @@ class ExecuteStep:
                 FailureKind.UNREPLAYABLE,
             )
 
-        mutating = plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
+        mutating = plan.is_mutation
         key = f"{run.id}:{step.index}" if mutating else None
 
         try:
@@ -893,7 +893,7 @@ def _may_be_retried(step: SkillStep, outcome: StepOutcome) -> bool:
     how one create becomes two.
     """
     plan = step.network_plan
-    mutating = bool(plan and plan.method.upper() not in {"GET", "HEAD", "OPTIONS"})
+    mutating = bool(plan and plan.is_mutation)
     return not (mutating and outcome.status_code is not None)
 
 

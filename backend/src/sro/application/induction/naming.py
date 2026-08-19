@@ -20,13 +20,16 @@ from sro.application.induction.sites import (
     url_path_segments,
 )
 
-_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+"""Where ``shipmentId`` becomes two words. Shared, because a second copy of
+this that disagreed about digits would split field names one way for naming
+and another way for deciding what is a credential."""
 _NON_IDENTIFIER = re.compile(r"[^0-9a-zA-Z]+")
 
 
 def snake_case(text: str) -> str:
     """``shipmentId`` -> ``shipment_id``; ``Order Number`` -> ``order_number``."""
-    spaced = _CAMEL_BOUNDARY.sub("_", text)
+    spaced = CAMEL_BOUNDARY.sub("_", text)
     cleaned = _NON_IDENTIFIER.sub("_", spaced).strip("_").lower()
     if not cleaned or cleaned[0].isdigit():
         cleaned = f"value_{cleaned}" if cleaned else "value"

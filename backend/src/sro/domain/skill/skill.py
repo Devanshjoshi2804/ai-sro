@@ -119,10 +119,6 @@ class SkillVersion:
     def inputs(self) -> tuple[Parameter, ...]:
         return tuple(p for p in self.parameters if p.kind is ParameterKind.INPUT)
 
-    @property
-    def needs_human_step(self) -> bool:
-        return any(step.requires_human for step in self.steps)
-
     def describe(self, *, summary: str, when_to_use: str) -> None:
         """Reword what this version is for. A label, never a behaviour."""
         if not summary.strip():
@@ -134,9 +130,7 @@ class SkillVersion:
     def changes_the_system(self) -> bool:
         """Whether performing this version writes anything."""
         return any(
-            step.network_plan is not None
-            and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
-            for step in self.steps
+            step.network_plan is not None and step.network_plan.is_mutation for step in self.steps
         )
 
     @property

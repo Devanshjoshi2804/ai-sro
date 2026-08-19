@@ -4,7 +4,7 @@ One document, self-contained: what this is, what exists today, every decision
 taken and why, and what happens next. Written to be handed to a person or a tool
 that has never seen the repository.
 
-Repository: `bitbucket.org/lab89/ai-sro` · latest commit `2c9e4f2`
+Repository: `bitbucket.org/lab89/ai-sro` · read `git log` for where it is now
 Deeper reading: [`docs/00-overview.md`](docs/00-overview.md) and the ADRs in
 [`docs/07-adr/`](docs/07-adr/). Agent-facing rules: [`AGENTS.md`](AGENTS.md).
 

@@ -25,17 +25,6 @@ from sro.domain.skill.plan import HeaderPlan
 
 
 @dataclass(frozen=True, slots=True)
-class Match:
-    """One field of the record, and the value to find it by."""
-
-    field: str
-    """The record's own name for it, as the listing returned it: `addressName`."""
-
-    parameter: str
-    """The parameter holding what to match against: `address_name`."""
-
-
-@dataclass(frozen=True, slots=True)
 class Options:
     """Where the values of a parameter come from, live.
 

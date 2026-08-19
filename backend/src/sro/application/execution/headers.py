@@ -108,9 +108,6 @@ async def resolve_headers(
     return ResolvedHeaders(headers=headers, missing=tuple(dict.fromkeys(missing)))
 
 
-_ORIGIN_HEADERS = ("referer", "origin")
-
-
 def client_headers(plans: tuple[HeaderPlan, ...], url: str) -> dict[str, str]:
     """Client-managed headers, set for *this* request rather than replayed.
 

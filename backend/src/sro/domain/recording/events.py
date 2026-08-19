@@ -10,7 +10,7 @@ from sro.domain.recording.axgraph import AxGraph
 from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.element import ElementFingerprint
 from sro.domain.recording.network import CapturedRequest, InitiatorKind
-from sro.domain.recording.state import BrowserState, ConsoleLevel, ConsoleMessage, PageEvent
+from sro.domain.recording.state import ConsoleLevel, ConsoleMessage, PageEvent
 from sro.domain.shared.errors import InvariantViolation
 
 _ACTIONS_NEEDING_TARGET = frozenset({"click", "type", "select", "upload"})
@@ -72,8 +72,6 @@ class ActionFrame:
     requests: tuple[CapturedRequest, ...] = field(default_factory=tuple)
     console: tuple[ConsoleMessage, ...] = ()
     page_events: tuple[PageEvent, ...] = ()
-    state_before: BrowserState | None = None
-    state_after: BrowserState | None = None
 
     def __post_init__(self) -> None:
         if self.index < 0:
@@ -142,15 +140,6 @@ class ActionFrame:
             return (rank(request), request.url.split("?", 1)[0], request.started_at.timestamp())
 
         return min(caused, key=order)
-
-    @property
-    def api_requests(self) -> tuple[CapturedRequest, ...]:
-        """Calls worth cataloguing. Excludes assets, keeps everything else."""
-        return tuple(
-            request
-            for request in self.requests
-            if request.resource_type.lower() in {"xhr", "fetch", "websocket", "document"}
-        )
 
     @property
     def errors(self) -> tuple[str, ...]:

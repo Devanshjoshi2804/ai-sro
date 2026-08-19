@@ -82,18 +82,6 @@ class Recording:
         matches = [a for a in self._artifacts if a.kind is kind]
         return matches[-1] if matches else None
 
-    def artifacts_of(self, kind: ArtifactKind) -> tuple[MediaArtifact, ...]:
-        """All artifacts of a kind. Screenshots and payload blobs are many-per-recording."""
-        return tuple(a for a in self._artifacts if a.kind is kind)
-
-    def screenshot_for(self, frame_index: int) -> MediaArtifact | None:
-        matches = [
-            a
-            for a in self._artifacts
-            if a.kind is ArtifactKind.SCREENSHOT and a.frame_index == frame_index
-        ]
-        return matches[-1] if matches else None
-
     def attach_browser_session(self, session_id: BrowserSessionId) -> None:
         self._require_open("attach a browser session")
         if self.browser_session_id is not None:
@@ -118,8 +106,6 @@ class Recording:
                 requests=frame.requests,
                 console=frame.console,
                 page_events=frame.page_events,
-                state_before=frame.state_before,
-                state_after=frame.state_after,
             )
         )
         self._frames.append(placed)

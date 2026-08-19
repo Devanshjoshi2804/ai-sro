@@ -68,12 +68,3 @@ def credential_key(target_system: str, facility: str, header_name: str) -> str:
     """Vault key for a credential. Scoped per system and facility, because a site
     has its own login even when the software is the same."""
     return f"{target_system}/{facility}/{header_name.lower()}"
-
-
-def replayable_headers(plans: tuple[HeaderPlan, ...]) -> tuple[HeaderPlan, ...]:
-    """Headers the executor sends verbatim, without resolving or minting."""
-    return tuple(
-        plan
-        for plan in plans
-        if plan.sensitivity is Sensitivity.SEMANTIC and plan.value is not None
-    )

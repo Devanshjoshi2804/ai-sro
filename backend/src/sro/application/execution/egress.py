@@ -17,6 +17,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, replace
 
+from sro.application.induction.naming import CAMEL_BOUNDARY
 from sro.application.ports.vision import Screen
 from sro.domain.recording.sensitivity import is_secret_field
 
@@ -45,7 +46,7 @@ def _words_on(digest: str) -> set[str]:
     Split on camel case as well as on punctuation, so ``passwordField`` still
     names a password while ``Shipping`` does not name a PIN.
     """
-    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", digest)
+    spaced = CAMEL_BOUNDARY.sub(" ", digest)
     return {word.lower() for word in re.findall(r"[A-Za-z]+", spaced)}
 
 

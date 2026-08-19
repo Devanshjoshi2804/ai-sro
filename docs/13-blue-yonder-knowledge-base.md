@@ -17,7 +17,7 @@ cycle with every status recorded.
 The decision table also carries *"Knowledge base | Live sandbox + recorded traffic only | **No spec to
 validate a generated call against**"*. The consequence column can now be softened for this system:
 there is still no vendor specification, but there is a recorded one, and a generated call can be
-checked against `knowledge-base/blue-yonder-sce/http/status-matrix.json` before it is ever sent.
+checked against `knowledge-base/http/status-matrix.json` before it is ever sent.
 
 ## Five corrections
 
@@ -54,7 +54,7 @@ The ADR's conclusion survives intact; its reasoning about the mechanism needs a 
 Phase 2 is *"UI replay by accessibility ancestry"*, and capture stores `Accessibility.getFullAXTree`
 at every gesture, with the stated example `dialog "Adjust" > form > button "Confirm"`.
 
-Measured on four SCE screens (`knowledge-base/blue-yonder-sce/index/a11y-vs-ext.json`):
+Measured on four SCE screens (`knowledge-base/index/a11y-vs-ext.json`):
 
 | screen | a11y nodes | `button` | `textbox` | Ext fields | payload keys in a11y |
 |---|---|---|---|---|---|
@@ -146,7 +146,7 @@ from evidence in the other is asserted, not observed.
 
 The `Referer` failure in commit `620697e` went the other way: the running system taught the knowledge
 base something 266 recorded exchanges could not have contained. It has now been reproduced
-deliberately (`knowledge-base/blue-yonder-sce/http/exchanges/businessUnits.jsonl`, cases `referer-*`
+deliberately (`knowledge-base/http/exchanges/businessUnits.jsonl`, cases `referer-*`
 and `out-of-page-*`):
 
 | call | result |

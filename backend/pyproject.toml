@@ -14,7 +14,6 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.14",
     "pgvector>=0.3.6",
-    "redis>=5.2",
     "boto3>=1.35",
     "httpx>=0.28",
     "temporalio>=1.8",
@@ -159,7 +158,6 @@ forbidden_modules = [
     "sqlalchemy",
     "temporalio",
     "httpx",
-    "redis",
     "boto3",
     "playwright",
 ]
@@ -176,7 +174,6 @@ forbidden_modules = [
     "sqlalchemy",
     "temporalio",
     "httpx",
-    "redis",
     "boto3",
     "playwright",
 ]

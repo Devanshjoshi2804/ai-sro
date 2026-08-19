@@ -40,8 +40,6 @@ class TokenSource(Protocol):
         """
         ...
 
-    async def has_token(self, *, tenant: str, system: str) -> bool: ...
-
 
 class TokenRefused(Exception):
     """The identity provider would not issue or refresh. Not a ``DomainError``:

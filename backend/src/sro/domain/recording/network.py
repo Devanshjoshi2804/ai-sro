@@ -94,10 +94,6 @@ class Body:
     indistinguishable from a capture bug.
     """
 
-    @property
-    def is_inline(self) -> bool:
-        return self.text is not None
-
     def __post_init__(self) -> None:
         if self.text is None and self.blob_uri is None and self.size_bytes > 0:
             raise InvariantViolation(

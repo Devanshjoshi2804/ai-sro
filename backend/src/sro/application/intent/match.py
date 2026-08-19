@@ -105,9 +105,7 @@ def asks(utterance: str) -> bool:
 def writes(version: SkillVersion) -> bool:
     """Whether performing this skill changes the target system."""
     return any(
-        step.network_plan is not None
-        and step.network_plan.method.upper() not in {"GET", "HEAD", "OPTIONS"}
-        for step in version.steps
+        step.network_plan is not None and step.network_plan.is_mutation for step in version.steps
     )
 
 

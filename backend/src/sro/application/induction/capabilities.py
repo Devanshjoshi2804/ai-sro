@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from sro.application.execution.answer import read_answer
-from sro.application.induction.sites import parse_json
+from sro.application.induction.sites import parse_json, url_path_segments
 from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.network import CapturedRequest
@@ -50,10 +50,6 @@ class ReadCapability:
     ``None`` when it came back as one page of something longer -- and then
     nothing about that afternoon is worth repeating as a number, because the
     length of a page is a fact about the request."""
-
-    @property
-    def is_collection(self) -> bool:
-        return self.rows >= 0
 
 
 def normalise(name: str) -> str:
@@ -170,7 +166,7 @@ def _is_a_read(request: CapturedRequest) -> bool:
 
 def _resource_of(url: str) -> str:
     """The last path segment that names a thing rather than an instance."""
-    segments = [segment for segment in urlsplit(url).path.split("/") if segment]
+    segments = url_path_segments(url)
     for segment in reversed(segments):
         if any(character.isalpha() for character in segment):
             return segment
@@ -203,7 +199,7 @@ def _collection_of(url: str) -> str:
     as one of two collections their question might mean, and written into a
     skill summary as "writes to A000144886, which is a wider collection".
     """
-    for segment in reversed([s for s in urlsplit(url).path.split("/") if s]):
+    for segment in reversed(url_path_segments(url)):
         if any(character.isalpha() for character in segment) and not _is_a_record(segment):
             return segment
     return ""

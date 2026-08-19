@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from sro.domain.shared.errors import NotFound
-from sro.domain.shared.identifiers import RecordingId, SkillId, TenantId
+from sro.domain.shared.errors import Conflict, NotFound
+from sro.domain.shared.identifiers import BrowserSessionId, RecordingId, SkillId, TenantId
 from sro.domain.skill.promotion import PromotionStage
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests import factories as f
@@ -121,3 +121,64 @@ class TestSkills:
             again = await uow.skills.get(skill.tenant_id, skill.id)
 
         assert again.latest.stage.value == "shadow"
+
+
+class TestBrowserOwnership:
+    """The claims that say whose a browser is, in SQL.
+
+    The fakes enforce isolation structurally -- they cannot answer a question
+    the wrong way -- so a missing `WHERE tenant_id` is invisible to every unit
+    test in the suite. This is the only place that clause is really exercised.
+    """
+
+    async def test_a_claim_is_visible_only_to_the_tenant_that_made_it(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.browser_sessions.claim(
+                f.TENANT, BrowserSessionId("sess-1"), f.OPERATOR, f.at(10)
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.browser_sessions.held_by(f.TENANT) == (BrowserSessionId("sess-1"),)
+            assert await uow.browser_sessions.held_by(OTHER_TENANT) == ()
+
+    async def test_one_browser_cannot_be_claimed_twice(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The primary key is the security property: a second claim means the
+        provider handed one browser to two callers, and that must fail rather
+        than transfer it."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.browser_sessions.claim(
+                f.TENANT, BrowserSessionId("sess-2"), f.OPERATOR, f.at(10)
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(Conflict):
+                await uow.browser_sessions.claim(
+                    OTHER_TENANT, BrowserSessionId("sess-2"), f.OPERATOR, f.at(20)
+                )
+
+    async def test_the_sweep_sees_every_claim_and_no_tenant(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.browser_sessions.claim(
+                f.TENANT, BrowserSessionId("sess-3"), f.OPERATOR, f.at(10)
+            )
+            await uow.browser_sessions.claim(
+                OTHER_TENANT, BrowserSessionId("sess-4"), f.OPERATOR, f.at(20)
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            held = await uow.browser_sessions.all_held()
+            await uow.browser_sessions.release(BrowserSessionId("sess-3"))
+            await uow.commit()
+
+        assert {str(session_id) for session_id, _ in held} == {"sess-3", "sess-4"}
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.browser_sessions.held_by(f.TENANT) == ()

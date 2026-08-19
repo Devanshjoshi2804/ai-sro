@@ -1,0 +1,267 @@
+{
+  "wm/shipments/": {
+    "status": "not-a-verb",
+    "note": "The Ext model's own create/proxy URL, not an action. Posting with shipmentId in the query returns a bare 400 on both a live and a cancelled shipment; the nearby triggerShipmentStageWorkflow actually posts to the workflowOperations routes.",
+    "evidence": "http/claims.json#not-every-mined-route-is-a-verb"
+  },
+  "wm/workOrders/": {
+    "status": "no-data",
+    "note": "/wm/workOrders returns 200 with zero rows on this instance. Contract mined: {workOrderNumber, clientId, warehouseId, workOrderRevision}.",
+    "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+  },
+  "wm/workOrderLines/": {
+    "status": "no-data",
+    "note": "/wm/workOrderLines returns 200 with zero rows. Contract adds pickQuantity and pickCatchQuantity to the work-order key.",
+    "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+  },
+  "wm/workOrders/confirmedWorkOrder": {
+    "status": "no-data",
+    "note": "No work orders exist on this instance to confirm.",
+    "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+  },
+  "wm/workOrders/deallocate": {
+    "status": "no-data",
+    "note": "No work orders exist on this instance to deallocate.",
+    "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+  },
+  "wm/workOrders/moveWorkOrder": {
+    "status": "no-data",
+    "note": "No work orders exist on this instance to move.",
+    "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+  },
+  "wm/workOrders/requestFinishedGoods": {
+    "status": "no-data",
+    "note": "No work orders exist on this instance.",
+    "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+  },
+  "wm/picks/resetPicks/batch": {
+    "status": "proven",
+    "note": "E -> P on pick 5490618. The earlier no-data verdict came from sampling the wave sub-resource, which shows only status R.",
+    "evidence": "http/claims.json#reset-and-release-picks-both-round-trip-from-error-state"
+  },
+  "wm/sequences": {
+    "status": "proven",
+    "note": "body {numCod, qty} -> [{nxtNum}].",
+    "evidence": "http/claims.json#five-utility-routes-proven"
+  },
+  "wm/commands/generateNextNumber": {
+    "status": "proven",
+    "note": "A model proxy — GET ?numcod=sesnum -> [{nxtnum}]. Not a PUT verb.",
+    "evidence": "http/claims.json#five-utility-routes-proven"
+  },
+  "wm/serverStatus": {
+    "status": "proven",
+    "note": "body {mocaServiceUrl} -> {mocaServiceUrl, online}.",
+    "evidence": "http/claims.json#five-utility-routes-proven"
+  },
+  "wm/pickEstimates/shipments": {
+    "status": "proven",
+    "note": "RAW DB KEYS {wh_id, shipNumList} -> pick estimates.",
+    "evidence": "http/claims.json#five-utility-routes-proven"
+  },
+  "wm/orderLines/validateChange": {
+    "status": "proven",
+    "note": "Pre-flight for deleteLines, same wrapper body; returns async group VALIDATE-CHANGE-ORDER-LINE.",
+    "evidence": "http/claims.json#five-utility-routes-proven"
+  },
+  "wm/parseBarcode/parse": {
+    "status": "no-data",
+    "note": "Full contract {clientId, supnum, whId, barCodeStr, parseMultipleSerialNumbers} accepted with 200, but returns [] for a real LPN — no barcode parse rules are configured on this instance.",
+    "evidence": "http/claims.json#five-utility-routes-proven"
+  },
+  "wm/locationaudit/validatelocations": {
+    "status": "proven",
+    "note": "Body is audit-model records {warehouse, location, noLockMode, repairMode}. 200 with [] = no discrepancies. The earlier \"unusable\" verdict was wrong — every attempt had shared the same wrong record shape.",
+    "evidence": "http/claims.json#validatelocations-needs-the-audit-models-field-names"
+  },
+  "wm/waves/cancelWave/async": {
+    "status": "proven",
+    "note": "Settled FAILURE 11231 yet the wave still moved ALOC -> REL. Effect confirmed, refusal message notwithstanding.",
+    "evidence": "http/claims.json#cancel-wave-refused-but-the-wave-moved-anyway"
+  },
+  "wm/picks/releasePicks/batch/async": {
+    "status": "proven",
+    "note": "P -> R on pick 5490618, resultId names the resulting status.",
+    "evidence": "http/claims.json#reset-and-release-picks-both-round-trip-from-error-state"
+  },
+  "wm/picks/confirm/async": {
+    "status": "refused",
+    "note": "FAILURE 10845 \"Invalid LPN\" — a named business refusal; route and payload confirmed.",
+    "evidence": "http/claims.json#confirm-picks-refuses-a-pick-with-no-lpn"
+  },
+  "wm/shipments/changeCarrier": {
+    "status": "no-data",
+    "note": "Silent no-op: 200, async COMPLETE, errorCode null, correct resultId, and the carrier never changes. Cause is a business rule invisible in any field.",
+    "evidence": "http/claims.json"
+  },
+  "wm/inventoryStatus/async": {
+    "status": "proven",
+    "note": "AV -> AG -> AV on a real detail.",
+    "evidence": "http/claims.json#change-inventory-status-round-trip"
+  },
+  "wm/inventory/move/async": {
+    "status": "proven",
+    "note": "LPN moved between real slots and back.",
+    "evidence": "http/claims.json#move-inventory-round-trip"
+  },
+  "wm/inventory/changeInvAttribute": {
+    "status": "no-data",
+    "note": "422/11520 — no item on this instance is inv_attr (UDIA) tracked. Contract confirmed by the named refusal.",
+    "evidence": "http/claims.json#change-inventory-attribute-needs-a-tracked-item"
+  },
+  "wm/work/batch": {
+    "status": "proven",
+    "note": "effectivePriority 2 -> 9 -> 2, synchronous.",
+    "evidence": "http/claims.json#work-batch-and-work-async-both-round-trip"
+  },
+  "wm/work/async": {
+    "status": "proven",
+    "note": "effectivePriority 2 -> 8 -> 2 via async group. manualWorkSequence specifically is not settable on PEND.",
+    "evidence": "http/claims.json#work-batch-and-work-async-both-round-trip"
+  },
+  "wm/picks/releaseHeldPicks/batch": {
+    "status": "no-data",
+    "note": "Re-verified against consolidatedPicks (the resource the actions bind): R 183, E 1, C 16, and zero in H. No held pick exists to release.",
+    "evidence": "http/claims.json#pick-actions-bind-consolidated-picks-not-the-wave-sub-resource"
+  },
+  "wm/picks/resetUnassignedPicks": {
+    "status": "no-data",
+    "note": "Gate is an unassigned pick; none here. 200 with an empty body, no change.",
+    "evidence": "http/claims.json#three-pick-routes-are-state-gated-and-this-instance-has-only-released-picks"
+  },
+  "wm/workAssignments/removePicks/batch/async": {
+    "status": "unresolved",
+    "note": "-1403 for both the error-status pick and the one assigned pick, sent as full consolidatedPicks records. The gate is not pickStatus E alone nor the presence of an assignment. /wm/workAssignments itself cannot be read — its query dialect is neither the JSON column filter nor SQL.",
+    "evidence": "http/claims.json#remove-picks-needs-more-than-an-error-status-or-an-assignment"
+  },
+  "wm/replenishmentConfigurations": {
+    "status": "proven",
+    "note": "incrementUnits 100 -> 150 -> 100 on RCF0000CZN. Ordinary record PUT.",
+    "evidence": "http/claims.json#replenishment-configuration-round-trip"
+  },
+  "wm/rolePickDeductions/sequences": {
+    "status": "no-data",
+    "note": "Parent collection rolePickDeductions is empty, so the sequences sub-resource has nothing to attach to.",
+    "evidence": "http/claims.json#the-three-pick-deduction-resources-are-empty"
+  },
+  "wm/orderTypePickDeductions/sequences": {
+    "status": "no-data",
+    "note": "Parent collection orderTypePickDeductions is empty.",
+    "evidence": "http/claims.json#the-three-pick-deduction-resources-are-empty"
+  },
+  "wm/pickZonePickDeductions/sequences": {
+    "status": "no-data",
+    "note": "Parent collection pickZonePickDeductions is empty.",
+    "evidence": "http/claims.json#the-three-pick-deduction-resources-are-empty"
+  },
+  "wm/unassignedShipments/assignShipments": {
+    "status": "proven",
+    "note": "SID0009108 onto LD00003073 and back off via cancelWorkUnassignShipmentFromStop.",
+    "evidence": "http/claims.json#assign-shipment-to-load-round-trip"
+  },
+  "wm/picking/replenishments/topOff/async": {
+    "status": "refused",
+    "note": "11962 \"There are no active topoff replenishments to cancel\" — the Item screen cancel path, contract confirmed.",
+    "evidence": "http/claims.json#replenishment-topoff-is-the-cancel-path"
+  },
+  "wm/outboundOrders/changeCarrier": {
+    "status": "proven",
+    "note": "Settles COMPLETE with a carrier from the order's own carrierDetails. Every order here has exactly one legal carrier, so the change is not observable.",
+    "evidence": "http/claims.json#change-carrier-works-with-a-carrier-the-order-actually-allows"
+  },
+  "wm/inventory/massupdate": {
+    "status": "refused",
+    "note": "Full contract recovered — selection is a \"query\" pseudo-field. Refuses 10239 \"Invalid footprint code\"; footprints are client-scoped and only client ---- has any.",
+    "evidence": "http/claims.json#inventory-massupdate-scopes-through-a-query-pseudo-field"
+  },
+  "wm/waves/": {
+    "status": "not-a-verb",
+    "note": "A path prefix: the client builds wm/waves/{resourceId}/{action}. Bare 400 when called as-is.",
+    "evidence": "http/claims.json#four-mined-routes-are-path-prefixes-not-endpoints"
+  },
+  "wm/inventory/": {
+    "status": "not-a-verb",
+    "note": "A path prefix: appears as wm/inventory/{id}/validateInventoryIdentifier, a GET.",
+    "evidence": "http/claims.json#four-mined-routes-are-path-prefixes-not-endpoints"
+  },
+  "wm/handlingUnits/": {
+    "status": "not-a-verb",
+    "note": "A path prefix completed with emptyReceivingHandlingUnit or emptyShipmentHandlingUnit; those take the record data as body with isShipmentLoad/overrideFlag as query params.",
+    "evidence": "http/claims.json#four-mined-routes-are-path-prefixes-not-endpoints"
+  },
+  "wm/locationList/async": {
+    "status": "superseded",
+    "note": "The create URL of a model the Location Generator screen does not drive. The live path is the MOCA commands generateLocationList / createLocationList / removeLocation, which name their required args in their errors.",
+    "evidence": "http/claims.json#locationlist-async-is-superseded-not-broken"
+  },
+  "wm/cycleCounts/async": {
+    "status": "proven",
+    "note": "POST generates, PUT cancels; verified via countInProgressDetails.",
+    "evidence": "http/claims.json#cycle-count-generate-and-cancel-round-trip"
+  },
+  "explainSqlQuery": {
+    "status": "proven",
+    "note": "Query planner; ?sql= returns a plan.",
+    "evidence": "http/claims.json#explain-sql-query-and-device-put-both-work"
+  },
+  "wm/devices/": {
+    "status": "proven",
+    "note": "Record-level PUT works (/wm/devices/{id}); the collection 405s.",
+    "evidence": "http/claims.json#explain-sql-query-and-device-put-both-work"
+  },
+  "reporting/reports/reportBookmark": {
+    "status": "proven",
+    "note": "POST creates (201), id nested at data.reportBookmark.bookmarkId.",
+    "evidence": "http/claims.json#report-bookmarks-can-be-created-and-updated-but-not-deleted"
+  },
+  "reporting/reports/reportBookmark/": {
+    "status": "proven",
+    "note": "PUT updates a bookmark (200). DELETE is 405 — no removal route exists.",
+    "evidence": "http/claims.json#report-bookmarks-can-be-created-and-updated-but-not-deleted"
+  },
+  "reporting/reports/": {
+    "status": "proven",
+    "note": "Full CRUD proven on a self-created report ZZAUDIT-TEST: POST 201 (empty body), DELETE 200, GET 404 after.",
+    "evidence": "http/claims.json#media-links-and-reports-both-round-trip-on-self-created-records"
+  },
+  "mcs/mediaLinks/": {
+    "status": "proven",
+    "note": "Full CRUD proven on a self-created link: POST 201, DELETE 200, verified gone. Shared links untouched.",
+    "evidence": "http/claims.json#media-links-and-reports-both-round-trip-on-self-created-records"
+  },
+  "wm/inventory/stockTransfer/async": {
+    "status": "refused",
+    "note": "Async group builds (runner StockMoveInventoryTrackedRunnerImpl) then FAILURE 12035 \"An unexpected error occurred during allocation\" — reached the domain layer via the client transport too.",
+    "evidence": "http/claims.json#workflow-initiation-works-stock-transfer-fails-in-allocation"
+  },
+  "wm/workflowOperations/initiation": {
+    "status": "proven",
+    "note": "200 through the client transport with an OBJECT body; data [] means no workflow matched. A pre-encoded string body double-encodes and 400s.",
+    "evidence": "http/claims.json#workflow-initiation-works-stock-transfer-fails-in-allocation"
+  },
+  "wm/workflowOperations/reverse": {
+    "status": "no-data",
+    "note": "Criteria keys now known (exitpoint/exitpointType from WM.util.Constants). initiation returns data [] for all 40 exit points and all 12 configured workflows, so there is no initiated operation to reverse without a live operational event.",
+    "evidence": "http/claims.json#workflow-criteria-keys-are-lowercase-exitpoint"
+  },
+  "wm/locations/asyncError": {
+    "status": "proven",
+    "note": "Empty -> Inventory Error on RA118A. Body [{warehouseId, storageLocation}].",
+    "evidence": "http/claims.json#error-and-reset-locations-round-trip"
+  },
+  "wm/locations/asyncReset": {
+    "status": "proven",
+    "note": "Inventory Error -> Empty on RA118A. Inverse of asyncError.",
+    "evidence": "http/claims.json#error-and-reset-locations-round-trip"
+  },
+  "wm/locationaudit/repairlocations/async": {
+    "status": "proven",
+    "note": "Same record shape plus problem/action; async group LOCATIONAUDIT settled COMPLETE, resultId \"RA118A|SG\".",
+    "evidence": "http/claims.json#repair-locations-round-trip"
+  },
+  "wm/splitShipments/moveLPNs/async": {
+    "status": "no-data",
+    "note": "No shipment on this instance has staged inventory (all eight structuredInventory sub-resources empty), so there is no LPN to split. Contract known from the bundle.",
+    "evidence": "http/claims.json#split-shipments-has-nothing-to-split"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "generated_by": "tools/cdp/capture-relabel-lpn.mjs",
+  "generated_at": "2026-08-18T18:07:16.743Z",
+  "contract_source": "WM.Common.min onSaveRelabelLpn",
+  "original_lpn": "00000776442003826960",
+  "temp_lpn": "ZZAUDIT000000000001",
+  "took_effect": true,
+  "restored": true,
+  "relabel_away": {
+    "status": 200,
+    "body": ""
+  },
+  "relabel_back": {
+    "status": 200,
+    "body": ""
+  }
+}

@@ -1,0 +1,1101 @@
+{
+  "generated_by": "tools/cdp/capture-quick-filters.mjs",
+  "generated_at": "2026-08-18T07:34:33.464Z",
+  "what_this_is": "Inventory Display issues no read until a Quick Filter is chosen. Each entry below is a vendor-authored server-side query: the label the operator sees, the exact GET it produces, and how many rows this instance returned for it. Row counts are this instance on this date, not a property of the filter.",
+  "read_only": "no non-GET request was issued; any that appeared are listed under writes_observed",
+  "writes_observed": [],
+  "filters": {
+    "Consignment": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 0,
+          "total_reported": 0,
+          "response_fields": null,
+          "query": [
+            {
+              "column": "consignment",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "consignment",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 0",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Count In Progress": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/structuredInventory/live",
+          "status": 200,
+          "rows_returned": 0,
+          "total_reported": 0,
+          "response_fields": null,
+          "query": [
+            {
+              "column": "countInProgress",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": "{uomQuantities, location{locationType}}",
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        },
+        {
+          "path": "/data/WM/wm/inventoryItems",
+          "status": 200,
+          "rows_returned": 0,
+          "total_reported": 0,
+          "response_fields": null,
+          "query": [
+            {
+              "column": "countInProgress",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": "{footprints,uomQuantities}",
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        },
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 0,
+          "total_reported": 0,
+          "response_fields": null,
+          "query": [
+            {
+              "column": "countInProgress",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "countInProgress",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 0",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Hazardous": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 0,
+          "total_reported": 0,
+          "response_fields": null,
+          "query": [
+            {
+              "column": "hazmat",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "hazmat",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 0",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Not Pickable": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 50,
+          "total_reported": 30458,
+          "response_fields": [
+            "abcCode",
+            "aisle",
+            "aislesCount",
+            "allocateToEmptyDate",
+            "allocateToEmptySequence",
+            "areaCode",
+            "asset_uri",
+            "assignedItem",
+            "assignment",
+            "attribute1",
+            "attribute2",
+            "attribute3",
+            "attribute4",
+            "attribute5",
+            "automove",
+            "backfillAisle",
+            "backfillLocation",
+            "backfillLocationFlag",
+            "backfillVerificationCode",
+            "backfillVoiceCheckDigit",
+            "backfillVoiceCheckDigit2",
+            "backfillVoiceCheckDigit3",
+            "basePointId",
+            "bay",
+            "beginLocation",
+            "billingFlag",
+            "borderPadding",
+            "bottomLeftX",
+            "bottomLeftY",
+            "bottomRightX",
+            "bottomRightY",
+            "buildingId",
+            "configuration_uri",
+            "consignment",
+            "countBack",
+            "countDate",
+            "countHistory_uri",
+            "countInProgessLocationDetail_uri",
+            "countInProgress",
+            "countInProgressLocationDetail"
+          ],
+          "query": [
+            {
+              "column": "pickable",
+              "operator": "EQ",
+              "value": false,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "pickable",
+        "operator": "EQ",
+        "value": false,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 30458",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Not Storable": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 50,
+          "total_reported": 30716,
+          "response_fields": [
+            "abcCode",
+            "aisle",
+            "aislesCount",
+            "allocateToEmptyDate",
+            "allocateToEmptySequence",
+            "areaCode",
+            "asset_uri",
+            "assignedItem",
+            "assignment",
+            "attribute1",
+            "attribute2",
+            "attribute3",
+            "attribute4",
+            "attribute5",
+            "automove",
+            "backfillAisle",
+            "backfillLocation",
+            "backfillLocationFlag",
+            "backfillVerificationCode",
+            "backfillVoiceCheckDigit",
+            "backfillVoiceCheckDigit2",
+            "backfillVoiceCheckDigit3",
+            "basePointId",
+            "bay",
+            "beginLocation",
+            "billingFlag",
+            "borderPadding",
+            "bottomLeftX",
+            "bottomLeftY",
+            "bottomRightX",
+            "bottomRightY",
+            "buildingId",
+            "configuration_uri",
+            "consignment",
+            "countBack",
+            "countDate",
+            "countHistory_uri",
+            "countInProgessLocationDetail_uri",
+            "countInProgress",
+            "countInProgressLocationDetail"
+          ],
+          "query": [
+            {
+              "column": "storable",
+              "operator": "EQ",
+              "value": false,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "storable",
+        "operator": "EQ",
+        "value": false,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 30716",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "On Hold": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 20,
+          "total_reported": 20,
+          "response_fields": [
+            "abcCode",
+            "aisle",
+            "aislesCount",
+            "allocateToEmptyDate",
+            "allocateToEmptySequence",
+            "areaCode",
+            "asset_uri",
+            "assignedItem",
+            "assignment",
+            "attribute1",
+            "attribute2",
+            "attribute3",
+            "attribute4",
+            "attribute5",
+            "automove",
+            "backfillAisle",
+            "backfillLocation",
+            "backfillLocationFlag",
+            "backfillVerificationCode",
+            "backfillVoiceCheckDigit",
+            "backfillVoiceCheckDigit2",
+            "backfillVoiceCheckDigit3",
+            "basePointId",
+            "bay",
+            "beginLocation",
+            "billingFlag",
+            "borderPadding",
+            "bottomLeftX",
+            "bottomLeftY",
+            "bottomRightX",
+            "bottomRightY",
+            "buildingId",
+            "configuration_uri",
+            "consignment",
+            "countBack",
+            "countDate",
+            "countHistory_uri",
+            "countInProgessLocationDetail_uri",
+            "countInProgress",
+            "countInProgressLocationDetail"
+          ],
+          "query": [
+            {
+              "column": "onHold",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "onHold",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 20",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Out of Service": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 50,
+          "total_reported": 30228,
+          "response_fields": [
+            "abcCode",
+            "aisle",
+            "aislesCount",
+            "allocateToEmptyDate",
+            "allocateToEmptySequence",
+            "areaCode",
+            "asset_uri",
+            "assignedItem",
+            "assignment",
+            "attribute1",
+            "attribute2",
+            "attribute3",
+            "attribute4",
+            "attribute5",
+            "automove",
+            "backfillAisle",
+            "backfillLocation",
+            "backfillLocationFlag",
+            "backfillVerificationCode",
+            "backfillVoiceCheckDigit",
+            "backfillVoiceCheckDigit2",
+            "backfillVoiceCheckDigit3",
+            "basePointId",
+            "bay",
+            "beginLocation",
+            "billingFlag",
+            "borderPadding",
+            "bottomLeftX",
+            "bottomLeftY",
+            "bottomRightX",
+            "bottomRightY",
+            "buildingId",
+            "configuration_uri",
+            "consignment",
+            "countBack",
+            "countDate",
+            "countHistory_uri",
+            "countInProgessLocationDetail_uri",
+            "countInProgress",
+            "countInProgressLocationDetail"
+          ],
+          "query": [
+            {
+              "column": "unusable",
+              "operator": "EQ",
+              "value": false,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              },
+              "flipped": true
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "unusable",
+        "operator": "EQ",
+        "value": false,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        },
+        "flipped": true
+      },
+      "on_screen_counters": [
+        "Locations 30228",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Out of Tolerance Catch": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 0,
+          "total_reported": 0,
+          "response_fields": null,
+          "query": [
+            {
+              "column": "ootFlag",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        },
+        {
+          "path": "/data/WM/wm/structuredInventory/live",
+          "status": 200,
+          "rows_returned": 0,
+          "total_reported": 0,
+          "response_fields": null,
+          "query": [
+            {
+              "column": "ootFlag",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": "{uomQuantities, location{locationType}}",
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        },
+        {
+          "path": "/data/WM/wm/inventoryItems",
+          "status": 200,
+          "rows_returned": 0,
+          "total_reported": 0,
+          "response_fields": null,
+          "query": [
+            {
+              "column": "ootFlag",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": "{footprints,uomQuantities}",
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "ootFlag",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 0",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Pending Count": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 50,
+          "total_reported": 127,
+          "response_fields": [
+            "abcCode",
+            "aisle",
+            "aislesCount",
+            "allocateToEmptyDate",
+            "allocateToEmptySequence",
+            "areaCode",
+            "asset_uri",
+            "assignedItem",
+            "assignment",
+            "attribute1",
+            "attribute2",
+            "attribute3",
+            "attribute4",
+            "attribute5",
+            "automove",
+            "backfillAisle",
+            "backfillLocation",
+            "backfillLocationFlag",
+            "backfillVerificationCode",
+            "backfillVoiceCheckDigit",
+            "backfillVoiceCheckDigit2",
+            "backfillVoiceCheckDigit3",
+            "basePointId",
+            "bay",
+            "beginLocation",
+            "billingFlag",
+            "borderPadding",
+            "bottomLeftX",
+            "bottomLeftY",
+            "bottomRightX",
+            "bottomRightY",
+            "buildingId",
+            "configuration_uri",
+            "consignment",
+            "countBack",
+            "countDate",
+            "countHistory_uri",
+            "countInProgessLocationDetail_uri",
+            "countInProgress",
+            "countInProgressLocationDetail"
+          ],
+          "query": [
+            {
+              "column": "pendingCount",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "pendingCount",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 127",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Pending Move": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 50,
+          "total_reported": 68,
+          "response_fields": [
+            "abcCode",
+            "aisle",
+            "aislesCount",
+            "allocateToEmptyDate",
+            "allocateToEmptySequence",
+            "areaCode",
+            "asset_uri",
+            "assignedItem",
+            "assignment",
+            "attribute1",
+            "attribute2",
+            "attribute3",
+            "attribute4",
+            "attribute5",
+            "automove",
+            "backfillAisle",
+            "backfillLocation",
+            "backfillLocationFlag",
+            "backfillVerificationCode",
+            "backfillVoiceCheckDigit",
+            "backfillVoiceCheckDigit2",
+            "backfillVoiceCheckDigit3",
+            "basePointId",
+            "bay",
+            "beginLocation",
+            "billingFlag",
+            "borderPadding",
+            "bottomLeftX",
+            "bottomLeftY",
+            "bottomRightX",
+            "bottomRightY",
+            "buildingId",
+            "configuration_uri",
+            "consignment",
+            "countBack",
+            "countDate",
+            "countHistory_uri",
+            "countInProgessLocationDetail_uri",
+            "countInProgress",
+            "countInProgressLocationDetail"
+          ],
+          "query": [
+            {
+              "column": "pendingMove",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "pendingMove",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 68",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Pending Replenishment": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 3,
+          "total_reported": 3,
+          "response_fields": [
+            "abcCode",
+            "aisle",
+            "aislesCount",
+            "allocateToEmptyDate",
+            "allocateToEmptySequence",
+            "areaCode",
+            "asset_uri",
+            "assignedItem",
+            "assignment",
+            "attribute1",
+            "attribute2",
+            "attribute3",
+            "attribute4",
+            "attribute5",
+            "automove",
+            "backfillAisle",
+            "backfillLocation",
+            "backfillLocationFlag",
+            "backfillVerificationCode",
+            "backfillVoiceCheckDigit",
+            "backfillVoiceCheckDigit2",
+            "backfillVoiceCheckDigit3",
+            "basePointId",
+            "bay",
+            "beginLocation",
+            "billingFlag",
+            "borderPadding",
+            "bottomLeftX",
+            "bottomLeftY",
+            "bottomRightX",
+            "bottomRightY",
+            "buildingId",
+            "configuration_uri",
+            "consignment",
+            "countBack",
+            "countDate",
+            "countHistory_uri",
+            "countInProgessLocationDetail_uri",
+            "countInProgress",
+            "countInProgressLocationDetail"
+          ],
+          "query": [
+            {
+              "column": "pendingReplenishment",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "pendingReplenishment",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 3",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Picked": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 50,
+          "total_reported": 117,
+          "response_fields": [
+            "abcCode",
+            "aisle",
+            "aislesCount",
+            "allocateToEmptyDate",
+            "allocateToEmptySequence",
+            "areaCode",
+            "asset_uri",
+            "assignedItem",
+            "assignment",
+            "attribute1",
+            "attribute2",
+            "attribute3",
+            "attribute4",
+            "attribute5",
+            "automove",
+            "backfillAisle",
+            "backfillLocation",
+            "backfillLocationFlag",
+            "backfillVerificationCode",
+            "backfillVoiceCheckDigit",
+            "backfillVoiceCheckDigit2",
+            "backfillVoiceCheckDigit3",
+            "basePointId",
+            "bay",
+            "beginLocation",
+            "billingFlag",
+            "borderPadding",
+            "bottomLeftX",
+            "bottomLeftY",
+            "bottomRightX",
+            "bottomRightY",
+            "buildingId",
+            "configuration_uri",
+            "consignment",
+            "countBack",
+            "countDate",
+            "countHistory_uri",
+            "countInProgessLocationDetail_uri",
+            "countInProgress",
+            "countInProgressLocationDetail"
+          ],
+          "query": [
+            {
+              "column": "pickedFlag",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "pickedFlag",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 117",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    },
+    "Restricted Lot": {
+      "requests": [
+        {
+          "path": "/data/WM/wm/inventoryLocations",
+          "status": 200,
+          "rows_returned": 0,
+          "total_reported": 0,
+          "response_fields": null,
+          "query": [
+            {
+              "column": "restrictedLot",
+              "operator": "EQ",
+              "value": true,
+              "options": {
+                "exact": [
+                  true,
+                  true
+                ]
+              }
+            }
+          ],
+          "expand": null,
+          "params": {
+            "showFourWallOnly": "true",
+            "offset": "0",
+            "limit": "50",
+            "siteId": "SG",
+            "subsites": "----"
+          }
+        }
+      ],
+      "contaminated": false,
+      "own_clause": {
+        "column": "restrictedLot",
+        "operator": "EQ",
+        "value": true,
+        "options": {
+          "exact": [
+            true,
+            true
+          ]
+        }
+      },
+      "on_screen_counters": [
+        "Locations 0",
+        "Items 0",
+        "LPNs 0"
+      ],
+      "counters_note": "the counters are what the UI had painted at read time and may lag the response; rows_returned/total_reported are authoritative"
+    }
+  }
+}

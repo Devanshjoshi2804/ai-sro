@@ -1,0 +1,476 @@
+{
+  "generated_by": "tools/cdp/probe-open-routes.mjs",
+  "generated_at": "2026-08-19",
+  "what_this_is": "One classifying call per still-open write route, using the mined contract with impossible identifiers and the site context always present.",
+  "caution": "A REFUSED verdict proves the route and roughly the shape are real. It does NOT prove the verb does what its name says — only a real-record round trip does that.",
+  "probes": [
+    {
+      "path": "explainSqlQuery",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "REFS Exception: Database Error: 511 - Could not find stored procedure 'ZZNOTREAL'.",
+      "sent_body_keys": [],
+      "sent_query_keys": [
+        "sql"
+      ]
+    },
+    {
+      "path": "mcs/mediaLinks/",
+      "method": "DELETE",
+      "verdict": "NOT-AT-THIS-METHOD",
+      "status": 405,
+      "errorCode": null,
+      "message": "Method Not Allowed",
+      "sent_body_keys": [
+        "mediaId",
+        "associationKey"
+      ],
+      "sent_query_keys": []
+    },
+    {
+      "path": "reporting/reports/",
+      "method": "DELETE",
+      "verdict": "NOT-AT-THIS-METHOD",
+      "status": 405,
+      "errorCode": null,
+      "message": "Method Not Allowed",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "reporting/reports/reportBookmark",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [
+        "reportId",
+        "userId",
+        "bookmarkDetails",
+        "prompt"
+      ],
+      "sent_query_keys": []
+    },
+    {
+      "path": "reporting/reports/reportBookmark/",
+      "method": "PUT",
+      "verdict": "RECORD-MISSING (?)",
+      "status": 404,
+      "errorCode": null,
+      "message": "The requested web resource was not found.",
+      "sent_body_keys": [
+        "reportId",
+        "userId",
+        "bookmarkDetails",
+        "prompt"
+      ],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/commands/generateNextNumber",
+      "method": "PUT",
+      "verdict": "NOT-AT-THIS-METHOD",
+      "status": 405,
+      "errorCode": null,
+      "message": "Method Not Allowed",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/cycleCounts/async",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/devices/",
+      "method": "PUT",
+      "verdict": "NOT-AT-THIS-METHOD",
+      "status": 405,
+      "errorCode": null,
+      "message": "Method Not Allowed",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/handlingUnits/",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": [
+        "isShipmentLoad",
+        "overrideFlag"
+      ]
+    },
+    {
+      "path": "wm/inventory/",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/inventory/changeInvAttribute",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/inventory/massupdate",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/inventory/move/async",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/inventory/stockTransfer/async",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/inventoryStatus/async",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/locationaudit/repairlocations/async",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/locationaudit/validatelocations",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/locationList/async",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/locations/asyncError",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/locations/asyncReset",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/orderLines/validateChange",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/orderTypePickDeductions/sequences",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/outboundOrders/changeCarrier",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": [
+        "car_move_id",
+        "new_carcod"
+      ]
+    },
+    {
+      "path": "wm/parseBarcode/parse",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/pickEstimates/shipments",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/picking/replenishments/topOff/async",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/picks/releaseHeldPicks/batch",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/picks/releasePicks/batch/async",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/picks/resetUnassignedPicks",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/pickZonePickDeductions/sequences",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/replenishmentConfigurations",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/rolePickDeductions/sequences",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/sequences",
+      "method": "POST",
+      "verdict": "ACCEPTED",
+      "status": 200,
+      "errorCode": null,
+      "message": null,
+      "sent_body_keys": [
+        "numCod",
+        "qty"
+      ],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/serverStatus",
+      "method": "POST",
+      "verdict": "ACCEPTED",
+      "status": 200,
+      "errorCode": null,
+      "message": null,
+      "sent_body_keys": [
+        "mocaServiceUrl"
+      ],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/shipments/changeCarrier",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/splitShipments/moveLPNs/async",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/unassignedShipments/assignShipments",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/waves/",
+      "method": "POST",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/waves/cancelWave/async",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/work/async",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": [
+        "cancelOnlySelected"
+      ]
+    },
+    {
+      "path": "wm/work/batch",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/workAssignments/removePicks/batch/async",
+      "method": "PUT",
+      "verdict": "BAD-REQUEST (shape)",
+      "status": 400,
+      "errorCode": null,
+      "message": "Bad Request",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/workflowOperations/initiation",
+      "method": "POST",
+      "verdict": "ACCEPTED",
+      "status": 200,
+      "errorCode": null,
+      "message": null,
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    },
+    {
+      "path": "wm/workflowOperations/reverse",
+      "method": "PUT",
+      "verdict": "status 500",
+      "status": 500,
+      "errorCode": null,
+      "message": "Server Error",
+      "sent_body_keys": [],
+      "sent_query_keys": []
+    }
+  ]
+}

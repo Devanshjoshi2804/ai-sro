@@ -1,0 +1,2020 @@
+{
+  "generated_by": "tools/cdp/dump-actions-menu.mjs, collated 2026-08-17",
+  "what_this_is": "Every action the operational screens offer in their Actions menus, by screen. This is the verb inventory an intent resolver has to map onto — \"receive inventory\", \"cancel picks\", \"suspend work\" are the words the application itself uses.",
+  "method": "Each menu was OPENED and read, then closed. No item was activated. An item disabled at capture time is usually disabled because nothing was selected, not because the user lacks the right — that distinction is not established here.",
+  "totals": {
+    "screens": 24,
+    "action_items": 143,
+    "enabled_at_capture": 58,
+    "distinct_actions": 95
+  },
+  "caution": "None of these has a recorded request. The verb behind each one is unknown until a capture is approved for it — the one operational write anyone has observed here (inventory adjust) answered 200 with approvalRequired true and moved nothing, so the mapping from menu item to effect is not obvious.",
+  "distinct_actions": {
+    "Add": {
+      "screens": [
+        "Yard Locations",
+        "Dock Locations",
+        "Staging Locations",
+        "Storage Locations",
+        "Footprints",
+        "Item Lots",
+        "Non Serialized Handling Unit Adjustment ",
+        "Outbound",
+        "Outbound",
+        "Items"
+      ],
+      "enabled_somewhere": true
+    },
+    "Delete": {
+      "screens": [
+        "Yard Locations",
+        "Dock Locations",
+        "Staging Locations",
+        "Storage Locations",
+        "Footprints",
+        "Item Lots",
+        "Non Serialized Handling Unit Adjustment ",
+        "Outbound",
+        "Outbound",
+        "Items"
+      ],
+      "enabled_somewhere": true
+    },
+    "Add Media": {
+      "screens": [
+        "Inbound Shipments",
+        "Transport Equipment",
+        "Inventory",
+        "Outbound"
+      ],
+      "enabled_somewhere": true
+    },
+    "View Media": {
+      "screens": [
+        "Inbound Shipments",
+        "Transport Equipment",
+        "Inventory",
+        "Outbound"
+      ],
+      "enabled_somewhere": true
+    },
+    "Copy": {
+      "screens": [
+        "Footprints",
+        "Item Lots",
+        "Non Serialized Handling Unit Adjustment ",
+        "Items"
+      ],
+      "enabled_somewhere": true
+    },
+    "Update Location Attributes": {
+      "screens": [
+        "Yard Locations",
+        "Dock Locations",
+        "Staging Locations"
+      ],
+      "enabled_somewhere": false
+    },
+    "Change Priority": {
+      "screens": [
+        "Work Queue",
+        "Waves and Picks",
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Modify": {
+      "screens": [
+        "Item Lots",
+        "Outbound",
+        "Outbound"
+      ],
+      "enabled_somewhere": true
+    },
+    "Edit": {
+      "screens": [
+        "Non Serialized Handling Unit Adjustment ",
+        "GMI Special Pack Operations",
+        "GMI Special Pack Operations"
+      ],
+      "enabled_somewhere": true
+    },
+    "Change Carrier": {
+      "screens": [
+        "Outbound",
+        "Outbound",
+        "Outbound"
+      ],
+      "enabled_somewhere": true
+    },
+    "Assign User": {
+      "screens": [
+        "Work Queue",
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Unassign": {
+      "screens": [
+        "Work Queue",
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Resume Work": {
+      "screens": [
+        "Work Queue",
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Suspend Work": {
+      "screens": [
+        "Work Queue",
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Cancel Work": {
+      "screens": [
+        "Work Queue",
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Cancel Picks": {
+      "screens": [
+        "Work Queue",
+        "Pick Confirmation"
+      ],
+      "enabled_somewhere": false
+    },
+    "Assign Lane": {
+      "screens": [
+        "Outbound",
+        "Outbound"
+      ],
+      "enabled_somewhere": true
+    },
+    "Add Load": {
+      "screens": [
+        "Outbound",
+        "Outbound"
+      ],
+      "enabled_somewhere": true
+    },
+    "Allocate": {
+      "screens": [
+        "GMI Special Pack Operations",
+        "GMI Special Pack Operations"
+      ],
+      "enabled_somewhere": true
+    },
+    "Hand Over": {
+      "screens": [
+        "GMI Special Pack Operations",
+        "GMI Special Pack Operations"
+      ],
+      "enabled_somewhere": true
+    },
+    "Complete": {
+      "screens": [
+        "GMI Special Pack Operations",
+        "GMI Special Pack Operations"
+      ],
+      "enabled_somewhere": true
+    },
+    "Maintain Dock Schedules": {
+      "screens": [
+        "Dock Locations"
+      ],
+      "enabled_somewhere": false
+    },
+    "Assign to Dock Set": {
+      "screens": [
+        "Dock Locations"
+      ],
+      "enabled_somewhere": false
+    },
+    "Mass Update": {
+      "screens": [
+        "Storage Locations"
+      ],
+      "enabled_somewhere": true
+    },
+    "Add Inbound Shipment": {
+      "screens": [
+        "Inbound Shipments"
+      ],
+      "enabled_somewhere": true
+    },
+    "Modify Inbound Shipment": {
+      "screens": [
+        "Inbound Shipments"
+      ],
+      "enabled_somewhere": false
+    },
+    "Delete Inbound Shipment": {
+      "screens": [
+        "Inbound Shipments"
+      ],
+      "enabled_somewhere": false
+    },
+    "Receive Inventory": {
+      "screens": [
+        "Inbound Shipments"
+      ],
+      "enabled_somewhere": false
+    },
+    "Auto Receive": {
+      "screens": [
+        "Inbound Shipments"
+      ],
+      "enabled_somewhere": false
+    },
+    "Assign to Staging Lane": {
+      "screens": [
+        "Inbound Shipments"
+      ],
+      "enabled_somewhere": false
+    },
+    "Add Transport Equipment": {
+      "screens": [
+        "Transport Equipment"
+      ],
+      "enabled_somewhere": true
+    },
+    "Modify Transport Equipment": {
+      "screens": [
+        "Transport Equipment"
+      ],
+      "enabled_somewhere": false
+    },
+    "Delete Transport Equipment": {
+      "screens": [
+        "Transport Equipment"
+      ],
+      "enabled_somewhere": false
+    },
+    "Move Transport Equipment": {
+      "screens": [
+        "Transport Equipment"
+      ],
+      "enabled_somewhere": false
+    },
+    "Check In Transport Equipment": {
+      "screens": [
+        "Transport Equipment"
+      ],
+      "enabled_somewhere": false
+    },
+    "Audit Equipment Location": {
+      "screens": [
+        "Transport Equipment"
+      ],
+      "enabled_somewhere": false
+    },
+    "Prepare For Shipping": {
+      "screens": [
+        "Transport Equipment"
+      ],
+      "enabled_somewhere": false
+    },
+    "Current Transport Equipment Activity": {
+      "screens": [
+        "Transport Equipment"
+      ],
+      "enabled_somewhere": false
+    },
+    "Assign Role": {
+      "screens": [
+        "Work Queue"
+      ],
+      "enabled_somewhere": false
+    },
+    "Unlock Work": {
+      "screens": [
+        "Work Queue"
+      ],
+      "enabled_somewhere": false
+    },
+    "Ineligible Work": {
+      "screens": [
+        "Work Queue"
+      ],
+      "enabled_somewhere": true
+    },
+    "Apply Hold": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Release Hold": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Modify Serial Number": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Reset Location": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": false
+    },
+    "Error Location": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": false
+    },
+    "Remove Inventory": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Add Inventory": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": false
+    },
+    "Adjust Inventory": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Inventory Mass Update": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Print Compliant Labels": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Relabel LPN": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Modify Inventory Attributes": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Change Inventory Status": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Transfer Client Ownership": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Generate Replenishment": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": false
+    },
+    "Cancel Replenishment": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": false
+    },
+    "Generate Cycle Count": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": false
+    },
+    "Cancel Cycle Count": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": false
+    },
+    "Move Inventory": {
+      "screens": [
+        "Inventory"
+      ],
+      "enabled_somewhere": true
+    },
+    "Plan Wave": {
+      "screens": [
+        "Waves and Picks"
+      ],
+      "enabled_somewhere": true
+    },
+    "Allocate Wave": {
+      "screens": [
+        "Waves and Picks"
+      ],
+      "enabled_somewhere": false
+    },
+    "Unallocate Wave": {
+      "screens": [
+        "Waves and Picks"
+      ],
+      "enabled_somewhere": false
+    },
+    "Release Wave": {
+      "screens": [
+        "Waves and Picks"
+      ],
+      "enabled_somewhere": false
+    },
+    "Delete Wave": {
+      "screens": [
+        "Waves and Picks"
+      ],
+      "enabled_somewhere": false
+    },
+    "Confirm Picks": {
+      "screens": [
+        "Pick Confirmation"
+      ],
+      "enabled_somewhere": false
+    },
+    "Change Cut Off Time": {
+      "screens": [
+        "Order Sequence Processing"
+      ],
+      "enabled_somewhere": false
+    },
+    "Cut Handling Units": {
+      "screens": [
+        "Order Sequence Processing"
+      ],
+      "enabled_somewhere": false
+    },
+    "Change Close Time": {
+      "screens": [
+        "Order Sequence Processing"
+      ],
+      "enabled_somewhere": false
+    },
+    "Close Handling Units": {
+      "screens": [
+        "Order Sequence Processing"
+      ],
+      "enabled_somewhere": false
+    },
+    "Print Slot Labels": {
+      "screens": [
+        "Order Sequence Processing"
+      ],
+      "enabled_somewhere": false
+    },
+    "Print Handling Units Labels": {
+      "screens": [
+        "Order Sequence Processing"
+      ],
+      "enabled_somewhere": false
+    },
+    "Print Summary Report": {
+      "screens": [
+        "Order Sequence Processing"
+      ],
+      "enabled_somewhere": false
+    },
+    "Auto-Ship Handling Unit": {
+      "screens": [
+        "Order Sequence Processing"
+      ],
+      "enabled_somewhere": false
+    },
+    "Check Outstanding Work": {
+      "screens": [
+        "Footprints"
+      ],
+      "enabled_somewhere": false
+    },
+    "Schedule Count": {
+      "screens": [
+        "Counts"
+      ],
+      "enabled_somewhere": true
+    },
+    "Release Count": {
+      "screens": [
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Cancel Count": {
+      "screens": [
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Reset Count": {
+      "screens": [
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Reopen Count": {
+      "screens": [
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Remove Count": {
+      "screens": [
+        "Counts"
+      ],
+      "enabled_somewhere": false
+    },
+    "Process Inventory Recon": {
+      "screens": [
+        "BY GO Inventory Recon"
+      ],
+      "enabled_somewhere": true
+    },
+    "Add Order": {
+      "screens": [
+        "Outbound"
+      ],
+      "enabled_somewhere": true
+    },
+    "Modify Order": {
+      "screens": [
+        "Outbound"
+      ],
+      "enabled_somewhere": false
+    },
+    "Copy Order": {
+      "screens": [
+        "Outbound"
+      ],
+      "enabled_somewhere": false
+    },
+    "Delete Order": {
+      "screens": [
+        "Outbound"
+      ],
+      "enabled_somewhere": false
+    },
+    "Cancel Order": {
+      "screens": [
+        "Outbound"
+      ],
+      "enabled_somewhere": false
+    },
+    "Cancel": {
+      "screens": [
+        "Outbound"
+      ],
+      "enabled_somewhere": true
+    },
+    "Change Warehouse": {
+      "screens": [
+        "Outbound"
+      ],
+      "enabled_somewhere": false
+    },
+    "Add Qty": {
+      "screens": [
+        "GMI Special Pack Operations"
+      ],
+      "enabled_somewhere": true
+    },
+    "Update Item Attributes": {
+      "screens": [
+        "Items"
+      ],
+      "enabled_somewhere": false
+    },
+    "Trailer KPI Exclude Operations Exclude": {
+      "screens": [
+        "GMI Trailer KPI Exclude Operations"
+      ],
+      "enabled_somewhere": true
+    },
+    "Reset User Credential": {
+      "screens": [
+        "Reset User Account"
+      ],
+      "enabled_somewhere": true
+    },
+    "Reset User Status": {
+      "screens": [
+        "Reset User Account"
+      ],
+      "enabled_somewhere": true
+    },
+    "Retry Execution": {
+      "screens": [
+        "Deferred Executions"
+      ],
+      "enabled_somewhere": true
+    }
+  },
+  "screens": {
+    "Yard Locations": {
+      "area": "warehouse",
+      "tier": "configuration",
+      "route": "#wm.config/wm.config.warehouse.locations.yard////",
+      "toolbar": [
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Add",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Update Location Attributes",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Dock Locations": {
+      "area": "warehouse",
+      "tier": "configuration",
+      "route": "#wm.config/wm.config.warehouse.locations.dock////",
+      "toolbar": [
+        "Dock Doors255",
+        "Dock Sets7",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Add",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Maintain Dock Schedules",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Update Location Attributes",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Assign to Dock Set",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Staging Locations": {
+      "area": "warehouse",
+      "tier": "configuration",
+      "route": "#wm.config/wm.config.warehouse.locations.staging////",
+      "toolbar": [
+        "Shipping112",
+        "Receiving43",
+        "Both203",
+        "Production0",
+        "Other0",
+        "All358",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Add",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Update Location Attributes",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Storage Locations": {
+      "area": "warehouse",
+      "tier": "configuration",
+      "route": "#wm.config/wm.config.warehouse.locations.storage////",
+      "toolbar": [
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Add",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Mass Update",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Inbound Shipments": {
+      "area": "inbound",
+      "tier": "configuration",
+      "route": "#wm.config/wm.config.inbound.receiving.inboundshipments////",
+      "toolbar": [
+        "filterMenu",
+        "closeFilterButton",
+        "More",
+        "Save",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions",
+        "Inbound Orders",
+        "Inbound Shipment Status",
+        "≠",
+        "removeCriterionButton"
+      ],
+      "actions": [
+        {
+          "action": "Add Inbound Shipment",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Modify Inbound Shipment",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete Inbound Shipment",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Receive Inventory",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Auto Receive",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Assign to Staging Lane",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Add Media",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "View Media",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Transport Equipment": {
+      "area": "receiving",
+      "tier": "operational",
+      "route": "#wm.receiving/wm.transportequipment////",
+      "toolbar": [
+        "Quick Filters",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Transport Equipment",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Add Transport Equipment",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Modify Transport Equipment",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete Transport Equipment",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Move Transport Equipment",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Check In Transport Equipment",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Audit Equipment Location",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Prepare For Shipping",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Add Media",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "View Media",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Current Transport Equipment Activity",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Work Queue": {
+      "area": "receiving",
+      "tier": "operational",
+      "route": "#wm.receiving/wm.workqueue////",
+      "toolbar": [
+        "Quick Filters",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Work",
+        "Summary",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Assign User",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Assign Role",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Unassign",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Change Priority",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Resume Work",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Suspend Work",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Unlock Work",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel Work",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel Picks",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Ineligible Work",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Inventory": {
+      "area": "receiving",
+      "tier": "operational",
+      "route": "#wm.receiving/wm.inventorydisplay////",
+      "toolbar": [
+        "Quick Filters",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions",
+        "Locations0",
+        "Items0",
+        "LPNs0",
+        "On Site",
+        "Shipped",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton"
+      ],
+      "actions": [
+        {
+          "action": "Apply Hold",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Release Hold",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Modify Serial Number",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Reset Location",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Error Location",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Remove Inventory",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Add Inventory",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Adjust Inventory",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Inventory Mass Update",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Add Media",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "View Media",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Print Compliant Labels",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Relabel LPN",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Modify Inventory Attributes",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Change Inventory Status",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Transfer Client Ownership",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Generate Replenishment",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel Replenishment",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Generate Cycle Count",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel Cycle Count",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Move Inventory",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Warehouse Equipment Operations": {
+      "area": "receiving",
+      "tier": "operational",
+      "route": "#wm.receiving/wm.equipment.warehouseequipmentoperational////",
+      "toolbar": [
+        "refreshAction",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions"
+      ],
+      "actions": []
+    },
+    "Waves and Picks": {
+      "area": "picking",
+      "tier": "operational",
+      "route": "#wm.picking/wm.wavesandpicks////",
+      "toolbar": [
+        "Quick Filters",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Waves0",
+        "Picks0",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Plan Wave",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Allocate Wave",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Unallocate Wave",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Release Wave",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete Wave",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Change Priority",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Pick Confirmation": {
+      "area": "picking",
+      "tier": "operational",
+      "route": "#wm.picking/wm.picking.pickconfirmation////",
+      "toolbar": [
+        "Quick Filters",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Active",
+        "History",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Confirm Picks",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel Picks",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Order Sequence Processing": {
+      "area": "picking",
+      "tier": "operational",
+      "route": "#wm.picking/wm.picking.listsforsequenceorders////",
+      "toolbar": [
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Change Cut Off Time",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Cut Handling Units",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Change Close Time",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Close Handling Units",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Print Slot Labels",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Print Handling Units Labels",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Print Summary Report",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Auto-Ship Handling Unit",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Voice Tracing": {
+      "area": "picking",
+      "tier": "operational",
+      "route": "#wm.picking/wm.picking.voicetrace////",
+      "toolbar": [
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions"
+      ],
+      "actions": []
+    },
+    "Footprints": {
+      "area": "other",
+      "tier": "configuration",
+      "route": "#wm.config/wm.footprints////",
+      "toolbar": [
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Save",
+        "Cancel",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Add",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Copy",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Check Outstanding Work",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Item Lots": {
+      "area": "inventory",
+      "tier": "operational",
+      "route": "#wm.inventory/wm.inventory.itemlots////",
+      "toolbar": [
+        "first",
+        "prev",
+        "next",
+        "last",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Add",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Modify",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Copy",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Counts": {
+      "area": "inventory",
+      "tier": "operational",
+      "route": "#wm.inventory/wm.inventory.counts////",
+      "toolbar": [
+        "Quick Filters",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Scheduled",
+        "Templates",
+        "Audit Count",
+        "History",
+        "Actions",
+        "Counts1250",
+        "Batches5"
+      ],
+      "actions": [
+        {
+          "action": "Assign User",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Unassign",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Change Priority",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Resume Work",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Suspend Work",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel Work",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Schedule Count",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Release Count",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel Count",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Reset Count",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Reopen Count",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Remove Count",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Non Serialized Handling Unit Adjustment ": {
+      "area": "inventory",
+      "tier": "operational",
+      "route": "#wm.inventory/Non-Serialized-Handling-Unit-Adjustment-Operations////",
+      "toolbar": [
+        "exportAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last"
+      ],
+      "actions": [
+        {
+          "action": "Add",
+          "itemId": "Add Non Serialized Handling Unit",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Copy",
+          "itemId": "copyNon Serialized Handling Unit",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Edit",
+          "itemId": "Edit Non Serialized Handling Unit",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": "Delete Non Serialized Handling Unit",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "BY GO Inventory Recon": {
+      "area": "inventory",
+      "tier": "operational",
+      "route": "#wm.inventory/BY-GO-Inventory-Recon-YhpDFJGpR4CKx8Wj_1Px5g////",
+      "toolbar": [
+        "exportAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last"
+      ],
+      "actions": [
+        {
+          "action": "Process Inventory Recon",
+          "itemId": "Process Inventory Recon",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Outbound": {
+      "area": "outboundPlanner",
+      "tier": "operational",
+      "route": "#wm.outboundplanner/wm.outboundplanner.outbounddisplay////",
+      "toolbar": [
+        "Quick Filters",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Orders0",
+        "Shipments0",
+        "Loads0",
+        "exportAction",
+        "printAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Add Order",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Add",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Add",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Modify Order",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Modify",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Modify",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Copy Order",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete Order",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel Order",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Cancel",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Change Carrier",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Change Carrier",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Change Carrier",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Change Warehouse",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Assign Lane",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Assign Lane",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Add Load",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Add Load",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Add Media",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "View Media",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "GMI Special Pack Operations": {
+      "area": "specialPack",
+      "tier": "operational",
+      "route": "#Special-Pack-rGOeUWX9SnSGderdweJ-og/Special-Pack-Operations-V01////",
+      "toolbar": [
+        "exportAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions",
+        "first",
+        "prev",
+        "next",
+        "last"
+      ],
+      "actions": [
+        {
+          "action": "Allocate",
+          "itemId": "usrSpecialPackAllocate",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Hand Over",
+          "itemId": "usrSpecialPackHandOver",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Complete",
+          "itemId": "usrSpecialPackComplete",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Edit",
+          "itemId": "usrSpecialPackAllocateEdit",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Allocate",
+          "itemId": "usrSpecialPackAllocate",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Hand Over",
+          "itemId": "usrSpecialPackHandOver",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Complete",
+          "itemId": "usrSpecialPackComplete",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Edit",
+          "itemId": "usrSpecialPackAllocateEdit",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Add Qty",
+          "itemId": "AddQty",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Items": {
+      "area": "inventory",
+      "tier": "configuration",
+      "route": "#wm.config/wm.config.inventory.items.items////",
+      "toolbar": [
+        "Quick Filters",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last",
+        "Actions"
+      ],
+      "actions": [
+        {
+          "action": "Add",
+          "itemId": null,
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Copy",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Delete",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        },
+        {
+          "action": "Update Item Attributes",
+          "itemId": null,
+          "enabled": false,
+          "has_submenu": false
+        }
+      ]
+    },
+    "GMI Trailer KPI Exclude Operations": {
+      "area": "operationsAdmin",
+      "tier": "operational",
+      "route": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/GMI-Trailer-KPI-Exclude-Operations-aNz8Q7ZCQZST0v_clpA2sg////",
+      "toolbar": [
+        "exportAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last"
+      ],
+      "actions": [
+        {
+          "action": "Trailer KPI Exclude Operations Exclude",
+          "itemId": "Trailer KPI Exclude Operations Exclude",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Reset User Account": {
+      "area": "operationsAdmin",
+      "tier": "operational",
+      "route": "#Operations-Administration-E795TXjCR7K2DQpOMC0M4g/Reset-User-Account-XONli7jZQpi1WTzmnoJDCg////",
+      "toolbar": [
+        "exportAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last"
+      ],
+      "actions": [
+        {
+          "action": "Reset User Credential",
+          "itemId": "Reset User Credential",
+          "enabled": true,
+          "has_submenu": false
+        },
+        {
+          "action": "Reset User Status",
+          "itemId": "Reset User Status",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    },
+    "Deferred Executions": {
+      "area": "systemAdmin",
+      "tier": "operational",
+      "route": "#mcs-SystemAdmin/Deferred-Executions-2019-1-0////",
+      "toolbar": [
+        "exportAction",
+        "refreshAction",
+        "refreshIntervalButton",
+        "Actions",
+        "filterMenu",
+        "first",
+        "prev",
+        "next",
+        "last"
+      ],
+      "actions": [
+        {
+          "action": "Retry Execution",
+          "itemId": "retryExecution",
+          "enabled": true,
+          "has_submenu": false
+        }
+      ]
+    }
+  },
+  "keying_caveat": {
+    "problem": "This file is keyed by screen LABEL, and labels are not unique in this product: 22 operational labels belong to more than one screen.",
+    "affected": [
+      "Inbound Shipments",
+      "Transport Equipment",
+      "Work Queue",
+      "Inventory",
+      "Warehouse Equipment Operations",
+      "Waves and Picks",
+      "Footprints",
+      "Outbound",
+      "Items"
+    ],
+    "meaning": "9 of 24 entries name a label that several screens share, so the entry cannot be attributed to a specific route from this file alone. The candidate routes for each are listed below.",
+    "candidates": {
+      "Inbound Shipments": [
+        "#wm.config/wm.config.inbound.receiving.inboundshipments////",
+        "#wm.receiving/wm.receiving.inboundloads////",
+        "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.receiving.inboundloads////"
+      ],
+      "Transport Equipment": [
+        "#wm.receiving/wm.transportequipment////",
+        "#wm.shipping/wm.transportequipment////",
+        "#wm.yard/wm.transportequipment////",
+        "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.transportequipment////"
+      ],
+      "Work Queue": [
+        "#wm.receiving/wm.workqueue////",
+        "#wm.shipping/wm.workqueue////",
+        "#wm.picking/wm.workqueue////",
+        "#wm.inventory/wm.workqueue////",
+        "#wm.outboundplanner/wm.workqueue////",
+        "#wm.yard/wm.workqueue////",
+        "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.workqueue////"
+      ],
+      "Inventory": [
+        "#wm.receiving/wm.inventorydisplay////",
+        "#wm.shipping/wm.inventorydisplay////",
+        "#wm.picking/wm.inventorydisplay////",
+        "#wm.inventory/wm.inventorydisplay////",
+        "#wm.outboundplanner/wm.inventorydisplay////",
+        "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.inventorydisplay////"
+      ],
+      "Warehouse Equipment Operations": [
+        "#wm.receiving/wm.equipment.warehouseequipmentoperational////",
+        "#wm.shipping/wm.equipment.warehouseequipmentoperational////",
+        "#wm.picking/wm.equipment.warehouseequipmentoperational////"
+      ],
+      "Waves and Picks": [
+        "#wm.picking/wm.wavesandpicks////",
+        "#wm.outboundplanner/wm.wavesandpicks////",
+        "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.wavesandpicks////"
+      ],
+      "Footprints": [
+        "#wm.config/wm.footprints////",
+        "#wm.inventory/wm.inventory.footprints////"
+      ],
+      "Outbound": [
+        "#wm.outboundplanner/wm.outboundplanner.outbounddisplay////",
+        "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.outboundplanner.outbounddisplay////"
+      ],
+      "Items": [
+        "#wm.config/wm.config.inventory.items.items////",
+        "#Special-Pack-rGOeUWX9SnSGderdweJ-og/wm.config.inventory.items.itemoverrides////"
+      ]
+    },
+    "fix": "Re-capture keyed by route hash, as index/filter-catalogue.json and index/silent-screens.json now are. Until then treat these entries as \"one of these screens\", not as a specific screen."
+  }
+}

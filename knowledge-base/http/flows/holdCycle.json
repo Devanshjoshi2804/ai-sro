@@ -1,0 +1,60 @@
+{
+  "generated_by": "tools/cdp/capture-hold-cycle.mjs",
+  "lpn": "00000776442003826960",
+  "selected": {
+    "usedPreferred": true,
+    "rows": 1,
+    "lpn": "00000776442003826960",
+    "item": "0113224000",
+    "qty": 65,
+    "status": "AV"
+  },
+  "hold_panel": {
+    "hold_grid_rows": 50,
+    "chosen_hold": {
+      "holdType": "RH",
+      "description": "Greenlight Hold"
+    },
+    "buttons": [
+      "Apply",
+      "Cancel",
+      "Add Hold"
+    ]
+  },
+  "before": {
+    "inventory": [
+      {
+        "item": "0113224000",
+        "quantity": 65,
+        "status": "AV",
+        "holdFlag": null
+      }
+    ],
+    "hold_history_rows": 0
+  },
+  "after_apply": {
+    "inventory": [
+      {
+        "item": "0113224000",
+        "quantity": 65,
+        "status": "AV",
+        "holdFlag": null
+      }
+    ],
+    "hold_history_rows": 0
+  },
+  "after_release": {
+    "inventory": [
+      {
+        "item": "0113224000",
+        "quantity": 65,
+        "status": "AV",
+        "holdFlag": null
+      }
+    ],
+    "hold_history_rows": 0
+  },
+  "apply_requests": [],
+  "release_requests": [],
+  "reversed": true
+}

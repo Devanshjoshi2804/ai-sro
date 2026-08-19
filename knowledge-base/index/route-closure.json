@@ -1,0 +1,938 @@
+{
+  "generated_by": "tools/build-route-closure.mjs",
+  "generated_at": "2026-08-19",
+  "what_this_is": "One terminal classification per mined write route. The single answer to \"what is left\".",
+  "statuses": {
+    "proven": "a real record changed, verified by a separate read",
+    "refused": "reached the domain layer and was declined by a NAMED business rule — contract confirmed",
+    "no-data": "contract confirmed, but this instance holds no record that qualifies",
+    "not-a-verb": "the mined URL is a model proxy or a read, not an action",
+    "not-deployed": "the resource 404s on this instance",
+    "unusable": "no caller can make it work on this instance — confirmed through the client's own transport, not just mine",
+    "superseded": "a real route the client no longer drives — a live path exists elsewhere",
+    "unresolved": "reaches the domain layer and refuses, but the qualifying state could not be identified",
+    "open": "still to be worked"
+  },
+  "totals": {
+    "routes": 70,
+    "proven": 42,
+    "not-a-verb": 4,
+    "no-data": 16,
+    "refused": 6,
+    "superseded": 1,
+    "unresolved": 1
+  },
+  "routes": [
+    {
+      "path": "wm/inventory/changeInvAttribute",
+      "methods": [
+        "POST"
+      ],
+      "status": "no-data",
+      "note": "422/11520 — no item on this instance is inv_attr (UDIA) tracked. Contract confirmed by the named refusal.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#change-inventory-attribute-needs-a-tracked-item"
+    },
+    {
+      "path": "wm/orderTypePickDeductions/sequences",
+      "methods": [
+        "PUT"
+      ],
+      "status": "no-data",
+      "note": "Parent collection orderTypePickDeductions is empty.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#the-three-pick-deduction-resources-are-empty"
+    },
+    {
+      "path": "wm/parseBarcode/parse",
+      "methods": [
+        "POST"
+      ],
+      "status": "no-data",
+      "note": "Full contract {clientId, supnum, whId, barCodeStr, parseMultipleSerialNumbers} accepted with 200, but returns [] for a real LPN — no barcode parse rules are configured on this instance.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#five-utility-routes-proven"
+    },
+    {
+      "path": "wm/picks/releaseHeldPicks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "status": "no-data",
+      "note": "Re-verified against consolidatedPicks (the resource the actions bind): R 183, E 1, C 16, and zero in H. No held pick exists to release.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#three-pick-routes-are-state-gated-and-this-instance-has-only-released-picks"
+    },
+    {
+      "path": "wm/picks/resetUnassignedPicks",
+      "methods": [
+        "POST"
+      ],
+      "status": "no-data",
+      "note": "Gate is an unassigned pick; none here. 200 with an empty body, no change.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#three-pick-routes-are-state-gated-and-this-instance-has-only-released-picks"
+    },
+    {
+      "path": "wm/pickZonePickDeductions/sequences",
+      "methods": [
+        "PUT"
+      ],
+      "status": "no-data",
+      "note": "Parent collection pickZonePickDeductions is empty.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#the-three-pick-deduction-resources-are-empty"
+    },
+    {
+      "path": "wm/rolePickDeductions/sequences",
+      "methods": [
+        "PUT"
+      ],
+      "status": "no-data",
+      "note": "Parent collection rolePickDeductions is empty, so the sequences sub-resource has nothing to attach to.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#the-three-pick-deduction-resources-are-empty"
+    },
+    {
+      "path": "wm/shipments/changeCarrier",
+      "methods": [
+        "POST"
+      ],
+      "status": "no-data",
+      "note": "Silent no-op: 200, async COMPLETE, errorCode null, correct resultId, and the carrier never changes. Cause is a business rule invisible in any field.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json"
+    },
+    {
+      "path": "wm/splitShipments/moveLPNs/async",
+      "methods": [
+        "POST"
+      ],
+      "status": "no-data",
+      "note": "No shipment on this instance has staged inventory (all eight structuredInventory sub-resources empty), so there is no LPN to split. Contract known from the bundle.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#split-shipments-has-nothing-to-split"
+    },
+    {
+      "path": "wm/workflowOperations/reverse",
+      "methods": [
+        "PUT"
+      ],
+      "status": "no-data",
+      "note": "Criteria keys now known (exitpoint/exitpointType from WM.util.Constants). initiation returns data [] for all 40 exit points and all 12 configured workflows, so there is no initiated operation to reverse without a live operational event.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#workflow-criteria-keys-are-lowercase-exitpoint"
+    },
+    {
+      "path": "wm/workOrderLines/",
+      "methods": [
+        "PUT",
+        "DELETE"
+      ],
+      "status": "no-data",
+      "note": "/wm/workOrderLines returns 200 with zero rows. Contract adds pickQuantity and pickCatchQuantity to the work-order key.",
+      "contract_known": true,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision",
+        "pickQuantity",
+        "pickCatchQuantity"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+    },
+    {
+      "path": "wm/workOrders/",
+      "methods": [
+        "POST"
+      ],
+      "status": "no-data",
+      "note": "/wm/workOrders returns 200 with zero rows on this instance. Contract mined: {workOrderNumber, clientId, warehouseId, workOrderRevision}.",
+      "contract_known": true,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+    },
+    {
+      "path": "wm/workOrders/confirmedWorkOrder",
+      "methods": [
+        "POST"
+      ],
+      "status": "no-data",
+      "note": "No work orders exist on this instance to confirm.",
+      "contract_known": true,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+    },
+    {
+      "path": "wm/workOrders/deallocate",
+      "methods": [
+        "POST"
+      ],
+      "status": "no-data",
+      "note": "No work orders exist on this instance to deallocate.",
+      "contract_known": true,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+    },
+    {
+      "path": "wm/workOrders/moveWorkOrder",
+      "methods": [
+        "POST"
+      ],
+      "status": "no-data",
+      "note": "No work orders exist on this instance to move.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+    },
+    {
+      "path": "wm/workOrders/requestFinishedGoods",
+      "methods": [
+        "PUT"
+      ],
+      "status": "no-data",
+      "note": "No work orders exist on this instance.",
+      "contract_known": true,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision",
+        "pickQuantity",
+        "pickCatchQuantity"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json#work-orders-are-deployed-but-hold-no-data"
+    },
+    {
+      "path": "wm/handlingUnits/",
+      "methods": [
+        "POST"
+      ],
+      "status": "not-a-verb",
+      "note": "A path prefix completed with emptyReceivingHandlingUnit or emptyShipmentHandlingUnit; those take the record data as body with isShipmentLoad/overrideFlag as query params.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": [
+        "isShipmentLoad",
+        "overrideFlag"
+      ],
+      "evidence": "http/claims.json#four-mined-routes-are-path-prefixes-not-endpoints"
+    },
+    {
+      "path": "wm/inventory/",
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "status": "not-a-verb",
+      "note": "A path prefix: appears as wm/inventory/{id}/validateInventoryIdentifier, a GET.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#four-mined-routes-are-path-prefixes-not-endpoints"
+    },
+    {
+      "path": "wm/shipments/",
+      "methods": [
+        "POST"
+      ],
+      "status": "not-a-verb",
+      "note": "The Ext model's own create/proxy URL, not an action. Posting with shipmentId in the query returns a bare 400 on both a live and a cancelled shipment; the nearby triggerShipmentStageWorkflow actually posts to the workflowOperations routes.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": [
+        "shipmentId"
+      ],
+      "evidence": "http/claims.json#not-every-mined-route-is-a-verb"
+    },
+    {
+      "path": "wm/waves/",
+      "methods": [
+        "POST"
+      ],
+      "status": "not-a-verb",
+      "note": "A path prefix: the client builds wm/waves/{resourceId}/{action}. Bare 400 when called as-is.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#four-mined-routes-are-path-prefixes-not-endpoints"
+    },
+    {
+      "path": "explainSqlQuery",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "Query planner; ?sql= returns a plan.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": [
+        "sql"
+      ],
+      "evidence": "http/claims.json"
+    },
+    {
+      "path": "mcs/mediaLinks/",
+      "methods": [
+        "DELETE"
+      ],
+      "status": "proven",
+      "note": "Full CRUD proven on a self-created link: POST 201, DELETE 200, verified gone. Shared links untouched.",
+      "contract_known": true,
+      "body_keys": [
+        "mediaId",
+        "associationKey"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json#media-links-and-reports-both-round-trip-on-self-created-records"
+    },
+    {
+      "path": "reporting/reports/",
+      "methods": [
+        "DELETE"
+      ],
+      "status": "proven",
+      "note": "Full CRUD proven on a self-created report ZZAUDIT-TEST: POST 201 (empty body), DELETE 200, GET 404 after.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#media-links-and-reports-both-round-trip-on-self-created-records"
+    },
+    {
+      "path": "reporting/reports/reportBookmark",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "POST creates (201), id nested at data.reportBookmark.bookmarkId.",
+      "contract_known": true,
+      "body_keys": [
+        "reportId",
+        "userId",
+        "bookmarkDetails",
+        "prompt"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json"
+    },
+    {
+      "path": "reporting/reports/reportBookmark/",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "PUT updates a bookmark (200). DELETE is 405 — no removal route exists.",
+      "contract_known": true,
+      "body_keys": [
+        "reportId",
+        "userId",
+        "bookmarkDetails",
+        "prompt"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json"
+    },
+    {
+      "path": "wm/commands/generateNextNumber",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "A model proxy — GET ?numcod=sesnum -> [{nxtnum}]. Not a PUT verb.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#five-utility-routes-proven"
+    },
+    {
+      "path": "wm/crossdocks/cancelCrossDocks",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "XDK0075834 (REPLENISHMENT, qty 486) was removed outright — unlike cancelPicks/cancelDirectedWorks, this verb deletes rather than de-allocates. 200 with an empty body.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#cancel-cross-dock-needs-query-flags-and-then-deletes"
+    },
+    {
+      "path": "wm/cycleCounts/async",
+      "methods": [
+        "POST",
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "POST generates, PUT cancels; verified via countInProgressDetails.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json"
+    },
+    {
+      "path": "wm/devices/",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "Record-level PUT works (/wm/devices/{id}); the collection 405s.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#explain-sql-query-and-device-put-both-work"
+    },
+    {
+      "path": "wm/inventory/adjust",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "scannedQuantity is the COUNTED quantity and drives the adjustment; inventoryAdjustmentQuantity is ignored. Needs a device code (else 422/11309) and a reason code (else a bare 500). Success is 200 {\"approvalRequired\":true} — the row goes to /wm/inventoryAdjustmentApprovals, stock does not move until approved. See DAMAGE.md §2.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#adjust-inventory-needs-a-device-code-and-then-queues-for-approval"
+    },
+    {
+      "path": "wm/inventory/identifierChange",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "Clean on first attempt, no async, no silent no-op. New identifier length is bounded by policy LODNUM-MIN-AND-MAX (returnNumber1=1, returnNumber2=30 observed).",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/exchanges/inventory.jsonl; http/flows/relabelLpn.json"
+    },
+    {
+      "path": "wm/inventory/move/async",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "LPN moved between real slots and back.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#move-inventory-round-trip"
+    },
+    {
+      "path": "wm/inventoryStatus/async",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "AV -> AG -> AV on a real detail.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#change-inventory-status-round-trip"
+    },
+    {
+      "path": "wm/locationaudit/repairlocations/async",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "Same record shape plus problem/action; async group LOCATIONAUDIT settled COMPLETE, resultId \"RA118A|SG\".",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#repair-locations-round-trip"
+    },
+    {
+      "path": "wm/locationaudit/validatelocations",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "Body is audit-model records {warehouse, location, noLockMode, repairMode}. 200 with [] = no discrepancies. The earlier \"unusable\" verdict was wrong — every attempt had shared the same wrong record shape.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": [
+        "query"
+      ],
+      "evidence": "http/claims.json#validatelocations-needs-the-audit-models-field-names"
+    },
+    {
+      "path": "wm/locations/asyncError",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "Empty -> Inventory Error on RA118A. Body [{warehouseId, storageLocation}].",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#error-and-reset-locations-round-trip"
+    },
+    {
+      "path": "wm/locations/asyncReset",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "Inventory Error -> Empty on RA118A. Inverse of asyncError.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#error-and-reset-locations-round-trip"
+    },
+    {
+      "path": "wm/locations/massupdate",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "Async completion can lag 30-90s, well beyond the ~10s seen on other verbs. updateNote is NOT a valid mass-update field — the true field set (from the live Update Attributes window) is movementZoneId, locationUsable, pickable, pickZoneId, summarizePicksFlag, storable, storageZoneId, position, locationTypeId, areaCode, slotId, verificationCode, velocity.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/exchanges/locations.jsonl; http/flows/locationMassUpdate.json"
+    },
+    {
+      "path": "wm/orderLines/cancelLines",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "cancelledFlag false -> true; pickQuantity also moved 0 -> 320. Async group CANCEL-ORDER-LINE, COMPLETE, resultId \"----*!0001*!2096557293*!0000*!SG\". Reason-code form values ride along as query params when the client demands one.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#cancel-order-round-trip-on-a-real-order-line"
+    },
+    {
+      "path": "wm/orderLines/validateChange",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "Pre-flight for deleteLines, same wrapper body; returns async group VALIDATE-CHANGE-ORDER-LINE.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#five-utility-routes-proven"
+    },
+    {
+      "path": "wm/outboundOrders/changeCarrier",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "Settles COMPLETE with a carrier from the order's own carrierDetails. Every order here has exactly one legal carrier, so the change is not observable.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": [
+        "car_move_id",
+        "new_carcod"
+      ],
+      "evidence": "http/claims.json#change-carrier-works-with-a-carrier-the-order-actually-allows"
+    },
+    {
+      "path": "wm/pickEstimates/shipments",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "RAW DB KEYS {wh_id, shipNumList} -> pick estimates.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#five-utility-routes-proven"
+    },
+    {
+      "path": "wm/picking/replenishments/cancelAction/async",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "Cancels the replenishment outright — it disappears from pendingReplenishments. Async group REPLENISHMENT, COMPLETE, resultId \"<wave>|<orderLine>\". Omitting siteId/subsites returns 422/11630, which reads like a server fault but is missing site context.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": [
+        "reallocateFlag"
+      ],
+      "evidence": "http/claims.json#cancel-replenishment-round-trip"
+    },
+    {
+      "path": "wm/picking/replenishments/changePriority",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "priority 3 -> 7 -> 3, verified by read-back from /wm/picking/replenishments/pendingReplenishments. The value lands in the `priority` field even though the payload key is `effectivePriority`; effectivePriority itself stayed null.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#change-replenishment-priority-round-trip"
+    },
+    {
+      "path": "wm/picks/releasePicks/batch/async",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "P -> R on pick 5490618, resultId names the resulting status.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#release-picks-is-a-no-op-on-an-already-released-pick"
+    },
+    {
+      "path": "wm/picks/resetPicks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "E -> P on pick 5490618. The earlier no-data verdict came from sampling the wave sub-resource, which shows only status R.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#a-fourth-404-shape-no-rows-affected"
+    },
+    {
+      "path": "wm/replenishmentConfigurations",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "incrementUnits 100 -> 150 -> 100 on RCF0000CZN. Ordinary record PUT.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#replenishment-configuration-round-trip"
+    },
+    {
+      "path": "wm/sequences",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "body {numCod, qty} -> [{nxtNum}].",
+      "contract_known": true,
+      "body_keys": [
+        "numCod",
+        "qty"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json#five-utility-routes-proven"
+    },
+    {
+      "path": "wm/serverStatus",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "body {mocaServiceUrl} -> {mocaServiceUrl, online}.",
+      "contract_known": true,
+      "body_keys": [
+        "mocaServiceUrl"
+      ],
+      "query_keys": null,
+      "evidence": "http/claims.json#five-utility-routes-proven"
+    },
+    {
+      "path": "wm/shipmentLines/cancelledShipmentLines",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "lineStatus P (Pending) -> B (Canceled). Async group CANCEL-SHIPMENT-LINE. The client gates the action on shipment status READY/INPROCESS/LOADING and pickedQuantity === 0.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#cancel-shipment-line-round-trip"
+    },
+    {
+      "path": "wm/shipments/cancelledShipments",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "shipmentStatus R -> B (Cancelled). SYNCHRONOUS — returns the whole updated shipment, no async group. preventRecursionMode is an enum; \"false\" gets 422/810 \"Invalid argument: prcmod\", naming the server-side parameter rather than the client one.",
+      "contract_known": true,
+      "body_keys": [
+        "shipmentId"
+      ],
+      "query_keys": [
+        "preventRecursionMode"
+      ],
+      "evidence": "http/claims.json#cancel-shipment-round-trip"
+    },
+    {
+      "path": "wm/unassignedShipments/assignShipments",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "SID0009108 onto LD00003073 and back off via cancelWorkUnassignShipmentFromStop.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#assign-shipment-to-load-round-trip"
+    },
+    {
+      "path": "wm/waves/cancelWave/async",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "Settled FAILURE 11231 yet the wave still moved ALOC -> REL. Effect confirmed, refusal message notwithstanding.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#cancel-wave-refused-but-the-wave-moved-anyway"
+    },
+    {
+      "path": "wm/waves/changeWavePriority",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "Returned 200 with an EMPTY data array both times while the change did take effect, confirmed by a separate read. The response body is not the outcome.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/exchanges/waves.jsonl; http/flows/changeWavePriority.json"
+    },
+    {
+      "path": "wm/waves/unallocateWave/async",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "CSTEST2 (a pre-existing test wave, prefix CSTEST) moved ALOC -> PLAN. async COMPLETE, no error.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/exchanges/waves.jsonl (not yet appended — recorded here from ad-hoc probe, see claims.json)"
+    },
+    {
+      "path": "wm/work/async",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "effectivePriority 2 -> 8 -> 2 via async group. manualWorkSequence specifically is not settable on PEND.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": [
+        "cancelOnlySelected"
+      ],
+      "evidence": "http/claims.json#work-batch-and-work-async-both-round-trip"
+    },
+    {
+      "path": "wm/work/batch",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "effectivePriority 2 -> 9 -> 2, synchronous.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#work-batch-and-work-async-both-round-trip"
+    },
+    {
+      "path": "wm/work/cancelDirectedWorks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "\"Cancel Work\" does not delete or set a CNCL status. On an ACK (assigned) record it moved workRequestStatus ACK -> PEND, i.e. it un-assigns work back to the pending pool. On a PEND record it returned 200 with an empty body and no change — there is nothing to un-assign from PEND, so this is the third distinct silent-no-op cause found today: not a permission refusal (changeCarrier), not an invalid field (locations/massupdate), but a state that already satisfies the request.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/exchanges/work.jsonl; http/flows/cancelWork.json"
+    },
+    {
+      "path": "wm/work/cancelPicks/batch/async",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "Returns 202 (not 200). Work request 5490595 disappeared; the demand returned as an unallocated pick (pickStatus P, workRequestId null) on the same order line from a different source location. De-allocation, not deletion.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#cancel-picks-destroys-the-work-and-returns-the-demand"
+    },
+    {
+      "path": "wm/work/resumeDirectedWorks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "Returned 200 with an EMPTY body both ways while the status genuinely moved PEND -> SUSP -> PEND, confirmed by separate reads.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/exchanges/work.jsonl; http/flows/suspendResumeWork-api.json"
+    },
+    {
+      "path": "wm/work/suspendDirectedWorks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "status": "proven",
+      "note": "Returned 200 with an EMPTY body both ways while the status genuinely moved PEND -> SUSP -> PEND, confirmed by separate reads.",
+      "contract_known": false,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/exchanges/work.jsonl; http/flows/suspendResumeWork-api.json"
+    },
+    {
+      "path": "wm/workflowOperations/initiation",
+      "methods": [
+        "POST"
+      ],
+      "status": "proven",
+      "note": "200 through the client transport with an OBJECT body; data [] means no workflow matched. A pre-encoded string body double-encodes and 400s.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#workflow-initiation-works-stock-transfer-fails-in-allocation"
+    },
+    {
+      "path": "wm/inventory/massupdate",
+      "methods": [
+        "POST"
+      ],
+      "status": "refused",
+      "note": "Full contract recovered — selection is a \"query\" pseudo-field. Refuses 10239 \"Invalid footprint code\"; footprints are client-scoped and only client ---- has any.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#inventory-massupdate-scopes-through-a-query-pseudo-field"
+    },
+    {
+      "path": "wm/inventory/stockTransfer/async",
+      "methods": [
+        "POST"
+      ],
+      "status": "refused",
+      "note": "Async group builds (runner StockMoveInventoryTrackedRunnerImpl) then FAILURE 12035 \"An unexpected error occurred during allocation\" — reached the domain layer via the client transport too.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#workflow-initiation-works-stock-transfer-fails-in-allocation"
+    },
+    {
+      "path": "wm/orderLines/deleteLines",
+      "methods": [
+        "POST"
+      ],
+      "status": "refused",
+      "note": "Async group DELETE-ORDER-LINE settled FAILURE errorCode 11869 \"Unable to delete order line because it is planned into a shipment.\" Route and payload confirmed; the refusal is a domain rule. POST /wm/orderLines/validateChange takes the same wrapper as a pre-flight check.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#delete-order-line-refused-planned-into-a-shipment"
+    },
+    {
+      "path": "wm/picking/replenishments/topOff/async",
+      "methods": [
+        "POST",
+        "PUT"
+      ],
+      "status": "refused",
+      "note": "11962 \"There are no active topoff replenishments to cancel\" — the Item screen cancel path, contract confirmed.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#replenishment-topoff-is-the-cancel-path"
+    },
+    {
+      "path": "wm/picks/confirm/async",
+      "methods": [
+        "POST"
+      ],
+      "status": "refused",
+      "note": "FAILURE 10845 \"Invalid LPN\" — a named business refusal; route and payload confirmed.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#confirm-picks-refuses-a-pick-with-no-lpn"
+    },
+    {
+      "path": "wm/shipments/shipmentPlan",
+      "methods": [
+        "POST"
+      ],
+      "status": "refused",
+      "note": "422 errorCode 11900 \"already assigned to a load\". Route and payload confirmed; needs an order line not yet on a load to prove the success path.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#shipment-plan-refuses-an-already-assigned-order-line"
+    },
+    {
+      "path": "wm/locationList/async",
+      "methods": [
+        "POST"
+      ],
+      "status": "superseded",
+      "note": "The create URL of a model the Location Generator screen does not drive. The live path is the MOCA commands generateLocationList / createLocationList / removeLocation, which name their required args in their errors.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#locationlist-async-is-superseded-not-broken"
+    },
+    {
+      "path": "wm/workAssignments/removePicks/batch/async",
+      "methods": [
+        "PUT"
+      ],
+      "status": "unresolved",
+      "note": "-1403 for both the error-status pick and the one assigned pick, sent as full consolidatedPicks records. The gate is not pickStatus E alone nor the presence of an assignment. /wm/workAssignments itself cannot be read — its query dialect is neither the JSON column filter nor SQL.",
+      "contract_known": true,
+      "body_keys": null,
+      "query_keys": null,
+      "evidence": "http/claims.json#three-pick-routes-are-state-gated-and-this-instance-has-only-released-picks"
+    }
+  ]
+}

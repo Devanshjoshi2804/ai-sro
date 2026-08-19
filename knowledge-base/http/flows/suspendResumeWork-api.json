@@ -1,0 +1,21 @@
+{
+  "generated_by": "tools/cdp/capture-work-suspend-api.mjs",
+  "generated_at": "2026-08-18T13:14:28.507Z",
+  "work_request_id": 5490627,
+  "status_before": "PEND",
+  "status_after_suspend": "SUSP",
+  "status_after_resume": "PEND",
+  "suspend": {
+    "url": "/wm/work/suspendDirectedWorks/batch",
+    "status": 200,
+    "body": ""
+  },
+  "resume": {
+    "url": "/wm/work/resumeDirectedWorks/batch",
+    "status": 200,
+    "body": ""
+  },
+  "payload": "array containing the whole work record, unmodified",
+  "verb_route_prediction_confirmed": true,
+  "restored": true
+}

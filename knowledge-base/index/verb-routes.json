@@ -1,0 +1,1078 @@
+{
+  "generated_by": "tools/build-verb-routes.mjs",
+  "generated_at": "2026-08-18T11:19:06.680Z",
+  "what_this_is": "For each verb an operator can see in an Actions menu, the endpoint most likely to serve it, matched through the handler function name the app uses.",
+  "how_to_read": "candidate_route is a HYPOTHESIS. confidence describes only how the name matched, never whether the route works or is permitted. route_proven is true only where a captured exchange exists. A strong match with route_proven false is still unverified.",
+  "totals": {
+    "verbs": 96,
+    "strong": 15,
+    "none": 45,
+    "unresolvable": 5,
+    "moderate": 31,
+    "with_a_proven_route": 13
+  },
+  "verbs": [
+    {
+      "verb": "Add Load",
+      "seen_on_screens": 10,
+      "example_screen": "Outbound",
+      "candidate_route": "POST wm/shipments/shipmentPlan",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "POST wm/locationList/async"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Cancel Order",
+      "seen_on_screens": 5,
+      "example_screen": "Outbound",
+      "candidate_route": "POST wm/orderLines/cancelLines",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "POST wm/crossdocks/cancelCrossDocks",
+        "POST wm/picking/replenishments/cancelAction/async"
+      ],
+      "route_proven": true,
+      "proof": "observed"
+    },
+    {
+      "verb": "Cancel Picks",
+      "seen_on_screens": 12,
+      "example_screen": "Work Queue",
+      "candidate_route": "PUT wm/work/cancelPicks/batch/async",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "POST wm/crossdocks/cancelCrossDocks",
+        "POST wm/orderLines/cancelLines"
+      ],
+      "route_proven": true,
+      "proof": "observed"
+    },
+    {
+      "verb": "Cancel Replenishment",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "POST/PUT wm/picking/replenishments/topOff/async",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "POST wm/crossdocks/cancelCrossDocks",
+        "POST wm/orderLines/cancelLines"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Cancel Work",
+      "seen_on_screens": 12,
+      "example_screen": "Work Queue",
+      "candidate_route": "PUT wm/work/cancelDirectedWorks/batch",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "PUT wm/work/cancelPicks/batch/async",
+        "POST wm/crossdocks/cancelCrossDocks"
+      ],
+      "route_proven": true,
+      "proof": "observed"
+    },
+    {
+      "verb": "Change Carrier",
+      "seen_on_screens": 15,
+      "example_screen": "Outbound",
+      "candidate_route": "POST wm/shipments/changeCarrier",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "POST wm/inventory/changeInvAttribute",
+        "PUT wm/picking/replenishments/changePriority"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Change Priority",
+      "seen_on_screens": 19,
+      "example_screen": "Work Queue",
+      "candidate_route": "PUT wm/picking/replenishments/changePriority",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "PUT wm/waves/changeWavePriority",
+        "POST wm/inventory/changeInvAttribute"
+      ],
+      "route_proven": true,
+      "proof": "observed"
+    },
+    {
+      "verb": "Confirm Picks",
+      "seen_on_screens": 1,
+      "example_screen": "Pick Confirmation",
+      "candidate_route": "POST wm/picks/confirm/async",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "POST wm/workOrders/confirmedWorkOrder",
+        "POST wm/workOrders/"
+      ],
+      "route_proven": true,
+      "proof": "refused"
+    },
+    {
+      "verb": "Copy Order",
+      "seen_on_screens": 5,
+      "example_screen": "Outbound",
+      "candidate_route": "POST wm/workOrders/",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "POST wm/workOrders/confirmedWorkOrder"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Delete Order",
+      "seen_on_screens": 5,
+      "example_screen": "Outbound",
+      "candidate_route": "POST wm/orderLines/deleteLines",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "POST wm/orderLines/validateChange",
+        "PUT/DELETE wm/workOrderLines/"
+      ],
+      "route_proven": true,
+      "proof": "refused"
+    },
+    {
+      "verb": "Mass Update",
+      "seen_on_screens": 1,
+      "example_screen": "Storage Locations",
+      "candidate_route": "POST wm/locations/massupdate",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "POST wm/pickEstimates/shipments"
+      ],
+      "route_proven": true,
+      "proof": "round-trip"
+    },
+    {
+      "verb": "Relabel LPN",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "PUT wm/inventory/identifierChange",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [],
+      "route_proven": true,
+      "proof": "round-trip"
+    },
+    {
+      "verb": "Resume Work",
+      "seen_on_screens": 12,
+      "example_screen": "Work Queue",
+      "candidate_route": "PUT wm/work/resumeDirectedWorks/batch",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "PUT wm/commands/generateNextNumber",
+        "PUT wm/waves/changeWavePriority"
+      ],
+      "route_proven": true,
+      "proof": "round-trip"
+    },
+    {
+      "verb": "Suspend Work",
+      "seen_on_screens": 12,
+      "example_screen": "Work Queue",
+      "candidate_route": "PUT wm/work/suspendDirectedWorks/batch",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [
+        "PUT wm/commands/generateNextNumber",
+        "PUT wm/waves/changeWavePriority"
+      ],
+      "route_proven": true,
+      "proof": "round-trip"
+    },
+    {
+      "verb": "Unallocate Wave",
+      "seen_on_screens": 7,
+      "example_screen": "Waves and Picks",
+      "candidate_route": "PUT wm/waves/unallocateWave/async",
+      "matched_by": "every word of the verb appears in the handler function name",
+      "confidence": "strong",
+      "other_candidates": [],
+      "route_proven": true,
+      "proof": "observed"
+    },
+    {
+      "verb": "&#160;",
+      "seen_on_screens": 27,
+      "example_screen": "Yard Locations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Add",
+      "seen_on_screens": 18,
+      "example_screen": "Yard Locations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "unresolvable",
+      "why": "a one-word generic verb names no subject: what \"Add\" does depends on the screen it sits on, so no route can be inferred from the name",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Add Inbound Shipment",
+      "seen_on_screens": 6,
+      "example_screen": "Inbound Shipments",
+      "candidate_route": "POST wm/shipments/shipmentPlan",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Add Inventory",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "POST wm/inventory/changeInvAttribute",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/locationList/async",
+        "POST wm/shipments/shipmentPlan"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Add Media",
+      "seen_on_screens": 33,
+      "example_screen": "Inbound Shipments",
+      "candidate_route": "POST wm/locationList/async",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/shipments/shipmentPlan"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Add Order",
+      "seen_on_screens": 5,
+      "example_screen": "Outbound",
+      "candidate_route": "POST wm/locationList/async",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/shipments/shipmentPlan",
+        "POST wm/workOrders/"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Add Qty",
+      "seen_on_screens": 1,
+      "example_screen": "GMI Special Pack Operations",
+      "candidate_route": "POST wm/locationList/async",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/shipments/shipmentPlan"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Add Transport Equipment",
+      "seen_on_screens": 11,
+      "example_screen": "Transport Equipment",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Adjust Inventory",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "POST wm/inventory/changeInvAttribute",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "PUT wm/inventory/adjust"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Allocate",
+      "seen_on_screens": 2,
+      "example_screen": "GMI Special Pack Operations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Allocate Wave",
+      "seen_on_screens": 7,
+      "example_screen": "Waves and Picks",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Apply Hold",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Assign Lane",
+      "seen_on_screens": 10,
+      "example_screen": "Outbound",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Assign Role",
+      "seen_on_screens": 11,
+      "example_screen": "Work Queue",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Assign to Dock Set",
+      "seen_on_screens": 1,
+      "example_screen": "Dock Locations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Assign to Staging Lane",
+      "seen_on_screens": 6,
+      "example_screen": "Inbound Shipments",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Assign User",
+      "seen_on_screens": 12,
+      "example_screen": "Work Queue",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Audit Equipment Location",
+      "seen_on_screens": 11,
+      "example_screen": "Transport Equipment",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Auto Receive",
+      "seen_on_screens": 6,
+      "example_screen": "Inbound Shipments",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Auto-Ship Handling Unit",
+      "seen_on_screens": 1,
+      "example_screen": "Order Sequence Processing",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Cancel",
+      "seen_on_screens": 5,
+      "example_screen": "Outbound",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "unresolvable",
+      "why": "a one-word generic verb names no subject: what \"Cancel\" does depends on the screen it sits on, so no route can be inferred from the name",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Cancel Count",
+      "seen_on_screens": 1,
+      "example_screen": "Counts",
+      "candidate_route": "POST wm/crossdocks/cancelCrossDocks",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/orderLines/cancelLines",
+        "POST wm/picking/replenishments/cancelAction/async"
+      ],
+      "route_proven": true,
+      "proof": "observed"
+    },
+    {
+      "verb": "Cancel Cycle Count",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Change Close Time",
+      "seen_on_screens": 1,
+      "example_screen": "Order Sequence Processing",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Change Cut Off Time",
+      "seen_on_screens": 1,
+      "example_screen": "Order Sequence Processing",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Change Inventory Status",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "POST wm/inventory/changeInvAttribute",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Change Warehouse",
+      "seen_on_screens": 5,
+      "example_screen": "Outbound",
+      "candidate_route": "POST wm/inventory/changeInvAttribute",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "PUT wm/picking/replenishments/changePriority",
+        "POST wm/shipments/changeCarrier"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Check In Transport Equipment",
+      "seen_on_screens": 11,
+      "example_screen": "Transport Equipment",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Check Outstanding Work",
+      "seen_on_screens": 1,
+      "example_screen": "Footprints",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Close Handling Units",
+      "seen_on_screens": 1,
+      "example_screen": "Order Sequence Processing",
+      "candidate_route": "POST wm/handlingUnits/",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Complete",
+      "seen_on_screens": 2,
+      "example_screen": "GMI Special Pack Operations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Copy",
+      "seen_on_screens": 4,
+      "example_screen": "Footprints",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "unresolvable",
+      "why": "a one-word generic verb names no subject: what \"Copy\" does depends on the screen it sits on, so no route can be inferred from the name",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Current Transport Equipment Activity",
+      "seen_on_screens": 11,
+      "example_screen": "Transport Equipment",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Cut Handling Units",
+      "seen_on_screens": 1,
+      "example_screen": "Order Sequence Processing",
+      "candidate_route": "POST wm/handlingUnits/",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Delete",
+      "seen_on_screens": 18,
+      "example_screen": "Yard Locations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "unresolvable",
+      "why": "a one-word generic verb names no subject: what \"Delete\" does depends on the screen it sits on, so no route can be inferred from the name",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Delete Inbound Shipment",
+      "seen_on_screens": 6,
+      "example_screen": "Inbound Shipments",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Delete Transport Equipment",
+      "seen_on_screens": 11,
+      "example_screen": "Transport Equipment",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Delete Wave",
+      "seen_on_screens": 7,
+      "example_screen": "Waves and Picks",
+      "candidate_route": "DELETE reporting/reports/",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/orderLines/deleteLines",
+        "POST wm/orderLines/validateChange"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Edit",
+      "seen_on_screens": 3,
+      "example_screen": "Non Serialized Handling Unit Adjustment ",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "unresolvable",
+      "why": "a one-word generic verb names no subject: what \"Edit\" does depends on the screen it sits on, so no route can be inferred from the name",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Error Location",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Generate Cycle Count",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "POST/PUT wm/cycleCounts/async",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Generate Replenishment",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "POST wm/sequences",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Hand Over",
+      "seen_on_screens": 2,
+      "example_screen": "GMI Special Pack Operations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Ineligible Work",
+      "seen_on_screens": 11,
+      "example_screen": "Work Queue",
+      "candidate_route": "PUT wm/commands/generateNextNumber",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "PUT wm/waves/changeWavePriority",
+        "PUT wm/work/async"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Inventory Mass Update",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "POST wm/locations/massupdate",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": true,
+      "proof": "round-trip"
+    },
+    {
+      "verb": "Maintain Dock Schedules",
+      "seen_on_screens": 1,
+      "example_screen": "Dock Locations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Modify",
+      "seen_on_screens": 11,
+      "example_screen": "Item Lots",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Modify Inbound Shipment",
+      "seen_on_screens": 6,
+      "example_screen": "Inbound Shipments",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Modify Inventory Attributes",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Modify Order",
+      "seen_on_screens": 5,
+      "example_screen": "Outbound",
+      "candidate_route": "POST wm/workOrders/",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/workOrders/confirmedWorkOrder"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Modify Serial Number",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Modify Transport Equipment",
+      "seen_on_screens": 11,
+      "example_screen": "Transport Equipment",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Move Inventory",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "POST wm/inventory/changeInvAttribute",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/inventory/move/async"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Move Transport Equipment",
+      "seen_on_screens": 11,
+      "example_screen": "Transport Equipment",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Plan Wave",
+      "seen_on_screens": 7,
+      "example_screen": "Waves and Picks",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Prepare For Shipping",
+      "seen_on_screens": 11,
+      "example_screen": "Transport Equipment",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Print Compliant Labels",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Print Handling Units Labels",
+      "seen_on_screens": 1,
+      "example_screen": "Order Sequence Processing",
+      "candidate_route": "POST wm/handlingUnits/",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Print Slot Labels",
+      "seen_on_screens": 1,
+      "example_screen": "Order Sequence Processing",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Print Summary Report",
+      "seen_on_screens": 1,
+      "example_screen": "Order Sequence Processing",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Process Inventory Recon",
+      "seen_on_screens": 1,
+      "example_screen": "BY GO Inventory Recon",
+      "candidate_route": "POST wm/inventory/changeInvAttribute",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Receive Inventory",
+      "seen_on_screens": 6,
+      "example_screen": "Inbound Shipments",
+      "candidate_route": "POST wm/inventory/changeInvAttribute",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Release Count",
+      "seen_on_screens": 1,
+      "example_screen": "Counts",
+      "candidate_route": "POST/PUT wm/cycleCounts/async",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "PUT wm/picks/releaseHeldPicks/batch",
+        "PUT wm/picks/releasePicks/batch/async"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Release Hold",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "PUT wm/picks/releaseHeldPicks/batch",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "PUT wm/picks/releasePicks/batch/async",
+        "POST wm/workOrders/"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Release Wave",
+      "seen_on_screens": 7,
+      "example_screen": "Waves and Picks",
+      "candidate_route": "PUT wm/picks/releaseHeldPicks/batch",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "PUT wm/picks/releasePicks/batch/async",
+        "POST wm/workOrders/"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Remove Count",
+      "seen_on_screens": 1,
+      "example_screen": "Counts",
+      "candidate_route": "DELETE mcs/mediaLinks/",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/waves/",
+        "PUT wm/workAssignments/removePicks/batch/async"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Remove Inventory",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "DELETE mcs/mediaLinks/",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST wm/waves/",
+        "PUT wm/workAssignments/removePicks/batch/async"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Reopen Count",
+      "seen_on_screens": 1,
+      "example_screen": "Counts",
+      "candidate_route": "POST/PUT wm/cycleCounts/async",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Reset Count",
+      "seen_on_screens": 1,
+      "example_screen": "Counts",
+      "candidate_route": "PUT wm/commands/generateNextNumber",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "POST/PUT wm/cycleCounts/async",
+        "PUT wm/picks/resetPicks/batch"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Reset Location",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": "PUT wm/commands/generateNextNumber",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [
+        "PUT wm/picks/resetPicks/batch"
+      ],
+      "route_proven": false
+    },
+    {
+      "verb": "Reset User Credential",
+      "seen_on_screens": 1,
+      "example_screen": "Reset User Account",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Reset User Status",
+      "seen_on_screens": 1,
+      "example_screen": "Reset User Account",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Retry Execution",
+      "seen_on_screens": 1,
+      "example_screen": "Deferred Executions",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Schedule Count",
+      "seen_on_screens": 1,
+      "example_screen": "Counts",
+      "candidate_route": "POST/PUT wm/cycleCounts/async",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Trailer KPI Exclude Operations Exclude",
+      "seen_on_screens": 1,
+      "example_screen": "GMI Trailer KPI Exclude Operations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Transfer Client Ownership",
+      "seen_on_screens": 11,
+      "example_screen": "Inventory",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Unassign",
+      "seen_on_screens": 12,
+      "example_screen": "Work Queue",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Unlock Work",
+      "seen_on_screens": 11,
+      "example_screen": "Work Queue",
+      "candidate_route": "POST/GET wm/inventory/",
+      "matched_by": "the handler function name shares the verb's main word",
+      "confidence": "moderate",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Update Item Attributes",
+      "seen_on_screens": 1,
+      "example_screen": "Items",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "Update Location Attributes",
+      "seen_on_screens": 3,
+      "example_screen": "Yard Locations",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    },
+    {
+      "verb": "View Media",
+      "seen_on_screens": 33,
+      "example_screen": "Inbound Shipments",
+      "candidate_route": null,
+      "matched_by": null,
+      "confidence": "none",
+      "other_candidates": [],
+      "route_proven": false
+    }
+  ]
+}

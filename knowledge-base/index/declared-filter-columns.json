@@ -1,0 +1,7865 @@
+{
+  "generated_by": "tools/cdp/capture-declared-filters.mjs",
+  "generated_at": "2026-08-18T10:39:37.207Z",
+  "what_this_is": "Filter columns the server declares for a screen, from GET /data/WM/rpux/filter/columns/{filterType}. Discovered on the Check In screen. filterType codes were harvested from traffic this project had already captured, so this covers the screens seen so far and not necessarily every screen in the product.",
+  "not_the_same_as": "index/filterable-columns.json, which records what this deployment actually honoured when a filter was fired at it. This file is a declaration; that file is a measurement. Where they disagree, believe the measurement about this instance and this file about intent.",
+  "filter_types": 153,
+  "filter_types_with_columns": 96,
+  "declared_columns_total": 1191,
+  "declared": {
+    "ListsForSequenceOrdersFilter": {
+      "status": 200,
+      "columns": []
+    },
+    "WMAgingProfiles": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "ageProfileName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMAllocationHandlingUnitGroups": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "allocationAssetGroup",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "assetType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "description",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "handlingUnitTypesCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMAlternateItemType": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "codeValue",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMAreas": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "areaCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMAreasForHost": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMAvailableAttributes": {
+      "status": 200,
+      "columns": []
+    },
+    "WMAvailableInventoryMixingRules": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "columnDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "tableDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMBarcodeTemplates": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "barCodeTemplateId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMBillingActivities": {
+      "status": 200,
+      "columns": []
+    },
+    "WMBuildings": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "addressCity",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "addressLine1",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "addressLine2",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "addressLine3",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "addressName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countryName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "postalCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "state",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMCarrierProNumber": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "addressName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierInfo.carrierName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "checkDigitMethodDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "format",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMCarriers": {
+      "status": 200,
+      "columns": []
+    },
+    "WMCheckin": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "appointmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "endDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "externalAppointmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "masterReceiptId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundLoad",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "startDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "tmsLoadId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMClient": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "addressCity",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "addressId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "addressName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "addressState",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "adjustmentThresholdCost",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "adjustmentThresholdUnit",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countryName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMClientGroupPartner": {
+      "status": 200,
+      "columns": []
+    },
+    "WMCommodity": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "commodityCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "freightClass",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stccCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMCountTemplates": {
+      "status": 200,
+      "columns": []
+    },
+    "WMCountTypes": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "countType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "differentUserFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "endLocationCountDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "nextCountTypeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "promptForReasonCodeInRfFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMCountZones": {
+      "status": 200,
+      "columns": []
+    },
+    "WMCountsHistory": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "abcCount",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countBatch",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countTypeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countUserName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "displayUnitQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dspCountQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "gainLossQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "generationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemClientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemDesc",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "location",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "remCountQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "remUnitQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unitQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMCustomer": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "addressId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "addressName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customerNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMDistributionRoutes": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "beginDay",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "beginTime",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "endDay",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "endTime",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serviceLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMDistributionRuleSets": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "commandGroupDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "ruleSetDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMDistributionType": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "distributionTiming",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMDockLocations": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "aisle",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "areaCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "assignment",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "automove",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bay",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countBack",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "level",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationAccess",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationTypeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationUsable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "movementZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "palletStackRestriction",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "permanentlyAssigned",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "position",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "replenishment",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "slotId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "velocityZoneDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "verificationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "voiceCheckDigit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMDockSet": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "dockDoorsCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "slotId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMDocumentType": {
+      "status": 200,
+      "columns": []
+    },
+    "WMDoorActivity": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "availableDoors",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "availableYards",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "building",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierMoveId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "close",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dispatch",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dropLoad",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "failedAudit",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hazmat",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hotFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateToDoor",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "liveLoad",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "needSafety",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "occupiedLocations",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "overTime",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pendingAudit",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pendingMove",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receivingDoor",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "safety",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shippingDoor",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "short",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "suspended",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "tmsLoadId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unassigned",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unshippable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "usable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waiting",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMEquipment": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "vehicleLimit",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "vehicleTypeId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMEquipmentWorkflows": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "carrierCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "completedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateAdded",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "equipment",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "exitpoint",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "performUserId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "sourceLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowRequiredFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowResult",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrder",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderRevision",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMFacilityPutawayLocation": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "abcCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "aisle",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "areaCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "assignment",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bay",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "escalationType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "level",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationAccess",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationTypeCategory",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "movementZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "palletStackRestriction",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "position",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "slotId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "travelSequence",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "velocityZoneDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMFacilityStorageAisles": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "aisleId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "area",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "areaCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bayCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMHandlingUnitTypes": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "allocationAssetGroup",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "allocationAssetGroupDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "assetCategoryDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "assetType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "container",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serializedFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "temporary",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMHardwarePrinter": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "printerAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "printerName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "printerStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "printerType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMHardwareRFDevice": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "currentUser",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceClass",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lastUser",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rfVendorName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "terminalType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workArea",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMHardwareRFVendor": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "rfVendorInquiry",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rfVendorName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rfVendorResponse",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rfVendorResponseTime",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMHardwareVoiceDevice": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "deviceClass",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "homeWorkArea",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "labelPrinterAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "printerAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "voiceTerminalId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMHardwareWorkstation": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "deviceClass",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "labelPrinterAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundProcessingFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "printerAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "productionStationFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "touchscreenDeviceFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMInboundWorkflows": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "completedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateAdded",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "exitpoint",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inboundOrderLineNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inboundOrderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inboundShipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "performUserId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unitQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowRateId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowRequiredFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowResult",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMIntegratorTask": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "autoStart",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "name",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "running",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMIntegratorTransaction": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "enableFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "IFDDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "IFDId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "IFDVersion",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMInventoryCountBatches": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "batchStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countBatch",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countTypeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inaccurateCounts",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "item",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "location",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "modifiedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMInventoryCounts": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "abcCounts",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "assignedTo",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countBatch",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countGroup",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countsInQ",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countTypeDesc",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "effpri",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "generationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemClientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemDesc",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "location",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "oprCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "releasedCounts",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "reqNum",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "requestedBy",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "requestType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "scheduledCounts",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "suspendedCounts",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workqueDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workqueStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMInventoryView": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "catchUnitType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "childHandlingUnitType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "detailNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "distributionIdentifier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "expirationDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "fifoDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "footprintCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "handlingUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "holdNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "holdType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inboundOrderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inboundOrderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inboundShipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDate1",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDate2",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDecimal1",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDecimal2",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDecimal3",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber1",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber2",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber3",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber4",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber5",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText1",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText10",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText11",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText12",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText13",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText14",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText15",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText16",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText17",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText18",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText2",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText3",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText4",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText5",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText6",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText7",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText8",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText9",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemClientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lastPickUser",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadUCC",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "location",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lotNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manufacturedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "originCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundLoad",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrder",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "quantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receivedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "revisionLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rotationId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serialNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serialType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentLineId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stop",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stopAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "subLoadUCC",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "subNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierLotNum",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierNum",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "underBond",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMItemFamily": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "itemFamily",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemFamilyGroupDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemFamilyGroupName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workReleaseSequence",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMItemHierarchyLevelDescriptions": {
+      "status": 200,
+      "columns": []
+    },
+    "WMItemLots": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "expirationDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryStatusDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemClientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemDesc",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lotNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lotStatusDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manufacturedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierLotNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "updatedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "updatedUserName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMItemOverrideConfig": {
+      "status": 200,
+      "columns": []
+    },
+    "WMItemStyleAttributes": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "attributeCodeName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "columnDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMItems": {
+      "status": 200,
+      "columns": []
+    },
+    "WMLPNMixingRules": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "mixingRestrictions",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMLabelFormat": {
+      "status": 200,
+      "columns": []
+    },
+    "WMLabelFormatGlobal": {
+      "status": 200,
+      "columns": []
+    },
+    "WMLevelTypes": {
+      "status": 200,
+      "columns": []
+    },
+    "WMLoadAttributes": {
+      "status": 200,
+      "columns": []
+    },
+    "WMLocation": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "aisle",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "areaCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "assignment",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "automove",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "backfillLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bay",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countBack",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countZoneId",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "crossDockFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "destinationLocation",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hasCountZone",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hasMovementZone",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hasPickingZone",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hasStorageZone",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hasWorkZone",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "level",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationAccess",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationTypeCategory",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationTypeName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "movementZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "movementZoneId",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "palletPositionFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "palletStackRestriction",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "permanentlyAssigned",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickupAndDeposit",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickZoneId",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "position",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receivingStagingFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "replenishment",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "sharedLocationFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shippingResourceCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipStaging",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "slotId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageArea",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageZoneId",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "usableFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "velocityZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "verificationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "voiceCheckDigit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workArea",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workZoneId",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "yard",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMLocationTypes": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "locationType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "totalLocations",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMLocations": {
+      "status": 200,
+      "columns": []
+    },
+    "WMMasterWorkflow": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "warehouseUsing",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowIdLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMMovementPathCriteriaGrid": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "criteriaIdentifier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "definition",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMMovementPaths": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "criteriaIdentifier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "destinationMovementZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hopsCount",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hopToMovementZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "movementPathName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "sourceMovementZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMMovementTransactionPolicy": {
+      "status": 200,
+      "columns": []
+    },
+    "WMMovementZonesGrid": {
+      "status": 200,
+      "columns": []
+    },
+    "WMNoteTypes": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "noteType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "noteTypeLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "printOnBillOfLadingFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "printOnPackingSlipFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMOBPDashboardWaves": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "waveNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMOrderTypes": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "bulkPickingFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderTypeLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shippingRestrictedInventoryFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMOutboundWorkflows": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "alternateIdentifier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierMoveId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "completedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateAdded",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "departureTime",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "exitpoint",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrderLineNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "performUserId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routedToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unitQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowRateId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowRequiredFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowResult",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMOverrideLocations": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "cycleCountDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationStatusDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "overrideLocationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "overrideLocationCodeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMParcelManifest": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "destinationLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateShipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manifestDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manifestNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "packageStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serviceLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentLineStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trackingNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMParcelPackage": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "holdFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manifestId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "packageId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "packageStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serviceLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shortFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trackNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unshippableFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMParcelShipment": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "destinationLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateShipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manifestDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manifestNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serviceLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trackingNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMPickConfirmation": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "appliedQuantity",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "cartonNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "destinationLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "item",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "load",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "notConfirmed",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "operationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrder",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "partiallyConfirmed",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipment",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "sourceLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waveNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workAssignment",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMPickMethods": {
+      "status": 200,
+      "columns": []
+    },
+    "WMPickZones": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "description",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMPicks": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "batchCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "cartonNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateAdded",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateCompleted",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateLastAttemptedReplenishment",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateLastModified",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateReleased",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "destination",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hazmatflg",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "heldPicks",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDate1",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDate2",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDecimal1",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDecimal2",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDecimal3",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber1",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber2",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber3",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber4",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber5",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText1",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText10",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText11",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText12",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText13",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText14",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText15",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText16",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText17",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText18",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText2",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText3",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText4",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText5",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText6",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText7",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText8",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText9",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "item",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemClient",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "labelSequenceStrategy",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lastModifiedUserId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateShipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "load",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lpnUcc",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manifestNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "operationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrder",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "priority",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "remainingPicks",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToCity",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToPostalCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToState",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "ruleName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serviceLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipment",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shippingCartonNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCity",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToPostalCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToState",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shortFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "source",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "subLoadUccCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waveNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waveSet",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waveStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workAssignment",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workAssignmentStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderRevision",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workPriority",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMPreValidation": {
+      "status": 200,
+      "columns": []
+    },
+    "WMProcessingLocationReserve": {
+      "status": 200,
+      "columns": []
+    },
+    "WMProductionLine": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "activityCodeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "exclusiveFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "numberPeople",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "planTypeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "productionLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "productionSpeed",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stagingLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMProgressions": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "inventoryStatusProgression",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMReasonCodes": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "clientUsing",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "reasonCodeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMReceivingPalletBuild": {
+      "status": 200,
+      "columns": []
+    },
+    "WMReplenishments": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "allocationDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierMoveId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "expirationDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "item",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lotNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manufacturedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "originCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "partialFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "replenishmentReference",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "revisionLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rotationId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "underBond",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waveNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMSearchPaths": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "criteria",
+          "dataType": "S",
+          "group": "General",
+          "sequence": 10000
+        },
+        {
+          "column": "priority",
+          "dataType": "N",
+          "group": "General",
+          "sequence": 10000
+        },
+        {
+          "column": "searchPathName",
+          "dataType": "S",
+          "group": "General",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMSerialNumberType": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "description",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serialNumberTypeId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMSerializedHandlingUnits": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "assetId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "assetStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "assetType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMShipments": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "item",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lpn",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentLineId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentLineStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMShippingProgress3PL": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMShorts": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "carrierMoveId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "expirationDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemClass",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemFamily",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lotNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manufacturedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "originCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "partialFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "revisionLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rotationId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCustomerName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "underBond",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waveNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderRevision",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMStackMethod": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "description",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stackMethod",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMStaging": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "availableDoors",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "availableStagingLanes",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "building",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "close",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dispatch",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hazmat",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hotFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "liveLoad",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "needSafety",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receivingDoor",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receivingLane",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "safety",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shippingDoor",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shippingLane",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "short",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "suspendedFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "tmsLoadId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerStatusDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unassigned",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unshippable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "usableFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMStagingDoors": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "availableDoors",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "availableStagingLanes",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "building",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "businessUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "close",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dispatch",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dropLoad",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hazmat",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hotFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "liveLoad",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "needSafety",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receivingDoor",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receivingLane",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "safety",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shippingDoor",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shippingLane",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "short",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "suspendedFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "tmsLoadId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unassigned",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unshippable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unusable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMStorageSearchPath": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "sortSequence",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMStorageZone": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMSupplier": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "addressName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "autoReceiveFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trustedFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMTransportMode": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "directFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "smallPackageFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "transportMode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "transportModeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMUoms": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "codeValue",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMUserWorkflows": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "carrierMoveId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "completedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateAdded",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deviceCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "exitpoint",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inboundOrderLineNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inboundOrderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inboundShipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lpnLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrderLineNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "performUserId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routedToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unitQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowRequiredFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMVelocityZones": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "itemsCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationsCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shortDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "velocity",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMVoiceLanguageCode": {
+      "status": 200,
+      "columns": []
+    },
+    "WMWarehouseWorkflowAssemble": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "workflowEnabledFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowIdLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWarehouseWorkflowBckserv": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "workflowEnabledFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowIdLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWarehouseWorkflowInbound": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "mixedItemFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "specializedServiceCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowEnabledFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowIdLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWarehouseWorkflowOutbound": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "loadLevelDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "mixedItemFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowEnabledFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowIdLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWarehouseWorkflowTransequip": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "workflowEnabledFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowIdLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWarehouseWorkflowUserserv": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "workflowEnabledFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowIdLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWarehouseWorkflowWhEquip": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "workflowEnabledFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowIdLongDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWorkArea": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "absolutePriority",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deltaPriority",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "homeWorkAreaAbsolutePriority",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "voiceCode",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workArea",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workAreaDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWorkOperation": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "basePriority",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "escalationCommandEnabledFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "operationCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "useSourceWorkAreaFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWorkOrderType": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "areaDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bulkPickingFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "description",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "disassemblyFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "productionLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workOrderType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWorkZoneGrid": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "absolutePriority",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deltaPriority",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationCount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "maxDevices",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outOfService",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "travelSequence",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workArea",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWorkflowSamplingConfiguration": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workflowRateId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMYardCheckOut": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierMoveId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "documentNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "forCheckout",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMInventoryDisplay": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "aisle",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "areaCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bay",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "buildingId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierMoveId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "consignment",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countInProgress",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customsComCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customsConsignID",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customsCost",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customsType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customsVatCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "daysToExpire",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "detailNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "distributionCandidate",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "expirationDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "fifoDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "footprintCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "handlingUnit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hazmat",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hierarchyLevel1",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hierarchyLevel2",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hierarchyLevel3",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hierarchyLevel4",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hierarchyLevel5",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hierarchyLevel6",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hierarchyLevel7",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "holdNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "holdType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDate1",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDate2",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDecimal1",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDecimal2",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeDecimal3",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber1",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber2",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber3",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber4",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeNumber5",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText1",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText10",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText11",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText12",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText13",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText14",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText15",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText16",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText17",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText18",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText2",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText3",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText4",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText5",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText6",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText7",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText8",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryAttributeText9",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemClientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemColor",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemFamily",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemFit",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemSize",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemStyle",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "level",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadUCC",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "location",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "locationStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lotNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "manufacturedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "onHold",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "ootFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "originCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrder",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pendingCount",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pendingMove",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pendingReplenishment",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickedFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickingZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "position",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receivedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receiveKey",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "restrictedLot",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "revisionLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serialNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentLineId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shippingAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageArea",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "subLoadUCC",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "subNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierLotNum",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierNum",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trailerNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trolleyAssetId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trolleyAssetType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "trolleyLoadNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unusable",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workReference",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workReferenceDetail",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMWorkQueueOperations": {
+      "status": 200,
+      "columns": []
+    },
+    "WMInventoryAdjustments": {
+      "status": 200,
+      "columns": []
+    },
+    "WMActiveHold": {
+      "status": 200,
+      "columns": []
+    },
+    "WMBundling": {
+      "status": 200,
+      "columns": []
+    },
+    "WMCarrierExistingCarriers": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "accountNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "scacCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMDailyTransactions": {
+      "status": 200,
+      "columns": []
+    },
+    "WMDashboard": {
+      "status": 200,
+      "columns": []
+    },
+    "WMFootprints": {
+      "status": 200,
+      "columns": []
+    },
+    "WMInboundTransaction": {
+      "status": 200,
+      "columns": []
+    },
+    "WMItem": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "abcCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "alternateItemType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "catchCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "color",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "commodityCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countBackFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countNearZeroAmount",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "countNearZeroFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "dateCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "department",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "displayUOM",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "freightClass",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hazardousMaterialFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "insuranceRequiredFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryRotationMethod",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemFamily",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemHierarchy",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemTypeCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "longDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lotTrackingFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "originCodeFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "parcelFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickToBoxFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "productionInventoryFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receivableFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "receiveStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "reservationUnitOfMeasure",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serializationLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serializationType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "size",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stccCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stockingUnitOfMeasure",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "style",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierLotTrackingFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supportsPickStealingFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "velocityZone",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "weightCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMLocationAudit": {
+      "status": 200,
+      "columns": []
+    },
+    "WMOrderLine": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "accountNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "allocationSearchPath",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "allowAllocateFromStorageForShortsFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "allowOverDistributionFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "billToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "billToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "blockSlotOnlyFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "brokerAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "brokerCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "cancelledFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "changeCarrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "changeCarrierLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "crossDock",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customerPONumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customerPOType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "departmentNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "displayItemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "displayOrderedQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "earlyDeliveryDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "earlyShipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "inventoryRotationMethod",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "item",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemClientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "itemNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateDeliveryDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateShipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lotNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "marriedCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderedQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderSubLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "originCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "plannedSlotSequence",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "processingPriority",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "remainderOrderedQuantity",
+          "dataType": "N",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "reservationPriority",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "revisionLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rmaNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToCity",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToPostalCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToState",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rushFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serviceLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToAddressName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCity",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCountry",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToState",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToZip",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "supplierLotNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMOutboundDisplay": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "addedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "aesNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "aesType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "allocationDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "billToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "billToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "blockSlotOnlyFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bolaNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bookingNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "brokerAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "brokerCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierMoveId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "completedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "crossDock",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customerPONumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "customerPOType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deliveryNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deliverySequence",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "deliverySequenceLoadingOrder",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "department",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "destinationNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "documentNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "earlyDeliveryDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "earlyShipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "externalOrderReference",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "footprintCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "ftsrNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hazmatflg",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "holdDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hostClientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hostExternalId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "item",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateDeliveryDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateShipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lotNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "marriedCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderSubLine",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "orderType",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "originCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "outboundOrderNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "parsNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "pickedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "planSlotSequence",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "proNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "releasedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "reservationPriority",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "revisionLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rmaNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "rushFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "saturdayDeliveryFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "sealNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "serviceLevel",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToAddressName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCity",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCountry",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToCustomer",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToState",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipToZip",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shortFlag",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stagedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stopName",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "transportationEquipmentNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "transportMode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "unallocatedOrders",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waveNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waveSet",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "workAssignmentRuleReference",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMReceivingInboundLoads": {
+      "status": 200,
+      "columns": []
+    },
+    "WMScheduling": {
+      "status": 200,
+      "columns": []
+    },
+    "WMShipmentMassUpdate": {
+      "status": 200,
+      "columns": [
+        {
+          "column": "aesAcceptedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "aesNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "aesTypeDescription",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "allocationDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bolaNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "bookingNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrier",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "carrierGroup",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "clientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "destinationMovementZoneCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "documentNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "earlyDeliveryDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "earlyShipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "freightCode",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "freightRateCurrency",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "ftsrNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "hostClientId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateDeliveryDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "lateShipDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "loadedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "proNumber",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "releaseRemainingLines",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "routeToAddress",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "saturdayDelivery",
+          "dataType": "B",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "shipmentStatus",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stagedDate",
+          "dataType": "D",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "stopId",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "storageLocation",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        },
+        {
+          "column": "waveSet",
+          "dataType": "S",
+          "group": "GENERAL",
+          "sequence": 10000
+        }
+      ]
+    },
+    "WMShippedLpns": {
+      "status": 200,
+      "columns": []
+    },
+    "WMShippingLoads": {
+      "status": 200,
+      "columns": []
+    },
+    "WMShippingParcelAuditLog": {
+      "status": 200,
+      "columns": []
+    },
+    "WMTransportEquipment": {
+      "status": 200,
+      "columns": []
+    },
+    "WMVoiceTrace": {
+      "status": 200,
+      "columns": []
+    },
+    "WMWarehouseEquipmentOperational": {
+      "status": 200,
+      "columns": []
+    },
+    "WMWorkOperationOverride": {
+      "status": 200,
+      "columns": []
+    },
+    "WMYardTrailerActivity": {
+      "status": 200,
+      "columns": []
+    },
+    "page-BY-GO-Inventory-Recon-YhpDFJGpR4CKx8Wj_1Px5g": {
+      "status": 200,
+      "columns": []
+    },
+    "page-Deferred-Executions-2019-1-0": {
+      "status": 200,
+      "columns": []
+    },
+    "page-Distribution-Status-Display": {
+      "status": 200,
+      "columns": []
+    },
+    "page-Distribution-Status-Store-Schedule": {
+      "status": 200,
+      "columns": []
+    },
+    "page-GMI-Trailer-KPI-Exclude-Operations-aNz8Q7ZCQZST0v_clpA2sg": {
+      "status": 200,
+      "columns": []
+    },
+    "page-Non-Serialized-Handling-Unit-Adjustment-Operations": {
+      "status": 200,
+      "columns": []
+    },
+    "page-Plannable-Order-Details": {
+      "status": 200,
+      "columns": []
+    },
+    "page-RFT-Display": {
+      "status": 200,
+      "columns": []
+    },
+    "page-Receiving-Assets-Display-Non-Serialized": {
+      "status": 200,
+      "columns": []
+    },
+    "page-Receiving-Assets-Display-Serialized": {
+      "status": 200,
+      "columns": []
+    },
+    "page-Special-Pack-Operations-V01": {
+      "status": 200,
+      "columns": []
+    },
+    "page-Transport-Equipment-User-Assignment": {
+      "status": 200,
+      "columns": []
+    },
+    "page-WCS-Inventory-Discrepancy-Display": {
+      "status": 200,
+      "columns": []
+    },
+    "page-WCS-Inventory-Snapshot": {
+      "status": 200,
+      "columns": []
+    },
+    "page-wm-inventory-Itemnotassignedtoalocation": {
+      "status": 200,
+      "columns": []
+    }
+  }
+}

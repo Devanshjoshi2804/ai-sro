@@ -1,0 +1,26 @@
+{
+  "generated_by": "tools/cdp/capture-wave-priority.mjs",
+  "generated_at": "2026-08-18T11:11:12.781Z",
+  "contract_source": "WM.Common.min saveChangeWork — array of whole records, workPriority changed",
+  "wave": "26-07-02 23:08  FL 90002281",
+  "wave_status": "CMPL",
+  "priority_before": 1,
+  "priority_set": 5,
+  "priority_after": 1,
+  "write_took_effect": true,
+  "restored": true,
+  "change": {
+    "status": 200,
+    "body": {
+      "@type": "ResponseBodyWrapper",
+      "data": []
+    }
+  },
+  "revert": {
+    "status": 200,
+    "body": {
+      "@type": "ResponseBodyWrapper",
+      "data": []
+    }
+  }
+}

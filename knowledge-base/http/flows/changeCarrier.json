@@ -1,0 +1,92 @@
+{
+  "generated_by": "tools/cdp/capture-change-carrier.mjs",
+  "generated_at": "2026-08-18T13:40:05.168Z",
+  "contract_source": "WM.Common.min changeShipmentCarrierFn — body names the shipments, query string carries the new values",
+  "shipment": "SID0009108",
+  "carrier_before": "SONOCO",
+  "carrier_set": "0000",
+  "snapshot_before": {
+    "carrier": "SONOCO",
+    "serviceLevel": "H",
+    "shipmentStatus": "R",
+    "carrierType": null,
+    "carrierGroup": null,
+    "ratingServiceName": null,
+    "plannedShipDate": null,
+    "freightCharges": null,
+    "totalWeight": null
+  },
+  "snapshot_after": {
+    "carrier": "SONOCO",
+    "serviceLevel": "H",
+    "shipmentStatus": "R",
+    "carrierType": null,
+    "carrierGroup": null,
+    "ratingServiceName": null,
+    "plannedShipDate": null,
+    "freightCharges": null,
+    "totalWeight": null
+  },
+  "fields_not_restored": [],
+  "took_effect": false,
+  "async_change": {
+    "settled": true,
+    "rows": [
+      {
+        "status": "COMPLETE",
+        "errorCode": null,
+        "errorMessage": null,
+        "resultId": "SID0009108"
+      }
+    ]
+  },
+  "async_revert": {
+    "settled": true,
+    "rows": [
+      {
+        "status": "COMPLETE",
+        "errorCode": null,
+        "errorMessage": null,
+        "resultId": "SID0009108"
+      }
+    ]
+  },
+  "caution": "A COMPLETE async resource is not proof of effect: the first run of this capture saw both groups report COMPLETE with no error while the carrier read back unchanged.",
+  "restored": true,
+  "change": {
+    "status": 200,
+    "body": {
+      "@type": "ResponseBodyWrapper",
+      "data": {
+        "asynchronousResourceGroupId": 1566035,
+        "asynchronousResourceGroupType": "CHANGE-CARRIER",
+        "asynchronousResources_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shipments/async/1566035/resources",
+        "clientId": "----",
+        "complete": false,
+        "creationDate": "2026-08-18T13:39:57.000+0000",
+        "resourceId": "1566035",
+        "self_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shipments/async/1566035",
+        "totalProgress": null,
+        "warehouseId": "----"
+      }
+    }
+  },
+  "revert": {
+    "status": 200,
+    "body": {
+      "@type": "ResponseBodyWrapper",
+      "data": {
+        "asynchronousResourceGroupId": 1566036,
+        "asynchronousResourceGroupType": "CHANGE-CARRIER",
+        "asynchronousResources_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shipments/async/1566036/resources",
+        "clientId": "----",
+        "complete": false,
+        "creationDate": "2026-08-18T13:40:01.000+0000",
+        "resourceId": "1566036",
+        "self_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/shipments/async/1566036",
+        "totalProgress": null,
+        "warehouseId": "----"
+      }
+    }
+  }
+}

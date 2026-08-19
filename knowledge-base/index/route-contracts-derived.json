@@ -1,0 +1,819 @@
+{
+  "generated_by": "tools/derive-route-contracts.mjs",
+  "what_this_is": "Compact per-route contract: body shape, body keys, query keys, and the client function that issues the call — extracted from the mined call sites.",
+  "caution": "Derived by text extraction from minified source. Keys are reliable; a null body_keys means the body was a variable, not a literal, and the excerpt in route-contracts.json must be read by hand.",
+  "routes": {
+    "explainSqlQuery": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "filterAdvanced",
+      "body_expr": null,
+      "body_is_array": null,
+      "body_keys": null,
+      "query_expr": "{sql:d}",
+      "query_keys": [
+        "sql"
+      ],
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "mcs/mediaLinks/": {
+      "methods": [
+        "DELETE"
+      ],
+      "call_sites": 1,
+      "verb_function": "performRefresh",
+      "body_expr": "{mediaId:a.mediaId,associationKey:this.associationKey}",
+      "body_is_array": false,
+      "body_keys": [
+        "mediaId",
+        "associationKey"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "MCS.Component.min-053.js"
+    },
+    "reporting/reports/": {
+      "methods": [
+        "DELETE"
+      ],
+      "call_sites": 3,
+      "verb_function": "getPreviewWindow",
+      "body_expr": "d",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": "{rptF",
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "reporting/reports/reportBookmark": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "fn",
+      "body_expr": "{reportId:g,userId:RP.globals.getValue(\"USERNAME\"),bookmarkDetails:JSON.stringify(e),prompt:d}",
+      "body_is_array": false,
+      "body_keys": [
+        "reportId",
+        "userId",
+        "bookmarkDetails",
+        "prompt"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "Reporting.Common.min-053.js"
+    },
+    "reporting/reports/reportBookmark/": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 2,
+      "verb_function": "failure",
+      "body_expr": "{reportId:g,userId:RP.globals.getValue(\"USERNAME\"),bookmarkDetails:JSON.stringify(e),prompt:d}",
+      "body_is_array": false,
+      "body_keys": [
+        "reportId",
+        "userId",
+        "bookmarkDetails",
+        "prompt"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "Reporting.Common.min-053.js"
+    },
+    "wm/commands/generateNextNumber": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "resetWork",
+      "body_expr": "this.data",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/cycleCounts/async": {
+      "methods": [
+        "POST",
+        "PUT"
+      ],
+      "call_sites": 3,
+      "verb_function": "_performMoveInventory",
+      "body_expr": "b",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.documents.Location.min-53003.js"
+    },
+    "wm/handlingUnits/": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "_cancelSaving",
+      "body_expr": "b.data",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": "{isShipmentLoad:c,overrideFlag:d}",
+      "query_keys": [
+        "isShipmentLoad",
+        "overrideFlag"
+      ],
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/inventory/": {
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "call_sites": 3,
+      "verb_function": "markInvalidIdentifier",
+      "body_expr": null,
+      "body_is_array": null,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.InventoryIdentification.min-53003.js"
+    },
+    "wm/inventory/changeInvAttribute": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "_onFootPrintCodeChange",
+      "body_expr": "g",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.inventoryupdate.min-53003.js"
+    },
+    "wm/inventory/massupdate": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "getMainGridSelection",
+      "body_expr": "a.getUpdateFieldValues()",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/inventory/move/async": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "callback",
+      "body_expr": "h",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.InventoryView.min-53003.js"
+    },
+    "wm/inventory/stockTransfer/async": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "_displayMoveResults",
+      "body_expr": "h",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.InventoryView.min-53003.js"
+    },
+    "wm/inventoryStatus/async": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "_getAsyncResults",
+      "body_expr": "c",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/locationaudit/repairlocations/async": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "removeRepairLocation",
+      "body_expr": "a",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/locationaudit/validatelocations": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "updatingProgressBar",
+      "body_expr": "a",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": "{query:b}",
+      "query_keys": [
+        "query"
+      ],
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/locationList/async": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 2,
+      "verb_function": "convert",
+      "body_expr": null,
+      "body_is_array": null,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/locations/asyncError": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 0,
+      "verb_function": null,
+      "body_expr": null,
+      "body_is_array": null,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": null
+    },
+    "wm/locations/asyncReset": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 0,
+      "verb_function": null,
+      "body_expr": null,
+      "body_is_array": null,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": null
+    },
+    "wm/orderLines/deleteLines": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "_deleteLinesValidated",
+      "body_expr": "e",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/orderLines/validateChange": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "resultIdRenderer",
+      "body_expr": "e",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/orderTypePickDeductions/sequences": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "replaceSequences",
+      "body_expr": "this.getSequencesJson()",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/outboundOrders/changeCarrier": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "resultIdRenderer",
+      "body_expr": "g",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": "{car_move_id:h.get(\"carrierMoveId\"), new_carcod:a.down(\"[name\\x3dcarrier]\").getValue()}",
+      "query_keys": [
+        "car_move_id",
+        "new_carcod"
+      ],
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/parseBarcode/parse": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "parseBarcodeCallback",
+      "body_expr": "h[0]",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/pickEstimates/shipments": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "_doClose",
+      "body_expr": "b",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.Shipment.min-53003.js"
+    },
+    "wm/picking/replenishments/cancelAction/async": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "changeReplinishmentPriority",
+      "body_expr": "f",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": "{reallocateFlag:b}",
+      "query_keys": [
+        "reallocateFlag"
+      ],
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/picking/replenishments/topOff/async": {
+      "methods": [
+        "POST",
+        "PUT"
+      ],
+      "call_sites": 3,
+      "verb_function": "_generateCycleCount",
+      "body_expr": "[{storageLocation:a,warehouseId:f,cancelCode:c?c.cancelCode:void 0,errorFlag:c?c.errFlag:void 0}]",
+      "body_is_array": true,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.documents.Location.min-53003.js"
+    },
+    "wm/picks/confirm/async": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "confirmPickCompletion",
+      "body_expr": "this.getFieldValuesFromForm()",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.ConfirmPick.min-53003.js"
+    },
+    "wm/picks/releaseHeldPicks/batch": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 2,
+      "verb_function": "success",
+      "body_expr": "Ext.Array.pluck(a,\"data\")",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/picks/releasePicks/batch/async": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 2,
+      "verb_function": "_getAsyncReleasePickResults",
+      "body_expr": "Ext.Array.pluck(a,\"data\")",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/picks/resetPicks/batch": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 2,
+      "verb_function": "callback",
+      "body_expr": "Ext.Array.pluck(a,\"data\")",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/picks/resetUnassignedPicks": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 2,
+      "verb_function": "_getReprintWindow",
+      "body_expr": "Ext.Array.pluck(a,\"data\")",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/pickZonePickDeductions/sequences": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "replaceSequences",
+      "body_expr": "this.getSequencesJson()",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/replenishmentConfigurations": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 2,
+      "verb_function": "convert",
+      "body_expr": null,
+      "body_is_array": null,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/rolePickDeductions/sequences": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "replaceSequences",
+      "body_expr": "this.getSequencesJson()",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/sequences": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "_generateRange",
+      "body_expr": "{numCod:b,qty:a}",
+      "body_is_array": false,
+      "body_keys": [
+        "numCod",
+        "qty"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.InventoryIdentification.min-53003.js"
+    },
+    "wm/serverStatus": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "_getInvAdjGrid",
+      "body_expr": "{mocaServiceUrl:b.value}",
+      "body_is_array": false,
+      "body_keys": [
+        "mocaServiceUrl"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/shipmentLines/cancelledShipmentLines": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "updateShipmentLineView",
+      "body_expr": "a",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.Shipment.min-53003.js"
+    },
+    "wm/shipments/": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 2,
+      "verb_function": "triggerShipmentStageWorkflow",
+      "body_expr": "[{ship_id:b}]",
+      "body_is_array": true,
+      "body_keys": null,
+      "query_expr": "{shipmentId:g}",
+      "query_keys": [
+        "shipmentId"
+      ],
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/shipments/cancelledShipments": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "convert",
+      "body_expr": "{shipmentId:this.get(\"shipmentId\")}",
+      "body_is_array": false,
+      "body_keys": [
+        "shipmentId"
+      ],
+      "query_expr": "{preventRecursionMode:\"DIRECT\"}",
+      "query_keys": [
+        "preventRecursionMode"
+      ],
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/shipments/changeCarrier": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "_onOrderDataReady",
+      "body_expr": "e",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": "b",
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/shipments/shipmentPlan": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "callback",
+      "body_expr": "d",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/splitShipments/moveLPNs/async": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "_asyncResultsLoaded",
+      "body_expr": "d",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": "a",
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/unassignedShipments/assignShipments": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "renderLoadMeasures",
+      "body_expr": "a",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.tf.common.AssignShipment.min-53003.js"
+    },
+    "wm/waves/": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "onOutboundDisplayAssignLaneClick",
+      "body_expr": "b",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/waves/cancelWave/async": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "run",
+      "body_expr": "k.getData()",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/work/async": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 2,
+      "verb_function": "_getAsyncCancelPickResults",
+      "body_expr": "Ext.Array.pluck(a,\"data\")",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": "{cancelOnlySelected:c.cancelOnlySelected}",
+      "query_keys": [
+        "cancelOnlySelected"
+      ],
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/work/batch": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "success",
+      "body_expr": "f",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/workAssignments/removePicks/batch/async": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 2,
+      "verb_function": "_saveChangeWork",
+      "body_expr": "Ext.Array.pluck(a,\"data\")",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/workflowOperations/initiation": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "reperformWorkflow",
+      "body_expr": "Ext.JSON.encode(b)",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/workflowOperations/reverse": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "createRecurrence",
+      "body_expr": null,
+      "body_is_array": null,
+      "body_keys": null,
+      "query_expr": "b.criteriaRecord",
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/workOrderLines/": {
+      "methods": [
+        "PUT",
+        "DELETE"
+      ],
+      "call_sites": 2,
+      "verb_function": "callback",
+      "body_expr": "{workOrderNumber:b.get(\"workOrderNumber\"),clientId:b.get(\"clientId\"),warehouseId:b.get(\"warehouseId\"),workOrderRevision:b.get(\"workOrderRevision\"),pickQuantity:b.get(\"pickQuantity\"),pickCatchQuantity:b.get(\"pickCatchQuantity\")}",
+      "body_is_array": false,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision",
+        "pickQuantity",
+        "pickCatchQuantity"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/workOrders/": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 3,
+      "verb_function": "callback",
+      "body_expr": "{workOrderNumber:c.get(\"workOrderNumber\"),clientId:c.get(\"clientId\"),warehouseId:c.get(\"warehouseId\"),workOrderRevision:c.get(\"workOrderRevision\")}",
+      "body_is_array": false,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/workOrders/confirmedWorkOrder": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "callback",
+      "body_expr": "{workOrderNumber:c.get(\"workOrderNumber\"),clientId:c.get(\"clientId\"),warehouseId:c.get(\"warehouseId\"),workOrderRevision:c.get(\"workOrderRevision\")}",
+      "body_is_array": false,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/workOrders/deallocate": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "startWorkOrder",
+      "body_expr": "{workOrderNumber:c.get(\"workOrderNumber\"),clientId:c.get(\"clientId\"),warehouseId:c.get(\"warehouseId\"),workOrderRevision:c.get(\"workOrderRevision\")}",
+      "body_is_array": false,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/workOrders/moveWorkOrder": {
+      "methods": [
+        "POST"
+      ],
+      "call_sites": 1,
+      "verb_function": "validateDefaultStagingLocation",
+      "body_expr": "a",
+      "body_is_array": false,
+      "body_keys": null,
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    },
+    "wm/workOrders/requestFinishedGoods": {
+      "methods": [
+        "PUT"
+      ],
+      "call_sites": 1,
+      "verb_function": "processRequestComponentForWorkOrder",
+      "body_expr": "{workOrderNumber:b.get(\"workOrderNumber\"),clientId:b.get(\"clientId\"),warehouseId:b.get(\"warehouseId\"),workOrderRevision:b.get(\"workOrderRevision\"),pickQuantity:b.get(\"pickQuantity\"),pickCatchQuantity:b.get(\"pickCatchQuantity\")}",
+      "body_is_array": false,
+      "body_keys": [
+        "workOrderNumber",
+        "clientId",
+        "warehouseId",
+        "workOrderRevision",
+        "pickQuantity",
+        "pickCatchQuantity"
+      ],
+      "query_expr": null,
+      "query_keys": null,
+      "bundle": "WM.Common.min-53003.js"
+    }
+  }
+}

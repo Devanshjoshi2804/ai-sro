@@ -1,0 +1,598 @@
+{
+  "generated_by": "tools/crosswalk-filters.mjs",
+  "generated_at": "2026-08-18T07:35:14.944Z",
+  "what_this_is": "Per screen, the filter columns the server declares versus the ones this deployment honoured when probed. Joined through index/screen-network.json only where a screen requested exactly one filterType and read exactly one non-lookup resource; every other screen is left out rather than guessed at.",
+  "how_to_read": "declared_but_ignored is the interesting column: the server offers the filter and the instance returns 200 with zero rows for it. declared_never_probed marks work the empirical probe never reached, usually because of its per-resource sampling cap.",
+  "joined_screens": 10,
+  "skipped_screens": 19,
+  "skipped": [
+    {
+      "screen": "Replenishment Search Paths",
+      "filterType": "WMSearchPaths",
+      "reason": "best candidate carries only 1/3 declared columns",
+      "candidates": [
+        {
+          "resource": "allocationSearchPaths",
+          "score": 1
+        },
+        {
+          "resource": "allocationSearchGroups",
+          "score": 0
+        },
+        {
+          "resource": "directedWorkOperations",
+          "score": 0
+        },
+        {
+          "resource": "itemHierarchyLevelDescriptions",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Barcode Templates",
+      "filterType": "WMBarcodeTemplates",
+      "reason": "no candidate resource has a recorded read shape",
+      "candidates": []
+    },
+    {
+      "screen": "Work Zones",
+      "filterType": "WMWorkZoneGrid",
+      "reason": "best candidate carries only 1/8 declared columns",
+      "candidates": [
+        {
+          "resource": "buildings",
+          "score": 1
+        }
+      ]
+    },
+    {
+      "screen": "Voice Devices",
+      "filterType": "WMHardwareVoiceDevice",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "rfVendors",
+          "score": 0
+        },
+        {
+          "resource": "locales",
+          "score": 0
+        },
+        {
+          "resource": "workAreas",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Pallet Stack Methods",
+      "filterType": "WMStackMethod",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "buildingInventoryMixingRules",
+          "score": 0
+        },
+        {
+          "resource": "overrideLocationCodes",
+          "score": 0
+        },
+        {
+          "resource": "storageZoneInventoryMixingRules",
+          "score": 0
+        },
+        {
+          "resource": "locationConfigs",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Pick Zones",
+      "filterType": "WMPickZones",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "allocationSearchPaths",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Distribution Rule Sets",
+      "filterType": "WMDistributionRuleSets",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "routes",
+          "score": 0
+        },
+        {
+          "resource": "distributionTypes",
+          "score": 0
+        },
+        {
+          "resource": "commandConfigurationArguments",
+          "score": 0
+        },
+        {
+          "resource": "commandConfigurations",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Inventory",
+      "filterType": "WMInventoryView",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "itemHierarchyLevelDescriptions",
+          "score": 0
+        },
+        {
+          "resource": "uDIAConfigs",
+          "score": 0
+        },
+        {
+          "resource": "loadAttributeConfigurations",
+          "score": 0
+        },
+        {
+          "resource": "reasonCodes",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Dashboard",
+      "filterType": "WMShippingProgress3PL",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "shippingProgressEach",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Inventory",
+      "filterType": "WMInventoryView",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "itemHierarchyLevelDescriptions",
+          "score": 0
+        },
+        {
+          "resource": "loadAttributeConfigurations",
+          "score": 0
+        },
+        {
+          "resource": "uDIAConfigs",
+          "score": 0
+        },
+        {
+          "resource": "reasonCodes",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Shipment Delivery",
+      "filterType": "WMShipments",
+      "reason": "best candidate carries only 4/9 declared columns",
+      "candidates": [
+        {
+          "resource": "shipments",
+          "score": 4
+        }
+      ]
+    },
+    {
+      "screen": "Waves and Picks",
+      "filterType": "WMPicks",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "uDIAConfigs",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Inventory",
+      "filterType": "WMInventoryView",
+      "reason": "best candidate carries only 39/72 declared columns",
+      "candidates": [
+        {
+          "resource": "shorts",
+          "score": 39
+        },
+        {
+          "resource": "itemHierarchyLevelDescriptions",
+          "score": 0
+        },
+        {
+          "resource": "loadAttributeConfigurations",
+          "score": 0
+        },
+        {
+          "resource": "uDIAConfigs",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Pick Confirmation",
+      "filterType": "WMPickConfirmation",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "handlingUnitCategories",
+          "score": 0
+        },
+        {
+          "resource": "handlingUnitTypes",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Inventory",
+      "filterType": "WMInventoryView",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "itemHierarchyLevelDescriptions",
+          "score": 0
+        },
+        {
+          "resource": "uDIAConfigs",
+          "score": 0
+        },
+        {
+          "resource": "loadAttributeConfigurations",
+          "score": 0
+        },
+        {
+          "resource": "reasonCodes",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Waves and Picks",
+      "filterType": "WMPicks",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "pickingSummary",
+          "score": 0
+        },
+        {
+          "resource": "uDIAConfigs",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Inventory",
+      "filterType": "WMInventoryView",
+      "reason": "best candidate carries only 39/72 declared columns",
+      "candidates": [
+        {
+          "resource": "shorts",
+          "score": 39
+        },
+        {
+          "resource": "itemHierarchyLevelDescriptions",
+          "score": 0
+        },
+        {
+          "resource": "uDIAConfigs",
+          "score": 0
+        },
+        {
+          "resource": "loadAttributeConfigurations",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Waves and Picks",
+      "filterType": "WMPicks",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "uDIAConfigs",
+          "score": 0
+        }
+      ]
+    },
+    {
+      "screen": "Inventory",
+      "filterType": "WMInventoryView",
+      "reason": "two resources match equally well",
+      "candidates": [
+        {
+          "resource": "loadAttributeConfigurations",
+          "score": 0
+        },
+        {
+          "resource": "reasonCodes",
+          "score": 0
+        }
+      ]
+    }
+  ],
+  "screens_where_every_declared_column_was_honoured": 8,
+  "rows": [
+    {
+      "screen": "Movement Paths",
+      "filterType": "WMMovementPaths",
+      "resource": "movementPaths",
+      "resource_chosen_by": "carries 4/6 declared columns in its read shape",
+      "declared": 6,
+      "measured_filterable": 3,
+      "measured_not_filterable": 4,
+      "declared_and_honoured": [
+        "destinationMovementZoneCode",
+        "sourceMovementZoneCode"
+      ],
+      "declared_but_ignored": [
+        "hopsCount"
+      ],
+      "declared_never_probed": [
+        "criteriaIdentifier",
+        "hopToMovementZoneCode",
+        "movementPathName"
+      ],
+      "honoured_but_undeclared": [
+        "loadLevelDescription"
+      ]
+    },
+    {
+      "screen": "Outbound Order Types",
+      "filterType": "WMOrderTypes",
+      "resource": "orderTypes",
+      "resource_chosen_by": "carries 4/4 declared columns in its read shape",
+      "declared": 4,
+      "measured_filterable": 1,
+      "measured_not_filterable": 2,
+      "declared_and_honoured": [
+        "orderTypeLongDescription"
+      ],
+      "declared_but_ignored": [
+        "orderType"
+      ],
+      "declared_never_probed": [
+        "bulkPickingFlag",
+        "shippingRestrictedInventoryFlag"
+      ],
+      "honoured_but_undeclared": []
+    },
+    {
+      "screen": "Sampling Configurations",
+      "filterType": "WMWorkflowSamplingConfiguration",
+      "resource": "workflowSamplingConfigurations",
+      "resource_chosen_by": "carries 2/2 declared columns in its read shape",
+      "declared": 2,
+      "measured_filterable": 2,
+      "measured_not_filterable": 2,
+      "declared_and_honoured": [
+        "longDescription",
+        "workflowRateId"
+      ],
+      "declared_but_ignored": [],
+      "declared_never_probed": [],
+      "honoured_but_undeclared": []
+    },
+    {
+      "screen": "Warehouse Equipment Type",
+      "filterType": "WMEquipment",
+      "resource": "equipmentTypes",
+      "resource_chosen_by": "carries 3/3 declared columns in its read shape",
+      "declared": 3,
+      "measured_filterable": 4,
+      "measured_not_filterable": 3,
+      "declared_and_honoured": [
+        "longDescription",
+        "vehicleLimit",
+        "vehicleTypeId"
+      ],
+      "declared_but_ignored": [],
+      "declared_never_probed": [],
+      "honoured_but_undeclared": [
+        "voiceCode"
+      ]
+    },
+    {
+      "screen": "Reasons",
+      "filterType": "WMReasonCodes",
+      "resource": "reasonCodes",
+      "resource_chosen_by": "carries 2/2 declared columns in its read shape",
+      "declared": 2,
+      "measured_filterable": 3,
+      "measured_not_filterable": 1,
+      "declared_and_honoured": [],
+      "declared_but_ignored": [],
+      "declared_never_probed": [
+        "clientUsing",
+        "reasonCodeDescription"
+      ],
+      "honoured_but_undeclared": [
+        "clientId",
+        "reasonCode",
+        "reasonGroupDescription"
+      ]
+    },
+    {
+      "screen": "Outbound Note Types",
+      "filterType": "WMNoteTypes",
+      "resource": "noteTypes",
+      "resource_chosen_by": "carries 4/4 declared columns in its read shape",
+      "declared": 4,
+      "measured_filterable": 2,
+      "measured_not_filterable": 0,
+      "declared_and_honoured": [
+        "noteType",
+        "noteTypeLongDescription"
+      ],
+      "declared_but_ignored": [],
+      "declared_never_probed": [
+        "printOnBillOfLadingFlag",
+        "printOnPackingSlipFlag"
+      ],
+      "honoured_but_undeclared": []
+    },
+    {
+      "screen": "Distribution Types",
+      "filterType": "WMDistributionType",
+      "resource": "distributionTypes",
+      "resource_chosen_by": "carries 2/2 declared columns in its read shape",
+      "declared": 2,
+      "measured_filterable": 2,
+      "measured_not_filterable": 3,
+      "declared_and_honoured": [
+        "distributionTiming",
+        "longDescription"
+      ],
+      "declared_but_ignored": [],
+      "declared_never_probed": [],
+      "honoured_but_undeclared": []
+    },
+    {
+      "screen": "Door Activity",
+      "filterType": "WMDoorActivity",
+      "resource": "trailers",
+      "resource_chosen_by": "carries 21/33 declared columns in its read shape",
+      "declared": 33,
+      "measured_filterable": 12,
+      "measured_not_filterable": 10,
+      "declared_and_honoured": [
+        "carrier",
+        "storageLocation",
+        "trailerCode",
+        "trailerNumber"
+      ],
+      "declared_but_ignored": [],
+      "declared_never_probed": [
+        "availableDoors",
+        "availableYards",
+        "building",
+        "businessUnit",
+        "carrierMoveId",
+        "close",
+        "dispatch",
+        "dropLoad",
+        "failedAudit",
+        "hazmat",
+        "hotFlag",
+        "lateToDoor",
+        "liveLoad",
+        "needSafety",
+        "occupiedLocations",
+        "overTime",
+        "pendingAudit",
+        "pendingMove",
+        "receivingDoor",
+        "safety",
+        "shippingDoor",
+        "short",
+        "suspended",
+        "tmsLoadId",
+        "trailerType",
+        "unassigned",
+        "unshippable",
+        "usable",
+        "waiting"
+      ],
+      "honoured_but_undeclared": [
+        "safetyCheckStatus",
+        "trailerId",
+        "trailerStatus",
+        "laborEstimate",
+        "safetyCheckStatusDescription",
+        "trailerCodeDescription",
+        "trailerStatusDescription",
+        "trailerWeight"
+      ]
+    },
+    {
+      "screen": "Door Activity",
+      "filterType": "WMDoorActivity",
+      "resource": "trailers",
+      "resource_chosen_by": "carries 21/33 declared columns in its read shape",
+      "declared": 33,
+      "measured_filterable": 12,
+      "measured_not_filterable": 10,
+      "declared_and_honoured": [
+        "carrier",
+        "storageLocation",
+        "trailerCode",
+        "trailerNumber"
+      ],
+      "declared_but_ignored": [],
+      "declared_never_probed": [
+        "availableDoors",
+        "availableYards",
+        "building",
+        "businessUnit",
+        "carrierMoveId",
+        "close",
+        "dispatch",
+        "dropLoad",
+        "failedAudit",
+        "hazmat",
+        "hotFlag",
+        "lateToDoor",
+        "liveLoad",
+        "needSafety",
+        "occupiedLocations",
+        "overTime",
+        "pendingAudit",
+        "pendingMove",
+        "receivingDoor",
+        "safety",
+        "shippingDoor",
+        "short",
+        "suspended",
+        "tmsLoadId",
+        "trailerType",
+        "unassigned",
+        "unshippable",
+        "usable",
+        "waiting"
+      ],
+      "honoured_but_undeclared": [
+        "safetyCheckStatus",
+        "trailerId",
+        "trailerStatus",
+        "laborEstimate",
+        "safetyCheckStatusDescription",
+        "trailerCodeDescription",
+        "trailerStatusDescription",
+        "trailerWeight"
+      ]
+    },
+    {
+      "screen": "Storage Zones",
+      "filterType": "WMStorageZone",
+      "resource": "storageZones",
+      "resource_chosen_by": "carries 3/3 declared columns in its read shape",
+      "declared": 3,
+      "measured_filterable": 3,
+      "measured_not_filterable": 3,
+      "declared_and_honoured": [
+        "buildingId",
+        "longDescription",
+        "storageZoneCode"
+      ],
+      "declared_but_ignored": [],
+      "declared_never_probed": [],
+      "honoured_but_undeclared": []
+    }
+  ]
+}

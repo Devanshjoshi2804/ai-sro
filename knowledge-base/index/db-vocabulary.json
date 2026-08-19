@@ -1,0 +1,187 @@
+{
+  "generated_by": "tools/build-db-vocabulary.mjs",
+  "generated_at": "2026-08-19",
+  "what_this_is": "Every confirmed instance of a raw database column name leaking into this API's payloads, query params or error messages — collected in one place so a field-name lookup is a lookup rather than a search through claims.",
+  "how_to_use": "Before sending a payload, check whether the target route appears here. A camelCase key that \"should\" work is the single most common cause of a bare 400 or a silent no-op on this API.",
+  "caution": "Leaks are PER ROUTE, not global. wm/sequences takes numCod while wm/commands/generateNextNumber takes numcod; the order-level changeCarrier takes carrierCode while a load-level call site takes new_carcod. Never generalise a spelling from one route to its neighbour.",
+  "totals": {
+    "confirmed_leaks": 20
+  },
+  "leaks": [
+    {
+      "db": "wh_id",
+      "normal": "warehouseId",
+      "where": "body key / pseudo-field",
+      "routes": [
+        "wm/locationaudit/validatelocations (as the MODEL field \"warehouse\")",
+        "wm/inventory/changeInvAttribute (pseudo-field)",
+        "wm/pickEstimates/shipments (body key)"
+      ],
+      "note": "The audit route reports it as a missing ARGUMENT while actually wanting the audit model's own field name, \"warehouse\". Same concept, three spellings across three routes."
+    },
+    {
+      "db": "shipNumList",
+      "normal": "shipmentId",
+      "where": "body key",
+      "routes": [
+        "wm/pickEstimates/shipments"
+      ],
+      "note": "camelCase equivalents return a bare 400 on this route."
+    },
+    {
+      "db": "ship_id",
+      "normal": "shipmentId",
+      "where": "body key",
+      "routes": [
+        "wm/commands/cancelWorkUnassignShipmentFromStop"
+      ],
+      "note": "The undo for assignShipments, which itself takes camelCase shipment records."
+    },
+    {
+      "db": "dtlnum_list",
+      "normal": "detailNumber",
+      "where": "pseudo-field in a {field,value} list",
+      "routes": [
+        "wm/inventory/changeInvAttribute"
+      ],
+      "note": "Scopes changeInvAttribute — but NOT inventory/massupdate, which scopes through a \"query\" pseudo-field instead."
+    },
+    {
+      "db": "stoloc",
+      "normal": "storageLocation",
+      "where": "body key / MOCA arg",
+      "routes": [
+        "removeLocation",
+        "WM.data.model.GeneratedLocation"
+      ],
+      "note": "removeLocation reports \"Missing argument: Location (stoloc)\" when omitted."
+    },
+    {
+      "db": "loc_status",
+      "normal": "locationStatus",
+      "where": "model field",
+      "routes": [
+        "WM.data.model.GeneratedLocation"
+      ]
+    },
+    {
+      "db": "start_loc / end_loc",
+      "normal": "startLocation / endLocation",
+      "where": "model mapping",
+      "routes": [
+        "location generator model"
+      ]
+    },
+    {
+      "db": "locations",
+      "normal": "(no camelCase equivalent)",
+      "where": "MOCA arg",
+      "routes": [
+        "createLocationList"
+      ],
+      "note": "Reports \"Command create location list : Arg locations is required\"."
+    },
+    {
+      "db": "invmov_typ / rel_typ",
+      "normal": "(no camelCase equivalent)",
+      "where": "body key",
+      "routes": [
+        "wm/inventory/stockTransfer/async"
+      ],
+      "note": "Constants: invmov_typ \"TRNS\", rel_typ \"TRN\"."
+    },
+    {
+      "db": "car_move_id / new_carcod",
+      "normal": "carrierMoveId / carrierCode",
+      "where": "query param",
+      "routes": [
+        "a changeCarrier call site (load level)"
+      ],
+      "note": "The ORDER-level changeCarrier uses camelCase carrierCode + serviceLevel instead — two levels of the same verb, two vocabularies."
+    },
+    {
+      "db": "prcmod",
+      "normal": "preventRecursionMode",
+      "where": "query param (server-side name only)",
+      "routes": [
+        "wm/shipments/cancelledShipments"
+      ],
+      "note": "The client sends preventRecursionMode; the SERVER names prcmod in its error. An enum — \"DIRECT\", not a boolean."
+    },
+    {
+      "db": "canflg / remflg / cancod",
+      "normal": "cancelPicks / unflagOrderLine / codeType",
+      "where": "query param",
+      "routes": [
+        "wm/crossdocks/cancelCrossDocks"
+      ],
+      "note": "Omitting them turns a working call into a bare 400."
+    },
+    {
+      "db": "numcod / nxtnum",
+      "normal": "numCod / nxtNum",
+      "where": "query param and response key",
+      "routes": [
+        "wm/commands/generateNextNumber"
+      ],
+      "note": "The neighbouring wm/sequences uses the camelCase numCod / nxtNum for the SAME concept. Case is significant on both."
+    },
+    {
+      "db": "moca_service_url",
+      "normal": "mocaServiceUrl",
+      "where": "server-side name only",
+      "routes": [
+        "wm/serverStatus"
+      ],
+      "note": "Client sends mocaServiceUrl; the 802 error names moca_service_url."
+    },
+    {
+      "db": "wrk_zone_id / lngdsc / wrkare",
+      "normal": "workZoneId / description / workArea",
+      "where": "model mapping",
+      "routes": [
+        "listWorkAreas"
+      ]
+    },
+    {
+      "db": "prtnum / dsp_prtnum",
+      "normal": "itemId / displayItemNumber",
+      "where": "model mapping",
+      "routes": [
+        "wm/items (ItemName model)"
+      ]
+    },
+    {
+      "db": "ftpcod",
+      "normal": "footprintCode",
+      "where": "form payload key",
+      "routes": [
+        "form models — see index/field-dictionary.json"
+      ]
+    },
+    {
+      "db": "lotnum",
+      "normal": "lotNumber",
+      "where": "form payload key",
+      "routes": [
+        "form models"
+      ]
+    },
+    {
+      "db": "orgcod",
+      "normal": "originCode",
+      "where": "form payload key",
+      "routes": [
+        "form models"
+      ]
+    },
+    {
+      "db": "prtfit",
+      "normal": "itemFit",
+      "where": "form payload key",
+      "routes": [
+        "form models"
+      ]
+    }
+  ]
+}

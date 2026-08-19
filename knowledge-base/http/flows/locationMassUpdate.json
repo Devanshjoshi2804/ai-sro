@@ -1,0 +1,13 @@
+{
+  "generated_by": "tools/cdp/capture-location-massupdate.mjs",
+  "generated_at": "2026-08-18T17:41:10.091Z",
+  "contract_source": "WM.Common.min LocationMassUpdate.massUpdate — body carries field/value pairs, the query STRING carries the selection filter",
+  "location": "COPROB01",
+  "resourceId": "COPROB01*!SG",
+  "field": "updateNote",
+  "value_before": null,
+  "value_set": "capture-probe 2026-08-18",
+  "value_after": null,
+  "took_effect": false,
+  "restored": true
+}

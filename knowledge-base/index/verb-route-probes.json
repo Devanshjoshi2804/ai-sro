@@ -1,0 +1,305 @@
+{
+  "generated_by": "tools/cdp/probe-verb-routes.mjs",
+  "generated_at": "2026-08-18T18:12:08.076Z",
+  "what_this_is": "Each candidate route called once with an identifier that cannot exist, to establish whether the route is real without acting on any live record.",
+  "what_this_does_not_show": "That the verb does what its name suggests. A route that rejects an impossible id is real; only a round trip on a real record shows behaviour, and for destructive verbs that trade is not worth making.",
+  "safety": "Every payload names an impossible identifier (workRequestId 999999999, ZZNOTREAL). No real record is referenced.",
+  "probes": {
+    "Cancel Work": {
+      "route": "PUT /wm/work/cancelDirectedWorks/batch",
+      "probe_body": [
+        {
+          "workRequestId": 999999999,
+          "workRequestStatus": "PEND"
+        }
+      ],
+      "status": 200,
+      "response": "",
+      "async_result": null,
+      "verdict": "ACCEPTED (route exists; the impossible id was not rejected outright)"
+    },
+    "Cancel Picks": {
+      "route": "PUT /wm/work/cancelPicks/batch/async",
+      "probe_body": [
+        {
+          "workRequestId": 999999999
+        }
+      ],
+      "status": 422,
+      "response": {
+        "timestamp": "2026-08-18T18:12:03.613+0000",
+        "responseId": "97724f3c-e9c6-4c2d-ba73-5ce80a7a6070",
+        "errors": [
+          {
+            "errorCode": "11630",
+            "userMessage": "An unexpected error has prevented the system from creating the Asynchronous Resource."
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "status 422"
+    },
+    "Confirm Picks": {
+      "route": "POST /wm/picks/confirm/async",
+      "probe_body": [
+        {
+          "workRequestId": 999999999
+        }
+      ],
+      "status": 422,
+      "response": {
+        "timestamp": "2026-08-18T18:12:03.939+0000",
+        "responseId": "0f1ac24b-0950-49d9-9cfe-488fa5b07051",
+        "errors": [
+          {
+            "errorCode": "11630",
+            "userMessage": "An unexpected error has prevented the system from creating the Asynchronous Resource."
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "status 422"
+    },
+    "Release Picks": {
+      "route": "PUT /wm/picks/releasePicks/batch/async",
+      "probe_body": [
+        {
+          "workRequestId": 999999999
+        }
+      ],
+      "status": 422,
+      "response": {
+        "timestamp": "2026-08-18T18:12:04.364+0000",
+        "responseId": "dfbecc53-0dc9-4743-a6c9-2b40b1ade6b4",
+        "errors": [
+          {
+            "errorCode": "11630",
+            "userMessage": "An unexpected error has prevented the system from creating the Asynchronous Resource."
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "status 422"
+    },
+    "Reset Picks": {
+      "route": "PUT /wm/picks/resetPicks/batch",
+      "probe_body": [
+        {
+          "workRequestId": 999999999
+        }
+      ],
+      "status": 200,
+      "response": "",
+      "async_result": null,
+      "verdict": "ACCEPTED (route exists; the impossible id was not rejected outright)"
+    },
+    "Cancel Order": {
+      "route": "POST /wm/orderLines/cancelLines",
+      "probe_body": [
+        {
+          "orderNumber": "ZZNOTREAL",
+          "orderLineNumber": 1
+        }
+      ],
+      "status": 400,
+      "response": {
+        "timestamp": "2026-08-18T18:12:05.008+0000",
+        "responseId": "80ad90e4-b84c-4cd9-8b3d-3f9a6ead2c51",
+        "errors": [
+          {
+            "errorCode": null,
+            "userMessage": "Bad Request"
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "ROUTE-EXISTS (bad request)"
+    },
+    "Delete Order": {
+      "route": "POST /wm/orderLines/deleteLines",
+      "probe_body": [
+        {
+          "orderNumber": "ZZNOTREAL",
+          "orderLineNumber": 1
+        }
+      ],
+      "status": 400,
+      "response": {
+        "timestamp": "2026-08-18T18:12:05.413+0000",
+        "responseId": "c2ed9f2e-62fb-42bf-bf92-715bdbe5e6fa",
+        "errors": [
+          {
+            "errorCode": null,
+            "userMessage": "Bad Request"
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "ROUTE-EXISTS (bad request)"
+    },
+    "Unallocate Wave": {
+      "route": "PUT /wm/waves/unallocateWave/async",
+      "probe_body": [
+        {
+          "waveNumber": "ZZNOTREAL"
+        }
+      ],
+      "status": 400,
+      "response": {
+        "timestamp": "2026-08-18T18:12:05.725+0000",
+        "responseId": "aadd8b5e-64a5-477e-94e1-d7d41ffb39a9",
+        "errors": [
+          {
+            "errorCode": null,
+            "userMessage": "Bad Request"
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "ROUTE-EXISTS (bad request)"
+    },
+    "Cancel Wave": {
+      "route": "PUT /wm/waves/cancelWave/async",
+      "probe_body": [
+        {
+          "waveNumber": "ZZNOTREAL"
+        }
+      ],
+      "status": 400,
+      "response": {
+        "timestamp": "2026-08-18T18:12:06.025+0000",
+        "responseId": "6e616a70-00cc-4c19-98c9-5d68b95ba014",
+        "errors": [
+          {
+            "errorCode": null,
+            "userMessage": "Bad Request"
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "ROUTE-EXISTS (bad request)"
+    },
+    "Change Wave Priority": {
+      "route": "PUT /wm/waves/changeWavePriority",
+      "probe_body": [
+        {
+          "waveNumber": "ZZNOTREAL",
+          "workPriority": 5
+        }
+      ],
+      "status": 200,
+      "response": {
+        "@type": "ResponseBodyWrapper",
+        "data": []
+      },
+      "async_result": null,
+      "verdict": "ACCEPTED (route exists; the impossible id was not rejected outright)"
+    },
+    "Relabel LPN": {
+      "route": "PUT /wm/inventory/identifierChange",
+      "probe_body": [
+        {
+          "lpn": "ZZNOTREAL",
+          "newLpn": "ZZNOTREAL2"
+        }
+      ],
+      "status": 422,
+      "response": {
+        "timestamp": "2026-08-18T18:12:06.696+0000",
+        "responseId": "ec13a3e6-5446-43c1-a87c-c7ed4944b4c9",
+        "errors": [
+          {
+            "errorCode": "507",
+            "userMessage": "Command change inventory identifier : Arg lodlvl is required"
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "status 422"
+    },
+    "Adjust Inventory": {
+      "route": "PUT /wm/inventory/adjust",
+      "probe_body": [
+        {
+          "lpn": "ZZNOTREAL",
+          "quantity": 1
+        }
+      ],
+      "status": 400,
+      "response": {
+        "timestamp": "2026-08-18T18:12:07.055+0000",
+        "responseId": "7338a2a0-dc37-4072-9a69-deda92d15ce8",
+        "errors": [
+          {
+            "errorCode": null,
+            "userMessage": "Bad Request"
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "ROUTE-EXISTS (bad request)"
+    },
+    "Change Replenishment Priority": {
+      "route": "PUT /wm/picking/replenishments/changePriority",
+      "probe_body": {
+        "workRequestNumber": "ZZNOTREAL",
+        "effectivePriority": 5
+      },
+      "status": 400,
+      "response": {
+        "timestamp": "2026-08-18T18:12:07.363+0000",
+        "responseId": "5ebf55b2-0fe6-4af4-ad53-bf9097e55526",
+        "errors": [
+          {
+            "errorCode": null,
+            "userMessage": "Bad Request"
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "ROUTE-EXISTS (bad request)"
+    },
+    "Cancel Replenishment": {
+      "route": "POST /wm/picking/replenishments/cancelAction/async",
+      "probe_body": [
+        {
+          "workRequestNumber": "ZZNOTREAL"
+        }
+      ],
+      "status": 400,
+      "response": {
+        "timestamp": "2026-08-18T18:12:07.677+0000",
+        "responseId": "86e0974f-8c85-45a1-b965-df91b584f7e9",
+        "errors": [
+          {
+            "errorCode": null,
+            "userMessage": "Bad Request"
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "ROUTE-EXISTS (bad request)"
+    },
+    "Cancel Cross Dock": {
+      "route": "POST /wm/crossdocks/cancelCrossDocks",
+      "probe_body": [
+        {
+          "crossDockId": 999999999
+        }
+      ],
+      "status": 400,
+      "response": {
+        "timestamp": "2026-08-18T18:12:07.985+0000",
+        "responseId": "b361a328-61f1-4608-a400-e5c3a83f13ab",
+        "errors": [
+          {
+            "errorCode": null,
+            "userMessage": "Bad Request"
+          }
+        ]
+      },
+      "async_result": null,
+      "verdict": "ROUTE-EXISTS (bad request)"
+    }
+  }
+}

@@ -1,0 +1,6079 @@
+{
+  "generated_by": "tools/cdp/mine-bundle-routes.mjs",
+  "generated_at": "2026-08-18T11:34:45.742Z",
+  "what_this_is": "Every data-service route that appears as a literal in the app JavaScript, with the HTTP method used beside it and the function it sits in. Read out of the bundles; no data service was called.",
+  "caution": "These are routes the CLIENT can build, not routes proven to exist or to be permitted. A route here is a lead, not evidence — nothing is verified until a real call is made and its effect confirmed. Methods are read from the nearest method literal and can be wrong where a config is assembled dynamically.",
+  "scripts_scanned": 51,
+  "lazily_fetched_quickapp_bundles": 0,
+  "bundle_name_probe": {
+    "candidates": 5189,
+    "probed": 400,
+    "capped": 4789,
+    "resolved": 0
+  },
+  "routes_found": 558,
+  "routes_with_a_write_method": 70,
+  "routes": [
+    {
+      "service": "wm",
+      "path": "admin/tasks",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "changeBuildingMediaLink",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "changeCartonizationGroup",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "changeResourceCodeForLocation",
+      "methods": [],
+      "functions": [
+        "overrideLocationResourceCode"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "changeWebSetupPolicies",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "changeWebShippingPolicies",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "changeYard",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "createArea",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "createBuildingMediaLink",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "createCartonizationGroup",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "createLocationList",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "createYard",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "downloadImage",
+      "methods": [],
+      "functions": [
+        "_setMapByBuildingId"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "explainSqlQuery",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "requestSqlValidation"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "generateAisleList",
+      "methods": [],
+      "functions": [
+        "convert",
+        "addRange"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "generateLocationList",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "getErrorColumnMLSText",
+      "methods": [],
+      "functions": [
+        "validateEdit"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listBarcodeTemplatesBySupplier",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listBuildingMediaLinks",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listCarrierForLookup",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listCartonizationGroups",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listComponentValues",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listCountries",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listCurrencyCodes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listDeviceCodes",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listInventoryRotationMethodsForWebDisplay",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listInventoryStatusProgressions",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listMeasurementUnits",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listMocaReportPrinters",
+      "methods": [],
+      "functions": [
+        "createPrinterStore"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listPrinters",
+      "methods": [],
+      "functions": [
+        "createPrinterStore"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listStates",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listStorageAreas",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listTimeZonesForDisplay",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listUsers",
+      "methods": [],
+      "functions": [
+        "assignRole"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listWebSetupPolicies",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listWebShippingPolicies",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listWorkAreas",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "listYards",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/clients",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "MCS.pages.Media.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/lookup/lookupData/",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "executeFilter",
+        "success",
+        "setOptionsInFilterFields",
+        "buildURL"
+      ],
+      "files": [
+        "MCS.Component.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/media",
+      "methods": [],
+      "functions": [
+        "uploadMedia"
+      ],
+      "files": [
+        "MCS.pages.Media.min-053.js",
+        "MCS.Component.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/media/0/mediaLinks",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "loadQuickMedia",
+        "getMediaFormFieldStore"
+      ],
+      "files": [
+        "MCS.Component.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/media/downloadMedia/",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "onImageClick",
+        "renderer"
+      ],
+      "files": [
+        "MCS.pages.Media.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/media/listMedia/mediaLinks",
+      "methods": [],
+      "functions": [
+        "renderMediaGrid"
+      ],
+      "files": [
+        "MCS.pages.Media.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/media/maxMediaSize",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "onEditMediaSave",
+        "createMediaChooser"
+      ],
+      "files": [
+        "MCS.pages.Media.min-053.js",
+        "MCS.Component.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/media/updateMedia/",
+      "methods": [],
+      "functions": [
+        "updateMedia"
+      ],
+      "files": [
+        "MCS.pages.Media.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/mediaLinks",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "createMediaLink"
+      ],
+      "files": [
+        "MCS.Component.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/mediaLinks/",
+      "methods": [
+        "DELETE"
+      ],
+      "functions": [
+        "removeMedia"
+      ],
+      "files": [
+        "MCS.Component.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/mediaLinks/media",
+      "methods": [],
+      "functions": [
+        "renderer"
+      ],
+      "files": [
+        "MCS.Component.min-053.js"
+      ]
+    },
+    {
+      "service": "mcs",
+      "path": "mcs/users/",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "setMediaData"
+      ],
+      "files": [
+        "MCS.Component.min-053.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "removeCartonizationGroup",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "removeLocation",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "removeWebArea",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/products",
+      "methods": [],
+      "functions": [
+        "constructor"
+      ],
+      "files": [
+        "Reporting.Common.min-053.js"
+      ]
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/reportarchive",
+      "methods": [],
+      "functions": [
+        "performPrint"
+      ],
+      "files": [
+        "Reporting.pages.reportarch.min-053.js"
+      ]
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/reportarchive/",
+      "methods": [],
+      "functions": [
+        "printReport",
+        "onPreview"
+      ],
+      "files": [
+        "Reporting.pages.reportarch.min-053.js"
+      ]
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/reports",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "clearBookmarkDetails",
+        "saveReport",
+        "processWorkOrderMoveReport",
+        "handler",
+        "onCheckOutStandingWorkClick"
+      ],
+      "files": [
+        "Reporting.Common.min-053.js",
+        "Reporting.pages.reportmnt.min-053.js",
+        "WM.Common.min-53003.js",
+        "WM.tf.common.footprints.min-53003.js"
+      ]
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/reports/",
+      "methods": [
+        "DELETE"
+      ],
+      "functions": [
+        "failure",
+        "generateReport",
+        "initComponent",
+        "saveSignature",
+        "runDelete",
+        "saveReport"
+      ],
+      "files": [
+        "Reporting.Common.min-053.js",
+        "Reporting.pages.reportmnt.min-053.js",
+        "Reporting.pages.reportopr.min-053.js",
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/reports/{reportId}/digitalSignature",
+      "methods": [],
+      "functions": [
+        "performPrint"
+      ],
+      "files": [
+        "Reporting.pages.reportmnt.min-053.js"
+      ],
+      "parameterised": true
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/reports//digitalSignature/",
+      "methods": [],
+      "functions": [
+        "runDeleteSignatures"
+      ],
+      "files": [
+        "Reporting.pages.reportmnt.min-053.js"
+      ]
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/reports/printers",
+      "methods": [],
+      "functions": [
+        "constructor",
+        "beforeload"
+      ],
+      "files": [
+        "Reporting.Common.min-053.js",
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/reports/reportBookmark",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "fn"
+      ],
+      "files": [
+        "Reporting.Common.min-053.js"
+      ]
+    },
+    {
+      "service": "reporting",
+      "path": "reporting/reports/reportBookmark/",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "fn",
+        "handlePromptParams"
+      ],
+      "files": [
+        "Reporting.Common.min-053.js",
+        "Reporting.pages.reportopr.min-053.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "rpux/description?colnam\\x3dcnzcod",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "rpux/users",
+      "methods": [],
+      "functions": [
+        "_createLookupView"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/activityCodes",
+      "methods": [],
+      "functions": [
+        "sortType"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/activityCodes/nonpaged",
+      "methods": [],
+      "functions": [
+        "sortType"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/addresses",
+      "methods": [],
+      "functions": [
+        "sortType",
+        "getCountHandlePaging"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/addresses/",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "addressRenderer"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/agingProfileDetails",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/agingProfiles",
+      "methods": [],
+      "functions": [
+        "getOpenSchedules"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/agingProfiles/getDatesFromLot",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "toggleDirtyClass"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/agingProfiles/getExpiryDate",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "onManufacturedDateChange"
+      ],
+      "files": [
+        "WM.tf.common.InventoryIdentification.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/agingProfiles/getManufacturedDate",
+      "methods": [],
+      "functions": [
+        "updateManufacturedDate"
+      ],
+      "files": [
+        "WM.tf.common.inventoryupdate.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/agingProfileValidations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/aisles",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/aisles/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationRuleDetails",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationRules",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationSearchGroups",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationSearchPathCriteria",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationSearchPathCriteria/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationSearchPathCriteria/inUsedSearchPathCriteria",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationSearchPathRules",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationSearchPathRules/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationSearchPaths",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationStatisticDetails",
+      "methods": [],
+      "functions": [
+        "getCountHandlePaging"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/allocationStatistics",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/alternateItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/appointmentNotes",
+      "methods": [],
+      "functions": [
+        "save",
+        "callback",
+        "_tagClickApptNotes"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.Notes.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/appointments",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/areas",
+      "methods": [],
+      "functions": [
+        "getCountHandlePaging"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/areas/areaWithLocationType",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/assets",
+      "methods": [],
+      "functions": [
+        "assignShipment"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/assignedWorkListRule",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/assignedWorkListRule/batch",
+      "methods": [],
+      "functions": [
+        "ert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/autoAllocationMethods",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/availablePickDeductionSequences",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/billOfMaterialLines",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/billOfMaterials",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/bomLineProcessingDetails",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/bomProcessingDetails",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/breakStopSequenceCodeses",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/buildings",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/businessUnits",
+      "methods": [],
+      "functions": [
+        "exception"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/calendarExceptionDays",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/cancelCodes",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/carrierDetails",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/carrierMatrices/carrierGroups",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/carriers",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/carriers/exportTypes",
+      "methods": [],
+      "functions": [
+        "replaceSequences"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/carrierServiceLevels",
+      "methods": [],
+      "functions": [
+        "getPickZones"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/cartonResizeOperations",
+      "methods": [],
+      "functions": [
+        "changeCartonType"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/cartonRouteGroupCriteria",
+      "methods": [],
+      "functions": [
+        "getPickZones"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/cartons",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/cartonType",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/catchQuantityConfigs",
+      "methods": [],
+      "functions": [
+        "_onFlushWidow"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/clientGroups",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/clients",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/clientWarehouse",
+      "methods": [],
+      "functions": [
+        "unassignClient"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/codes",
+      "methods": [],
+      "functions": [
+        "convert",
+        "serialize",
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/codes/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/codes/pickZoneInventoryStatuses",
+      "methods": [],
+      "functions": [
+        "serialize"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/codes/velocityZones",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/combinedPickingPolicies",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commandConfigurationArguments",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commandConfigurations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/cancelWebReplenishment",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "shipShort"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/cancelWorkUnassignShipmentFromStop",
+      "methods": [],
+      "functions": [
+        "cancelWork"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/checkAssetCategoryEnabled",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "checkAssetCategoryEnabled",
+        "callback"
+      ],
+      "files": [
+        "WM.Modules.min-53003.js",
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/checkShipmentQuantities",
+      "methods": [],
+      "functions": [
+        "toggleShipmentButton"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/checkWorkStatusForStop",
+      "methods": [],
+      "functions": [
+        "unassignShipments"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/configureSupplierConsignedFieldsForInvadj",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/generateNextNumber",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "resetWork"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/getNoteCountForOutboundLoad",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.tf.common.documents.Stop.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listAvailableUsers",
+      "methods": [],
+      "functions": [
+        "getStore"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listCarrierMovesForSplitShipment",
+      "methods": [],
+      "functions": [
+        "callback"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listCountTypes",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listCustomsRotations",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listDescriptions",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listHazardousItemsForTagTooltip",
+      "methods": [],
+      "functions": [
+        "_tagClickHazmat",
+        "configureItems"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listHotReceiptItemsByLocation",
+      "methods": [],
+      "functions": [
+        "_tagClickHot"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listInventory",
+      "methods": [],
+      "functions": [
+        "getInventory"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listInventoryQuantitiesForLocation",
+      "methods": [],
+      "functions": [
+        "getQuantities"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listLiveDetailsForTagTooltip",
+      "methods": [],
+      "functions": [
+        "_tagClickLive"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listPutawayCountForInboundShipment",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listReceivingStagingLanes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listShipmentLines",
+      "methods": [],
+      "functions": [
+        "getLocations"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listShortItemsForTagTooltip",
+      "methods": [],
+      "functions": [
+        "_tagClickParcelShort",
+        "_tagClickShort",
+        "configureItems"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listSuggestedDockDoorsAndYardLocations",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listSuggestedStagingLanesForLaneChange",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listSuspendedWorkForTagTooltip",
+      "methods": [],
+      "functions": [
+        "_tagClickSuspended"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listUnassignedShipmentsForTagTooltip",
+      "methods": [],
+      "functions": [
+        "_tagClickUnassigned"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listUnshippableItemsForTagTooltip",
+      "methods": [],
+      "functions": [
+        "_tagClickUnshippable"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listUsersForWeb",
+      "methods": [],
+      "functions": [
+        "handler"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/listWorkCountForInboundShipment",
+      "methods": [],
+      "functions": [
+        "getOpenSchedules"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commands/reopenClosedShippingTrailer",
+      "methods": [],
+      "functions": [
+        "reopenClosedShippingTrailer"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.documents.Load.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/commodities",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/complianceLabelFormats",
+      "methods": [],
+      "functions": [
+        "resetRepairFlag"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/complianceLabelFormats/exitPoints",
+      "methods": [],
+      "functions": [
+        "resetRepairFlag"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/configuredExitPointses",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/countBatches",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/countBatches/history",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/countZones",
+      "methods": [],
+      "functions": [
+        "vert",
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/countZones/nonpaged",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/crossdocks",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/crossdocks/cancelCrossDocks",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "cancelCrossdocks"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/crossdocks/xdockcancelcodes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/currentTransportEquipmentActivity",
+      "methods": [],
+      "functions": [
+        "initComponent"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerAssetConfigurations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerBillToAccounts",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerDistributionSettings",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerDistributionStagingLocations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerDistributionStorageRuleCriteria",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerDistributionStorageRules",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerItemRequirements",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerRepackClasses",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerRequirements",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customers",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customerTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customsConsignments",
+      "methods": [],
+      "functions": [
+        "saveView"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.InventoryView.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customsConsignments/listCustomsConsignmentsForLookup",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customsItemTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customsOrderTypeRules",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/customsOrderTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/cycleCounts/async",
+      "methods": [
+        "POST",
+        "PUT"
+      ],
+      "functions": [
+        "callback",
+        "_processCycleCount",
+        "_processCycleCountAction"
+      ],
+      "files": [
+        "WM.tf.common.documents.Item.min-53003.js",
+        "WM.tf.common.documents.Location.min-53003.js",
+        "WM.tf.inventorydisplay.InventoryDisplay.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/cycleCounts/history",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/dailyTransactions",
+      "methods": [],
+      "functions": [
+        "_tagClickWaiting"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/dateWindowTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/descriptions/translations",
+      "methods": [],
+      "functions": [
+        "configure"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/deviceClassFunctionDetails",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/deviceClassFunctionDetails/batch",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/devices",
+      "methods": [],
+      "functions": [
+        "getLoadNumMinAndMaxPolicy"
+      ],
+      "files": [
+        "WM.Global.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/devices/",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "onUserLogout"
+      ],
+      "files": [
+        "WM.Global.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/deviceScanTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/directedWorkOperations",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/distributions",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/distributionTypeLpnLevel",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/distributionTypes",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/dockDoors",
+      "methods": [],
+      "functions": [
+        "exception"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/dockSlots",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/documentTypeArguments",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/documentTypesWithLabelFormats",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/doorsWithAppointments",
+      "methods": [],
+      "functions": [
+        "_confirmCheckout"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/doorsWithTrailers",
+      "methods": [],
+      "functions": [
+        "save"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/equipmentTypes",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/externalSystems",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/externalSystems/{externalSystemId}/properties",
+      "methods": [],
+      "functions": [
+        "filterFn"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "parameterised": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/floorPlan",
+      "methods": [],
+      "functions": [
+        "filterFn"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/footprintDetails",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "assignRole",
+        "exception",
+        "success"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/footprints",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/footprints/footprintCodes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/footprints/summary",
+      "methods": [],
+      "functions": [
+        "renderer"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.footprints.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/handlingUnitCategories",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/handlingUnits/",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "_handlingUnitsRequest"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/handlingUnitTypeCartons",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/handlingUnitTypeFeatures",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/handlingUnitTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/handlingUnitTypes/nonpaged",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/holdDefinitionNotes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/holdDefinitions",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/holdDefinitions/holdUdiaFields",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/hostSystems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/hotItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundDockConfigurations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundLoads",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundLoads/",
+      "methods": [],
+      "functions": [
+        "unassignLoad",
+        "assignLoad",
+        "reopenClosedReceivingTrailer"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundLoads/addOrder/async",
+      "methods": [],
+      "functions": [
+        "createFromOrder"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundLoads/assign",
+      "methods": [],
+      "functions": [
+        "getIncludedFields"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundLoads/autoasnerrors",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundLoads/defaultInventoryStatus",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "setDefaultInventoryStatus"
+      ],
+      "files": [
+        "WM.tf.common.InventoryIdentification.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundLoads/fromOrderLines",
+      "methods": [],
+      "functions": [
+        "createFromOrderLines"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundLoads/unassigned",
+      "methods": [],
+      "functions": [
+        "convert",
+        "getIncludedFields"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundOrderLines",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundOrders",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundOrderTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundQualityIssues",
+      "methods": [],
+      "functions": [
+        "associateWithLoad"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundShipmentLines",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundShipmentLines/inventoryStatus",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "getDerivedInventoryStatus"
+      ],
+      "files": [
+        "WM.tf.common.InventoryIdentification.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundShipmentLines/lookup",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundShipments",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inboundWorkflowPlans",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/integratorTransactions",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/",
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "functions": [
+        "processUnpickWorkOrder",
+        "validateInventoryIdentifier"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.InventoryView.min-53003.js",
+        "WM.tf.common.InventoryIdentification.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/adjust",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "performQuantityAdjustment"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/changeInvAttribute",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "_processInventoryAttrChange"
+      ],
+      "files": [
+        "WM.tf.common.inventoryupdate.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/display/item",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/display/location",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/display/lpns",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.documents.Lpn.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/expected",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/identified",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/identifierChange",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "onSaveRelabelLpn"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/inventoryUdiaFields",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/massupdate",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "_onSaveButtonClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/move/async",
+      "methods": [
+        "POST"
+      ],
+      "functions": [],
+      "files": [
+        "WM.tf.common.InventoryView.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/onHand",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/stockTransfer/async",
+      "methods": [
+        "POST"
+      ],
+      "functions": [],
+      "files": [
+        "WM.tf.common.InventoryView.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/unshippable",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventory/unshippable/detail",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventoryCounts",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventoryCounts/countEntry",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventoryCounts/countEntryLocationView",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventoryItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventoryLocations",
+      "methods": [],
+      "functions": [
+        "serialize"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventoryRoleRestrictions",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventoryStatus/async",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_onSaveClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/inventoryStatusRules",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemClasses",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemClassLevels",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemClient",
+      "methods": [],
+      "functions": [
+        "associateWithLoad"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemFamilies",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemFamilyGroups",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemHierarchyLevelDescriptions",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemHierarchyLevels",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemLots",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "failure",
+        "initComponent",
+        "_createLookupView"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemLots/validateAndParse",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "failure"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemRepackClasses",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/items",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "getChangeIdentifierParameters",
+        "getClients",
+        "beforeload",
+        "isGlobalItem"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/items/",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "getExpirationTime"
+      ],
+      "files": [
+        "WM.tf.common.InventoryIdentification.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/items/nonpaged",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "loadFootPrintDetailStore"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemSerialNumberTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/itemStyleAttributes",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/jobDefinitions",
+      "methods": [],
+      "functions": [
+        "getClients"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/labelFormats",
+      "methods": [],
+      "functions": [
+        "_parseScheduleValue"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/labelPrintOperations",
+      "methods": [],
+      "functions": [
+        "printLabel",
+        "_handlePrintButtonClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/labor/lmIndirectEvent",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/levelTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/lmIndirectWorkTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/loadAttributeConfigurations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/loadDetails/popupData",
+      "methods": [],
+      "functions": [
+        "serialize"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/loadNotes",
+      "methods": [],
+      "functions": [
+        "callback",
+        "_tagClickCarrierMoveNotes"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.Notes.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locales",
+      "methods": [],
+      "functions": [
+        "_parseScheduleValue"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locales/userLocale",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locationaudit/locationforaudit",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locationaudit/repairlocations/async",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "callingRepairUrl"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/locationaudit/validatelocations",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "buildRequestObject"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locationList",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locationList/async",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "convert",
+        "addRange"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations",
+      "methods": [],
+      "functions": [
+        "getCountHandlePaging",
+        "beforeload",
+        "beforeprefetch",
+        "onLocationAssignedActivate"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.InventoryView.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/async",
+      "methods": [],
+      "functions": [
+        "doMassUpdate"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/async/resources",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/asyncError",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "fn"
+      ],
+      "files": [
+        "WM.tf.inventorydisplay.InventoryDisplay.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/asyncReset",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "fn"
+      ],
+      "files": [
+        "WM.tf.inventorydisplay.InventoryDisplay.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/batch",
+      "methods": [],
+      "functions": [
+        "saveLocations"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/error",
+      "methods": [],
+      "functions": [
+        "errorLocation"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/locationHistory",
+      "methods": [],
+      "functions": [
+        "_tagClickUnusable",
+        "_tagClickUnpickable",
+        "_tagClickUnstorable",
+        "configure"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/massupdate",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "beforeload",
+        "massUpdate"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/nonpaged",
+      "methods": [],
+      "functions": [
+        "convert",
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/partStorageLocations",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/productionStation",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locations/reset",
+      "methods": [],
+      "functions": [
+        "resetLocation"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locationTypes",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/locationWithLocationTypes",
+      "methods": [],
+      "functions": [
+        "assignRole"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/lotFormats",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/masterWorkflows",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/media",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/movementZoneNextMoves",
+      "methods": [],
+      "functions": [
+        "_parseScheduleValue"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/movementZones",
+      "methods": [],
+      "functions": [
+        "getLocations",
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/movementZones/nonpaged",
+      "methods": [],
+      "functions": [
+        "getLocations"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/noLocationItems",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/noLocationReplens",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.tf.common.documents.Short.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/nonReceivableItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/noteTypes",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderActivity",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderLineNotes",
+      "methods": [],
+      "functions": [
+        "resetWork",
+        "callback",
+        "_tagClickOrdNotes",
+        "_tagClickOrdLineNotes"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderLines",
+      "methods": [],
+      "functions": [
+        "exception"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderLines/availableOrderLines",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.tf.common.Shipment.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderLines/cancelLines",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "cancelOrderLines"
+      ],
+      "files": [
+        "WM.tf.common.documents.OutboundOrder.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderLines/deleteLines",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "_deleteLines"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderLines/validateChange",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "deleteOrderLinesWithReason"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderNotes",
+      "methods": [],
+      "functions": [
+        "resetWork",
+        "_tagClickParcelNotes",
+        "callback",
+        "_tagClickOrdNotes"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderTypePickDeductions",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderTypePickDeductions/sequences",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "syncNewSequences"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderTypePickVerifications",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/orderTypes",
+      "methods": [],
+      "functions": [
+        "getLocations",
+        "exception"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/outboundLoads",
+      "methods": [],
+      "functions": [
+        "createFromOrder",
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/outboundLoads/",
+      "methods": [],
+      "functions": [
+        "stopCardAfterRender",
+        "configure"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/outboundLoads/checkCarrierChangeable",
+      "methods": [],
+      "functions": [
+        "checkChangeCarrier"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/outboundLoads/stops",
+      "methods": [],
+      "functions": [
+        "_refreshStopView"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.documents.Stop.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/outboundOrders",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.documents.OutboundOrder.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/outboundOrders/changeCarrier",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "fn"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/outboundOrders/plannableOrders",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.tf.common.documents.OutboundOrder.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/outboundWorkflowPlans",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/packingConfigurations",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/palletPositions",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/parcelHandlerAuditLog",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/parcelPackages",
+      "methods": [],
+      "functions": [
+        "cancelOrder"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/parseBarcode/parse",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "parseBarcode"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/paymentTerms",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/paymentTerms/carriers",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickEstimates/shipments",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "updateEstimatesPanel"
+      ],
+      "files": [
+        "WM.tf.common.Shipment.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picking/replenishments/cancelAction/async",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "cancel"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/picking/replenishments/changePriority",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "changeReplinishmentPriority"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picking/replenishments/pendingReplenishments",
+      "methods": [],
+      "functions": [
+        "isAssigned"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picking/replenishments/topOff/async",
+      "methods": [
+        "POST",
+        "PUT"
+      ],
+      "functions": [
+        "callbackFn",
+        "processCancelReplenishment",
+        "_callReplenishment",
+        "processReplenishmentRequest"
+      ],
+      "files": [
+        "WM.tf.common.documents.Item.min-53003.js",
+        "WM.tf.common.documents.Location.min-53003.js",
+        "WM.tf.inventorydisplay.InventoryDisplay.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickingSummary",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickingSummary/workZonePickingSummary",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickMethods",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickPreValidationSchemes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickReleaseRules",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picks",
+      "methods": [],
+      "functions": [
+        "getHeldPicksCountStore"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picks/confirm/async",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "confirmPicks"
+      ],
+      "files": [
+        "WM.tf.ConfirmPick.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/picks/consolidatedPicks",
+      "methods": [],
+      "functions": [
+        "_getCartonPickStore",
+        "beforeload",
+        "_getListPickStore"
+      ],
+      "files": [
+        "WM.tf.common.documents.CartonPick.min-53003.js",
+        "WM.tf.common.Picks.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picks/consolidatedPicks/nonpaged",
+      "methods": [],
+      "functions": [
+        "_getPicksStore"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picks/releaseHeldPicks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_onHeldReleasePickClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picks/releasePicks/batch/async",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_onReleasePickClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/picks/resetPicks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_onResetPickClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picks/resetUnassignedPicks",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "_onResetUnassignedPickClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/picks/statusCount",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.tf.common.Picks.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickZonePickDeductions",
+      "methods": [],
+      "functions": [
+        "replaceSequences"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickZonePickDeductions/sequences",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "syncNewSequences"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickZones",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickZones/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/pickZones/nonpaged",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/policies",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Global.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/policies/allocationPolicies",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/policies/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Global.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/postalCodes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/powerUnits",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/powerUnits/activity",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/powerUnits/statusCount",
+      "methods": [],
+      "functions": [
+        "_updateQuickFilterCounts"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/printers",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/problemInventory",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/productionLines",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/progressions",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/reasonCodes",
+      "methods": [],
+      "functions": [
+        "setSyncMode"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/reasonCodes/multiClients",
+      "methods": [],
+      "functions": [
+        "_backToPrevious",
+        "setSyncMode"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/reasonCodes/reasonCodesByClientIdList",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "checkReasonExistsForInventory"
+      ],
+      "files": [
+        "WM.Modules.min-53003.js",
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/reasonGroups",
+      "methods": [],
+      "functions": [
+        "callback"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/receivableInboundOrderStatuses",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/receiving/damagedItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/receiving/overItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/receiving/shortItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/receiving/unexpectedItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/receivingIssueItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/replenishmentConfigurations",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "convert",
+        "doDelete"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/replenishmentPaths",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/resourceCodes/receiving",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/resourceTypeCommands",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/returnsArrival",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/returnsOrder",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/returnsOrderItem",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rfForms",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rfMessages",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rfSummaryDisplayConfig",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rfSummaryDisplayConfig/available",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rfUserConfigurations",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rolePickDeductions",
+      "methods": [],
+      "functions": [
+        "replaceSequences"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rolePickDeductions/sequences",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "syncNewSequences"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rolePickVerifications",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/ruleParameters",
+      "methods": [],
+      "functions": [
+        "copyRule"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rules",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/rules/ruleCopy",
+      "methods": [],
+      "functions": [
+        "copyRule"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/ruleSetCommands",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/ruleSetCommands/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/safetyCheckHistory",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/safetyCheckHistory?nonInventoryId\\x3d",
+      "methods": [],
+      "functions": [
+        "_tagClickSafetyCheck"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/sequences",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "_generateIdentifiers"
+      ],
+      "files": [
+        "WM.tf.common.InventoryIdentification.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/serialDeviceConfigurations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/serializedHandlingUnits",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/serializedHandlingUnits/parentHandlingUnits",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/serialNumbers",
+      "methods": [],
+      "functions": [
+        "exception"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/serialNumberTypes",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/serialScaleCommunicator",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "connect",
+        "receiveMessage"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/serverStatus",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "pingMocaService"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/services/backgroundServices",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipmentLines",
+      "methods": [],
+      "functions": [
+        "_createShipmentLineLookupStore"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipmentLines/",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "_onSaveButtonClick",
+        "_loadStores"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipmentLines/cancelledShipmentLines",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_cancelShipmentLines"
+      ],
+      "files": [
+        "WM.tf.common.Shipment.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipments",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.documents.Shipment.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipments/",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "callback",
+        "configure"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipments/cancelledShipments",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "cancelShipment"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipments/changeCarrier",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "changeShipmentCarrierFn"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipments/changeShipmentCarrier",
+      "methods": [],
+      "functions": [
+        "changeShipmentCarrier"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipments/checkCarrierChangeable",
+      "methods": [],
+      "functions": [
+        "checkCarrierChangeable"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipments/plannableShipments",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.tf.common.documents.Shipment.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipments/shipmentPlan",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "addLoadFromOrdersAndLines"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipments/waveSets",
+      "methods": [],
+      "functions": [
+        "assignShipment"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipmentStagingTransfer/pendingStagedShipments?carrierMoveId\\x3d",
+      "methods": [],
+      "functions": [
+        "_tagClickMovePending"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shipmentStagingTransfer/pendingStagedShipments?storageLocation\\x3d",
+      "methods": [],
+      "functions": [
+        "_tagClickMovePending"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shortItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shorts",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shorts/shortLocations",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/shortShipmentLines",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/slotList",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/slotList/async",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/slotPlanTemplates",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/splitShipments/moveLPNs/async",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "onSave"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/splitShipments/moveShipments/async",
+      "methods": [],
+      "functions": [
+        "onSave"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/stackMethods",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/stackMethods/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/stagingLanes",
+      "methods": [],
+      "functions": [
+        "hasProblemLoads"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/standardDockSchedules",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/storageSuffixes",
+      "methods": [],
+      "functions": [
+        "getUoms"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/storageZones",
+      "methods": [],
+      "functions": [
+        "getUoms",
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/structuredInventory",
+      "methods": [],
+      "functions": [
+        "getLocations",
+        "callback"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.InventoryView.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/structuredInventory/",
+      "methods": [],
+      "functions": [
+        "_createDrillInLpnViewBuffer"
+      ],
+      "files": [
+        "WM.tf.common.InventoryView.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/structuredInventory/historical",
+      "methods": [],
+      "functions": [
+        "getCountHandlePaging"
+      ],
+      "files": [
+        "WM.tf.inventorydisplay.InventoryDisplay.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/structuredInventory/live",
+      "methods": [],
+      "functions": [
+        "getCountHandlePaging"
+      ],
+      "files": [
+        "WM.tf.inventorydisplay.InventoryDisplay.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/supplierConsignments",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/supplierItems",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/suppliers",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/tableColumns",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailerAuditWork/failedAuditHistory",
+      "methods": [],
+      "functions": [
+        "_tagClickFailedAudit"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailerAuditWork/locationAuditWork",
+      "methods": [],
+      "functions": [
+        "locationAuditWork",
+        "_onAuditClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.documents.Location.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailerAuditWork/locationsForAudit",
+      "methods": [],
+      "functions": [
+        "_confirmCheckout"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailerAuditWork/missingTrailerLocation",
+      "methods": [],
+      "functions": [
+        "_updateActualLocation"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailers",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailers?trailerId\\x3d",
+      "methods": [],
+      "functions": [
+        "callback"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailers/",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "checkForSerializedInventoryInTrailer",
+        "checkForHeldInventoryInTrailer",
+        "_tagClickMovePendingEquipment",
+        "_tagClickEquipmntNotes"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailers/activity",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailers/checkedInTrailerSummaryMetrics",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/trailers/occupiedYardLocations",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/translatedInvIdentifiers",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/transportationEquipmentNotes",
+      "methods": [],
+      "functions": [
+        "callback"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.Notes.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/transportModes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/uDIAConfigs",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/uDIAConfigs/guiAttributes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/uDIAFlagConfigs",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/unassignedShipments",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/unassignedShipments/assignShipment",
+      "methods": [],
+      "functions": [
+        "assignShipment"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/unassignedShipments/assignShipments",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "assignShipments"
+      ],
+      "files": [
+        "WM.tf.common.AssignShipment.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/uoms",
+      "methods": [],
+      "functions": [
+        "exception"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/uoms/batch",
+      "methods": [],
+      "functions": [
+        "exception"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/variableConfigurations",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/voiceRegions",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/voiceRegions/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/warehouseEquipment",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/warehouseLabelFormats",
+      "methods": [],
+      "functions": [
+        "createFromOrder"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/warehouses",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/warehouses/",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/warehouses/async",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/warehouseTransportModes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/warehouseTransportModeUoms",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/warehouseUoms",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/warehouseWorkflows",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/waveRules",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves",
+      "methods": [],
+      "functions": [
+        "copyRule",
+        "getCountHandlePaging"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "removeFromWaveWebService"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/allocateWave/async",
+      "methods": [],
+      "functions": [
+        "beforeload"
+      ],
+      "files": [
+        "WM.tf.common.documents.Wave.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/cancelWave/async",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "cancelWaves"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/changeWavePriority",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "saveChangeWork"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/locations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/movementzones",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/releaseWave/async",
+      "methods": [],
+      "functions": [
+        "releaseWaveAction"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/statusCount",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.tf.common.Picks.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/unallocateWave/async",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "unallocateWave"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/uomcodes",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "prepareUomStore"
+      ],
+      "files": [
+        "WM.tf.common.documents.Wave.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/waves/waveDetail",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.tf.common.documents.Wave.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/wcsEvents",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/webPerformanceEntries/batch",
+      "methods": [],
+      "functions": [
+        "createStore"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/webPerformanceEntries/summary",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "exportSummary",
+        "fn"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/whBasePoints",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/work",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/work/async",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_onSaveManualSequence",
+        "_saveChangeWork"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/work/batch",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "saveChangeWork"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/work/cancelDirectedWorks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_cancelWorkOperation",
+        "fn"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/work/cancelPicks/batch/async",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_onSaveCancelPick",
+        "onSaveCancelPick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/work/resumeDirectedWorks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_onResumeClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/work/suspendDirectedWorks/batch",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_onSuspendClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/work/workByTrailerOrLoad",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.tf.common.documents.Load.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workAssignmentRuleExceptions",
+      "methods": [],
+      "functions": [
+        "asGroups",
+        "beforeload"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workAssignmentRuleExceptions/workListRule",
+      "methods": [],
+      "functions": [
+        "asGroups"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workAssignments/removePicks/batch/async",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_onRemovePickWorkAssignmentClick",
+        "_onRemovePickClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ],
+      "is_async": true
+    },
+    {
+      "service": "wm",
+      "path": "wm/workEscalationConfigs",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workflowInstructionActions",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workflowInstructions",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workflowInstructionValues",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workflowInstructionValues/batch",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workflowOperations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workflowOperations/",
+      "methods": [
+        "GET"
+      ],
+      "functions": [
+        "reperformWorkflow"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workflowOperations/initiation",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "performWorkflow"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workflowOperations/reverse",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "_reverseWorkflowRequest"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workListRuleBreakCriteria",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workListRuleGroups",
+      "methods": [],
+      "functions": [
+        "convert",
+        "getIncludedFields"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workListSelectCriteria",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workListSequenceCriteria",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOperations",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrderLineNotes",
+      "methods": [],
+      "functions": [
+        "convert",
+        "_tagClickWorkOrdNotes",
+        "_tagClickWorkOrdLineNotes"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.Notes.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrderLines",
+      "methods": [],
+      "functions": [
+        "convert",
+        "createWorkOrderLineStoreForReceive",
+        "createWorkOrderLineStoreForRTS",
+        "prepareStoresForCompleteWorkOrder"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrderLines/",
+      "methods": [
+        "PUT",
+        "DELETE"
+      ],
+      "functions": [
+        "processRequestComponentForWorkOrder",
+        "doDeleteForWorkOrderLineSumary"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrderLines/batch",
+      "methods": [],
+      "functions": [
+        "createWorkOrderLineStoreForReceive",
+        "createWorkOrderLineStoreForRTS",
+        "prepareStoresForCompleteWorkOrder"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrderLines/unallocated",
+      "methods": [],
+      "functions": [
+        "getUnAllocateCountStore",
+        "prepareStoresForAllocateWorkOrder"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrderNotes",
+      "methods": [],
+      "functions": [
+        "convert",
+        "_tagClickWorkOrdNotes"
+      ],
+      "files": [
+        "WM.Common.min-53003.js",
+        "WM.tf.common.Notes.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrderParents",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrders",
+      "methods": [],
+      "functions": [
+        "getCountHandlePaging"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrders/",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "callback",
+        "processReleaseHeldPicks",
+        "handleCopyWorkOrderSaveClick"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrders/confirmedWorkOrder",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "confirmPicksForWorkOrder"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrders/deallocate",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "deallocateWorkOrder"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrders/moveWorkOrder",
+      "methods": [
+        "POST"
+      ],
+      "functions": [
+        "callback"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrders/requestFinishedGoods",
+      "methods": [
+        "PUT"
+      ],
+      "functions": [
+        "requestFinishedGoods"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workOrderTypes",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workQueueAssignee",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/WorkZone",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workZones",
+      "methods": [],
+      "functions": [
+        "convert"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/workZones/nonpaged",
+      "methods": [],
+      "functions": [],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    },
+    {
+      "service": "wm",
+      "path": "wm/yardLocations",
+      "methods": [],
+      "functions": [
+        "getLocations"
+      ],
+      "files": [
+        "WM.Common.min-53003.js"
+      ]
+    }
+  ]
+}

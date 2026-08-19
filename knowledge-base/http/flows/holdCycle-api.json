@@ -1,0 +1,89 @@
+{
+  "generated_by": "tools/cdp/capture-hold-api.mjs",
+  "generated_at": "2026-08-18T09:40:44.430Z",
+  "contract_source": "read from WM.tf.common.HoldsOperations.min-53003.js; the UI button that should send this has no handler bound on this instance",
+  "lpn": "00000776442003826960",
+  "hold": {
+    "holdPrefix": "SG",
+    "holdNumber": "HLD0307485"
+  },
+  "before": {
+    "detailNumber": "D0000006VDYW",
+    "quantity": 65,
+    "status": "AV",
+    "onHold": false,
+    "hold_history_rows": 0
+  },
+  "after_apply": {
+    "detailNumber": "D0000006VDYW",
+    "quantity": 65,
+    "status": "AV",
+    "onHold": true,
+    "hold_history_rows": 1
+  },
+  "after_release": {
+    "detailNumber": "D0000006VDYW",
+    "quantity": 65,
+    "status": "AV",
+    "onHold": true,
+    "hold_history_rows": 1
+  },
+  "apply": {
+    "payload": [
+      {
+        "detailNumberList": "D0000006VDYW",
+        "holdPrefix": "SG",
+        "holdNumber": "HLD0307485",
+        "activityType": "A",
+        "mode": "GUI",
+        "warehouseId": "SG"
+      }
+    ],
+    "status": 200,
+    "body": {
+      "@type": "ResponseBodyWrapper",
+      "data": {
+        "asynchronousResourceGroupId": 1566027,
+        "asynchronousResourceGroupType": "INVENTORYHOLD",
+        "asynchronousResources_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/processInventoryHoldAction/async/1566027/resources",
+        "clientId": "----",
+        "complete": false,
+        "creationDate": "2026-08-18T09:40:26.000+0000",
+        "resourceId": "1566027",
+        "self_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/processInventoryHoldAction/async/1566027",
+        "totalProgress": null,
+        "warehouseId": "SG"
+      }
+    }
+  },
+  "release": {
+    "payload": [
+      {
+        "detailNumberList": "D0000006VDYW",
+        "holdPrefix": "SG",
+        "holdNumber": "HLD0307485",
+        "activityType": "R",
+        "mode": "GUI",
+        "warehouseId": "SG"
+      }
+    ],
+    "status": 200,
+    "body": {
+      "@type": "ResponseBodyWrapper",
+      "data": {
+        "asynchronousResourceGroupId": 1566028,
+        "asynchronousResourceGroupType": "INVENTORYHOLD",
+        "asynchronousResources_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/processInventoryHoldAction/async/1566028/resources",
+        "clientId": "----",
+        "complete": false,
+        "creationDate": "2026-08-18T09:40:35.000+0000",
+        "resourceId": "1566028",
+        "self_uri": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/processInventoryHoldAction/async/1566028",
+        "totalProgress": null,
+        "warehouseId": "SG"
+      }
+    }
+  },
+  "hold_took_effect": true,
+  "inventory_restored": false
+}

@@ -1,0 +1,14 @@
+{
+  "generated_by": "tools/cdp/capture-cancel-work.mjs",
+  "generated_at": "2026-08-18T18:01:34.689Z",
+  "contract_source": "WM.Common.min _onCancelClick/_cancelWorkOperation — array of whole records, unmodified",
+  "work_request_id": 5490623,
+  "status_before": "PEND",
+  "cancel": {
+    "status": 200,
+    "body": ""
+  },
+  "status_after": "PEND",
+  "destructive": true,
+  "reversible": false
+}

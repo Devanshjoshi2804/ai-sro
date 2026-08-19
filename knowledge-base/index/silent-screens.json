@@ -1,0 +1,145 @@
+{
+  "generated_by": "tools/cdp/probe-silent-screens.mjs",
+  "generated_at": "2026-08-18T07:30:50.443Z",
+  "question": "coverage.json records these three screens as issuing no read. Is that because there is nothing to read, or because the read is gated behind input the crawler never supplied?",
+  "screens": {
+    "#wm.shipping/wm.checkin////": {
+      "label": "Check In",
+      "hash": "#wm.shipping/wm.checkin////",
+      "requests_observed": [
+        "GET /data/WM/rpux/uom",
+        "GET /data/WM/wm/devices",
+        "GET /data/WM/wm/policies",
+        "GET /data/WM/rpux/filter/default/WMCheckin",
+        "GET /data/WM/wm/movementZones/nonpaged",
+        "GET /data/WM/wm/inboundOrderTypes",
+        "GET /data/WM/rpux/filter/columns/WMCheckin"
+      ],
+      "screen": {
+        "text": "\ue05f Workstation SG RKUCHIYAGM SHIPPING \ue00e Dashboard Shipping Issues Staging Door Activity Appointments Loads Parcel Parcel Audit Log Check In Transport Equipment Manifesting Work Queue Workflows Print Compliant Labels Inventory Shipment Delivery History \ue05e \ue010",
+        "inputs": [
+          {
+            "name": "jdaSearchField-1011-inputEl",
+            "label": "",
+            "xtype": "jdaSearchField",
+            "empty_text": "Search"
+          }
+        ],
+        "buttons": [
+          "RKUCHIYAGM",
+          "SG",
+          "Workstation",
+          "SHIPPING",
+          "Dashboard",
+          "Shipping Issues",
+          "Staging",
+          "Door Activity",
+          "Appointments",
+          "Loads",
+          "Parcel",
+          "Parcel Audit Log",
+          "Check In",
+          "Transport Equipment",
+          "Manifesting",
+          "Work Queue",
+          "Workflows",
+          "Print Compliant Labels",
+          "Inventory",
+          "Shipment Delivery",
+          "History"
+        ],
+        "grids": []
+      },
+      "reading": "has inputs \u2014 the screen is very likely search-gated, and its reads are unrecorded rather than absent"
+    },
+    "#wm.shipping/wm.parcel.bundling////": {
+      "label": "Bundling",
+      "hash": "#wm.shipping/wm.parcel.bundling////",
+      "requests_observed": [
+        "GET /data/WM/wm/devices",
+        "GET /data/WM/wm/policies",
+        "GET /data/WM/wm/inboundOrderTypes",
+        "GET /data/WM/wm/movementZones/nonpaged"
+      ],
+      "screen": {
+        "text": "\ue05f Workstation SG RKUCHIYAGM SHIPPING \ue00e Dashboard Shipping Issues Staging Door Activity Appointments Loads Parcel Parcel Audit Log Check In Transport Equipment Manifesting Work Queue Workflows Print Compliant Labels Inventory Shipment Delivery History \ue05e \ue010",
+        "inputs": [
+          {
+            "name": "jdaSearchField-1011-inputEl",
+            "label": "",
+            "xtype": "jdaSearchField",
+            "empty_text": "Search"
+          }
+        ],
+        "buttons": [
+          "RKUCHIYAGM",
+          "SG",
+          "Workstation",
+          "SHIPPING",
+          "Dashboard",
+          "Shipping Issues",
+          "Staging",
+          "Door Activity",
+          "Appointments",
+          "Loads",
+          "Parcel",
+          "Parcel Audit Log",
+          "Check In",
+          "Transport Equipment",
+          "Manifesting",
+          "Work Queue",
+          "Workflows",
+          "Print Compliant Labels",
+          "Inventory",
+          "Shipment Delivery",
+          "History"
+        ],
+        "grids": []
+      },
+      "reading": "has inputs \u2014 the screen is very likely search-gated, and its reads are unrecorded rather than absent"
+    },
+    "#wm.yard/wm.yard.checkout////": {
+      "label": "Check Out",
+      "hash": "#wm.yard/wm.yard.checkout////",
+      "requests_observed": [
+        "GET /data/WM/wm/devices",
+        "GET /data/WM/wm/policies",
+        "GET /data/WM/rpux/filter/default/WMYardCheckOut",
+        "GET /data/WM/wm/inboundOrderTypes",
+        "GET /data/WM/rpux/filter/columns/WMYardCheckOut",
+        "GET /data/WM/wm/movementZones/nonpaged"
+      ],
+      "screen": {
+        "text": "\ue05f Workstation SG RKUCHIYAGM YARD \ue00e Door Activity Appointments Check In Transport Equipment Check Out Workflows Work Queue History Transport Activity Send RF Message RF Display \ue010",
+        "inputs": [
+          {
+            "name": "jdaSearchField-1011-inputEl",
+            "label": "",
+            "xtype": "jdaSearchField",
+            "empty_text": "Search"
+          }
+        ],
+        "buttons": [
+          "RKUCHIYAGM",
+          "SG",
+          "Workstation",
+          "YARD",
+          "Door Activity",
+          "Appointments",
+          "Check In",
+          "Transport Equipment",
+          "Check Out",
+          "Workflows",
+          "Work Queue",
+          "History",
+          "Transport Activity",
+          "Send RF Message",
+          "RF Display"
+        ],
+        "grids": []
+      },
+      "reading": "has inputs \u2014 the screen is very likely search-gated, and its reads are unrecorded rather than absent"
+    }
+  },
+  "keyed_by": "screen hash \u2014 three different screens are labelled \"Check In\", so a label is not an identifier here"
+}

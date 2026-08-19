@@ -8,12 +8,13 @@ never starve session reaping.
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from temporalio.client import Client
 from temporalio.worker import Worker
 
 from sro.config import Settings, get_settings
-from sro.container import build_container
+from sro.container import Container, build_container
 from sro.infrastructure.temporal.activities import Activities
 from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
 from sro.infrastructure.temporal.workflows import (
@@ -23,15 +24,45 @@ from sro.infrastructure.temporal.workflows import (
 )
 from sro.observability import configure_logging
 
+logger = logging.getLogger(__name__)
+
 
 async def connect(settings: Settings) -> Client:
     return await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
 
 
+async def keep_sessions_open(container: Container, every_seconds: float) -> None:
+    """Sign systems back in before they expire, for as long as this runs.
+
+    A loop in the worker rather than a scheduled workflow: it holds no state
+    worth replaying, a missed sweep is corrected by the next one, and the
+    cheapest thing that keeps a connection alive over a weekend is the right
+    amount of machinery for it.
+    """
+    while True:
+        await asyncio.sleep(every_seconds)
+        try:
+            swept = await container.keep_sessions_open().sweep()
+        except Exception:
+            # A keeper that dies quietly is worse than no keeper: the sessions
+            # look fine until the morning somebody needs one.
+            logger.exception("the session keeper could not finish its sweep")
+            continue
+        if swept.open_now or swept.unreachable or swept.released:
+            logger.info(
+                "sessions kept open: %s; unreachable: %s; left alone: %s; browsers released: %s",
+                ", ".join(swept.open_now) or "none",
+                ", ".join(swept.unreachable) or "none",
+                ", ".join(swept.left_alone) or "none",
+                ", ".join(swept.released) or "none",
+            )
+
+
 async def run() -> None:
     settings = get_settings()
     configure_logging()
-    activities = Activities(build_container(settings))
+    container = build_container(settings)
+    activities = Activities(container)
     client = await connect(settings)
 
     default = Worker(
@@ -52,8 +83,12 @@ async def run() -> None:
         activities=[activities.abandon_stale_recording, activities.close_browser_session],
     )
 
-    async with default, browser:
-        await asyncio.Future()
+    keeper = asyncio.create_task(keep_sessions_open(container, settings.session_sweep_seconds))
+    try:
+        async with default, browser:
+            await asyncio.Future()
+    finally:
+        keeper.cancel()
 
 
 def main() -> None:

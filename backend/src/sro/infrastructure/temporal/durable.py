@@ -65,7 +65,7 @@ class TemporalDurableExecution:
         ctx: RequestContext,
         *,
         first: RecordingId,
-        second: RecordingId,
+        second: RecordingId | None = None,
         name: str | None = None,
     ) -> InducedSkill:
         client = await self._connect()
@@ -73,7 +73,7 @@ class TemporalDurableExecution:
             tenant_id=ctx.tenant_id.value,
             principal_id=ctx.principal_id.value,
             first_recording_id=first.value,
-            second_recording_id=second.value,
+            second_recording_id=second.value if second else "",
             name=name,
         )
 
@@ -84,7 +84,7 @@ class TemporalDurableExecution:
                 # Unique per attempt: re-inducing the same pair is a legitimate
                 # request that produces a new version, not a duplicate to fold
                 # into the previous run's history.
-                id=f"induct-{first}-{second}-{uuid.uuid4().hex[:8]}",
+                id=f"induct-{first}-{second or 'alone'}-{uuid.uuid4().hex[:8]}",
                 task_queue=self._default_queue,
             )
         except WorkflowFailureError as exc:
@@ -110,6 +110,8 @@ class TemporalDurableExecution:
         version: int | None = None,
         authorized_by: str | None = None,
         medium: str = "network",
+        run_id: RunId | None = None,
+        wait: bool = True,
     ) -> RunId:
         client = await self._connect()
         request = StartRunRequest(
@@ -120,6 +122,7 @@ class TemporalDurableExecution:
             version=version,
             authorized_by=authorized_by,
             medium=medium,
+            run_id=run_id.value if run_id else "",
         )
         handle = await client.start_workflow(
             ExecutionWorkflow.run,
@@ -130,11 +133,17 @@ class TemporalDurableExecution:
             id=f"run-{skill_id}-{uuid.uuid4().hex[:8]}",
             task_queue=self._default_queue,
         )
+        if not wait and run_id is not None:
+            # Started, not finished. The caller named the run before it began
+            # precisely so it can watch the steps land instead of holding a
+            # request open for as long as the warehouse takes.
+            return run_id
+
         try:
-            run_id: str = await handle.result()
+            finished: str = await handle.result()
         except WorkflowFailureError as exc:
             raise NotRunnable(_root_message(exc)) from exc
-        return RunId(run_id)
+        return RunId(finished)
 
     async def watch_recording(
         self,

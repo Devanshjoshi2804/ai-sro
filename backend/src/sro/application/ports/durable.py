@@ -26,7 +26,7 @@ class DurableExecution(Protocol):
         ctx: RequestContext,
         *,
         first: RecordingId,
-        second: RecordingId,
+        second: RecordingId | None = None,
         name: str | None = None,
     ) -> InducedSkill:
         """Run induction durably and wait for its result."""
@@ -41,6 +41,8 @@ class DurableExecution(Protocol):
         version: int | None = None,
         authorized_by: str | None = None,
         medium: str = "network",
+        run_id: RunId | None = None,
+        wait: bool = True,
     ) -> RunId:
         """Perform a skill durably and wait for it to finish.
 

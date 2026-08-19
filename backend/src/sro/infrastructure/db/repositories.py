@@ -24,11 +24,11 @@ from sro.application.ports.repositories import (
     UnitOfWork,
 )
 from sro.domain.chat.thread import Thread, ThreadId
-from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
-from sro.domain.recording.recording import Recording
+from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import RecordingId, SkillId, TenantId
 from sro.domain.shared.objective import ObjectiveKey
@@ -107,6 +107,11 @@ class SqlRecordingRepository(RecordingRepository):
         if row is None:
             raise NotFound(f"recording {recording_id} not found")
         return row
+
+    async def list_capturing(self) -> tuple[Recording, ...]:
+        query = select(RecordingRow).where(RecordingRow.status == RecordingStatus.CAPTURING.value)
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_recording(row) for row in rows)
 
 
 class SqlSkillRepository(SkillRepository):
@@ -196,6 +201,13 @@ class SqlConnectionRepository(ConnectionRepository):
         if row is None:
             raise NotFound(f"connection {connection_id} not found")
         return row
+
+    async def list_connected(self) -> tuple[Connection, ...]:
+        query = select(ConnectionRow).where(
+            ConnectionRow.status == ConnectionStatus.CONNECTED.value
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_connection(row) for row in rows)
 
 
 class SqlRunRepository(RunRepository):

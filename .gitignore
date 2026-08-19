@@ -27,3 +27,7 @@ htmlcov/
 # Local capture output, if anything is ever written outside object storage.
 /tmp/
 scratch/
+
+# Credential vault: session cookies, CSRF tokens, whatever a login produced.
+# On disk so the services work; never in history.
+backend/.sro-vault

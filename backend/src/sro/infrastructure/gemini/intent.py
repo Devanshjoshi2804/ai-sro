@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from collections.abc import Awaitable
+from typing import TYPE_CHECKING, Any
 
 from sro.application.ports.intent import Extraction, Reading
+
+if TYPE_CHECKING:  # pragma: no cover - import cost on a hot path
+    from google.genai.types import GenerateContentResponse
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +24,15 @@ _INSTRUCTIONS = (
     "parameters. One set per thing they are asking to be done: 'update these "
     "six SKUs' is six sets.\n\n"
     "Copy values exactly as written. Do not convert units, pad identifiers, or "
-    "tidy them up. If the request refers to something you were not given — a "
-    "spreadsheet, 'this morning's count', 'the usual ones' — return no items and "
-    "say what is missing in the note. Never invent a value to fill a set."
+    "tidy them up.\n\n"
+    "Fill in every parameter the request gives a value for, and leave out the "
+    "ones it does not, naming those in `missing`. A partial set is useful: the "
+    "operator is asked for the rest and their answer is added to what you "
+    "returned. Returning nothing because one value was absent throws away the "
+    "ones that were there, and asks the operator for those again.\n\n"
+    "If the request refers to something you were not given — a spreadsheet, "
+    "'this morning's count', 'the usual ones' — say so in the note. Never "
+    "invent a value."
 )
 
 
@@ -75,17 +85,21 @@ class GeminiIntentParser:
             },
             "required": ["wants", "verb", "entity", "continues", "confidence"],
         }
-        response = await self._client.aio.models.generate_content(
-            model=self._model,
-            contents=[
-                _READING,
-                f"The sentence before this one: {after}" if after else "",
-                f"Sentence: {utterance}",
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json", response_schema=schema
-            ),
+        response = await _answered(
+            self._client.aio.models.generate_content(
+                model=self._model,
+                contents=[
+                    _READING,
+                    f"The sentence before this one: {after}" if after else "",
+                    f"Sentence: {utterance}",
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json", response_schema=schema
+                ),
+            )
         )
+        if response is None:
+            return Reading()
         try:
             answer = json.loads(response.text or "{}")
         except ValueError:
@@ -122,19 +136,41 @@ class GeminiIntentParser:
             "required": ["items"],
         }
 
-        response = await self._client.aio.models.generate_content(
-            model=self._model,
-            contents=[
-                _INSTRUCTIONS,
-                f"Parameters: {', '.join(parameters) or 'none'}",
-                f"Context: {context}" if context else "",
-                f"Request: {utterance}",
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json", response_schema=schema
-            ),
+        response = await _answered(
+            self._client.aio.models.generate_content(
+                model=self._model,
+                contents=[
+                    _INSTRUCTIONS,
+                    f"Parameters: {', '.join(parameters) or 'none'}",
+                    f"Context: {context}" if context else "",
+                    f"Request: {utterance}",
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json", response_schema=schema
+                ),
+            )
         )
+        if response is None:
+            return Extraction(note="the reader did not answer, so nothing was read from this")
         return _parse(response.text, parameters)
+
+
+async def _answered(call: Awaitable[GenerateContentResponse]) -> GenerateContentResponse | None:
+    """The model's answer, or ``None`` when it did not give one.
+
+    Google answers `500 INTERNAL` often enough that a chat request carrying one
+    straight through is a nightly outage: the operator asked how many suppliers
+    there are and was told the system is broken, for a call whose whole job is
+    to *suggest* a reading that is then checked against real skills.
+
+    So a model failure is an absent opinion, not an error. Everything here has
+    a deterministic path underneath it, which is exactly why this is safe.
+    """
+    try:
+        return await call
+    except Exception:
+        logger.warning("the model did not answer; falling back to what can be decided without it")
+        return None
 
 
 def _parse(text: str | None, declared: tuple[str, ...]) -> Extraction:

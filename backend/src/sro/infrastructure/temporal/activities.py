@@ -34,7 +34,8 @@ class InductionRequest:
     tenant_id: str
     principal_id: str
     first_recording_id: str
-    second_recording_id: str
+    second_recording_id: str = ""
+    """Empty when the operator induced from a single demonstration."""
     name: str | None = None
 
 
@@ -56,6 +57,8 @@ class StartRunRequest:
     version: int | None = None
     authorized_by: str | None = None
     medium: str = "network"
+    run_id: str = ""
+    """Chosen before the workflow starts, so whoever asked can watch it."""
 
 
 @dataclass
@@ -104,7 +107,9 @@ class Activities:
         induced = await self._container.induce_skill().execute(
             ctx,
             first=RecordingId(request.first_recording_id),
-            second=RecordingId(request.second_recording_id),
+            second=(
+                RecordingId(request.second_recording_id) if request.second_recording_id else None
+            ),
             name=request.name,
         )
         return InductionResult(
@@ -154,6 +159,7 @@ class Activities:
                 version=request.version,
                 authorized_by=request.authorized_by,
                 medium=Medium(request.medium),
+                run_id=RunId(request.run_id) if request.run_id else None,
             ),
         )
         uow = self._container.unit_of_work()

@@ -22,10 +22,12 @@ from dataclasses import dataclass
 from sro.application.capture.identity import system_of
 from sro.application.connection.check_session import CheckSession, SessionHealth
 from sro.application.connection.connect_system import RefreshSession
+from sro.application.connection.session_life import SessionLife
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.sign_in import SignInDriver, SignInFailed
+from sro.application.ports.system import Clock
 from sro.application.ports.vault import CredentialVault
 from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.shared.errors import DomainError
@@ -76,12 +78,16 @@ class SignIn:
         browser: BrowserProvider,
         driver: SignInDriver,
         refresh: RefreshSession,
+        life: SessionLife | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self._uow = uow
         self._vault = vault
         self._browser = browser
         self._driver = driver
         self._refresh = refresh
+        self._life = life
+        self._clock = clock
 
     async def execute(self, ctx: RequestContext, *, target_system: str) -> SignedIn:
         async with self._uow as uow:
@@ -111,6 +117,9 @@ class SignIn:
                 "the login finished but the browser held no session for this system. "
                 "Connect it by hand once so we can see what it expects."
             )
+        # The clock this session is measured against starts here.
+        if self._life is not None and self._clock is not None:
+            await self._life.minted(ctx, system=connection.target_system, at=self._clock.now())
         return SignedIn(
             target_system=connection.target_system,
             landed_at=result.landed_at,
@@ -165,10 +174,19 @@ class EnsureSignedIn:
     sign the operator's own browser out.
     """
 
-    def __init__(self, sign_in: SignIn, check: CheckSession, uow: UnitOfWork) -> None:
+    def __init__(
+        self,
+        sign_in: SignIn,
+        check: CheckSession,
+        uow: UnitOfWork,
+        life: SessionLife | None = None,
+        clock: Clock | None = None,
+    ) -> None:
         self._sign_in = sign_in
         self._check = check
         self._uow = uow
+        self._life = life
+        self._clock = clock
 
     async def for_url(self, ctx: RequestContext, url: str | None) -> bool:
         """Same, for a caller that knows an address and not a system name.
@@ -190,12 +208,32 @@ class EnsureSignedIn:
             # burns the credentials against a system that cannot answer.
             return False
         if health.health is SessionHealth.SIGNED_IN:
+            # Working now, and old enough to stop working during whatever is
+            # about to be asked of it. Replacing it here costs one login;
+            # finding out halfway through a batch costs the batch.
+            if await self._ageing(ctx, target_system):
+                try:
+                    await self._sign_in.execute(ctx, target_system=target_system)
+                except (NoCredentials, SignInFailed):
+                    return True  # the session we have still works
+            elif self._life is not None and self._clock is not None:
+                await self._life.worked(ctx, system=target_system, at=self._clock.now())
             return True
+
+        if self._life is not None and self._clock is not None:
+            # It used to work and does not now, which is the only way anybody
+            # learns how long these last.
+            await self._life.died(ctx, system=target_system, at=self._clock.now())
         try:
             await self._sign_in.execute(ctx, target_system=target_system)
         except (NoCredentials, SignInFailed):
             return False
         return True
+
+    async def _ageing(self, ctx: RequestContext, system: str) -> bool:
+        if self._life is None or self._clock is None:
+            return False
+        return (await self._life.of(ctx, system=system)).worth_refreshing(self._clock.now())
 
 
 def _is_a_login(skill: Skill) -> bool:

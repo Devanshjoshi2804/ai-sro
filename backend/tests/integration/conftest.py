@@ -17,7 +17,8 @@ from urllib.parse import urlsplit
 
 import pytest
 from docker.errors import DockerException
-from sqlalchemy import NullPool
+from sqlalchemy import NullPool, text
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -83,6 +84,20 @@ async def engine(postgres_url: str) -> AsyncIterator[AsyncEngine]:
     """
     engine = create_async_engine(postgres_url, poolclass=NullPool)
     async with engine.begin() as connection:
+        # Before the schema, because `knowledge_entries.embedding` is a
+        # `vector` and the image ships the extension without installing it.
+        # Without this every integration test errored with `type "vector" does
+        # not exist` -- twelve tests that had never run on a developer machine,
+        # while the suite reported green from the unit tests alone.
+        try:
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        except ProgrammingError as exc:  # pragma: no cover - depends on the server
+            pytest.skip(
+                "this database has no pgvector and this role cannot install it: "
+                f"{exc.orig or exc}. Point SRO_INTEGRATION_DATABASE_URL at a database "
+                "with `CREATE EXTENSION vector` already run, or unset it to use "
+                "testcontainers."
+            )
         await connection.run_sync(Base.metadata.create_all)
     try:
         yield engine

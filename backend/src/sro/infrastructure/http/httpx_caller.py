@@ -34,7 +34,12 @@ class HttpxCaller:
                 timeout=timeout_s,
             )
         except httpx.HTTPError as error:
-            raise TargetUnreachable(str(error)) from error
+            # httpx raises several of these with an empty message -- a read
+            # error carries nothing but its class -- and a run that failed with
+            # a blank reason costs an afternoon to attribute. The class name is
+            # not much, and it is the difference between "unreachable" and
+            # "nothing happened".
+            raise TargetUnreachable(str(error) or type(error).__name__) from error
 
         return HttpResponse(
             status_code=response.status_code,

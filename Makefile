@@ -64,6 +64,12 @@ web: ## Run the Next.js dev server on :3000
 ingest-kb: ## Load the recorded Blue Yonder knowledge base: make ingest-kb [tenant=acme]
 	$(BACKEND) uv run python -m sro.infrastructure.knowledge.ingest $(or $(tenant),acme)
 
+auth-secret: ## Generate a signing key for this deployment's own credentials
+	@python3 -c "import secrets; print('SRO_AUTH_SECRET=' + secrets.token_urlsafe(48))"
+
+token: ## Issue a credential: make token tenant=acme principal=you [days=30]
+	@$(BACKEND) uv run python -m sro.cli.mint $(or $(tenant),acme) $(or $(principal),operator) --days $(or $(days),30)
+
 types: ## Regenerate frontend API types from the backend OpenAPI document
 	$(BACKEND) uv run python -m sro.interface.http.export_openapi > ../frontend/openapi.json
 	$(FRONTEND) npm run generate:types

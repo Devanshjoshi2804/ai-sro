@@ -8,6 +8,7 @@ file, which is the whole point of the dependency rule.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import text
@@ -24,9 +25,15 @@ from sro.application.connection.connect_system import (
     RefreshSession,
     StoreSession,
 )
+from sro.application.connection.keep_open import KeepSessionsOpen
+from sro.application.connection.release_strays import ReleaseStrayBrowsers
 from sro.application.connection.session_headers import StoreSessionHeaders
+from sro.application.connection.session_life import SessionLife
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn, StoreCredentials
+from sro.application.connection.watch_browser import WatchBrowsers
 from sro.application.execution.batch import RunBatch
+from sro.application.execution.choices import ListChoices
+from sro.application.execution.derived_read import AskTheSystem
 from sro.application.execution.execute_skill import (
     ExecuteSkill,
     ExecuteStep,
@@ -40,6 +47,8 @@ from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.understand import UnderstandRecording
+from sro.application.intent.narrow import NarrowARead
+from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.backfill import BackfillEmbeddings
@@ -48,6 +57,7 @@ from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.read_knowledge import ReadKnowledge
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
+from sro.application.ports.auth import Credentials
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.capture import CaptureController
@@ -77,6 +87,7 @@ from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.config import Settings, get_settings
 from sro.infrastructure.auth.keycloak import KeycloakTokens
+from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.session import create_engine, create_session_factory
@@ -122,10 +133,15 @@ class Container:
     ui: UiDriver
     sign_in_driver: SignInDriver
     tokens: TokenSource | None
+    credentials: Credentials
     durable: DurableExecution
     session_factory: async_sessionmaker[AsyncSession]
 
     pursuits: Pursuits = field(default_factory=Pursuits)
+
+    _sessions_first_seen: dict[str, datetime] = field(default_factory=dict)
+    """When the stray sweep first saw a browser nothing claims. Held here
+    because a use case is built per call and this has to outlive one sweep."""
     """Pursuits this process is driving. In memory on purpose: the browser one
     was driving does not survive a restart either, and a half-finished pursuit
     resumed against a screen nobody can see is worse than one that stopped."""
@@ -167,6 +183,9 @@ class Container:
     def store_credentials(self) -> StoreCredentials:
         return StoreCredentials(self.unit_of_work(), self.vault)
 
+    def session_life(self) -> SessionLife:
+        return SessionLife(self.unit_of_work(), self.record_claims())
+
     def sign_in(self) -> SignIn:
         return SignIn(
             self.unit_of_work(),
@@ -174,10 +193,36 @@ class Container:
             self.browser,
             self.sign_in_driver,
             self.refresh_session(),
+            self.session_life(),
+            self.clock,
         )
 
     def ensure_signed_in(self) -> EnsureSignedIn:
-        return EnsureSignedIn(self.sign_in(), self.check_session(), self.unit_of_work())
+        return EnsureSignedIn(
+            self.sign_in(),
+            self.check_session(),
+            self.unit_of_work(),
+            self.session_life(),
+            self.clock,
+        )
+
+    def watch_browsers(self) -> WatchBrowsers:
+        return WatchBrowsers(self.browser)
+
+    def release_stray_browsers(self) -> ReleaseStrayBrowsers:
+        return ReleaseStrayBrowsers(
+            self.unit_of_work(),
+            self.browser,
+            self.watch_browsers(),
+            self.pursuits,
+            self.clock,
+            self._sessions_first_seen,
+        )
+
+    def keep_sessions_open(self) -> KeepSessionsOpen:
+        return KeepSessionsOpen(
+            self.unit_of_work(), self.ensure_signed_in(), self.release_stray_browsers()
+        )
 
     def acknowledge_failures(self) -> AcknowledgeFailures:
         return AcknowledgeFailures(self.unit_of_work(), self.clock)
@@ -219,7 +264,9 @@ class Container:
         return FinishRecording(self.unit_of_work(), self.browser, self.clock)
 
     def induce_skill(self) -> InduceSkill:
-        return InduceSkill(self.unit_of_work(), self.clock, self.ids, self.ask_about())
+        return InduceSkill(
+            self.unit_of_work(), self.clock, self.ids, self.ask_about(), self.interpreter
+        )
 
     def understand_recording(self) -> UnderstandRecording:
         return UnderstandRecording(self.unit_of_work(), self.interpreter, self.clock, self.ids)
@@ -324,6 +371,10 @@ class Container:
             self.clock,
             self.ids,
             self.execute_skill(),
+            self.narrow_a_read(),
+            self.ask_the_system(),
+            self.ask_about(),
+            self.suggest_next(),
         )
 
     def read_threads(self) -> ReadThreads:
@@ -332,11 +383,25 @@ class Container:
     def plan_task(self) -> PlanTask:
         return PlanTask(self.retrieve_knowledge())
 
+    def suggest_next(self) -> SuggestNext:
+        return SuggestNext(self.unit_of_work(), self.intent_parser)
+
+    def narrow_a_read(self) -> NarrowARead:
+        return NarrowARead(
+            self.unit_of_work(), self.intent_parser, self.ask_about(), self.ask_the_system()
+        )
+
+    def ask_the_system(self) -> AskTheSystem:
+        return AskTheSystem(self.unit_of_work(), self.http, self.vault)
+
     def resolve_intent(self) -> ResolveIntent:
         return ResolveIntent(self.unit_of_work(), self.plan_task(), self.intent_parser)
 
     def run_batch(self) -> RunBatch:
         return RunBatch(self.execute_skill())
+
+    def list_choices(self) -> ListChoices:
+        return ListChoices(self.unit_of_work(), self.http, self.vault)
 
     def get_run(self) -> GetRun:
         return GetRun(self.unit_of_work())
@@ -360,7 +425,7 @@ def _build_intent_parser(settings: Settings) -> IntentParser:
     """Reading values out of an operator's sentence. Same switch as the rest:
     the words they type are theirs, and sending them is a decision."""
     if settings.interpretation_enabled and settings.gemini_api_key:
-        return GeminiIntentParser(settings.gemini_api_key, settings.gemini_interpreter_model)
+        return GeminiIntentParser(settings.gemini_api_key, settings.gemini_intent_model)
     return NoIntentParser()
 
 
@@ -460,6 +525,7 @@ def build_container(settings: Settings | None = None) -> Container:
             if settings.keycloak_realm_url and settings.keycloak_client_id
             else None
         ),
+        credentials=SignedTokens(settings.auth_secret),
         durable=TemporalDurableExecution(
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),

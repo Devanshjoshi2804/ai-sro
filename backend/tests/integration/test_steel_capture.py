@@ -10,6 +10,7 @@ Skipped when Steel is not running.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 
 import httpx
@@ -159,7 +160,22 @@ async def test_capture_does_not_starve_the_operator_s_live_view(steel: SteelClie
         page = viewer_browser.contexts[0].pages[0]
         viewer = await viewer_browser.contexts[0].new_cdp_session(page)
         frames: list[object] = []
-        viewer.on("Page.screencastFrame", lambda _: frames.append(1))
+        acks: set[asyncio.Task[object]] = set()
+
+        def _on_frame(event: dict[str, object]) -> None:
+            # Chrome sends at most one screencast frame ahead of the last ack:
+            # without acking, this stand-in viewer stalls after a couple of
+            # frames regardless of how long the test waits, which reads as
+            # "capture starved the live view" for a reason that has nothing to
+            # do with capture.
+            frames.append(1)
+            task = asyncio.create_task(
+                viewer.send("Page.screencastFrameAck", {"sessionId": event["sessionId"]})
+            )
+            acks.add(task)
+            task.add_done_callback(acks.discard)
+
+        viewer.on("Page.screencastFrame", _on_frame)
         await viewer.send("Page.enable")
         await viewer.send("Page.startScreencast", {"format": "jpeg", "quality": 40})
 

@@ -87,13 +87,20 @@ class GeminiInterpreter:
     async def read(self, evidence: str) -> Reading:
         from google.genai import types
 
-        response = await self._client.aio.models.generate_content(
-            model=self._model,
-            contents=[_INSTRUCTIONS, "EVIDENCE\n" + evidence],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json", response_schema=_SCHEMA
-            ),
-        )
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=self._model,
+                contents=[_INSTRUCTIONS, "EVIDENCE\n" + evidence],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json", response_schema=_SCHEMA
+                ),
+            )
+        except Exception:
+            # An induction that loses its narrative is still an induction: the
+            # calls are the skill. Failing the whole thing because a hosted
+            # model answered 500 would throw away two demonstrations.
+            logger.warning("the interpreter did not answer; inducing without a reading")
+            return Reading(caveat="the interpreter did not answer")
         return _parse(response.text)
 
 

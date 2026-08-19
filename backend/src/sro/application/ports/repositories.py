@@ -39,6 +39,16 @@ class RecordingRepository(Protocol):
         """Newest first. Filtering by objective is how the UI offers run pairing."""
         ...
 
+    async def list_capturing(self) -> tuple[Recording, ...]:
+        """Recordings open right now, across tenants.
+
+        Crosses the tenant boundary for one reason: the browser reaper has to
+        know which sessions somebody is demonstrating in before it releases
+        any, and nobody is making that request. It returns recordings, never
+        their contents.
+        """
+        ...
+
 
 class SkillRepository(Protocol):
     async def add(self, skill: Skill) -> None: ...
@@ -70,6 +80,16 @@ class ConnectionRepository(Protocol):
         ...
 
     async def list_for_tenant(self, tenant_id: TenantId) -> tuple[Connection, ...]: ...
+
+    async def list_connected(self) -> tuple[Connection, ...]:
+        """Every connected system, across tenants.
+
+        The one query in this codebase that deliberately crosses the tenant
+        boundary, and the only caller is the keeper that signs sessions back in
+        before they expire: nobody is making the request, so there is no tenant
+        to scope it to. It returns connections, never anybody's data.
+        """
+        ...
 
 
 class RunRepository(Protocol):

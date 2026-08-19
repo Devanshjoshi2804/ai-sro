@@ -14,6 +14,7 @@ time out. Those systems are told plainly to connect by hand.
 from __future__ import annotations
 
 import logging
+from collections.abc import Set as AbstractSet
 from typing import Final
 from urllib.parse import urlsplit
 
@@ -65,6 +66,7 @@ class PlaywrightSignIn(SignInDriver):
             try:
                 await page.goto(url, wait_until="domcontentloaded")
                 steps.append("opened the system")
+                taken: set[str] = set()
                 for _ in range(_ROUNDS):
                     await _settle(page)
                     if await _visible(page, _MFA):
@@ -72,22 +74,33 @@ class PlaywrightSignIn(SignInDriver):
                             "this system asks for a second factor, which no stored credential "
                             "can answer. Connect it by hand and the session will be kept."
                         )
-                    if await _filled(page, _PASSWORD, password):
-                        steps.append("entered the password")
-                    elif await _filled(page, _IDENTIFIER, username):
+
+                    # What a person was recorded clicking, before anything this
+                    # code infers from the shape of the page. Keycloak shows its
+                    # own username box beside the link to the identity provider
+                    # that actually holds the account, so a driver that fills
+                    # whatever box it finds signs in to the wrong realm -- which
+                    # is what it did, six rounds in a row.
+                    if picked := await _chose(page, choose, taken):
+                        taken.add(picked)
+                        steps.append("chose how to sign in")
+                        continue
+
+                    # Both, before submitting either. Keycloak puts the
+                    # username and the password on one form, and a driver that
+                    # filled whichever it found first submitted a password with
+                    # no username -- five times, because the page came back
+                    # empty and it did the same thing again.
+                    named = await _filled(page, _IDENTIFIER, username)
+                    secret = await _filled(page, _PASSWORD, password)
+                    if named:
                         steps.append("entered the username")
-                    elif _on(page.url, host):
-                        break
-                    else:
-                        # No field, not home: an account picker or a consent
-                        # screen. Azure B2C opens by asking which tenant the
-                        # operator belongs to, and that page has links rather
-                        # than inputs -- the driver filled nothing, found no
-                        # submit button, and stopped one click from the login
-                        # form every time.
-                        if await _chose(page, choose):
-                            steps.append("chose how to sign in")
-                            continue
+                    if secret:
+                        steps.append("entered the password")
+
+                    if not named and not secret:
+                        if _on(page.url, host):
+                            break
                         if not await _submit(page):
                             break
                         steps.append("continued")
@@ -95,13 +108,19 @@ class PlaywrightSignIn(SignInDriver):
                     await _submit(page)
                 await _settle(page)
                 landed = page.url
+                offered = await _on_offer(page)
             finally:
                 await browser.close()
 
         if not _on(landed, host):
+            # What the page was offering, because "it did not finish" is not
+            # something anybody can act on. The options are what a recorded
+            # login would have matched against, so seeing them names the fix.
             raise SignInFailed(
-                f"the login did not finish -- the browser is still at {urlsplit(landed).hostname}. "
-                "Connect this system by hand once and the session will be kept from there."
+                f"the login did not finish -- the browser is still at "
+                f"{urlsplit(landed).hostname}, which offered: {offered or 'nothing clickable'}. "
+                f"It did: {', '.join(steps)}. Connect this system by hand once and the "
+                "session will be kept from there."
             )
         return SignInResult(landed_at=landed, steps=tuple(steps))
 
@@ -153,15 +172,21 @@ async def _submit(page: Page) -> bool:
     return False
 
 
-async def _chose(page: Page, choose: tuple[str, ...]) -> bool:
+async def _chose(
+    page: Page, choose: tuple[str, ...], taken: AbstractSet[str] = frozenset()
+) -> str | None:
     """Click the identity provider a demonstration showed us choosing.
 
     Matched on the text somebody was recorded clicking rather than on anything
     this code believes about tenants: "Local WMS users (bf56-001-eus2) (SSO)"
     means nothing to anyone who has not seen this deployment.
+
+    ``taken`` is what has already been clicked this attempt. Without it the
+    same link is clicked every round, because an identity provider that carries
+    its branding onto the next page still shows text that matches.
     """
     for wanted in choose:
-        if not wanted.strip():
+        if not wanted.strip() or wanted in taken:
             continue
         for element in await page.query_selector_all("a, button, [role=link], [role=button]"):
             try:
@@ -174,5 +199,27 @@ async def _chose(page: Page, choose: tuple[str, ...]) -> bool:
                 continue
             if (text and text[:80] in wanted) or wanted[:80] in text:
                 await element.click()
-                return True
-    return False
+                return wanted
+    return None
+
+
+async def _on_offer(page: Page) -> str:
+    """The clickable text on the page, for a failure somebody has to diagnose."""
+    seen: list[str] = []
+    for element in await page.query_selector_all(
+        "a, button, [role=link], [role=button], input[type=submit]"
+    ):
+        try:
+            if not await element.is_visible():
+                continue
+            text = " ".join(
+                (
+                    (await element.inner_text()) or (await element.get_attribute("value")) or ""
+                ).split()
+            )[:60]
+        except Exception:  # pragma: no cover - the page is redrawing
+            logger.debug("an option would not describe itself", exc_info=True)
+            continue
+        if text and text not in seen:
+            seen.append(text)
+    return "; ".join(seen[:8])

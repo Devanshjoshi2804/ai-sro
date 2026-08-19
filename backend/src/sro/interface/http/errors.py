@@ -27,6 +27,11 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     NotFound: status.HTTP_404_NOT_FOUND,
     Conflict: status.HTTP_409_CONFLICT,
     InvariantViolation: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    # The base case, so a domain error nobody mapped is still the request's
+    # fault rather than "Internal error". Asking for a field that has no list
+    # behind it answered 500 with the right sentence in it, which tells an
+    # operator to report an outage and a developer to look in the wrong place.
+    DomainError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     InductionFailed: status.HTTP_422_UNPROCESSABLE_CONTENT,
     BrowserUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     VaultUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,

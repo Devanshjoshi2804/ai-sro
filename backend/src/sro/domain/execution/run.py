@@ -80,11 +80,29 @@ class StepOutcome:
     """Why it was withheld, skipped or failed. Never carries a response body."""
 
     found_rows: int | None = None
-    """How many records a read returned. The answer to "how many", kept because
-    a run that reports `GET … -> 200` has answered nothing: the number was in
-    the response and was being thrown away."""
+    """How many records this response carried. Kept because a run that reports
+    `GET … -> 200` has answered nothing: the number was in the response and was
+    being thrown away."""
+
+    found_total: int | None = None
+    """How many exist, where the system said so beside the page.
+
+    Distinct from ``found_rows`` because they disagree, and the disagreement is
+    the whole point: 50 rows came back out of 330,140, and answering "how many
+    suppliers are there" with 50 is a confident wrong number."""
+
+    found_partial: bool = False
+    """A page came back and nothing said how long the whole thing is. Then there
+    is no count to report, and reporting one anyway is the failure this system
+    exists to avoid."""
 
     found: tuple[dict[str, str], ...] = ()
+    found_values: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    """A few values each column holds, as pairs so this survives being stored.
+
+    What the next question can be asked about: a column with three values is a
+    filter somebody may want, and one nobody has to invent."""
+
     found_columns: tuple[str, ...] = ()
     """The columns of the result, in the order they should be shown. Carried
     because `jsonb` sorts an object's keys by length, so a row cannot be trusted

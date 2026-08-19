@@ -14,17 +14,23 @@ the authorisation an assisted run records.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from sro.application.context import RequestContext
+from sro.application.execution.derived_read import Asked, AskTheSystem
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
 from sro.application.intent.match import writes
+from sro.application.intent.narrow import NarrowARead, NeedToAsk, value_key
+from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.resolve import Resolution, ResolveIntent
+from sro.application.knowledge.open_questions import Ambiguity, AskAbout
 from sro.application.ports.http import TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.thread import Message, Speaker, Thread, ThreadId
-from sro.domain.execution.run import Run, RunStatus
+from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.shared.errors import DomainError
+from sro.domain.skill.skill import Skill
 
 logger = logging.getLogger(__name__)
 
@@ -56,12 +62,20 @@ class Converse:
         clock: Clock,
         ids: IdFactory,
         execute: ExecuteSkill | None = None,
+        narrow: NarrowARead | None = None,
+        ask: AskTheSystem | None = None,
+        questions: AskAbout | None = None,
+        suggest: SuggestNext | None = None,
     ) -> None:
         self._uow = uow
         self._resolver = resolver
         self._clock = clock
         self._ids = ids
         self._execute = execute
+        self._narrow = narrow
+        self._ask = ask
+        self._questions = questions
+        self._suggest = suggest
 
     async def note(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
         """Write something into the thread that nobody asked a question for.
@@ -117,7 +131,14 @@ class Converse:
         # Only reads, and only when nothing is missing. A write still waits for
         # the operator to say go -- that confirmation is what an assisted run
         # records as its authorisation, and it is not ours to assume.
-        run = await self._answer_now(ctx, resolution)
+        # The narrower question first, where the sentence asked one: replaying
+        # a taught read that answers something wider is how "show me supplier
+        # X" came back as every supplier there is.
+        narrowed = await self._narrowed(ctx, resolution)
+        # A question of our own stops the wider read too: answering something
+        # nobody asked, because the thing they did ask could not be placed, is
+        # the confident wrong answer wearing a table.
+        run = None if narrowed else await self._answer_now(ctx, resolution)
 
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
@@ -134,14 +155,213 @@ class Converse:
                 Message(
                     id=self._ids.new_message_id(),
                     speaker=Speaker.ASSISTANT,
-                    text=_reply(resolution) + _why_it_failed(run),
+                    text=(
+                        _what_it_found(narrowed, resolution)
+                        if narrowed and narrowed.answer
+                        else narrowed.detail
+                        if narrowed
+                        else _reply(resolution) + _why_it_failed(run)
+                    ),
                     said_at=self._clock.now(),
-                    decision=_decision(resolution, run),
+                    decision=_decision(
+                        resolution,
+                        run,
+                        narrowed,
+                        await self._next_steps(ctx, resolution, run, narrowed),
+                    ),
                 )
             )
             await uow.threads.save(thread)
             await uow.commit()
         return thread
+
+    async def started(
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        run_id: RunId,
+        skill: Skill,
+    ) -> Thread:
+        """Put a run into the conversation the moment it starts.
+
+        Before, the message was written when the run finished, so a task that
+        takes twelve seconds left the operator with a spinner and a card that
+        forgot what it was doing. The message is the anchor: the console
+        streams the steps into it as they land, and it is already in the
+        transcript if the browser is closed halfway.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=f"Running {skill.name}…",
+                    said_at=self._clock.now(),
+                    decision={
+                        "matched_skill_id": skill.id.value,
+                        "matched_version": skill.latest.version,
+                        "run_id": run_id.value,
+                        "matched_skill_name": skill.name,
+                        "confident": True,
+                        "runnable": True,
+                        "missing_parameters": [],
+                        "why": [],
+                        "choices": [],
+                        "items": [],
+                        "note": "",
+                        "proposal_sources": [],
+                    },
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def performed(
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        run: Run,
+        skill_name: str,
+    ) -> Thread:
+        """Write a run the operator started into the conversation that asked for it.
+
+        Until now a run started from a card lived in the console's memory: it
+        survived nothing -- a re-render put the empty form back, and a reload
+        lost the fact that anything had happened at all. A run belongs in the
+        transcript for the same reason every other decision does. Somebody
+        reading this thread tomorrow needs to see that a supplier was created,
+        by whom, and what came back.
+        """
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=_what_happened(run, skill_name),
+                    said_at=self._clock.now(),
+                    decision={
+                        "matched_skill_id": run.skill_id.value,
+                        "matched_version": run.skill_version,
+                        "run_id": run.id.value,
+                        "matched_skill_name": skill_name,
+                        "confident": True,
+                        "runnable": True,
+                        "missing_parameters": [],
+                        "why": [],
+                        "choices": [],
+                        "items": [],
+                        "note": "",
+                        "proposal_sources": [],
+                    },
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _narrowed(self, ctx: RequestContext, resolution: Resolution) -> Asked | None:
+        """The question that was actually asked, where the taught skill answers
+        a wider one.
+
+        "Show me supplier TESTSUPPLIERSRO" matched the read that lists every
+        supplier, and replaying it returned all two hundred and thirty-nine --
+        the one word that said which supplier was dropped on the floor. Here
+        the field dictionary says what that value is called, the taught call
+        proves the filter dialect, and the request is composed from both.
+        """
+        matched = resolution.matched
+        if self._narrow is None or self._ask is None or matched is None:
+            return None
+        if writes(matched.version) or resolution.missing_parameters:
+            return None
+
+        key = matched.skill.objective_key
+        narrowed = await self._narrow.for_utterance(
+            ctx,
+            utterance=resolution.utterance,
+            version=matched.version,
+            system=key.target_system,
+            entity=key.entity_type,
+            skill_id=matched.skill.id,
+            unexplained=matched.unexplained,
+            # The verb is what they want done, not a value to filter by:
+            # "count the addresses" asked which field the word "count" names,
+            # because two fields are called Count something.
+            verb=resolution.verb,
+        )
+        if narrowed is None:
+            return None
+        if isinstance(narrowed, NeedToAsk):
+            # Only a real choice becomes a question. A statement that this read
+            # cannot answer the sentence is not something to ask anybody.
+            if narrowed.options:
+                await self._write_down(ctx, narrowed)
+            return Asked(None, "", narrowed.question)
+        asked = await self._ask.execute(
+            ctx, skill_id=matched.skill.id, url=narrowed.url, lead=narrowed.field
+        )
+        if asked.answer is None:
+            # The narrowing was right and the request did not work -- an
+            # expired session, an endpoint that answered nothing. Falling back
+            # to the taught read answers a wider question, but answering
+            # nothing at all because a composed request failed is worse.
+            logger.info("the narrowed read did not answer: %s", asked.detail)
+            return None
+        return replace(asked, detail=asked.detail or "; ".join(narrowed.because))
+
+    async def _next_steps(
+        self,
+        ctx: RequestContext,
+        resolution: Resolution,
+        run: Run | None,
+        narrowed: Asked | None,
+    ) -> tuple[str, ...]:
+        """What can be asked next, from what this answer actually contains."""
+        matched = resolution.matched
+        if self._suggest is None or matched is None:
+            return ()
+
+        values: dict[str, tuple[str, ...]] = {}
+        rows = 0
+        if narrowed is not None and narrowed.answer is not None:
+            values, rows = dict(narrowed.answer.distinct), narrowed.answer.rows
+        elif run is not None:
+            for step in reversed(run.steps):
+                if step.found_values:
+                    values, rows = dict(step.found_values), step.found_rows or 0
+                    break
+        if not values:
+            return ()
+
+        key = matched.skill.objective_key
+        return await self._suggest.after(
+            ctx, system=key.target_system, entity=key.entity_type, values=values, rows=rows
+        )
+
+    async def _write_down(self, ctx: RequestContext, asking: NeedToAsk) -> None:
+        """Keep the question, so answering it once teaches it for everybody.
+
+        The next person to ask about "parcel" gets a narrowed read rather than
+        the same question, because what an operator says a word means is
+        knowledge like anything else here.
+        """
+        if self._questions is None:
+            return
+        await self._questions.raise_question(
+            ctx,
+            Ambiguity(
+                system=asking.system,
+                key=value_key(asking.system, asking.entity, asking.word),
+                question=asking.question,
+                options=asking.options,
+                because=asking.because,
+            ),
+        )
 
     async def _answer_now(self, ctx: RequestContext, resolution: Resolution) -> Run | None:
         """Run a read the moment it is asked for, and answer with what came back."""
@@ -191,12 +411,39 @@ def _why_it_failed(run: Run | None) -> str:
     return ""
 
 
+def _what_happened(run: Run, skill_name: str) -> str:
+    """One line about a run, in the words of what it did."""
+    sent = [step for step in run.steps if step.disposition is StepDisposition.PERFORMED]
+    if run.status is RunStatus.FAILED:
+        return (
+            f"{skill_name} did not finish. {run.failure or 'One step did not do what it should.'}"
+        )
+    withheld = [step for step in run.steps if step.disposition is StepDisposition.WITHHELD]
+    if withheld:
+        return (
+            f"{skill_name} ran at {run.stage} — {len(sent)} call"
+            f"{'' if len(sent) == 1 else 's'} sent and "
+            f"{len(withheld)} withheld for you to read before anything is written."
+        )
+    return f"{skill_name} ran. {len(sent)} call{'' if len(sent) == 1 else 's'} sent."
+
+
 def _reply(resolution: Resolution) -> str:
     """What to say. Every branch says what happens next, because a reply that
     only reports a state leaves the operator to guess at the next move."""
     if resolution.matched is not None:
         skill = resolution.matched.skill.name
         version = resolution.matched.version
+        if resolution.items and resolution.missing_parameters:
+            # Values were read, but not all of them. Telling somebody to "say
+            # go" when the run cannot start is how a system trains people to
+            # ignore what it says.
+            wanted = ", ".join(resolution.missing_parameters)
+            observed = _last_time(resolution, resolution.missing_parameters)
+            return (
+                f"{skill} does that. I still need {wanted}"
+                f"{observed} — give me that and I will run it."
+            )
         if resolution.items:
             n = len(resolution.items)
             return (
@@ -220,7 +467,63 @@ def _reply(resolution: Resolution) -> str:
     return resolution.question or "I do not know how to do that yet."
 
 
-def _decision(resolution: Resolution, run: Run | None = None) -> dict[str, object]:
+def _last_time(resolution: Resolution, wanted: tuple[str, ...]) -> str:
+    """What the demonstrations used, where that is all anybody has to go on.
+
+    A parameter that exists because an operator asked to be prompted for it was
+    a constant a moment ago, and saying what it was is the difference between a
+    question somebody can answer and one they have to go and look up.
+    """
+    if resolution.matched is None:
+        return ""
+    seen = [
+        f"{parameter.name} was {parameter.observed_values[0]} both times it was demonstrated"
+        for parameter in resolution.matched.version.parameters
+        if parameter.name in wanted and len(parameter.observed_values) == 1
+    ]
+    return f" ({'; '.join(seen)})" if seen else ""
+
+
+def _what_it_found(asked: Asked, resolution: Resolution) -> str:
+    """What a composed read found, in the words of the question."""
+    answer = asked.answer
+    if answer is None:  # pragma: no cover - guarded by the caller
+        return "Nothing came back."
+    subject = (
+        resolution.matched.skill.objective_key.entity_type.replace("_", " ")
+        if resolution.matched
+        else "records"
+    )
+    return answer.sentence(subject)
+
+
+def _derived(asked: Asked | None) -> dict[str, object]:
+    """A composed read, as the console renders any other answer.
+
+    Carried with where it came from: a request this system wrote is only
+    trustworthy if the operator can see what it was built out of.
+    """
+    if asked is None or asked.answer is None:
+        return {}
+    answer = asked.answer
+    return {
+        "derived": {
+            "url": asked.url,
+            "because": asked.detail,
+            "rows": answer.rows,
+            "total": answer.total,
+            "columns": list(answer.columns),
+            "found": [dict(row) for row in answer.sample[:200]],
+        }
+    }
+
+
+def _decision(
+    resolution: Resolution,
+    run: Run | None = None,
+    narrowed: Asked | None = None,
+    suggestions: tuple[str, ...] = (),
+) -> dict[str, object]:
     """The structured half of the reply, kept for the audit trail."""
     return {
         "matched_skill_id": (resolution.matched.skill.id.value if resolution.matched else None),
@@ -233,6 +536,11 @@ def _decision(resolution: Resolution, run: Run | None = None) -> dict[str, objec
         # The table the operator confirms. Rendered rather than acted on: their
         # confirmation is what an assisted run records as its authorisation.
         "items": [dict(item) for item in resolution.items],
+        **_derived(narrowed),
+        # Earned from this answer's own columns and the skills taught for this
+        # entity. Never a fixed list: the console used to offer "which X are
+        # used for parcel" under every result in the system.
+        "suggestions": list(suggestions),
         "note": resolution.note,
         "proposal_sources": (list(resolution.proposal.sources) if resolution.proposal else []),
         # The answer, from the system, at the moment it was asked.

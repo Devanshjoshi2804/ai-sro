@@ -7,9 +7,9 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from sro.domain.shared.identifiers import RecordingId, SkillId
-from sro.domain.skill.promotion import PromotionStage
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
+    ChoiceModel,
     DescribeRequest,
     InduceSkillRequest,
     InductionResponse,
@@ -22,6 +22,28 @@ from sro.interface.http.schemas import (
 )
 
 router = APIRouter(prefix="/skills", tags=["skills"])
+
+
+@router.get("/{skill_id}/choices/{parameter}")
+async def choices(
+    skill_id: str,
+    parameter: str,
+    container: ContainerDep,
+    ctx: ContextDep,
+    q: str = "",
+    version: int | None = None,
+) -> list[ChoiceModel]:
+    """What this field's dropdown holds, from the system, now.
+
+    The field was a dropdown when the task was taught, and it stays one: the
+    console fills it from the endpoint the screen used rather than asking an
+    operator to type back an id. Fetched live on every open, because a list of
+    what used to exist is a way of writing to a record that no longer does.
+    """
+    found = await container.list_choices().execute(
+        ctx, skill_id=SkillId(skill_id), parameter=parameter, version=version, like=q
+    )
+    return [ChoiceModel(value=choice.value, label=choice.label) for choice in found]
 
 
 @router.post("/induct", status_code=status.HTTP_201_CREATED)
@@ -38,7 +60,7 @@ async def induce_skill(
     induced = await container.durable.induce_skill(
         ctx,
         first=RecordingId(body.first_recording_id),
-        second=RecordingId(body.second_recording_id),
+        second=RecordingId(body.second_recording_id) if body.second_recording_id else None,
         name=body.name,
     )
     return InductionResponse(
@@ -113,6 +135,7 @@ async def promote_skill(
         ctx,
         skill_id=SkillId(skill_id),
         version=body.version,
-        to=PromotionStage(body.to),
+        to=body.to,
+        acknowledging_fixed_values=body.acknowledging_fixed_values,
     )
     return SkillVersionModel.of(version)

@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import AsyncIterator
+from dataclasses import replace
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -20,12 +21,10 @@ from sro.application.context import RequestContext
 from sro.application.induction.errors import InductionFailed
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
-from sro.container import Container
+from sro.container import Container, build_container
 from sro.domain.recording.recording import RecordingStatus
 from sro.domain.shared.identifiers import BrowserSessionId, RecordingId
-from sro.infrastructure.blob.minio_store import MinioBlobStore
 from sro.infrastructure.db.repositories import SqlUnitOfWork
-from sro.infrastructure.system import SystemClock, UuidFactory
 from sro.infrastructure.temporal.activities import Activities
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
 from sro.infrastructure.temporal.workflows import InductionWorkflow, RecordingSessionWorkflow
@@ -54,18 +53,16 @@ async def temporal_client() -> AsyncIterator[Client]:
 
 @pytest.fixture
 def container(session_factory: async_sessionmaker[AsyncSession]) -> Container:
-    """Production wiring with fakes only where the world is unavailable."""
-    settings = Settings(otlp_endpoint=None)
-    built = Container(
-        settings=settings,
-        clock=SystemClock(),
-        ids=UuidFactory(),
-        blobs=MinioBlobStore(
-            endpoint_url=settings.s3_endpoint_url,
-            access_key=settings.s3_access_key,
-            secret_key=settings.s3_secret_key,
-            bucket=settings.s3_bucket,
-        ),
+    """Production wiring with fakes only where the world is unavailable.
+
+    Built by ``build_container`` and then adjusted, rather than assembled here
+    field by field. The hand-written version listed every adapter, so each new
+    one broke this file -- and because these tests error rather than fail, the
+    breakage was invisible behind a green unit suite for eight adapters' worth
+    of time.
+    """
+    return replace(
+        build_container(Settings(otlp_endpoint=None)),
         browser=FakeBrowserProvider(),
         transcriber=NullTranscriber(),
         vault=FakeCredentialVault(),
@@ -76,7 +73,6 @@ def container(session_factory: async_sessionmaker[AsyncSession]) -> Container:
         ),
         session_factory=session_factory,
     )
-    return built
 
 
 @pytest.fixture

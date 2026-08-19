@@ -87,15 +87,45 @@ class Settings(BaseSettings):
     transcription_enabled: bool = False
     """Narration transcription is optional. Default binding is NullTranscriber."""
 
+    session_sweep_seconds: float = 600.0
+    """How often the keeper looks at the connected systems.
+
+    Not how often it signs in -- that is decided per system from how long its
+    sessions have been observed to last. This is only how often the question is
+    asked, and asking is a cached read."""
+
+    auth_secret: str = ""
+    """The key this deployment signs its own credentials with.
+
+    Unset, every authenticated endpoint answers 503 rather than letting
+    anything through: a system that cannot check who is asking must refuse, and
+    a default here would be a key every deployment shares. Generate one with
+    `make auth-secret`."""
+
     gemini_api_key: str = ""
     """Without it every model-backed adapter stays unbound and the system runs
     exactly as it does today -- deliberately, for deployments that may not send
     a customer's screen or a customer's words to a hosted model."""
 
-    gemini_transcription_model: str = "gemini-2.5-flash"
+    gemini_transcription_model: str = "gemini-3.7-flash"
     gemini_embedding_model: str = "gemini-embedding-001"
-    gemini_vision_model: str = "gemini-2.5-computer-use-preview-10-2025"
-    gemini_interpreter_model: str = "gemini-2.5-flash"
+
+    gemini_vision_model: str = "gemini-3.7-flash"
+    """Computer use is native here rather than a separate specialised model.
+    Checked against the account rather than assumed: the standalone
+    `gemini-2.5-computer-use-preview` still answers, and this one accepts the
+    same tool while being the model everything else already uses."""
+
+    gemini_intent_model: str = "gemini-3.7-flash"
+    """Chat: reading one sentence, extracting values. An operator is waiting, so
+    this is the fast one -- measured at ~2.3s against ~4.8s for the pro model,
+    for a job where the answer is checked against the skills that exist anyway."""
+
+    gemini_interpreter_model: str = "gemini-3.1-pro-preview"
+    """Reading a demonstration into a workflow, once per induction. Nobody is
+    watching the clock, being wrong is expensive and lasting, and the reading is
+    what an operator will see for the life of the skill -- so this is the
+    reasoning model. It cannot enable computer use, and does not need to."""
 
     interpretation_enabled: bool = False
     """Reading one demonstration as a workflow sends the captured calls and

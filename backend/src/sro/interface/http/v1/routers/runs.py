@@ -11,6 +11,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
+from sro.application.context import RequestContext
 from sro.domain.execution.run import Medium, RunId
 from sro.domain.shared.identifiers import SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
@@ -25,6 +26,18 @@ from sro.interface.http.schemas import (
 router = APIRouter(tags=["runs"])
 
 
+def _authorising(confirmed: str | None, ctx: RequestContext) -> str | None:
+    """Who is on the record for this write, where one was authorised at all.
+
+    Two different things used to be one field. Whether somebody confirmed is
+    the operator's decision and stays in the request -- an assisted run with
+    nobody behind it is still refused. *Who* they are is not theirs to say: it
+    comes from the credential, so the name on a warehouse write is one this
+    system checked rather than one it was told.
+    """
+    return ctx.principal_id.value if confirmed else None
+
+
 @router.post("/skills/{skill_id}/runs", status_code=status.HTTP_201_CREATED)
 async def run_skill(
     skill_id: str, body: RunSkillRequest, container: ContainerDep, ctx: ContextDep
@@ -33,14 +46,18 @@ async def run_skill(
 
     What the stage means here: `shadow` sends every read and withholds every
     write, producing the exact request it would have sent. Above shadow the
-    writes go out, and the request must name the human who authorised that.
+    writes go out, and somebody is on the record for that.
+
+    Who, is the authenticated caller -- never a name in the body. A request
+    that says who authorised it is a signature nobody checked, and the audit
+    trail on a warehouse write is worth more than that.
     """
     run_id = await container.durable.execute_skill(
         ctx,
         skill_id=SkillId(skill_id),
         parameters=body.parameters,
         version=body.version,
-        authorized_by=body.authorized_by,
+        authorized_by=_authorising(body.authorized_by, ctx),
         medium=body.medium,
     )
     return RunModel.of(await container.get_run().execute(ctx, run_id=run_id))
@@ -60,7 +77,7 @@ async def run_batch(
         ctx,
         skill_id=SkillId(skill_id),
         items=tuple(body.items),
-        authorized_by=body.authorized_by,
+        authorized_by=_authorising(body.authorized_by, ctx),
         version=body.version,
         medium=Medium(body.medium),
     )

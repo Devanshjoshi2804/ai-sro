@@ -7,6 +7,7 @@ rather than a capability, and should be redesigned before it gets an adapter.
 from __future__ import annotations
 
 import re
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from itertools import count
 
@@ -33,7 +34,7 @@ from sro.application.ports.vision import (
     VisionUnavailable,
 )
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
-from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.knowledge.entry import (
@@ -43,7 +44,7 @@ from sro.domain.knowledge.entry import (
     KnowledgeId,
 )
 from sro.domain.recording.events import ActionKind
-from sro.domain.recording.recording import Recording
+from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import (
     BrowserSessionId,
@@ -136,6 +137,8 @@ class FakeBrowserProvider:
         )
         self.headers: dict[str, str] = {}
         self.restored: list[dict[str, object]] = []
+        self.emptied: list[BrowserSessionId] = []
+        self.screen: tuple[bytes, ...] = (b"\xff\xd8\xff-one", b"\xff\xd8\xff-two")
         self._counter = count(1)
 
     async def open(self, *, start_url: str | None = None) -> BrowserSession:
@@ -163,6 +166,10 @@ class FakeBrowserProvider:
     async def session_headers(self, session_id: BrowserSessionId, url: str) -> dict[str, str]:
         return dict(self.headers)
 
+    async def forget_everything(self, session_id: BrowserSessionId) -> None:
+        self.cookies = ()
+        self.emptied.append(session_id)
+
     async def restore(self, session_id: BrowserSessionId, cookies: list[dict[str, object]]) -> None:
         self.restored = list(cookies)
 
@@ -171,6 +178,10 @@ class FakeBrowserProvider:
 
     async def debugger_url(self, session_id: BrowserSessionId) -> str:
         return f"ws://steel.test/devtools/{session_id}"
+
+    async def frames(self, session_id: BrowserSessionId) -> AsyncIterator[bytes]:
+        for frame in self.screen:
+            yield frame
 
     async def live_view_url(self, session_id: BrowserSessionId) -> str | None:
         if session_id in self.closed:
@@ -233,13 +244,14 @@ class FakeDurableExecution:
         self.available = available
         self.watching: list[str] = []
         self.finished: list[str] = []
+        self.started: list[str] = []
 
     async def induce_skill(
         self,
         ctx: RequestContext,
         *,
         first: RecordingId,
-        second: RecordingId,
+        second: RecordingId | None = None,
         name: str | None = None,
     ) -> InducedSkill:
         return await self._induce.execute(ctx, first=first, second=second, name=name)
@@ -253,7 +265,10 @@ class FakeDurableExecution:
         version: int | None = None,
         authorized_by: str | None = None,
         medium: str = "network",
+        run_id: RunId | None = None,
+        wait: bool = True,
     ) -> RunId:
+        self.started.append(str(skill_id))
         if self._execute is None:
             raise NotImplementedError("this fake was not given an executor")
         run = await self._execute.execute(
@@ -264,6 +279,7 @@ class FakeDurableExecution:
                 version=version,
                 authorized_by=authorized_by,
                 medium=Medium(medium),
+                run_id=run_id,
             ),
         )
         return run.id
@@ -300,6 +316,11 @@ class FakeRecordingRepository:
 
     async def save(self, recording: Recording) -> None:
         await self.add(recording)
+
+    async def list_capturing(self) -> tuple[Recording, ...]:
+        """Across tenants, like the port: the browser reaper asks this before it
+        releases anything, and nobody is making that request."""
+        return tuple(r for r in self.rows.values() if r.status is RecordingStatus.CAPTURING)
 
     async def list_for_tenant(
         self,
@@ -346,6 +367,9 @@ class FakeSkillRepository:
         rows = [s for (t, _), s in self.rows.items() if t == str(tenant_id)]
         return tuple(rows[offset : offset + limit])
 
+    async def list_capturing(self) -> tuple[Recording, ...]:
+        return tuple(r for r in self.rows.values() if r.status is RecordingStatus.CAPTURING)
+
 
 class FakeConnectionRepository:
     def __init__(self) -> None:
@@ -371,6 +395,9 @@ class FakeConnectionRepository:
 
     async def list_for_tenant(self, tenant_id: TenantId) -> tuple[Connection, ...]:
         return tuple(c for (t, _), c in self.rows.items() if t == str(tenant_id))
+
+    async def list_connected(self) -> tuple[Connection, ...]:
+        return tuple(c for c in self.rows.values() if c.status is ConnectionStatus.CONNECTED)
 
 
 class FakeRunRepository:

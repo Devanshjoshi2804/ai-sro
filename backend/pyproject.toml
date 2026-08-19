@@ -90,6 +90,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "ANN201", "ANN001"]   # asserts and loose annotations are fine in tests
 "migrations/*" = ["ANN", "E501", "INP001"]
+# A command-line tool talks on stdout. That is its interface, not a stray debug
+# statement, and the token it prints must not be logged anywhere else.
+"src/sro/cli/*" = ["T201"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -195,4 +198,11 @@ allow_indirect_imports = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "--strict-markers --strict-config"
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    # google-genai still touches typing internals Python 3.14 deprecates, and
+    # it warns at import. Ours is the strict-warnings policy, so importing the
+    # container -- which builds a Gemini client -- failed every test that did.
+    # Narrow to the one message: a blanket ignore would hide our own.
+    "ignore:'_UnionGenericAlias' is deprecated:DeprecationWarning",
+]

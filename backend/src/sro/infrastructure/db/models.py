@@ -126,6 +126,9 @@ class RunRow(Base):
     skill_version: Mapped[int] = mapped_column(Integer, nullable=False)
     stage: Mapped[str] = mapped_column(String(16), nullable=False)
     medium: Mapped[str] = mapped_column(String(16), nullable=False, default="network")
+    # Nullable: almost every run is performed in a browser the deployment owns,
+    # and this names the operator's own when it is not.
+    device_id: Mapped[str | None] = mapped_column(String(64))
     target_system: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     status: Mapped[str] = mapped_column(String(16), nullable=False)
 

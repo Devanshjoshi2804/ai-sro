@@ -16180,6 +16180,17 @@
             "type": "string",
             "title": "Medium"
           },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
           "status": {
             "type": "string",
             "title": "Status"
@@ -16303,6 +16314,17 @@
             "type": "string",
             "title": "Medium",
             "default": "network"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
           },
           "authorized_by": {
             "anyOf": [

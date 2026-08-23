@@ -15,7 +15,13 @@ from enum import StrEnum
 from types import MappingProxyType
 
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import Identifier, PrincipalId, SkillId, TenantId
+from sro.domain.shared.identifiers import (
+    DeviceId,
+    Identifier,
+    PrincipalId,
+    SkillId,
+    TenantId,
+)
 from sro.domain.skill.promotion import PromotionStage
 
 
@@ -140,6 +146,14 @@ class Run:
     """The rung this run performs the task at. Recorded on the run rather than
     inferred from the steps, because "we ran this in a browser" is the first
     thing anybody asks about a run that behaved oddly."""
+
+    device_id: DeviceId | None = None
+    """The operator's own browser, when this run is performed there rather than
+    in one the deployment owns.
+
+    Recorded rather than resolved at each step: which browser a write went
+    through is the first question about a run that touched the wrong record,
+    and a device chosen fresh per step could answer it differently each time."""
 
     target_system: str = ""
     """Which system this run wrote to.

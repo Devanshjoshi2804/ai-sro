@@ -61,7 +61,13 @@ from sro.application.observation.artifacts import StoreObservationArtifact
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
-from sro.application.observation.register import ReadDevices, RecordHeartbeat, RegisterDevice
+from sro.application.observation.register import (
+    ReadDevice,
+    ReadDevices,
+    RecordHeartbeat,
+    RegisterDevice,
+)
+from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.auth import Credentials
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider
@@ -91,6 +97,8 @@ from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.config import Settings, get_settings
+from sro.infrastructure.agent.drivers import RemoteAgents
+from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.keycloak import KeycloakTokens
 from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.blob.minio_store import MinioBlobStore
@@ -142,6 +150,13 @@ class Container:
     durable: DurableExecution
     session_factory: async_sessionmaker[AsyncSession]
 
+    agent_sockets: DeviceSockets = field(default_factory=DeviceSockets)
+    """Channels to operators' browsers, open right now, in this process.
+
+    In memory for the same reason as the pursuits below: a socket does not
+    survive a restart, so a durable record of which browser was connected would
+    only ever be a record of which browser used to be."""
+
     pursuits: Pursuits = field(default_factory=Pursuits)
 
     """Pursuits this process is driving. In memory on purpose: the browser one
@@ -163,6 +178,10 @@ class Container:
         except SQLAlchemyError:
             return False
         return True
+
+    def agents(self) -> AgentDrivers:
+        """Drivers that perform in an operator's own browser."""
+        return RemoteAgents(self.agent_sockets)
 
     def browsers(self) -> Browsers:
         """The only way to open, find or release a browser.
@@ -192,6 +211,9 @@ class Container:
 
     def record_heartbeat(self) -> RecordHeartbeat:
         return RecordHeartbeat(self.unit_of_work(), self.clock)
+
+    def read_device(self) -> ReadDevice:
+        return ReadDevice(self.unit_of_work())
 
     def read_devices(self) -> ReadDevices:
         return ReadDevices(self.unit_of_work())
@@ -345,6 +367,7 @@ class Container:
             self.ui,
             self.learn_from_run(),
             self.perform_with_vision(),
+            self.agents(),
         )
 
     def start_run(self) -> StartRun:
@@ -388,6 +411,7 @@ class Container:
             self.perform_with_vision(),
             self.self_heal(),
             self.tokens,
+            self.agents(),
         )
 
     def finish_run(self) -> FinishRun:

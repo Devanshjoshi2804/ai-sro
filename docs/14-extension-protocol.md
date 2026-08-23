@@ -328,9 +328,24 @@ cookies and session apply.
 
 Failure kinds: `unreachable`, `no_tab_for_origin`, `timeout`.
 
+### `ui.url`
+
+```jsonc
+{ "kind": "ui.url", "payload": {} }   → { "url": "https://wms.example/orders" }
+```
+
+Where the driven browser is, for the run's record.
+
 ### `screenshot`, `navigate`, `abort`
 
 ```jsonc
+// payload {"inline": true} answers with the image itself, which is what the
+// vision rung asks for: it is looking at the picture now, and a round trip
+// through object storage to read back what was just asked for is two more
+// places for it to be delayed or lost.
+{ "kind": "screenshot", "payload": {"inline": true} }
+   → { "image_base64": "iVBORw0…", "mime_type": "image/png",
+       "width": 1600, "height": 1000, "text_digest": "Save: 100,200" }
 { "kind": "screenshot", "payload": {"url_hint": "https://wms.example/…"} }
    → { "artifact_uri": "s3://…", "width": 1600, "height": 1000 }
 { "kind": "navigate",   "payload": {"url": "https://wms.example/…"} }
@@ -379,7 +394,20 @@ OpenAPI; the shapes the extension depends on are:
 ```
 
 Existing endpoints the panel uses unchanged: `/v1/threads*` (chat),
-`/v1/skills/{id}/runs` (run), `/v1/runs/{id}/stream` (SSE, one event per step).
+`/v1/runs/{id}/stream` (SSE, one event per step).
+
+`POST /v1/skills/{id}/runs` gains one field:
+
+```jsonc
+{ "parameters": {…}, "medium": "ui", "device_id": "dev_…", "authorized_by": true }
+```
+
+Naming a device performs the run in that browser: gestures over `ui.perform`,
+and calls over `http.send` from the operator's own page, so the request carries
+their session. Such a run is performed by the API process rather than handed to
+a durable worker — a run whose browser is a laptop cannot be resumed after a
+restart into a Chrome that may be closed, on a page that has moved, halfway
+through a task. `RunModel.device_id` says which browser it went through.
 
 ---
 

@@ -15,6 +15,7 @@ from types import MappingProxyType
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
 from sro.application.induction.induce_skill import InducedSkill, InduceSkill
+from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider, BrowserSession, BrowserUnavailable
 from sro.application.ports.embedding import Embedder
@@ -855,6 +856,38 @@ class FakeObservationPolicyRepository:
         self.rows[tenant_id.value] = policy
 
 
+class FakeAgentDrivers:
+    """Drivers for a browser somebody else is sitting in front of.
+
+    Records which device was asked for, because the thing worth proving is that
+    a run bound to one operator's browser never reaches another's -- or, worse,
+    quietly reaches the deployment's own.
+    """
+
+    def __init__(
+        self, ui: UiDriver | None = None, http: HttpCaller | None = None, *, connected: bool = True
+    ) -> None:
+        self.driver = ui or FakeUiDriver()
+        self.caller = http or FakeHttpCaller()
+        self.connected = connected
+        self.asked_for: list[tuple[str, str]] = []
+
+    def ui(self, tenant_id: TenantId, device_id: DeviceId) -> UiDriver:
+        self.asked_for.append((str(tenant_id), str(device_id)))
+        if not self.connected:
+            raise UiUnavailable(f"{device_id} has no channel open")
+        return self.driver
+
+    def http(self, tenant_id: TenantId, device_id: DeviceId) -> HttpCaller:
+        self.asked_for.append((str(tenant_id), str(device_id)))
+        if not self.connected:
+            raise TargetUnreachable(f"{device_id} has no channel open")
+        return self.caller
+
+    async def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:
+        return (DeviceId("dev-1"),) if self.connected else ()
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -949,3 +982,4 @@ _ids: IdFactory = FakeIdFactory()
 _devices: DeviceRepository = FakeDeviceRepository()
 _observations: ObservationRepository = FakeObservationRepository()
 _observation_policies: ObservationPolicyRepository = FakeObservationPolicyRepository()
+_agents: AgentDrivers = FakeAgentDrivers()

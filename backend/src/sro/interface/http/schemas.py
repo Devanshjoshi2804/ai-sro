@@ -696,6 +696,15 @@ class RunSkillRequest(BaseModel):
     medium: str = "network"
     """`network` replays the calls; `ui` performs the task in a browser."""
 
+    device_id: str | None = None
+    """Perform it in this browser -- the operator's own, through the extension --
+    rather than in one the deployment owns.
+
+    The call then goes out of a page they are already signed in to, which is how
+    a skill runs against a system this deployment holds no credentials for. It
+    also means the run cannot outlive the laptop, so it is performed here rather
+    than handed to a worker that would retry it into a browser that has gone."""
+
     authorized_by: str | None = None
     """Required above shadow. The human who allowed this run to write."""
 
@@ -765,6 +774,7 @@ class RunModel(BaseModel):
     skill_version: int
     stage: str
     medium: str
+    device_id: str | None = None
     status: str
     parameters: dict[str, str]
     derived: dict[str, str]
@@ -786,6 +796,7 @@ class RunModel(BaseModel):
             skill_version=run.skill_version,
             stage=run.stage.value,
             medium=run.medium.value,
+            device_id=run.device_id.value if run.device_id else None,
             status=run.status.value,
             parameters=dict(run.parameters),
             derived=dict(run.derived),

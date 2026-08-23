@@ -13,6 +13,7 @@ from sro.container import build_container
 from sro.interface.http.errors import install_error_handlers
 from sro.interface.http.schemas import PROBLEMS
 from sro.interface.http.v1.routers import (
+    agent_channel,
     agents,
     connections,
     health,
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(agents.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(agent_channel.router, prefix="/v1")
     app.include_router(connections.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(observations.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(recordings.router, prefix="/v1", responses=PROBLEMS)

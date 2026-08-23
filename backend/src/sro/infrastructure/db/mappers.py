@@ -239,6 +239,7 @@ def update_run_row(row: RunRow, run: Run) -> None:
     row.skill_version = run.skill_version
     row.stage = run.stage.value
     row.medium = run.medium.value
+    row.device_id = run.device_id.value if run.device_id else None
     row.target_system = run.target_system
     row.status = run.status.value
     row.requested_by = run.requested_by.value
@@ -259,6 +260,7 @@ def row_to_run(row: RunRow) -> Run:
         skill_version=row.skill_version,
         stage=PromotionStage(row.stage),
         medium=Medium(row.medium),
+        device_id=DeviceId(row.device_id) if row.device_id else None,
         target_system=row.target_system or "",
         parameters=dict(row.parameters),
         requested_by=PrincipalId(row.requested_by),

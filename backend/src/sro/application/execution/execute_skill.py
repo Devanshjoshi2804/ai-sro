@@ -27,6 +27,7 @@ from sro.application.execution.self_heal import HealBudget, Healed, SelfHeal
 from sro.application.execution.verify import check, extract
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.knowledge.learn_from_run import LearnFromRun
+from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -45,7 +46,7 @@ from sro.domain.execution.run import (
 from sro.domain.execution.safety import FAILURE_WINDOW, WRITE_WINDOW, RunFact, assess
 from sro.domain.execution.verdict import judge
 from sro.domain.shared.errors import DomainError
-from sro.domain.shared.identifiers import PrincipalId, SkillId
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillStep, SkillVersion
@@ -96,6 +97,14 @@ class ExecutionRequest:
     run_id: RunId | None = None
     """Given by the caller when it has to know the id before the run ends --
     a console streaming the steps as they happen, for instance."""
+
+    device_id: DeviceId | None = None
+    """Perform this in the operator's own browser rather than in one of ours.
+
+    Which is how a skill runs against a system this deployment holds no
+    credentials for: the request goes out of a page the operator is already
+    signed in to. It also means the browser can close, and a run that loses it
+    fails rather than being finished somewhere else."""
 
     medium: Medium = Medium.NETWORK
     """Which rung performs the whole task.
@@ -169,6 +178,7 @@ class StartRun:
                 started_at=now,
                 authorized_by=_principal(request.authorized_by),
                 medium=request.medium,
+                device_id=request.device_id,
                 target_system=system,
                 may_change_the_system=version.changes_the_system,
             )
@@ -194,11 +204,13 @@ class ExecuteStep:
         vision: PerformWithVision | None = None,
         heal: SelfHeal | None = None,
         tokens: TokenSource | None = None,
+        agents: AgentDrivers | None = None,
     ) -> None:
         self._uow = uow
         self._http = http
         self._vault = vault
         self._ui = ui
+        self._agents = agents
         self._vision = vision
         self._heal_with = heal
         self._tokens = tokens
@@ -338,6 +350,25 @@ class ExecuteStep:
             logger.info("no access token for %s: %s", system, refusal)
             return None
 
+    def _ui_for(self, run: Run) -> UiDriver | None:
+        """The browser this run is performed in.
+
+        A run bound to a device never falls back to the deployment's own
+        browser. That one is signed in as somebody else, on a screen nobody
+        demonstrated, and quietly using it would be worse than not running.
+        """
+        if run.device_id is None:
+            return self._ui
+        return None if self._agents is None else self._agents.ui(run.tenant_id, run.device_id)
+
+    def _caller_for(self, run: Run) -> HttpCaller:
+        """Whose session the call goes out under. Same rule as the browser."""
+        if run.device_id is None:
+            return self._http
+        if self._agents is None:
+            raise TargetUnreachable("this run is bound to a browser this process cannot reach")
+        return self._agents.http(run.tenant_id, run.device_id)
+
     async def _perform_in_ui(
         self, run: Run, step: SkillStep, *, values: dict[str, str]
     ) -> StepOutcome:
@@ -368,7 +399,8 @@ class ExecuteStep:
                     f"would {plan.action} {plan.locators[0].describe() if plan.locators else ''}"
                 ),
             )
-        if self._ui is None:
+        ui = self._ui_for(run)
+        if ui is None:
             return self._failed(step, None, "no browser is attached", medium=Medium.UI)
 
         try:
@@ -388,7 +420,7 @@ class ExecuteStep:
             )
 
         try:
-            result = await self._ui.perform(action=plan.action, locators=locators, value=value)
+            result = await ui.perform(action=plan.action, locators=locators, value=value)
         except UiUnavailable as error:
             return self._failed(step, None, str(error), medium=Medium.UI)
 
@@ -427,7 +459,8 @@ class ExecuteStep:
                 outcome,
                 detail=f"{outcome.detail or failure}; {run.stage} does not drive the interface",
             )
-        if self._ui is None or step.ui_plan is None or not step.ui_plan.replayable:
+        ui = self._ui_for(run)
+        if ui is None or step.ui_plan is None or not step.ui_plan.replayable:
             return replace(
                 outcome,
                 detail=f"{outcome.detail or failure}; nothing to replay in the interface",
@@ -449,7 +482,7 @@ class ExecuteStep:
             return replace(outcome, detail=f"no value for parameter {missing.args[0]!r}")
 
         try:
-            result = await self._ui.perform(action=plan.action, locators=locators, value=value)
+            result = await ui.perform(action=plan.action, locators=locators, value=value)
         except UiUnavailable as error:
             return replace(outcome, detail=f"{outcome.detail or failure}; no browser: {error}")
 
@@ -645,7 +678,8 @@ class ExecuteStep:
 
         headers = {**client_headers(plan.headers, url), **resolved.headers}
         try:
-            response = await self._http.send(plan.method, url, headers=headers, body=body)
+            caller = self._caller_for(run)
+            response = await caller.send(plan.method, url, headers=headers, body=body)
         except TargetUnreachable as error:
             detail = str(error)
             if mutating:
@@ -665,7 +699,7 @@ class ExecuteStep:
             # And the rest of it. An operator who asks which suppliers exist is
             # not asking for the first page; the paging is the system's own and
             # this walks it in the dialect the demonstration proved.
-            answer = await self._rest_of(url, headers, answer)
+            answer = await self._rest_of(caller, url, headers, answer)
 
         failures = check(step.assertions, response, values=values)
         if plan.expected_status is not None and response.status_code != plan.expected_status:
@@ -701,7 +735,9 @@ class ExecuteStep:
             FailureKind.ASSERTION_FAILED if failures else None,
         )
 
-    async def _rest_of(self, url: str, headers: dict[str, str], first: Answer) -> Answer:
+    async def _rest_of(
+        self, caller: HttpCaller, url: str, headers: dict[str, str], first: Answer
+    ) -> Answer:
         """Follow this read's own paging until there is nothing after it."""
         paging = how_it_pages(url)
         if not paging.pages or first.rows < paging.limit:
@@ -714,7 +750,7 @@ class ExecuteStep:
             if following is None:
                 break
             try:
-                response = await self._http.send("GET", following, headers=headers)
+                response = await caller.send("GET", following, headers=headers)
             except TargetUnreachable:
                 # What was read is still true. Stopping here reports fewer
                 # records than exist, which the count beside them already says.
@@ -817,10 +853,11 @@ class ExecuteSkill:
         ui: UiDriver | None = None,
         learn: LearnFromRun | None = None,
         vision: PerformWithVision | None = None,
+        agents: AgentDrivers | None = None,
     ) -> None:
         self._uow = uow
         self._start = StartRun(uow, clock, ids)
-        self._step = ExecuteStep(uow, http, vault, ui, vision)
+        self._step = ExecuteStep(uow, http, vault, ui, vision, agents=agents)
         self._finish = FinishRun(uow, clock, learn)
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:

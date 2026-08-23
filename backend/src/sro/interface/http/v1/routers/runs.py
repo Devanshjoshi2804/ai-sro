@@ -11,8 +11,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
+from sro.application.execution.execute_skill import ExecutionRequest
 from sro.domain.execution.run import Medium, RunId
-from sro.domain.shared.identifiers import SkillId
+from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     BatchItemModel,
@@ -40,6 +41,23 @@ async def run_skill(
     that says who authorised it is a signature nobody checked, and the audit
     trail on a warehouse write is worth more than that.
     """
+    request = ExecutionRequest(
+        skill_id=SkillId(skill_id),
+        parameters=body.parameters,
+        version=body.version,
+        authorized_by=authorising(body.authorized_by, ctx),
+        medium=Medium(body.medium),
+        device_id=DeviceId(body.device_id) if body.device_id else None,
+    )
+
+    if request.device_id is not None:
+        # Performed here rather than handed to the worker, because the browser
+        # this run needs is a laptop. Durability across a restart would mean
+        # resuming into a Chrome that may be closed, on a page that has moved,
+        # halfway through a task -- and a step that has already been recorded as
+        # sent must never be sent again to find out.
+        return RunModel.of(await container.execute_skill().execute(ctx, request))
+
     run_id = await container.durable.execute_skill(
         ctx,
         skill_id=SkillId(skill_id),

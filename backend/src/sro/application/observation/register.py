@@ -108,6 +108,22 @@ class RecordHeartbeat:
         )
 
 
+class ReadDevice:
+    """One device, and only if it is this tenant's.
+
+    The command channel's ownership check: a credential proves who is asking,
+    never what they may address, and a device id that leaked is otherwise a
+    browser somebody else can be handed work in.
+    """
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, ctx: RequestContext, *, device_id: DeviceId) -> AgentDevice:
+        async with self._uow as uow:
+            return await uow.devices.get(ctx.tenant_id, device_id)
+
+
 class ReadDevices:
     """Whose browsers are being observed. The screen behind the consent story."""
 

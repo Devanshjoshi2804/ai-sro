@@ -1810,6 +1810,8 @@ export interface components {
             stage: string;
             /** Medium */
             medium: string;
+            /** Device Id */
+            device_id?: string | null;
             /** Status */
             status: string;
             /** Parameters */
@@ -1851,6 +1853,8 @@ export interface components {
              * @default network
              */
             medium: string;
+            /** Device Id */
+            device_id?: string | null;
             /** Authorized By */
             authorized_by?: string | null;
         };

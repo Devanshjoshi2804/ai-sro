@@ -20,6 +20,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
 from sro.container import Container
 from sro.domain.shared.identifiers import BrowserSessionId, PrincipalId, RecordingId, TenantId
+from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.interface.http.app import create_app
@@ -83,6 +84,7 @@ class _FakeContainer(Container):
         self.tokens = None
         self.intent_parser = FakeIntentParser()
         self.pursuits = Pursuits()
+        self.agent_sockets = DeviceSockets()
         # Last: the executor it wraps reaches for the http caller and the
         # driver above, so the fakes have to exist before it is built.
         self.durable = FakeDurableExecution(self.induce_skill(), execute=self.execute_skill())

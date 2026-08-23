@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     s3_bucket: str = "sro-artifacts"
     s3_region: str = "us-east-1"
 
+    cors_origins: tuple[str, ...] = ()
+    """Browser origins allowed to call this API, beyond the local console.
+
+    The Chrome extension's origin is ``chrome-extension://<id>``, which is not a
+    host anybody can guess and is stable per build. Empty in a deployment means
+    only same-origin callers, which is the right default for an API whose other
+    client is a server-rendered console.
+    """
+
     steel_base_url: str = "http://localhost:3010"
     steel_cdp_url: str = "http://localhost:9223"
     """Chrome DevTools endpoint Steel publishes. Playwright connects over it."""

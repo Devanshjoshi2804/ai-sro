@@ -13,10 +13,12 @@ from sro.container import build_container
 from sro.interface.http.errors import install_error_handlers
 from sro.interface.http.schemas import PROBLEMS
 from sro.interface.http.v1.routers import (
+    agents,
     connections,
     health,
     intent,
     knowledge,
+    observations,
     recordings,
     runs,
     skills,
@@ -47,9 +49,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # The console in local development, plus whatever a deployment names --
+    # the extension's ``chrome-extension://<id>`` is the reason this is
+    # configurable at all, and it cannot be defaulted because the id is per
+    # build.
+    origins = list(settings.cors_origins)
+    if settings.environment == "local":
+        origins.append("http://localhost:3000")
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"] if settings.environment == "local" else [],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -57,7 +67,9 @@ def create_app() -> FastAPI:
 
     install_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(agents.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(connections.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(observations.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(recordings.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(skills.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(intent.router, prefix="/v1", responses=PROBLEMS)

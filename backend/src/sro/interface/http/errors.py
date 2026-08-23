@@ -17,6 +17,7 @@ from sro.application.connection.connect_system import NotAuthenticated
 from sro.application.connection.sign_in import NoCredentials
 from sro.application.execution.execute_skill import NotRunnable, Refused
 from sro.application.induction.errors import InductionFailed
+from sro.application.observation.ingest import ObservationRefused
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.sign_in import SignInFailed
 from sro.application.ports.token import TokenRefused
@@ -43,6 +44,9 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     # error" for the one outcome the system was most deliberate about.
     NotRunnable: status.HTTP_409_CONFLICT,
     NoSessionForSystem: status.HTTP_409_CONFLICT,
+    # Not 403: the credential was fine and the request was well formed. The
+    # deployment has not agreed to store this, and that is state, not identity.
+    ObservationRefused: status.HTTP_409_CONFLICT,
     NoCredentials: status.HTTP_409_CONFLICT,
     # A login that did not complete is about the system's state, not the
     # request's shape: a stale password, a second factor, a changed page. All

@@ -17,6 +17,9 @@ from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Run, StepOutcome
+from sro.domain.observation.batch import CaptureMode, RejectedEvent
+from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.promotion import PromotionStage
@@ -1031,3 +1034,136 @@ Declared once for the whole surface rather than per route. Slightly generous --
 a POST that creates a thread will not 404 -- and that is the right trade against
 the alternative these replaced, which was declaring none of them anywhere.
 """
+
+
+class ObservationPolicyModel(BaseModel):
+    """What the extension is allowed to do. Read on registration, and again only
+    when the version it holds falls behind."""
+
+    version: int
+    capture_enabled: bool
+    exclude_hosts: list[str]
+    include_hosts: list[str]
+    capture_screenshots: bool
+    screenshot_max_per_minute: int
+    capture_response_bodies: bool
+    max_body_bytes: int
+    daily_budget_bytes: int
+    retention_days: int
+
+    @classmethod
+    def of(cls, policy: ObservationPolicy) -> ObservationPolicyModel:
+        return cls(
+            version=policy.version,
+            capture_enabled=policy.capture_enabled,
+            exclude_hosts=list(policy.exclude_hosts),
+            include_hosts=list(policy.include_hosts),
+            capture_screenshots=policy.capture_screenshots,
+            screenshot_max_per_minute=policy.screenshot_max_per_minute,
+            capture_response_bodies=policy.capture_response_bodies,
+            max_body_bytes=policy.max_body_bytes,
+            daily_budget_bytes=policy.daily_budget_bytes,
+            retention_days=policy.retention_days,
+        )
+
+
+class RegisterDeviceRequest(BaseModel):
+    label: str = Field(max_length=200)
+    """Human-readable, and the idempotency key: the same operator registering
+    the same label twice is the same device."""
+
+    extension_version: str = Field(default="", max_length=32)
+
+
+class RegisteredDeviceResponse(BaseModel):
+    device_id: str
+    policy: ObservationPolicyModel
+    policy_version: int
+
+
+class HeartbeatRequest(BaseModel):
+    queued_events: int = 0
+    queued_bytes: int = 0
+    policy_version: int | None = None
+    """What the device holds. The policy comes back only when this is behind."""
+
+
+class HeartbeatResponse(BaseModel):
+    policy_version: int
+    policy: ObservationPolicyModel | None
+    pause: bool
+    """The administrator's switch. Distinct from the operator's own pause, which
+    lives in the browser and is theirs to hold."""
+
+
+class DeviceModel(BaseModel):
+    """Whose browser is being observed, and whether we are hearing from it."""
+
+    id: str
+    principal_id: str
+    label: str
+    extension_version: str
+    registered_at: datetime
+    last_seen_at: datetime
+    paused: bool
+    queued_events: int
+    queued_bytes: int
+    uploads: int
+
+    @classmethod
+    def of(cls, device: AgentDevice) -> DeviceModel:
+        return cls(
+            id=device.id.value,
+            principal_id=device.principal_id.value,
+            label=device.label,
+            extension_version=device.extension_version,
+            registered_at=device.registered_at,
+            last_seen_at=device.last_seen_at,
+            paused=device.paused,
+            queued_events=device.queued_events,
+            queued_bytes=device.queued_bytes,
+            uploads=device.uploads,
+        )
+
+
+class ObservationBatchRequest(BaseModel):
+    batch_id: str = Field(max_length=64)
+    """Minted by the extension so a retried upload is recognised as the one it
+    already sent."""
+
+    device_id: str = Field(max_length=64)
+    started_at: datetime
+    ended_at: datetime
+    mode: CaptureMode = CaptureMode.PASSIVE
+    events: list[dict[str, Any]]
+    """Screened, not parsed, and stored verbatim. The shapes are in
+    docs/14-extension-protocol.md; what the domain refuses comes back in
+    ``problems`` rather than being dropped in silence."""
+
+
+class RejectedEventModel(BaseModel):
+    index: int
+    reason: str
+
+    @classmethod
+    def of(cls, rejected: RejectedEvent) -> RejectedEventModel:
+        return cls(index=rejected.index, reason=rejected.reason)
+
+
+class ObservationAcceptedResponse(BaseModel):
+    batch_id: str
+    accepted: int
+    rejected: int
+    problems: list[RejectedEventModel]
+    stored_at: str | None
+    already_had_it: bool
+
+
+class ObservationArtifactResponse(BaseModel):
+    uri: str
+    size_bytes: int
+
+
+class ForgottenResponse(BaseModel):
+    batches: int
+    events: int

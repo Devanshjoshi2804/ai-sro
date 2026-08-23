@@ -33,5 +33,14 @@ class SkillId(Identifier): ...
 class PrincipalId(Identifier): ...
 
 
+class DeviceId(Identifier):
+    """One installed extension in one browser profile."""
+
+
+class BatchId(Identifier):
+    """Minted by the extension, not here: a retried upload must be recognised as
+    the same batch rather than stored twice."""
+
+
 class BrowserSessionId(Identifier):
     """Session in the browser provider. Owned by them, referenced by us."""

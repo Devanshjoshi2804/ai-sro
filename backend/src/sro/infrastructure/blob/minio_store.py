@@ -62,6 +62,16 @@ class MinioBlobStore(BlobStore):
             return None
         return await self.presigned_url(uri[len(prefix) :], expires_in=expires_in)
 
+    async def forget(self, uri: str) -> None:
+        prefix = f"s3://{self._bucket}/"
+        if not uri.startswith(prefix):
+            return
+        # S3 answers 204 for a key that was never there, which is the
+        # idempotence the port promises rather than something to check for.
+        await asyncio.to_thread(
+            self._client.delete_object, Bucket=self._bucket, Key=uri[len(prefix) :]
+        )
+
     async def get(self, key: str) -> bytes:
         response = await asyncio.to_thread(self._client.get_object, Bucket=self._bucket, Key=key)
         body: bytes = response["Body"].read()

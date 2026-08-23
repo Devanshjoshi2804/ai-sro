@@ -23,3 +23,11 @@ class BlobStore(Protocol):
         deployment, say.
         """
         ...
+
+    async def forget(self, uri: str) -> None:
+        """Delete what a URI addresses. Idempotent -- deleting what is not there
+        is success, because a purge that fails halfway must be safe to repeat.
+
+        A URI from somewhere else is left alone rather than guessed at.
+        """
+        ...

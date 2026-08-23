@@ -238,3 +238,87 @@ class BrowserSessionRow(Base):
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (Index("ix_browser_sessions_tenant", "tenant_id"),)
+
+
+class AgentDeviceRow(Base):
+    """One installed extension in one browser profile.
+
+    Unique on (tenant, principal, label) so a reinstall re-registers as the
+    device it was. An administrator reading this table is answering "whose
+    browsers are being observed", and one operator appearing four times is not
+    an answer.
+    """
+
+    __tablename__ = "agent_devices"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    principal_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    extension_version: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+
+    registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    paused_by: Mapped[str | None] = mapped_column(String(64))
+
+    queued_events: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    queued_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    uploads: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        Index("ix_agent_devices_tenant_seen", "tenant_id", "last_seen_at"),
+        Index(
+            "uq_agent_devices_tenant_principal_label",
+            "tenant_id",
+            "principal_id",
+            "label",
+            unique=True,
+        ),
+    )
+
+
+class ObservationBatchRow(Base):
+    """One upload. The events are one object in the blob store, not a column.
+
+    A day of passive capture is millions of events, none of them fetched by id.
+    They are read whole, over a window, by a miner. In a column the row that
+    says "this arrived" would cost as much to read as the evidence it points at.
+    """
+
+    __tablename__ = "observation_batches"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    device_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    principal_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    mode: Mapped[str] = mapped_column(String(16), nullable=False)
+
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    uri: Mapped[str] = mapped_column(Text, nullable=False)
+    event_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    byte_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Kept with the batch rather than logged: a rejection is a bug in a specific
+    # version of the extension, and it has to be findable next to the upload it
+    # came from.
+    rejected: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+
+    __table_args__ = (
+        Index("ix_observation_batches_tenant_started", "tenant_id", "started_at"),
+        Index("ix_observation_batches_principal", "tenant_id", "principal_id", "started_at"),
+    )
+
+
+class ObservationPolicyRow(Base):
+    """What one tenant agreed to have observed. Absent means nothing."""
+
+    __tablename__ = "observation_policies"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    policy: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)

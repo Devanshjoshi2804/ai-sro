@@ -25,9 +25,14 @@ from sro.domain.knowledge.entry import (
     KnowledgeEntry,
     KnowledgeId,
 )
+from sro.domain.observation.batch import CaptureMode, ObservationBatch
+from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import (
+    BatchId,
     BrowserSessionId,
+    DeviceId,
     PrincipalId,
     RecordingId,
     SkillId,
@@ -41,17 +46,24 @@ from sro.infrastructure.db.codec import (
     dump_frames,
     dump_messages,
     dump_narration,
+    dump_policy,
+    dump_rejected,
     dump_versions,
     load_artifacts,
     load_frames,
     load_messages,
     load_narration,
+    load_policy,
+    load_rejected,
     load_versions,
 )
 from sro.infrastructure.db.models import (
+    AgentDeviceRow,
     ConnectionRow,
     KnowledgeRow,
     ModelCallRow,
+    ObservationBatchRow,
+    ObservationPolicyRow,
     RecordingRow,
     RunRow,
     SkillRow,
@@ -415,3 +427,84 @@ def row_to_thread(row: ThreadRow) -> Thread:
     )
     thread._messages.extend(load_messages(row.messages))
     return thread
+
+
+def device_to_row(device: AgentDevice) -> AgentDeviceRow:
+    row = AgentDeviceRow(id=device.id.value)
+    update_device_row(row, device)
+    return row
+
+
+def update_device_row(row: AgentDeviceRow, device: AgentDevice) -> None:
+    row.tenant_id = device.tenant_id.value
+    row.principal_id = device.principal_id.value
+    row.label = device.label
+    row.extension_version = device.extension_version
+    row.registered_at = device.registered_at
+    row.last_seen_at = device.last_seen_at
+    row.paused = device.paused
+    row.paused_by = device.paused_by
+    row.queued_events = device.queued_events
+    row.queued_bytes = device.queued_bytes
+    row.uploads = device.uploads
+
+
+def row_to_device(row: AgentDeviceRow) -> AgentDevice:
+    return AgentDevice(
+        id=DeviceId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        principal_id=PrincipalId(row.principal_id),
+        label=row.label,
+        extension_version=row.extension_version,
+        registered_at=row.registered_at,
+        last_seen_at=row.last_seen_at,
+        paused=row.paused,
+        paused_by=row.paused_by,
+        queued_events=row.queued_events,
+        queued_bytes=row.queued_bytes,
+        uploads=row.uploads,
+    )
+
+
+def batch_to_row(batch: ObservationBatch) -> ObservationBatchRow:
+    return ObservationBatchRow(
+        id=batch.id.value,
+        tenant_id=batch.tenant_id.value,
+        device_id=batch.device_id.value,
+        principal_id=batch.principal_id.value,
+        mode=batch.mode.value,
+        started_at=batch.started_at,
+        ended_at=batch.ended_at,
+        received_at=batch.received_at,
+        uri=batch.uri,
+        event_count=batch.event_count,
+        byte_count=batch.byte_count,
+        rejected=dump_rejected(batch.rejected),
+    )
+
+
+def row_to_batch(row: ObservationBatchRow) -> ObservationBatch:
+    return ObservationBatch(
+        id=BatchId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        device_id=DeviceId(row.device_id),
+        principal_id=PrincipalId(row.principal_id),
+        mode=CaptureMode(row.mode),
+        started_at=row.started_at,
+        ended_at=row.ended_at,
+        received_at=row.received_at,
+        uri=row.uri,
+        event_count=row.event_count,
+        byte_count=row.byte_count,
+        rejected=load_rejected(row.rejected),
+    )
+
+
+def policy_to_row(tenant_id: TenantId, policy: ObservationPolicy) -> ObservationPolicyRow:
+    return ObservationPolicyRow(
+        tenant_id=tenant_id.value, version=policy.version, policy=dump_policy(policy)
+    )
+
+
+def row_to_policy(row: ObservationPolicyRow) -> ObservationPolicy:
+    return load_policy(row.policy)

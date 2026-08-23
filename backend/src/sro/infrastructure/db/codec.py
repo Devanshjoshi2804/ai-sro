@@ -17,6 +17,8 @@ from typing import Any
 from pydantic import TypeAdapter
 
 from sro.domain.chat.thread import Message
+from sro.domain.observation.batch import RejectedEvent
+from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.artifact import MediaArtifact
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.narration import NarrationSegment
@@ -27,6 +29,8 @@ _ARTIFACTS = TypeAdapter(tuple[MediaArtifact, ...])
 _NARRATION = TypeAdapter(tuple[NarrationSegment, ...])
 _MESSAGES = TypeAdapter(tuple[Message, ...])
 _VERSIONS = TypeAdapter(tuple[SkillVersion, ...])
+_REJECTED = TypeAdapter(tuple[RejectedEvent, ...])
+_POLICY = TypeAdapter(ObservationPolicy)
 
 
 def _dump[T](adapter: TypeAdapter[T], value: T) -> Any:
@@ -74,3 +78,19 @@ def dump_versions(versions: tuple[SkillVersion, ...]) -> Any:
 
 def load_versions(raw: Any) -> tuple[SkillVersion, ...]:
     return _VERSIONS.validate_python(raw or [])
+
+
+def dump_rejected(rejected: tuple[RejectedEvent, ...]) -> Any:
+    return _dump(_REJECTED, rejected)
+
+
+def load_rejected(raw: Any) -> tuple[RejectedEvent, ...]:
+    return _REJECTED.validate_python(raw or [])
+
+
+def dump_policy(policy: ObservationPolicy) -> Any:
+    return _dump(_POLICY, policy)
+
+
+def load_policy(raw: Any) -> ObservationPolicy:
+    return _POLICY.validate_python(raw or {})

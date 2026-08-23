@@ -17,8 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
     ConnectionRepository,
+    DeviceRepository,
     KnowledgeRepository,
     ModelCallRepository,
+    ObservationPolicyRepository,
+    ObservationRepository,
     RecordingRepository,
     RunRepository,
     SkillRepository,
@@ -30,10 +33,15 @@ from sro.domain.connection.connection import Connection, ConnectionId, Connectio
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
+from sro.domain.observation.batch import ObservationBatch
+from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import (
+    BatchId,
     BrowserSessionId,
+    DeviceId,
     PrincipalId,
     RecordingId,
     SkillId,
@@ -41,15 +49,22 @@ from sro.domain.shared.identifiers import (
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
+from sro.infrastructure.db.codec import dump_policy
 from sro.infrastructure.db.mappers import (
+    batch_to_row,
     connection_to_row,
+    device_to_row,
     knowledge_to_row,
     model_call_to_row,
     objective_columns,
+    policy_to_row,
     recording_to_row,
+    row_to_batch,
     row_to_connection,
+    row_to_device,
     row_to_knowledge,
     row_to_model_call,
+    row_to_policy,
     row_to_recording,
     row_to_run,
     row_to_skill,
@@ -58,6 +73,7 @@ from sro.infrastructure.db.mappers import (
     skill_to_row,
     thread_to_row,
     update_connection_row,
+    update_device_row,
     update_knowledge_row,
     update_recording_row,
     update_run_row,
@@ -65,10 +81,13 @@ from sro.infrastructure.db.mappers import (
     update_thread_row,
 )
 from sro.infrastructure.db.models import (
+    AgentDeviceRow,
     BrowserSessionRow,
     ConnectionRow,
     KnowledgeRow,
     ModelCallRow,
+    ObservationBatchRow,
+    ObservationPolicyRow,
     RecordingRow,
     RunRow,
     SkillRow,
@@ -493,6 +512,123 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
         )
 
 
+class SqlDeviceRepository(DeviceRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, device: AgentDevice) -> None:
+        self._session.add(device_to_row(device))
+
+    async def get(self, tenant_id: TenantId, device_id: DeviceId) -> AgentDevice:
+        return row_to_device(await self._row(tenant_id, device_id))
+
+    async def save(self, device: AgentDevice) -> None:
+        update_device_row(await self._row(device.tenant_id, device.id), device)
+
+    async def registered_as(
+        self, tenant_id: TenantId, principal_id: PrincipalId, label: str
+    ) -> AgentDevice | None:
+        query = select(AgentDeviceRow).where(
+            AgentDeviceRow.tenant_id == tenant_id.value,
+            AgentDeviceRow.principal_id == principal_id.value,
+            AgentDeviceRow.label == label,
+        )
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        return None if row is None else row_to_device(row)
+
+    async def list_for_tenant(self, tenant_id: TenantId) -> tuple[AgentDevice, ...]:
+        query = (
+            select(AgentDeviceRow)
+            .where(AgentDeviceRow.tenant_id == tenant_id.value)
+            .order_by(AgentDeviceRow.last_seen_at.desc())
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_device(row) for row in rows)
+
+    async def _row(self, tenant_id: TenantId, device_id: DeviceId) -> AgentDeviceRow:
+        query = select(AgentDeviceRow).where(
+            AgentDeviceRow.id == device_id.value,
+            AgentDeviceRow.tenant_id == tenant_id.value,
+        )
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        if row is None:
+            raise NotFound(f"device {device_id} was not found")
+        return row
+
+
+class SqlObservationRepository(ObservationRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, batch: ObservationBatch) -> None:
+        self._session.add(batch_to_row(batch))
+        try:
+            # Flushed here rather than at commit: the id is the extension's, and
+            # whether this upload is a retry has to be settled before the
+            # response says how many events were kept.
+            await self._session.flush()
+        except IntegrityError as clash:
+            await self._session.rollback()
+            raise Conflict(f"observation batch {batch.id} is already stored") from clash
+
+    async def get(self, tenant_id: TenantId, batch_id: BatchId) -> ObservationBatch | None:
+        query = select(ObservationBatchRow).where(
+            ObservationBatchRow.id == batch_id.value,
+            ObservationBatchRow.tenant_id == tenant_id.value,
+        )
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        return None if row is None else row_to_batch(row)
+
+    async def between(
+        self,
+        tenant_id: TenantId,
+        *,
+        since: datetime,
+        until: datetime | None = None,
+        principal_id: PrincipalId | None = None,
+    ) -> tuple[ObservationBatch, ...]:
+        # Overlap, not containment: a batch that began before the window and
+        # ended inside it holds events the window asked for.
+        query = select(ObservationBatchRow).where(
+            ObservationBatchRow.tenant_id == tenant_id.value,
+            ObservationBatchRow.ended_at >= since,
+        )
+        if until is not None:
+            query = query.where(ObservationBatchRow.started_at <= until)
+        if principal_id is not None:
+            query = query.where(ObservationBatchRow.principal_id == principal_id.value)
+        query = query.order_by(ObservationBatchRow.started_at)
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_batch(row) for row in rows)
+
+    async def forget(self, tenant_id: TenantId, ids: tuple[BatchId, ...]) -> None:
+        if not ids:
+            return
+        await self._session.execute(
+            delete(ObservationBatchRow).where(
+                ObservationBatchRow.tenant_id == tenant_id.value,
+                ObservationBatchRow.id.in_([batch_id.value for batch_id in ids]),
+            )
+        )
+
+
+class SqlObservationPolicyRepository(ObservationPolicyRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, tenant_id: TenantId) -> ObservationPolicy | None:
+        row = await self._session.get(ObservationPolicyRow, tenant_id.value)
+        return None if row is None else row_to_policy(row)
+
+    async def save(self, tenant_id: TenantId, policy: ObservationPolicy) -> None:
+        row = await self._session.get(ObservationPolicyRow, tenant_id.value)
+        if row is None:
+            self._session.add(policy_to_row(tenant_id, policy))
+            return
+        row.version = policy.version
+        row.policy = dump_policy(policy)
+
+
 class SqlUnitOfWork(UnitOfWork):
     """One session per block. The session opens on entry, not on construction,
     so a unit of work can be built once and used per request."""
@@ -511,6 +647,9 @@ class SqlUnitOfWork(UnitOfWork):
         self.model_calls = SqlModelCallRepository(self._session)
         self.threads = SqlThreadRepository(self._session)
         self.browser_sessions = SqlBrowserSessionRepository(self._session)
+        self.devices = SqlDeviceRepository(self._session)
+        self.observations = SqlObservationRepository(self._session)
+        self.observation_policies = SqlObservationPolicyRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

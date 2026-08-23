@@ -8,7 +8,7 @@ from typing import Protocol
 from sro.domain.chat.thread import MessageId, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import KnowledgeId
-from sro.domain.shared.identifiers import RecordingId, SkillId
+from sro.domain.shared.identifiers import DeviceId, RecordingId, SkillId
 
 
 class Clock(Protocol):
@@ -29,3 +29,5 @@ class IdFactory(Protocol):
     def new_thread_id(self) -> ThreadId: ...
 
     def new_message_id(self) -> MessageId: ...
+
+    def new_device_id(self) -> DeviceId: ...

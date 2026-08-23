@@ -57,6 +57,11 @@ from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.read_knowledge import ReadKnowledge
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
+from sro.application.observation.artifacts import StoreObservationArtifact
+from sro.application.observation.forget import ForgetObservations
+from sro.application.observation.ingest import IngestObservation
+from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
+from sro.application.observation.register import ReadDevices, RecordHeartbeat, RegisterDevice
 from sro.application.ports.auth import Credentials
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider
@@ -179,6 +184,32 @@ class Container:
 
     def ingest_capture_events(self) -> IngestCaptureEvents:
         return IngestCaptureEvents(self.unit_of_work())
+
+    # -- observation ---------------------------------------------------------
+
+    def register_device(self) -> RegisterDevice:
+        return RegisterDevice(self.unit_of_work(), self.clock, self.ids)
+
+    def record_heartbeat(self) -> RecordHeartbeat:
+        return RecordHeartbeat(self.unit_of_work(), self.clock)
+
+    def read_devices(self) -> ReadDevices:
+        return ReadDevices(self.unit_of_work())
+
+    def read_observation_policy(self) -> ReadObservationPolicy:
+        return ReadObservationPolicy(self.unit_of_work())
+
+    def set_observation_policy(self) -> SetObservationPolicy:
+        return SetObservationPolicy(self.unit_of_work())
+
+    def ingest_observation(self) -> IngestObservation:
+        return IngestObservation(self.unit_of_work(), self.blobs, self.clock)
+
+    def store_observation_artifact(self) -> StoreObservationArtifact:
+        return StoreObservationArtifact(self.unit_of_work(), self.blobs, self.clock)
+
+    def forget_observations(self) -> ForgetObservations:
+        return ForgetObservations(self.unit_of_work(), self.blobs, self.clock)
 
     def attach_artifact(self) -> AttachArtifact:
         return AttachArtifact(self.unit_of_work(), self.blobs, self.clock, self.transcriber)

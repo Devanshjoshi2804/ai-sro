@@ -1,0 +1,56 @@
+"""What a tenant agreed to have observed, and what that refuses."""
+
+from __future__ import annotations
+
+import pytest
+
+from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.shared.errors import InvariantViolation
+
+
+def test_a_tenant_nobody_configured_is_observed_not_at_all() -> None:
+    assert ObservationPolicy().allows("https://wms.acme.com/orders") is False
+
+
+def test_switching_it_on_moves_the_version_so_every_extension_hears_about_it() -> None:
+    policy = ObservationPolicy().enabled()
+
+    assert policy.capture_enabled is True
+    assert policy.version == 1
+    assert policy.allows("https://wms.acme.com/orders") is True
+
+
+def test_an_excluded_host_and_its_subdomains_are_never_observed() -> None:
+    policy = ObservationPolicy().enabled().excluding(("payroll.acme.com",))
+
+    assert policy.allows("https://payroll.acme.com/payslips") is False
+    assert policy.allows("https://eu.payroll.acme.com/payslips") is False
+
+
+def test_a_lookalike_host_is_not_covered_by_somebody_elses_exclusion() -> None:
+    # The bug a suffix test has: "evil-payroll.acme.com".endswith("payroll.acme.com")
+    # is true, so an attacker's host would read as excluded and, in the cookie
+    # code this rule came from, as carrying the customer's session.
+    policy = ObservationPolicy().enabled().excluding(("payroll.acme.com",))
+
+    assert policy.allows("https://evil-payroll.acme.com/steal") is True
+
+
+def test_naming_hosts_narrows_capture_to_those_and_nothing_else() -> None:
+    policy = ObservationPolicy().enabled().only(("wms.acme.com",))
+
+    assert policy.allows("https://wms.acme.com/orders") is True
+    assert policy.allows("https://intranet.acme.com/news") is False
+
+
+def test_personal_webmail_is_excluded_before_anybody_configures_anything() -> None:
+    assert ObservationPolicy().enabled().allows("https://mail.google.com/mail/u/0") is False
+
+
+def test_a_url_with_no_host_is_not_something_to_observe() -> None:
+    assert ObservationPolicy().enabled().allows("about:blank") is False
+
+
+def test_evidence_kept_for_less_than_a_day_is_evidence_discarded() -> None:
+    with pytest.raises(InvariantViolation):
+        ObservationPolicy().keeping_for(0)

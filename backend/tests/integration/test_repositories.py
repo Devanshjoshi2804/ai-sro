@@ -2,11 +2,25 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
+from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.shared.errors import Conflict, NotFound
-from sro.domain.shared.identifiers import BrowserSessionId, RecordingId, SkillId, TenantId
+from sro.domain.shared.identifiers import (
+    BatchId,
+    BrowserSessionId,
+    DeviceId,
+    PrincipalId,
+    RecordingId,
+    SkillId,
+    TenantId,
+)
 from sro.domain.skill.promotion import PromotionStage
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests import factories as f
@@ -182,3 +196,147 @@ class TestBrowserOwnership:
         assert {str(session_id) for session_id, _ in held} == {"sess-3", "sess-4"}
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.browser_sessions.held_by(f.TENANT) == ()
+
+
+class TestObservation:
+    """The tables the extension writes into, against real SQL.
+
+    The fakes filter by tenant structurally, so they cannot tell a missing
+    ``WHERE tenant_id`` from a present one. This is the only place that can.
+    """
+
+    async def test_a_device_is_visible_only_to_the_tenant_it_belongs_to(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        device = _device()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.devices.add(device)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert (await uow.devices.get(device.tenant_id, device.id)).label == "laptop"
+            with pytest.raises(NotFound):
+                await uow.devices.get(OTHER_TENANT, device.id)
+            assert await uow.devices.list_for_tenant(OTHER_TENANT) == ()
+
+    async def test_one_operator_cannot_register_the_same_label_twice(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.devices.add(_device(device_id="dev-1"))
+            await uow.commit()
+
+        with pytest.raises(IntegrityError):
+            async with SqlUnitOfWork(session_factory) as uow:
+                await uow.devices.add(_device(device_id="dev-2"))
+                await uow.commit()
+
+    async def test_a_batch_id_the_extension_reused_is_refused_rather_than_doubled(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.observations.add(_batch())
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(Conflict):
+                await uow.observations.add(_batch())
+
+    async def test_a_window_finds_a_batch_that_began_before_it(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        # Overlap, not containment: a batch that started at 08:58 and ended at
+        # 09:03 holds events the 09:00 window asked for.
+        batch = _batch(
+            started_at=datetime(2026, 3, 1, 8, 58, tzinfo=UTC),
+            ended_at=datetime(2026, 3, 1, 9, 3, tzinfo=UTC),
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.observations.add(batch)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.observations.between(
+                batch.tenant_id, since=datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+            )
+            theirs = await uow.observations.between(
+                OTHER_TENANT, since=datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+            )
+
+        assert [one.id for one in found] == [batch.id]
+        assert theirs == ()
+
+    async def test_a_purge_leaves_another_tenants_rows_where_they_were(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        mine, theirs = _batch(), _batch(batch_id="bat-2", tenant_id=OTHER_TENANT)
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.observations.add(mine)
+            await uow.observations.add(theirs)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.observations.forget(mine.tenant_id, (mine.id, theirs.id))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.observations.get(mine.tenant_id, mine.id) is None
+            assert await uow.observations.get(OTHER_TENANT, theirs.id) is not None
+
+    async def test_a_policy_round_trips_and_stays_the_tenants_own(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        policy = ObservationPolicy().enabled().excluding(("payroll.acme.com",))
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.observation_policies.save(TenantId("acme"), policy)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            stored = await uow.observation_policies.get(TenantId("acme"))
+            assert await uow.observation_policies.get(OTHER_TENANT) is None
+
+        assert stored is not None
+        assert stored.capture_enabled is True
+        assert stored.exclude_hosts == ("payroll.acme.com",)
+        assert stored.version == policy.version
+
+
+def _device(*, device_id: str = "dev-1") -> AgentDevice:
+    at = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+    return AgentDevice(
+        id=DeviceId(device_id),
+        tenant_id=TenantId("acme"),
+        principal_id=PrincipalId("devansh"),
+        label="laptop",
+        extension_version="0.1.0",
+        registered_at=at,
+        last_seen_at=at,
+    )
+
+
+def _batch(
+    *,
+    batch_id: str = "bat-1",
+    tenant_id: TenantId = TenantId("acme"),
+    started_at: datetime | None = None,
+    ended_at: datetime | None = None,
+) -> ObservationBatch:
+    at = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+    return ObservationBatch(
+        id=BatchId(batch_id),
+        tenant_id=tenant_id,
+        device_id=DeviceId("dev-1"),
+        principal_id=PrincipalId("devansh"),
+        mode=CaptureMode.PASSIVE,
+        started_at=started_at or at,
+        ended_at=ended_at or at,
+        received_at=at,
+        uri="s3://sro-artifacts/acme/devansh/2026-03-01/bat-1.ndjson",
+        event_count=3,
+        byte_count=512,
+        rejected=(RejectedEvent(index=1, reason="an event kind nobody declared"),),
+    )

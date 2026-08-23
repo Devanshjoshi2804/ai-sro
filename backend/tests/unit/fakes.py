@@ -23,8 +23,11 @@ from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
     ConnectionRepository,
+    DeviceRepository,
     KnowledgeRepository,
     ModelCallRepository,
+    ObservationPolicyRepository,
+    ObservationRepository,
     RecordingRepository,
     RunRepository,
     SkillRepository,
@@ -52,11 +55,16 @@ from sro.domain.knowledge.entry import (
     KnowledgeEntry,
     KnowledgeId,
 )
+from sro.domain.observation.batch import ObservationBatch
+from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.events import ActionKind
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import (
+    BatchId,
     BrowserSessionId,
+    DeviceId,
     PrincipalId,
     RecordingId,
     SkillId,
@@ -88,6 +96,7 @@ class FakeIdFactory:
         self._knowledge = count(1)
         self._threads = count(1)
         self._messages = count(1)
+        self._devices = count(1)
 
     def new_recording_id(self) -> RecordingId:
         return RecordingId(f"rec-{next(self._recordings)}")
@@ -106,6 +115,9 @@ class FakeIdFactory:
 
     def new_message_id(self) -> MessageId:
         return MessageId(f"msg-{next(self._messages)}")
+
+    def new_device_id(self) -> DeviceId:
+        return DeviceId(f"dev-{next(self._devices)}")
 
 
 class FakeSignInDriver:
@@ -215,6 +227,11 @@ class FakeBlobStore:
         if not uri.startswith(prefix):
             return None
         return await self.presigned_url(uri[len(prefix) :], expires_in=expires_in)
+
+    async def forget(self, uri: str) -> None:
+        prefix = "s3://sro-artifacts/"
+        if uri.startswith(prefix):
+            self.objects.pop(uri[len(prefix) :], None)
 
 
 class FakeTranscriber:
@@ -751,6 +768,93 @@ class FakeBrowserSessionRepository:
         self.rows.pop(str(session_id), None)
 
 
+class FakeDeviceRepository:
+    def __init__(self) -> None:
+        self.rows: dict[str, AgentDevice] = {}
+
+    async def add(self, device: AgentDevice) -> None:
+        self.rows[device.id.value] = device
+
+    async def get(self, tenant_id: TenantId, device_id: DeviceId) -> AgentDevice:
+        device = self.rows.get(device_id.value)
+        if device is None or device.tenant_id != tenant_id:
+            raise NotFound(f"device {device_id} was not found")
+        return device
+
+    async def save(self, device: AgentDevice) -> None:
+        self.rows[device.id.value] = device
+
+    async def registered_as(
+        self, tenant_id: TenantId, principal_id: PrincipalId, label: str
+    ) -> AgentDevice | None:
+        return next(
+            (
+                device
+                for device in self.rows.values()
+                if device.tenant_id == tenant_id
+                and device.principal_id == principal_id
+                and device.label == label
+            ),
+            None,
+        )
+
+    async def list_for_tenant(self, tenant_id: TenantId) -> tuple[AgentDevice, ...]:
+        mine = [device for device in self.rows.values() if device.tenant_id == tenant_id]
+        return tuple(sorted(mine, key=lambda device: device.last_seen_at, reverse=True))
+
+
+class FakeObservationRepository:
+    """The conflict on a second add is the behaviour under test: an upload the
+    extension retried must not be counted twice."""
+
+    def __init__(self) -> None:
+        self.rows: dict[str, ObservationBatch] = {}
+
+    async def add(self, batch: ObservationBatch) -> None:
+        if batch.id.value in self.rows:
+            raise Conflict(f"observation batch {batch.id} is already stored")
+        self.rows[batch.id.value] = batch
+
+    async def get(self, tenant_id: TenantId, batch_id: BatchId) -> ObservationBatch | None:
+        batch = self.rows.get(batch_id.value)
+        return batch if batch is not None and batch.tenant_id == tenant_id else None
+
+    async def between(
+        self,
+        tenant_id: TenantId,
+        *,
+        since: datetime,
+        until: datetime | None = None,
+        principal_id: PrincipalId | None = None,
+    ) -> tuple[ObservationBatch, ...]:
+        found = [
+            batch
+            for batch in self.rows.values()
+            if batch.tenant_id == tenant_id
+            and batch.ended_at >= since
+            and (until is None or batch.started_at <= until)
+            and (principal_id is None or batch.principal_id == principal_id)
+        ]
+        return tuple(sorted(found, key=lambda batch: batch.started_at))
+
+    async def forget(self, tenant_id: TenantId, ids: tuple[BatchId, ...]) -> None:
+        for batch_id in ids:
+            batch = self.rows.get(batch_id.value)
+            if batch is not None and batch.tenant_id == tenant_id:
+                del self.rows[batch_id.value]
+
+
+class FakeObservationPolicyRepository:
+    def __init__(self) -> None:
+        self.rows: dict[str, ObservationPolicy] = {}
+
+    async def get(self, tenant_id: TenantId) -> ObservationPolicy | None:
+        return self.rows.get(tenant_id.value)
+
+    async def save(self, tenant_id: TenantId, policy: ObservationPolicy) -> None:
+        self.rows[tenant_id.value] = policy
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -765,6 +869,9 @@ class FakeUnitOfWork:
     model_calls: ModelCallRepository
     threads: ThreadRepository
     browser_sessions: BrowserSessionRepository
+    devices: DeviceRepository
+    observations: ObservationRepository
+    observation_policies: ObservationPolicyRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
@@ -775,6 +882,9 @@ class FakeUnitOfWork:
         self.model_calls = FakeModelCallRepository()
         self.threads = FakeThreadRepository()
         self.browser_sessions = FakeBrowserSessionRepository()
+        self.devices = FakeDeviceRepository()
+        self.observations = FakeObservationRepository()
+        self.observation_policies = FakeObservationPolicyRepository()
         self.commits = 0
         self.rollbacks = 0
 
@@ -836,3 +946,6 @@ _sign_in: SignInDriver = FakeSignInDriver()
 _uow: UnitOfWork = FakeUnitOfWork()
 _clock: Clock = FakeClock()
 _ids: IdFactory = FakeIdFactory()
+_devices: DeviceRepository = FakeDeviceRepository()
+_observations: ObservationRepository = FakeObservationRepository()
+_observation_policies: ObservationPolicyRepository = FakeObservationPolicyRepository()

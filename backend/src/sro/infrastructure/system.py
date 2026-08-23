@@ -9,7 +9,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.thread import MessageId, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import KnowledgeId
-from sro.domain.shared.identifiers import RecordingId, SkillId
+from sro.domain.shared.identifiers import DeviceId, RecordingId, SkillId
 
 
 class SystemClock(Clock):
@@ -37,3 +37,6 @@ class UuidFactory(IdFactory):
 
     def new_message_id(self) -> MessageId:
         return MessageId(f"msg_{uuid.uuid4().hex}")
+
+    def new_device_id(self) -> DeviceId:
+        return DeviceId(f"dev_{uuid.uuid4().hex}")

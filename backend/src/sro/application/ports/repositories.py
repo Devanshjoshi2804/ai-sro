@@ -15,9 +15,14 @@ from sro.domain.connection.connection import Connection, ConnectionId
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
+from sro.domain.observation.batch import ObservationBatch
+from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.identifiers import (
+    BatchId,
     BrowserSessionId,
+    DeviceId,
     PrincipalId,
     RecordingId,
     SkillId,
@@ -234,6 +239,69 @@ class BrowserSessionRepository(Protocol):
         ...
 
 
+class DeviceRepository(Protocol):
+    async def add(self, device: AgentDevice) -> None: ...
+
+    async def get(self, tenant_id: TenantId, device_id: DeviceId) -> AgentDevice: ...
+
+    async def save(self, device: AgentDevice) -> None: ...
+
+    async def registered_as(
+        self, tenant_id: TenantId, principal_id: PrincipalId, label: str
+    ) -> AgentDevice | None:
+        """The device this operator already registered under this label.
+
+        Registration is idempotent on it: an extension that lost its stored id
+        -- a reinstall, a cleared profile -- must not accumulate a device per
+        attempt, because the device list is how an administrator sees who is
+        being observed.
+        """
+        ...
+
+    async def list_for_tenant(self, tenant_id: TenantId) -> tuple[AgentDevice, ...]:
+        """Most recently seen first."""
+        ...
+
+
+class ObservationRepository(Protocol):
+    async def add(self, batch: ObservationBatch) -> None:
+        """Raises ``Conflict`` when this batch id is already stored. The id is
+        the extension's, so a retry of an upload that did land must be
+        recognised rather than stored twice."""
+        ...
+
+    async def get(self, tenant_id: TenantId, batch_id: BatchId) -> ObservationBatch | None:
+        """``None`` rather than ``NotFound``: the caller is asking whether a
+        retry is a retry, and absence is the ordinary answer."""
+        ...
+
+    async def between(
+        self,
+        tenant_id: TenantId,
+        *,
+        since: datetime,
+        until: datetime | None = None,
+        principal_id: PrincipalId | None = None,
+    ) -> tuple[ObservationBatch, ...]:
+        """Batches overlapping a window, oldest first. What the miner reads, and
+        what a purge counts."""
+        ...
+
+    async def forget(self, tenant_id: TenantId, ids: tuple[BatchId, ...]) -> None:
+        """Delete the rows. The blobs they point at are the caller's to remove;
+        a repository does not reach into object storage."""
+        ...
+
+
+class ObservationPolicyRepository(Protocol):
+    async def get(self, tenant_id: TenantId) -> ObservationPolicy | None:
+        """``None`` when this tenant has never been given one. The caller
+        supplies the refusing default -- absence must never read as consent."""
+        ...
+
+    async def save(self, tenant_id: TenantId, policy: ObservationPolicy) -> None: ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -245,6 +313,9 @@ class UnitOfWork(Protocol):
     model_calls: ModelCallRepository
     threads: ThreadRepository
     browser_sessions: BrowserSessionRepository
+    devices: DeviceRepository
+    observations: ObservationRepository
+    observation_policies: ObservationPolicyRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

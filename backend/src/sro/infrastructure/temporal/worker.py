@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC, datetime, timedelta
 
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -59,6 +60,32 @@ async def keep_sessions_open(container: Container, every_seconds: float) -> None
             )
 
 
+async def mine_lately(container: Container, every_seconds: float, window_hours: int) -> None:
+    """Notice what somebody keeps doing, for as long as this runs.
+
+    A loop for the same reasons as the keeper above: nothing to replay, and a
+    missed sweep costs nothing because the next one reads the same window. Every
+    episode already recorded is skipped, so running it often is only the price
+    of reading the evidence again.
+    """
+    while True:
+        await asyncio.sleep(every_seconds)
+        since = datetime.now(UTC) - timedelta(hours=window_hours)
+        try:
+            mined = await container.mine_everything().execute(since=since)
+        except Exception:
+            logger.exception("the miner could not finish its sweep")
+            continue
+        for tenant, found in mined.items():
+            if found.candidates_new or found.occurrences_new:
+                logger.info(
+                    "%s: %s new tasks noticed, %s more doings of ones already known",
+                    tenant,
+                    found.candidates_new,
+                    found.occurrences_new,
+                )
+
+
 async def run() -> None:
     settings = get_settings()
     configure_logging()
@@ -86,11 +113,15 @@ async def run() -> None:
     )
 
     keeper = asyncio.create_task(keep_sessions_open(container, settings.session_sweep_seconds))
+    miner = asyncio.create_task(
+        mine_lately(container, settings.mining_sweep_seconds, settings.mining_window_hours)
+    )
     try:
         async with default, browser:
             await asyncio.Future()
     finally:
         keeper.cancel()
+        miner.cancel()
 
 
 def main() -> None:

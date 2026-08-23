@@ -18,6 +18,7 @@ from sro.application.intent.resolve import Resolution
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Run, StepOutcome
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
+from sro.domain.observation.candidate import Episode, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
@@ -1264,3 +1265,86 @@ class FiredModel(BaseModel):
     trigger_id: str
     run_id: str | None
     skipped: str | None
+
+
+class EpisodeModel(BaseModel):
+    started_at: datetime
+    ended_at: datetime
+    duration_ms: int
+    gestures: int
+    calls: int
+
+    @classmethod
+    def of(cls, episode: Episode) -> EpisodeModel:
+        return cls(
+            started_at=episode.started_at,
+            ended_at=episode.ended_at,
+            duration_ms=episode.duration_ms,
+            gestures=episode.gestures,
+            calls=episode.calls,
+        )
+
+
+class TaskCandidateModel(BaseModel):
+    """A task somebody keeps doing, offered rather than acted on."""
+
+    id: str
+    title: str
+    host: str
+    signature: str
+    """The calls it makes, in order, with the identifiers taken out. On the wire
+    because it is the whole argument that two doings are the same task, and an
+    operator who disagrees should be able to see why."""
+
+    status: str
+    times_seen: int
+    median_duration_ms: int
+    minutes_so_far: float
+    first_seen: datetime | None
+    last_seen: datetime | None
+    skill_id: str | None
+    dismissed_reason: str | None
+    named_by_model: bool
+    episodes: list[EpisodeModel]
+
+    @classmethod
+    def of(cls, candidate: TaskCandidate) -> TaskCandidateModel:
+        return cls(
+            id=candidate.id.value,
+            title=candidate.title,
+            host=candidate.host,
+            signature=candidate.signature,
+            status=candidate.status.value,
+            times_seen=candidate.times_seen,
+            median_duration_ms=candidate.median_duration_ms,
+            minutes_so_far=round(candidate.minutes_so_far, 1),
+            first_seen=candidate.first_seen,
+            last_seen=candidate.last_seen,
+            skill_id=candidate.skill_id.value if candidate.skill_id else None,
+            dismissed_reason=candidate.dismissed_reason,
+            named_by_model=candidate.named_by_model,
+            episodes=[EpisodeModel.of(episode) for episode in candidate.episodes],
+        )
+
+
+class DismissCandidateRequest(BaseModel):
+    reason: str
+
+
+class TaughtModel(BaseModel):
+    candidate_id: str
+    recording_id: str | None
+    skill_id: str | None
+    needs_demonstration: bool
+    because: str | None
+    """Why one more doing of it is needed. Passive capture sees no accessibility
+    tree and only the response bodies the page could see, so some tasks cannot
+    be induced from it -- and being told which, and why, is better than a skill
+    nobody can trust."""
+
+
+class MinedModel(BaseModel):
+    episodes: int
+    candidates_seen: int
+    candidates_new: int
+    occurrences_new: int

@@ -362,3 +362,45 @@ class TriggerRow(Base):
         Index("ix_triggers_tenant_created", "tenant_id", "created_at"),
         Index("ix_triggers_tenant_skill", "tenant_id", "skill_id"),
     )
+
+
+class TaskCandidateRow(Base):
+    """A task somebody keeps doing, and how often.
+
+    Episodes are one document: they are read whole, by the person deciding
+    whether to teach it, and nothing queries a candidate by one of them.
+    """
+
+    __tablename__ = "task_candidates"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    principal_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    # The clustering key, and the reason the table has a unique index rather
+    # than a primary key that means anything: mining runs again over evidence
+    # it has read, and the same task must find its own row.
+    signature: Mapped[str] = mapped_column(Text, nullable=False)
+    host: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    named_by_model: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="new")
+    skill_id: Mapped[str | None] = mapped_column(String(64))
+    dismissed_reason: Mapped[str | None] = mapped_column(Text)
+
+    episodes: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    first_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        Index("ix_task_candidates_tenant_seen", "tenant_id", "times_seen"),
+        Index(
+            "uq_task_candidates_signature",
+            "tenant_id",
+            "principal_id",
+            "signature",
+            unique=True,
+        ),
+    )

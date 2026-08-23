@@ -200,17 +200,22 @@ def _same(frame_a: ActionFrame, frame_b: ActionFrame) -> bool:
     sent_a, sent_b = frame_a.primary_request, frame_b.primary_request
     if sent_a is None or sent_b is None:
         return False
-    return sent_a.method.upper() == sent_b.method.upper() and _shape(sent_a.url) == _shape(
+    return sent_a.method.upper() == sent_b.method.upper() and url_shape(sent_a.url) == url_shape(
         sent_b.url
     )
 
 
-def _shape(url: str) -> str:
+def url_shape(url: str) -> str:
     """A path with its identifiers taken out, so two runs of one task agree.
 
     ``/addresses/A00022791`` and ``/addresses/A00022812`` are the same step of
     the same task. Which record it was is what the diff exists to find; here it
     would only stop the two steps being recognised as each other.
+
+    Public because mining asks the same question of a day's observed traffic:
+    two episodes are the same task when their calls have the same shapes, and a
+    second opinion about that would cluster what induction then refuses to
+    align.
     """
     return "/".join("*" if any(c.isdigit() for c in seg) else seg for seg in url_path_segments(url))
 

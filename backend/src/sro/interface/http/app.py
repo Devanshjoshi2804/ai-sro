@@ -15,6 +15,7 @@ from sro.interface.http.schemas import PROBLEMS
 from sro.interface.http.v1.routers import (
     agent_channel,
     agents,
+    candidates,
     connections,
     health,
     intent,
@@ -71,6 +72,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(agents.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(agent_channel.router, prefix="/v1")
+    app.include_router(candidates.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(connections.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(observations.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(recordings.router, prefix="/v1", responses=PROBLEMS)

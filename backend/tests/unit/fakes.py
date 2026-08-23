@@ -24,6 +24,7 @@ from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachab
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
+    CandidateRepository,
     ConnectionRepository,
     DeviceRepository,
     KnowledgeRepository,
@@ -60,6 +61,7 @@ from sro.domain.knowledge.entry import (
     KnowledgeId,
 )
 from sro.domain.observation.batch import ObservationBatch
+from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.events import ActionKind
@@ -68,6 +70,7 @@ from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
+    CandidateId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -104,6 +107,7 @@ class FakeIdFactory:
         self._messages = count(1)
         self._devices = count(1)
         self._triggers = count(1)
+        self._candidates = count(1)
 
     def new_recording_id(self) -> RecordingId:
         return RecordingId(f"rec-{next(self._recordings)}")
@@ -128,6 +132,9 @@ class FakeIdFactory:
 
     def new_trigger_id(self) -> TriggerId:
         return TriggerId(f"trg-{next(self._triggers)}")
+
+    def new_candidate_id(self) -> CandidateId:
+        return CandidateId(f"cnd-{next(self._candidates)}")
 
 
 class FakeSignInDriver:
@@ -237,6 +244,12 @@ class FakeBlobStore:
         if not uri.startswith(prefix):
             return None
         return await self.presigned_url(uri[len(prefix) :], expires_in=expires_in)
+
+    async def read(self, uri: str) -> bytes:
+        prefix = "s3://sro-artifacts/"
+        if not uri.startswith(prefix):
+            raise KeyError(f"{uri} is not in this store")
+        return self.objects[uri[len(prefix) :]]
 
     async def forget(self, uri: str) -> None:
         prefix = "s3://sro-artifacts/"
@@ -851,11 +864,49 @@ class FakeObservationRepository:
         ]
         return tuple(sorted(found, key=lambda batch: batch.started_at))
 
+    async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
+        return tuple({batch.tenant_id for batch in self.rows.values() if batch.ended_at >= since})
+
     async def forget(self, tenant_id: TenantId, ids: tuple[BatchId, ...]) -> None:
         for batch_id in ids:
             batch = self.rows.get(batch_id.value)
             if batch is not None and batch.tenant_id == tenant_id:
                 del self.rows[batch_id.value]
+
+
+class FakeCandidateRepository:
+    def __init__(self) -> None:
+        self.rows: dict[str, TaskCandidate] = {}
+
+    async def add(self, candidate: TaskCandidate) -> None:
+        self.rows[candidate.id.value] = candidate
+
+    async def get(self, tenant_id: TenantId, candidate_id: CandidateId) -> TaskCandidate:
+        candidate = self.rows.get(candidate_id.value)
+        if candidate is None or candidate.tenant_id != tenant_id:
+            raise NotFound(f"candidate {candidate_id} was not found")
+        return candidate
+
+    async def save(self, candidate: TaskCandidate) -> None:
+        self.rows[candidate.id.value] = candidate
+
+    async def list_for_tenant(
+        self,
+        tenant_id: TenantId,
+        *,
+        status: CandidateStatus | None = None,
+        principal_id: PrincipalId | None = None,
+        seen_at_least: int = 0,
+    ) -> tuple[TaskCandidate, ...]:
+        found = [
+            candidate
+            for candidate in self.rows.values()
+            if candidate.tenant_id == tenant_id
+            and (status is None or candidate.status is status)
+            and (principal_id is None or candidate.principal_id == principal_id)
+            and candidate.times_seen >= seen_at_least
+        ]
+        return tuple(sorted(found, key=lambda one: one.times_seen, reverse=True))
 
 
 class FakeObservationPolicyRepository:
@@ -994,6 +1045,7 @@ class FakeUnitOfWork:
     devices: DeviceRepository
     observations: ObservationRepository
     observation_policies: ObservationPolicyRepository
+    candidates: CandidateRepository
     triggers: TriggerRepository
 
     def __init__(self) -> None:
@@ -1008,6 +1060,7 @@ class FakeUnitOfWork:
         self.devices = FakeDeviceRepository()
         self.observations = FakeObservationRepository()
         self.observation_policies = FakeObservationPolicyRepository()
+        self.candidates = FakeCandidateRepository()
         self.triggers = FakeTriggerRepository()
         self.commits = 0
         self.rollbacks = 0
@@ -1077,3 +1130,4 @@ _agents: AgentDrivers = FakeAgentDrivers()
 _scheduler: Scheduler = FakeScheduler()
 _dispatcher: RunDispatcher = FakeRunDispatcher()
 _triggers: TriggerRepository = FakeTriggerRepository()
+_candidates: CandidateRepository = FakeCandidateRepository()

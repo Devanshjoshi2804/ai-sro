@@ -62,6 +62,12 @@ class MinioBlobStore(BlobStore):
             return None
         return await self.presigned_url(uri[len(prefix) :], expires_in=expires_in)
 
+    async def read(self, uri: str) -> bytes:
+        prefix = f"s3://{self._bucket}/"
+        if not uri.startswith(prefix):
+            raise KeyError(f"{uri} is not in this store")
+        return await self.get(uri[len(prefix) :])
+
     async def forget(self, uri: str) -> None:
         prefix = f"s3://{self._bucket}/"
         if not uri.startswith(prefix):

@@ -114,6 +114,19 @@ class Settings(BaseSettings):
     transcription_enabled: bool = False
     """Narration transcription is optional. Default binding is NullTranscriber."""
 
+    mining_sweep_seconds: float = 900.0
+    """How often a day's observation is mined for tasks worth automating.
+
+    A loop rather than a schedule, for the same reason as the session keeper: it
+    holds no state worth replaying and a missed sweep is corrected by the next
+    one. Mining is idempotent -- an episode already recorded is not counted
+    twice -- so the only cost of running it often is reading blobs."""
+
+    mining_window_hours: int = 24
+    """How far back each sweep looks. Wider than the interval on purpose:
+    evidence uploaded late still gets mined, and re-reading what was already
+    mined changes nothing."""
+
     session_sweep_seconds: float = 600.0
     """How often the keeper looks at the connected systems.
 

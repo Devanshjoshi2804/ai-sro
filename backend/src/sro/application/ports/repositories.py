@@ -16,12 +16,14 @@ from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.observation.batch import ObservationBatch
+from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
+    CandidateId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -289,9 +291,40 @@ class ObservationRepository(Protocol):
         what a purge counts."""
         ...
 
+    async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
+        """Every tenant with evidence in the window.
+
+        Tenant-blind, like the browser sweep and for the same reason: the
+        scheduled miner has no request behind it and nobody to take a tenant
+        from. Ids only, never a row.
+        """
+        ...
+
     async def forget(self, tenant_id: TenantId, ids: tuple[BatchId, ...]) -> None:
         """Delete the rows. The blobs they point at are the caller's to remove;
         a repository does not reach into object storage."""
+        ...
+
+
+class CandidateRepository(Protocol):
+    async def add(self, candidate: TaskCandidate) -> None: ...
+
+    async def get(self, tenant_id: TenantId, candidate_id: CandidateId) -> TaskCandidate: ...
+
+    async def save(self, candidate: TaskCandidate) -> None: ...
+
+    async def list_for_tenant(
+        self,
+        tenant_id: TenantId,
+        *,
+        status: CandidateStatus | None = None,
+        principal_id: PrincipalId | None = None,
+        seen_at_least: int = 0,
+    ) -> tuple[TaskCandidate, ...]:
+        """Most often seen first. The miner reads them all, including dismissed
+        ones -- a task somebody said no to must not be offered again next week
+        as if it were new.
+        """
         ...
 
 
@@ -343,6 +376,7 @@ class UnitOfWork(Protocol):
     devices: DeviceRepository
     observations: ObservationRepository
     observation_policies: ObservationPolicyRepository
+    candidates: CandidateRepository
     triggers: TriggerRepository
 
     async def __aenter__(self) -> UnitOfWork: ...

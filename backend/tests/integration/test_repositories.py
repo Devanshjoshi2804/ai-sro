@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
+from sro.domain.observation.candidate import Episode, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
+    CandidateId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -399,4 +401,78 @@ def _trigger() -> Trigger:
         writes=True,
         authorized_by=PrincipalId("devansh"),
         requires_confirmation=False,
+    )
+
+
+class TestCandidates:
+    async def test_a_candidate_round_trips_with_its_episodes_and_stays_its_tenants(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        candidate = _candidate()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.candidates.add(candidate)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            loaded = await uow.candidates.get(candidate.tenant_id, candidate.id)
+            with pytest.raises(NotFound):
+                await uow.candidates.get(OTHER_TENANT, candidate.id)
+            assert await uow.candidates.list_for_tenant(OTHER_TENANT) == ()
+
+        assert loaded.times_seen == 2
+        assert loaded.episodes[0].gestures == 4
+        assert loaded.median_duration_ms == 45_000
+
+    async def test_the_same_task_mined_twice_cannot_become_two_candidates(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        # The unique index is what makes re-running the miner safe.
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.candidates.add(_candidate())
+            await uow.commit()
+
+        with pytest.raises(IntegrityError):
+            async with SqlUnitOfWork(session_factory) as uow:
+                await uow.candidates.add(_candidate(candidate_id="cnd-2"))
+                await uow.commit()
+
+    async def test_only_what_has_happened_often_enough_comes_back(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.candidates.add(_candidate())
+            await uow.candidates.add(
+                _candidate(candidate_id="cnd-rare", signature="GET api/waves", episodes=1)
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            offered = await uow.candidates.list_for_tenant(TenantId("acme"), seen_at_least=2)
+
+        assert [one.id.value for one in offered] == ["cnd-1"]
+
+
+def _candidate(
+    *, candidate_id: str = "cnd-1", signature: str = "POST api/suppliers", episodes: int = 2
+) -> TaskCandidate:
+    at = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+    return TaskCandidate(
+        id=CandidateId(candidate_id),
+        tenant_id=TenantId("acme"),
+        principal_id=PrincipalId("devansh"),
+        signature=signature,
+        host="wms.acme.test",
+        title="Create suppliers on wms.acme.test",
+        episodes=tuple(
+            Episode(
+                started_at=at + timedelta(hours=hour),
+                ended_at=at + timedelta(hours=hour, seconds=45),
+                host="wms.acme.test",
+                batch_ids=(BatchId(f"bat-{hour}"),),
+                gestures=4,
+                calls=3,
+            )
+            for hour in range(episodes)
+        ),
     )

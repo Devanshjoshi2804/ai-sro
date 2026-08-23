@@ -26,12 +26,14 @@ from sro.domain.knowledge.entry import (
     KnowledgeId,
 )
 from sro.domain.observation.batch import CaptureMode, ObservationBatch
+from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
+    CandidateId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -45,6 +47,7 @@ from sro.domain.skill.skill import Skill
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.infrastructure.db.codec import (
     dump_artifacts,
+    dump_episodes,
     dump_frames,
     dump_messages,
     dump_narration,
@@ -52,6 +55,7 @@ from sro.infrastructure.db.codec import (
     dump_rejected,
     dump_versions,
     load_artifacts,
+    load_episodes,
     load_frames,
     load_messages,
     load_narration,
@@ -69,6 +73,7 @@ from sro.infrastructure.db.models import (
     RecordingRow,
     RunRow,
     SkillRow,
+    TaskCandidateRow,
     ThreadRow,
     TriggerRow,
 )
@@ -563,4 +568,44 @@ def row_to_trigger(row: TriggerRow) -> Trigger:
         last_fired_at=row.last_fired_at,
         last_run_id=RunId(row.last_run_id) if row.last_run_id else None,
         disabled_reason=row.disabled_reason,
+    )
+
+
+def candidate_to_row(candidate: TaskCandidate) -> TaskCandidateRow:
+    row = TaskCandidateRow(id=candidate.id.value)
+    update_candidate_row(row, candidate)
+    return row
+
+
+def update_candidate_row(row: TaskCandidateRow, candidate: TaskCandidate) -> None:
+    row.tenant_id = candidate.tenant_id.value
+    row.principal_id = candidate.principal_id.value
+    row.signature = candidate.signature
+    row.host = candidate.host
+    row.title = candidate.title
+    row.named_by_model = candidate.named_by_model
+    row.status = candidate.status.value
+    row.skill_id = candidate.skill_id.value if candidate.skill_id else None
+    row.dismissed_reason = candidate.dismissed_reason
+    row.episodes = dump_episodes(candidate.episodes)
+    # Lifted out of the document so "offer me what happened most often" is an
+    # index rather than a scan of every candidate's episodes.
+    row.times_seen = candidate.times_seen
+    row.first_seen = candidate.first_seen
+    row.last_seen = candidate.last_seen
+
+
+def row_to_candidate(row: TaskCandidateRow) -> TaskCandidate:
+    return TaskCandidate(
+        id=CandidateId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        principal_id=PrincipalId(row.principal_id),
+        signature=row.signature,
+        host=row.host,
+        title=row.title,
+        status=CandidateStatus(row.status),
+        episodes=load_episodes(row.episodes),
+        skill_id=SkillId(row.skill_id) if row.skill_id else None,
+        dismissed_reason=row.dismissed_reason,
+        named_by_model=row.named_by_model,
     )

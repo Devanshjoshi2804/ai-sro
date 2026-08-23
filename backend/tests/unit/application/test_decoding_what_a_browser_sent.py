@@ -6,10 +6,7 @@ change fails here rather than silently producing an empty recording.
 
 from __future__ import annotations
 
-from sro.domain.recording.events import ActionKind
-from sro.domain.recording.network import InitiatorKind
-from sro.domain.recording.state import ConsoleLevel, PageEventKind
-from sro.infrastructure.steel.cdp_mapping import (
+from sro.application.capture.decode import (
     epoch_to_datetime,
     to_ax_graph,
     to_console_message,
@@ -20,6 +17,9 @@ from sro.infrastructure.steel.cdp_mapping import (
     to_page_event,
     to_timing,
 )
+from sro.domain.recording.events import ActionKind
+from sro.domain.recording.network import InitiatorKind
+from sro.domain.recording.state import ConsoleLevel, PageEventKind
 from tests import factories as f
 
 

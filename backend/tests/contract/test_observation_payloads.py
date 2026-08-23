@@ -20,11 +20,11 @@ from typing import Any
 import pytest
 from pydantic import TypeAdapter
 
+from sro.application.capture.decode import epoch_to_datetime, to_ax_graph, to_input_action
 from sro.domain.recording.axgraph import AxGraph
 from sro.domain.recording.events import InputAction
 from sro.domain.recording.network import CapturedRequest
 from sro.domain.recording.state import PageEvent
-from sro.infrastructure.steel.cdp_mapping import epoch_to_datetime, to_ax_graph, to_input_action
 
 FIXTURES = Path(__file__).resolve().parents[3] / "new-chrome-extension" / "fixtures"
 

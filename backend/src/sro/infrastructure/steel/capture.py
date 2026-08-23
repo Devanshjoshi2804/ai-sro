@@ -26,13 +26,7 @@ from typing import Any
 from playwright.async_api import BrowserContext, CDPSession, Frame, Page, async_playwright
 from playwright.async_api import Playwright as PlaywrightDriver
 
-from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent, SnapshotEvent
-from sro.application.ports.blob import BlobStore
-from sro.domain.recording.artifact import ArtifactKind
-from sro.domain.recording.network import Body, CapturedRequest, Cookie, RedirectHop
-from sro.domain.recording.sensitivity import SECRET_TOKENS
-from sro.domain.recording.state import ConsoleMessage, PageEvent
-from sro.infrastructure.steel.cdp_mapping import (
+from sro.application.capture.decode import (
     CdpPayload,
     epoch_to_datetime,
     to_ax_graph,
@@ -44,6 +38,12 @@ from sro.infrastructure.steel.cdp_mapping import (
     to_page_event,
     to_timing,
 )
+from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent, SnapshotEvent
+from sro.application.ports.blob import BlobStore
+from sro.domain.recording.artifact import ArtifactKind
+from sro.domain.recording.network import Body, CapturedRequest, Cookie, RedirectHop
+from sro.domain.recording.sensitivity import SECRET_TOKENS
+from sro.domain.recording.state import ConsoleMessage, PageEvent
 from sro.infrastructure.steel.redaction import REDACTED, redact_body
 from sro.infrastructure.steel.video import Recorded, ScreencastRecorder
 

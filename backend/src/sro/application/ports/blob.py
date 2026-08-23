@@ -24,6 +24,13 @@ class BlobStore(Protocol):
         """
         ...
 
+    async def read(self, uri: str) -> bytes:
+        """The bytes back. Used by anything that derives a view from evidence
+        rather than serving it to a browser -- the miner reads a day of
+        observation this way rather than through a presigned URL it would then
+        have to fetch over the network to reach itself."""
+        ...
+
     async def forget(self, uri: str) -> None:
         """Delete what a URI addresses. Idempotent -- deleting what is not there
         is success, because a purge that fails halfway must be safe to repeat.

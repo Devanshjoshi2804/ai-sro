@@ -53,7 +53,7 @@ this document's scope.
 Timestamps are **RFC 3339 with an offset**, always. Durations are integer
 milliseconds. Gesture `at` inside a captured event keeps the recorder's existing
 format — Unix **seconds as a float** — because that is what `recorder.js` emits
-and what `cdp_mapping.epoch_to_datetime` parses.
+and what `capture.decode.epoch_to_datetime` parses.
 
 ---
 
@@ -152,7 +152,7 @@ operator may add to the list locally; they may not remove a server entry.
 Four kinds, discriminated by `kind`.
 
 **`gesture`** — emitted verbatim by `recorder.js`. Do not reshape it; the backend
-parses it with `cdp_mapping.to_input_action` and any change here is a change to
+parses it with `capture.decode.to_input_action` and any change here is a change to
 that function.
 
 ```jsonc
@@ -221,7 +221,7 @@ A body larger than `max_body_bytes` is uploaded as an artifact and referenced by
 
 **`snapshot`** — an accessibility tree, teaching tier only. The payload is CDP's
 `Accessibility.getFullAXTree` result plus `url` and `taken_at`; the backend
-parses it with `cdp_mapping.to_ax_graph`.
+parses it with `capture.decode.to_ax_graph`.
 
 **`page`** — navigation and lifecycle.
 

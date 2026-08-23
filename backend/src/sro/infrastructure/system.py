@@ -9,7 +9,13 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.thread import MessageId, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import KnowledgeId
-from sro.domain.shared.identifiers import DeviceId, RecordingId, SkillId, TriggerId
+from sro.domain.shared.identifiers import (
+    CandidateId,
+    DeviceId,
+    RecordingId,
+    SkillId,
+    TriggerId,
+)
 
 
 class SystemClock(Clock):
@@ -43,3 +49,6 @@ class UuidFactory(IdFactory):
 
     def new_trigger_id(self) -> TriggerId:
         return TriggerId(f"trg_{uuid.uuid4().hex}")
+
+    def new_candidate_id(self) -> CandidateId:
+        return CandidateId(f"cnd_{uuid.uuid4().hex}")

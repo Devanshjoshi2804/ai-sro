@@ -42,6 +42,10 @@ class BatchId(Identifier):
     the same batch rather than stored twice."""
 
 
+class CandidateId(Identifier):
+    """A task somebody keeps doing, noticed rather than reported."""
+
+
 class TriggerId(Identifier):
     """What starts a run when nobody typed a sentence."""
 

@@ -1,8 +1,15 @@
-"""CDP payloads to domain objects.
+"""Wire payloads to domain objects.
 
-Pure functions: dict in, domain object out. No browser, no I/O, so the parsing of
-every CDP shape is testable in milliseconds -- which matters because these shapes
-are the part most likely to shift under a Chrome upgrade.
+The shapes are Chrome's -- ``Network.*``, ``Accessibility.getFullAXTree``, and
+the records the page recorder emits -- and they arrive from two places now: the
+capture adapter attached to a browser this deployment owns, and an extension in
+an operator's own. One definition, so evidence gathered either way becomes the
+same ``ActionFrame``.
+
+Pure: dictionaries in, domain out, no I/O and no clock. It lives here rather
+than beside the adapter because the second caller is a use case, and because
+what it translates is this system's own protocol (docs/14-extension-protocol.md)
+rather than anything Steel decides.
 """
 
 from __future__ import annotations
@@ -10,10 +17,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from pydantic import TypeAdapter
+
 from sro.domain.recording.axgraph import AxGraph
 from sro.domain.recording.element import Bounds, ComponentIdentity, ElementFingerprint
 from sro.domain.recording.events import ActionKind, InputAction
 from sro.domain.recording.network import (
+    CapturedRequest,
     Cookie,
     Initiator,
     InitiatorKind,
@@ -354,3 +364,16 @@ def _to_component(raw: object) -> ComponentIdentity | None:
 
 def _text(value: object) -> str | None:
     return str(value) if value else None
+
+
+_REQUEST = TypeAdapter(CapturedRequest)
+
+
+def to_captured_request(payload: CdpPayload) -> CapturedRequest:
+    """A network exchange in the shape this system's own protocol uses.
+
+    Not the CDP one: an extension has already done that translation in the
+    browser, so what arrives is the domain's field names. Validated rather than
+    trusted -- the invariants are the same ones a recording made here obeys.
+    """
+    return _REQUEST.validate_python(payload)

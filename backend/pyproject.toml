@@ -120,7 +120,7 @@ disallow_any_generics = true
 # The one honest exception: JSON really is dynamic. Confining `Any` to this
 # module means the diff can address arbitrary payloads without the escape hatch
 # leaking into the rest of the application layer.
-module = ["sro.application.induction.jsonutil"]
+module = ["sro.application.induction.jsonutil", "sro.application.capture.decode"]
 disallow_any_explicit = false
 
 [[tool.mypy.overrides]]

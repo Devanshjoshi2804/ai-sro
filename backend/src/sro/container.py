@@ -60,6 +60,7 @@ from sro.application.knowledge.retrieve import Retrieve
 from sro.application.observation.artifacts import StoreObservationArtifact
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
+from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.register import (
     ReadDevice,
@@ -67,6 +68,7 @@ from sro.application.observation.register import (
     RecordHeartbeat,
     RegisterDevice,
 )
+from sro.application.observation.teach import DismissCandidate, ReadCandidates, TeachCandidate
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.auth import Credentials
 from sro.application.ports.blob import BlobStore
@@ -187,6 +189,23 @@ class Container:
         except SQLAlchemyError:
             return False
         return True
+
+    def mine_observations(self) -> MineObservations:
+        return MineObservations(self.unit_of_work(), self.blobs, self.ids)
+
+    def mine_everything(self) -> MineEverything:
+        return MineEverything(self.unit_of_work(), self.mine_observations())
+
+    def read_candidates(self) -> ReadCandidates:
+        return ReadCandidates(self.unit_of_work())
+
+    def teach_candidate(self) -> TeachCandidate:
+        return TeachCandidate(
+            self.unit_of_work(), self.blobs, self.clock, self.ids, self.understand_recording()
+        )
+
+    def dismiss_candidate(self) -> DismissCandidate:
+        return DismissCandidate(self.unit_of_work())
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(self.unit_of_work(), self.clock, self.ids, self.scheduler)

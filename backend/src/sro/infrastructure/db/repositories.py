@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
+    CandidateRepository,
     ConnectionRepository,
     DeviceRepository,
     KnowledgeRepository,
@@ -35,6 +36,7 @@ from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry
 from sro.domain.observation.batch import ObservationBatch
+from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording, RecordingStatus
@@ -42,6 +44,7 @@ from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
+    CandidateId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -55,6 +58,7 @@ from sro.domain.trigger.trigger import Trigger
 from sro.infrastructure.db.codec import dump_policy
 from sro.infrastructure.db.mappers import (
     batch_to_row,
+    candidate_to_row,
     connection_to_row,
     device_to_row,
     knowledge_to_row,
@@ -63,6 +67,7 @@ from sro.infrastructure.db.mappers import (
     policy_to_row,
     recording_to_row,
     row_to_batch,
+    row_to_candidate,
     row_to_connection,
     row_to_device,
     row_to_knowledge,
@@ -77,6 +82,7 @@ from sro.infrastructure.db.mappers import (
     skill_to_row,
     thread_to_row,
     trigger_to_row,
+    update_candidate_row,
     update_connection_row,
     update_device_row,
     update_knowledge_row,
@@ -97,6 +103,7 @@ from sro.infrastructure.db.models import (
     RecordingRow,
     RunRow,
     SkillRow,
+    TaskCandidateRow,
     ThreadRow,
     TriggerRow,
 )
@@ -608,6 +615,14 @@ class SqlObservationRepository(ObservationRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_batch(row) for row in rows)
 
+    async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
+        rows = await self._session.execute(
+            select(ObservationBatchRow.tenant_id)
+            .where(ObservationBatchRow.ended_at >= since)
+            .distinct()
+        )
+        return tuple(TenantId(tenant) for tenant in rows.scalars())
+
     async def forget(self, tenant_id: TenantId, ids: tuple[BatchId, ...]) -> None:
         if not ids:
             return
@@ -617,6 +632,49 @@ class SqlObservationRepository(ObservationRepository):
                 ObservationBatchRow.id.in_([batch_id.value for batch_id in ids]),
             )
         )
+
+
+class SqlCandidateRepository(CandidateRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, candidate: TaskCandidate) -> None:
+        self._session.add(candidate_to_row(candidate))
+
+    async def get(self, tenant_id: TenantId, candidate_id: CandidateId) -> TaskCandidate:
+        return row_to_candidate(await self._row(tenant_id, candidate_id))
+
+    async def save(self, candidate: TaskCandidate) -> None:
+        update_candidate_row(await self._row(candidate.tenant_id, candidate.id), candidate)
+
+    async def list_for_tenant(
+        self,
+        tenant_id: TenantId,
+        *,
+        status: CandidateStatus | None = None,
+        principal_id: PrincipalId | None = None,
+        seen_at_least: int = 0,
+    ) -> tuple[TaskCandidate, ...]:
+        query = select(TaskCandidateRow).where(TaskCandidateRow.tenant_id == tenant_id.value)
+        if status is not None:
+            query = query.where(TaskCandidateRow.status == status.value)
+        if principal_id is not None:
+            query = query.where(TaskCandidateRow.principal_id == principal_id.value)
+        if seen_at_least:
+            query = query.where(TaskCandidateRow.times_seen >= seen_at_least)
+        query = query.order_by(TaskCandidateRow.times_seen.desc())
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_candidate(row) for row in rows)
+
+    async def _row(self, tenant_id: TenantId, candidate_id: CandidateId) -> TaskCandidateRow:
+        query = select(TaskCandidateRow).where(
+            TaskCandidateRow.id == candidate_id.value,
+            TaskCandidateRow.tenant_id == tenant_id.value,
+        )
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        if row is None:
+            raise NotFound(f"candidate {candidate_id} was not found")
+        return row
 
 
 class SqlObservationPolicyRepository(ObservationPolicyRepository):
@@ -700,6 +758,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.devices = SqlDeviceRepository(self._session)
         self.observations = SqlObservationRepository(self._session)
         self.observation_policies = SqlObservationPolicyRepository(self._session)
+        self.candidates = SqlCandidateRepository(self._session)
         self.triggers = SqlTriggerRepository(self._session)
         return self
 

@@ -178,9 +178,9 @@ sealed recording rejects appends and loading is not a state transition.
   recording: attach on start, drain on an interval, drain once more and detach
   on finish. Draining on an interval is what makes a crashed API process cost
   one interval instead of the whole demonstration.
-- `cdp_mapping.py` — pure dict-to-domain functions, so every CDP shape is tested
+- `application/capture/decode.py` — pure dict-to-domain functions, so every wire shape is tested
   without a browser. These are the parts most likely to move under a Chrome
-  upgrade, and `tests/unit/infrastructure/test_cdp_mapping.py` is where that
+  upgrade, and `tests/unit/application/test_decoding_what_a_browser_sent.py` is where that
   breakage surfaces.
 
 Two things about the injected recorder are load-bearing and were both learned

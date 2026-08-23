@@ -68,10 +68,17 @@ only one comes back.
 
 Settled in the pilot agreement, not afterwards:
 
-1. **Deliberate demonstration, not passive capture.** "Teach the system this
-   task" is clean on consent, on personal data, and on optics where union
-   agreements apply. It is also what makes total capture acceptable — the
-   operator knows the session is being recorded in full.
+1. **Passive, continuous observation, per tenant, opt-in.** Reversed by
+   [ADR 008](07-adr/008-passive-observation.md); the deliberate-demonstration
+   position it replaced is recorded there with its reasoning. The extension in
+   the operator's own browser observes all tabs, which is monitoring and reads
+   as monitoring: where union agreements or works councils apply this needs
+   written agreement *before* it is switched on. Off until a tenant turns it on,
+   and that must not become a default. What makes total capture acceptable is now
+   the controls that ship with it — exclusion by non-injection, an operator
+   pause, an administrator kill switch, always-visible state, a purge the
+   operator can run themselves, and per-tenant retention — not the operator's
+   moment-to-moment awareness that a session is being recorded.
 2. **Written customer authorisation** for automating a vendor's UI and
    intercepting its traffic.
 

@@ -152,3 +152,47 @@ The process that turns two sealed recordings into a skill version:
 ```
 align → diff and classify → name → extract assertions → emit two plans
 ```
+
+## Observation
+
+`application/observation/`
+
+What passive capture produces: a continuous stream from an extension in an
+operator's own browser, uploaded in **batches**, stored as evidence and mined.
+Not a recording — nobody said "watch this", it has no objective key, and it is
+not one task. See [ADR 008](07-adr/008-passive-observation.md).
+
+## Episode
+
+`application/observation/segment.py`
+
+A segmented unit of work inside an observation stream: a contiguous run of events
+on one host with no idle gap longer than the threshold. Derived, and recomputable
+from the batches — a better segmenter is re-run over the same evidence rather
+than requiring new evidence.
+
+## Task candidate
+
+`application/observation/mine.py`
+
+An episode *class* seen often enough to propose automating: a signature, its
+occurrences, how long each took, and pointers to the episodes that are its
+evidence. Teaching a candidate materialises a recording from its best episode and
+hands it to induction. A candidate is a proposal to an operator, never something
+the system acts on by itself.
+
+## Device
+
+`domain/observation/device.py`
+
+One installed extension in one browser profile, registered to a tenant and a
+principal. What a command channel addresses, and what a batch was uploaded by.
+
+## Trigger
+
+`domain/trigger/`
+
+What starts a run when nobody typed a sentence: `manual`, `schedule` (cron), or
+`inbound` (mail or chat). A trigger for a skill that writes carries the standing
+authorisation, named, from the credential of whoever created it — a scheduled
+write with nobody's name on it is refused at creation, not at fire time.

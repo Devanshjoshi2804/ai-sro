@@ -37,10 +37,12 @@ from sro.domain.shared.identifiers import (
     RecordingId,
     SkillId,
     TenantId,
+    TriggerId,
 )
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.infrastructure.db.codec import (
     dump_artifacts,
     dump_frames,
@@ -68,6 +70,7 @@ from sro.infrastructure.db.models import (
     RunRow,
     SkillRow,
     ThreadRow,
+    TriggerRow,
 )
 
 _OBJECTIVE_COLUMNS = ("objective_type", "target_system", "entity_type", "facility", "direction")
@@ -510,3 +513,54 @@ def policy_to_row(tenant_id: TenantId, policy: ObservationPolicy) -> Observation
 
 def row_to_policy(row: ObservationPolicyRow) -> ObservationPolicy:
     return load_policy(row.policy)
+
+
+def trigger_to_row(trigger: Trigger) -> TriggerRow:
+    row = TriggerRow(id=trigger.id.value)
+    update_trigger_row(row, trigger)
+    return row
+
+
+def update_trigger_row(row: TriggerRow, trigger: Trigger) -> None:
+    row.tenant_id = trigger.tenant_id.value
+    row.skill_id = trigger.skill_id.value
+    row.kind = trigger.kind.value
+    row.cron = trigger.cron
+    row.timezone = trigger.timezone
+    row.parameters = dict(trigger.parameters)
+    row.device_id = trigger.device_id.value if trigger.device_id else None
+    row.medium = trigger.medium.value
+    row.enabled = trigger.enabled
+    row.writes = trigger.writes
+    row.authorized_by = trigger.authorized_by.value if trigger.authorized_by else None
+    row.requires_confirmation = trigger.requires_confirmation
+    row.may_take_focus = trigger.may_take_focus
+    row.created_by = trigger.created_by.value
+    row.created_at = trigger.created_at
+    row.last_fired_at = trigger.last_fired_at
+    row.last_run_id = trigger.last_run_id.value if trigger.last_run_id else None
+    row.disabled_reason = trigger.disabled_reason
+
+
+def row_to_trigger(row: TriggerRow) -> Trigger:
+    return Trigger(
+        id=TriggerId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        skill_id=SkillId(row.skill_id),
+        kind=TriggerKind(row.kind),
+        created_by=PrincipalId(row.created_by),
+        created_at=row.created_at,
+        parameters=dict(row.parameters),
+        cron=row.cron,
+        timezone=row.timezone,
+        device_id=DeviceId(row.device_id) if row.device_id else None,
+        medium=Medium(row.medium),
+        enabled=row.enabled,
+        writes=row.writes,
+        authorized_by=PrincipalId(row.authorized_by) if row.authorized_by else None,
+        requires_confirmation=row.requires_confirmation,
+        may_take_focus=row.may_take_focus,
+        last_fired_at=row.last_fired_at,
+        last_run_id=RunId(row.last_run_id) if row.last_run_id else None,
+        disabled_reason=row.disabled_reason,
+    )

@@ -23,6 +23,7 @@ from sro.application.ports.sign_in import SignInFailed
 from sro.application.ports.token import TokenRefused
 from sro.application.ports.vault import VaultUnavailable
 from sro.application.recording.start_recording import NoSessionForSystem
+from sro.application.trigger.create_trigger import TriggerRefused
 from sro.domain.shared.errors import Conflict, DomainError, InvariantViolation, NotFound
 
 _STATUS_BY_ERROR: dict[type[Exception], int] = {
@@ -47,6 +48,7 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     # Not 403: the credential was fine and the request was well formed. The
     # deployment has not agreed to store this, and that is state, not identity.
     ObservationRefused: status.HTTP_409_CONFLICT,
+    TriggerRefused: status.HTTP_409_CONFLICT,
     NoCredentials: status.HTTP_409_CONFLICT,
     # A login that did not complete is about the system's state, not the
     # request's shape: a stale password, a second factor, a changed page. All

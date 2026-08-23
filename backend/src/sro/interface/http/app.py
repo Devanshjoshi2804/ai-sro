@@ -25,6 +25,7 @@ from sro.interface.http.v1.routers import (
     skills,
     stream,
     threads,
+    triggers,
     watch,
 )
 from sro.observability import configure_logging
@@ -78,6 +79,7 @@ def create_app() -> FastAPI:
     app.include_router(stream.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(knowledge.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(threads.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(triggers.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(runs.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(watch.router, prefix="/v1", responses=PROBLEMS)
     return app

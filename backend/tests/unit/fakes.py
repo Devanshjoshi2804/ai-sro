@@ -18,6 +18,7 @@ from sro.application.induction.induce_skill import InducedSkill, InduceSkill
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider, BrowserSession, BrowserUnavailable
+from sro.application.ports.dispatch import DispatchFailed, RunDispatcher
 from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
 from sro.application.ports.intent import Extraction, Reading
@@ -33,8 +34,10 @@ from sro.application.ports.repositories import (
     RunRepository,
     SkillRepository,
     ThreadRepository,
+    TriggerRepository,
     UnitOfWork,
 )
+from sro.application.ports.schedule import Scheduler, SchedulerUnavailable
 from sro.application.ports.sign_in import SignInDriver, SignInFailed, SignInResult
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.transcription import TranscribedSegment, Transcriber
@@ -70,10 +73,12 @@ from sro.domain.shared.identifiers import (
     RecordingId,
     SkillId,
     TenantId,
+    TriggerId,
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.trigger import Trigger
 
 
 class FakeClock:
@@ -98,6 +103,7 @@ class FakeIdFactory:
         self._threads = count(1)
         self._messages = count(1)
         self._devices = count(1)
+        self._triggers = count(1)
 
     def new_recording_id(self) -> RecordingId:
         return RecordingId(f"rec-{next(self._recordings)}")
@@ -119,6 +125,9 @@ class FakeIdFactory:
 
     def new_device_id(self) -> DeviceId:
         return DeviceId(f"dev-{next(self._devices)}")
+
+    def new_trigger_id(self) -> TriggerId:
+        return TriggerId(f"trg-{next(self._triggers)}")
 
 
 class FakeSignInDriver:
@@ -267,7 +276,7 @@ class FakeDurableExecution:
 
     def __init__(
         self,
-        induce: InduceSkill,
+        induce: InduceSkill | None = None,
         *,
         execute: ExecuteSkill | None = None,
         available: bool = True,
@@ -287,6 +296,8 @@ class FakeDurableExecution:
         second: RecordingId | None = None,
         name: str | None = None,
     ) -> InducedSkill:
+        if self._induce is None:
+            raise NotImplementedError("this fake was not given induction")
         return await self._induce.execute(ctx, first=first, second=second, name=name)
 
     async def execute_skill(
@@ -303,7 +314,9 @@ class FakeDurableExecution:
     ) -> RunId:
         self.started.append(str(skill_id))
         if self._execute is None:
-            raise NotImplementedError("this fake was not given an executor")
+            # A caller that only needs to know a run was started -- a trigger,
+            # say -- rather than what it did.
+            return run_id or RunId(f"run-started-{len(self.started)}")
         run = await self._execute.execute(
             ctx,
             ExecutionRequest(
@@ -888,6 +901,82 @@ class FakeAgentDrivers:
         return (DeviceId("dev-1"),) if self.connected else ()
 
 
+class FakeTriggerRepository:
+    def __init__(self) -> None:
+        self.rows: dict[str, Trigger] = {}
+
+    async def add(self, trigger: Trigger) -> None:
+        self.rows[trigger.id.value] = trigger
+
+    async def get(self, tenant_id: TenantId, trigger_id: TriggerId) -> Trigger:
+        trigger = self.rows.get(trigger_id.value)
+        if trigger is None or trigger.tenant_id != tenant_id:
+            raise NotFound(f"trigger {trigger_id} was not found")
+        return trigger
+
+    async def save(self, trigger: Trigger) -> None:
+        self.rows[trigger.id.value] = trigger
+
+    async def remove(self, tenant_id: TenantId, trigger_id: TriggerId) -> None:
+        trigger = self.rows.get(trigger_id.value)
+        if trigger is not None and trigger.tenant_id == tenant_id:
+            del self.rows[trigger_id.value]
+
+    async def list_for_tenant(
+        self, tenant_id: TenantId, *, skill_id: SkillId | None = None
+    ) -> tuple[Trigger, ...]:
+        mine = [
+            trigger
+            for trigger in self.rows.values()
+            if trigger.tenant_id == tenant_id and (skill_id is None or trigger.skill_id == skill_id)
+        ]
+        return tuple(sorted(mine, key=lambda trigger: trigger.created_at, reverse=True))
+
+    async def find(self, trigger_id: TriggerId) -> Trigger | None:
+        return self.rows.get(trigger_id.value)
+
+
+class FakeScheduler:
+    """A clock that keeps a list. What matters is that a trigger which cannot
+    be scheduled is never stored, and a paused one leaves nothing behind."""
+
+    def __init__(self, *, available: bool = True) -> None:
+        self.available = available
+        self.scheduled: dict[str, str] = {}
+
+    async def schedule(self, trigger: Trigger) -> None:
+        if not self.available:
+            raise SchedulerUnavailable("the fake scheduler is switched off")
+        self.scheduled[trigger.id.value] = trigger.cron or ""
+
+    async def unschedule(self, trigger_id: TriggerId) -> None:
+        self.scheduled.pop(trigger_id.value, None)
+
+
+class FakeRunDispatcher:
+    """The process that holds a browser, standing in for itself."""
+
+    def __init__(self, *, reachable: bool = True) -> None:
+        self.reachable = reachable
+        self.asked: list[tuple[str, str]] = []
+
+    async def start(
+        self,
+        ctx: RequestContext,
+        *,
+        skill_id: SkillId,
+        parameters: dict[str, str],
+        device_id: DeviceId,
+        version: int | None = None,
+        authorized_by: bool = False,
+        medium: Medium = Medium.NETWORK,
+    ) -> RunId:
+        if not self.reachable:
+            raise DispatchFailed(f"{device_id} has no channel open anywhere")
+        self.asked.append((skill_id.value, device_id.value))
+        return RunId(f"run-dispatched-{len(self.asked)}")
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -905,6 +994,7 @@ class FakeUnitOfWork:
     devices: DeviceRepository
     observations: ObservationRepository
     observation_policies: ObservationPolicyRepository
+    triggers: TriggerRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
@@ -918,6 +1008,7 @@ class FakeUnitOfWork:
         self.devices = FakeDeviceRepository()
         self.observations = FakeObservationRepository()
         self.observation_policies = FakeObservationPolicyRepository()
+        self.triggers = FakeTriggerRepository()
         self.commits = 0
         self.rollbacks = 0
 
@@ -983,3 +1074,6 @@ _devices: DeviceRepository = FakeDeviceRepository()
 _observations: ObservationRepository = FakeObservationRepository()
 _observation_policies: ObservationPolicyRepository = FakeObservationPolicyRepository()
 _agents: AgentDrivers = FakeAgentDrivers()
+_scheduler: Scheduler = FakeScheduler()
+_dispatcher: RunDispatcher = FakeRunDispatcher()
+_triggers: TriggerRepository = FakeTriggerRepository()

@@ -20,8 +20,10 @@ from sro.domain.shared.identifiers import (
     RecordingId,
     SkillId,
     TenantId,
+    TriggerId,
 )
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests import factories as f
 
@@ -339,4 +341,62 @@ def _batch(
         event_count=3,
         byte_count=512,
         rejected=(RejectedEvent(index=1, reason="an event kind nobody declared"),),
+    )
+
+
+class TestTriggers:
+    async def test_a_trigger_round_trips_and_stays_the_tenants_own(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        trigger = _trigger()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.triggers.add(trigger)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            loaded = await uow.triggers.get(trigger.tenant_id, trigger.id)
+            with pytest.raises(NotFound):
+                await uow.triggers.get(OTHER_TENANT, trigger.id)
+            assert await uow.triggers.list_for_tenant(OTHER_TENANT) == ()
+
+        assert loaded.cron == "0 7 * * 1-5"
+        assert loaded.parameters == {"facility": "SG"}
+        assert loaded.authorized_by == PrincipalId("devansh")
+        assert loaded.writes is True
+
+    async def test_a_schedule_finds_its_trigger_without_being_told_the_tenant(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        # The one tenant-blind read in the system: a schedule fires with an id
+        # and nothing else, and what comes back carries its own tenant.
+        trigger = _trigger()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.triggers.add(trigger)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.triggers.find(trigger.id)
+            missing = await uow.triggers.find(TriggerId("trg-nobody"))
+
+        assert found is not None
+        assert found.tenant_id == trigger.tenant_id
+        assert missing is None
+
+
+def _trigger() -> Trigger:
+    return Trigger(
+        id=TriggerId("trg-1"),
+        tenant_id=TenantId("acme"),
+        skill_id=SkillId("skill-1"),
+        kind=TriggerKind.SCHEDULE,
+        created_by=PrincipalId("devansh"),
+        created_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        parameters={"facility": "SG"},
+        cron="0 7 * * 1-5",
+        timezone="Asia/Kolkata",
+        writes=True,
+        authorized_by=PrincipalId("devansh"),
+        requires_confirmation=False,
     )

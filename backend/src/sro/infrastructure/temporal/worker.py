@@ -21,6 +21,7 @@ from sro.infrastructure.temporal.workflows import (
     ExecutionWorkflow,
     InductionWorkflow,
     RecordingSessionWorkflow,
+    TriggerWorkflow,
 )
 from sro.observability import configure_logging
 
@@ -68,12 +69,13 @@ async def run() -> None:
     default = Worker(
         client,
         task_queue=DEFAULT_QUEUE,
-        workflows=[InductionWorkflow, ExecutionWorkflow],
+        workflows=[InductionWorkflow, ExecutionWorkflow, TriggerWorkflow],
         activities=[
             activities.induce_skill,
             activities.start_run,
             activities.execute_step,
             activities.finish_run,
+            activities.fire_trigger,
         ],
     )
     browser = Worker(

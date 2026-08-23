@@ -25,6 +25,7 @@ from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.track_record import why_not_autonomous
+from sro.domain.trigger.trigger import Trigger
 
 
 class ObjectiveKeyModel(BaseModel):
@@ -1178,3 +1179,88 @@ class ObservationArtifactResponse(BaseModel):
 class ForgottenResponse(BaseModel):
     batches: int
     events: int
+
+
+class NewTriggerRequest(BaseModel):
+    skill_id: str
+    kind: str = "schedule"
+    cron: str | None = None
+    """Five fields, in the scheduler's own dialect. `0 7 * * 1-5` is every
+    weekday at seven."""
+
+    timezone: str = "UTC"
+    """The warehouse's, not the server's. A report due at seven local time runs
+    at seven local time in March and in November."""
+
+    parameters: dict[str, str] = Field(default_factory=dict)
+    device_id: str | None = None
+    """Run it in this operator's browser. Such a run happens only while that
+    browser is connected, which is a property of a laptop rather than a fault."""
+
+    medium: str = "network"
+    authorized_by: bool = False
+    """Whether the caller stands behind every run this will start. Required for
+    a skill that changes the system, and the name comes from the credential."""
+
+    auto_approve: bool = False
+    """Send the writes without asking, every time it fires. A per-trigger
+    decision by a named person -- never a default, and never global."""
+
+    may_take_focus: bool = False
+
+
+class ChangeTriggerRequest(BaseModel):
+    enabled: bool
+    reason: str = ""
+    """Why it was switched off. A trigger nobody remembers disabling gets
+    switched back on."""
+
+
+class TriggerModel(BaseModel):
+    id: str
+    skill_id: str
+    kind: str
+    cron: str | None
+    timezone: str
+    parameters: dict[str, str]
+    device_id: str | None
+    medium: str
+    enabled: bool
+    writes: bool
+    authorized_by: str | None
+    requires_confirmation: bool
+    may_take_focus: bool
+    created_by: str
+    created_at: datetime
+    last_fired_at: datetime | None
+    last_run_id: str | None
+    disabled_reason: str | None
+
+    @classmethod
+    def of(cls, trigger: Trigger) -> TriggerModel:
+        return cls(
+            id=trigger.id.value,
+            skill_id=trigger.skill_id.value,
+            kind=trigger.kind.value,
+            cron=trigger.cron,
+            timezone=trigger.timezone,
+            parameters=dict(trigger.parameters),
+            device_id=trigger.device_id.value if trigger.device_id else None,
+            medium=trigger.medium.value,
+            enabled=trigger.enabled,
+            writes=trigger.writes,
+            authorized_by=trigger.authorized_by.value if trigger.authorized_by else None,
+            requires_confirmation=trigger.requires_confirmation,
+            may_take_focus=trigger.may_take_focus,
+            created_by=trigger.created_by.value,
+            created_at=trigger.created_at,
+            last_fired_at=trigger.last_fired_at,
+            last_run_id=trigger.last_run_id.value if trigger.last_run_id else None,
+            disabled_reason=trigger.disabled_reason,
+        )
+
+
+class FiredModel(BaseModel):
+    trigger_id: str
+    run_id: str | None
+    skipped: str | None

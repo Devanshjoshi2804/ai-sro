@@ -72,12 +72,14 @@ from sro.application.ports.auth import Credentials
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.capture import CaptureController
+from sro.application.ports.dispatch import RunDispatcher
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import HttpCaller
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.schedule import Scheduler
 from sro.application.ports.sign_in import SignInDriver
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.token import TokenSource
@@ -96,6 +98,9 @@ from sro.application.recording.start_recording import StartRecording
 from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
+from sro.application.trigger.create_trigger import CreateTrigger
+from sro.application.trigger.fire_trigger import FireTrigger
+from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
 from sro.config import Settings, get_settings
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
@@ -109,6 +114,7 @@ from sro.infrastructure.gemini.intent import GeminiIntentParser
 from sro.infrastructure.gemini.interpreter import GeminiInterpreter
 from sro.infrastructure.gemini.null_intent import NoIntentParser
 from sro.infrastructure.gemini.null_interpreter import NoInterpreter
+from sro.infrastructure.http.api_runs import ApiRunDispatcher
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
 from sro.infrastructure.steel.client import SteelClient
@@ -118,6 +124,7 @@ from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
 from sro.infrastructure.system import SystemClock, UuidFactory
 from sro.infrastructure.telemetry.otel import configure_tracing
 from sro.infrastructure.temporal.durable import TemporalDurableExecution
+from sro.infrastructure.temporal.schedules import TemporalScheduler
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
 from sro.infrastructure.transcription.null import NullTranscriber
 from sro.infrastructure.vault.file_vault import FileCredentialVault
@@ -148,6 +155,8 @@ class Container:
     tokens: TokenSource | None
     credentials: Credentials
     durable: DurableExecution
+    scheduler: Scheduler
+    dispatcher: RunDispatcher
     session_factory: async_sessionmaker[AsyncSession]
 
     agent_sockets: DeviceSockets = field(default_factory=DeviceSockets)
@@ -178,6 +187,27 @@ class Container:
         except SQLAlchemyError:
             return False
         return True
+
+    def create_trigger(self) -> CreateTrigger:
+        return CreateTrigger(self.unit_of_work(), self.clock, self.ids, self.scheduler)
+
+    def read_triggers(self) -> ReadTriggers:
+        return ReadTriggers(self.unit_of_work())
+
+    def set_trigger_enabled(self) -> SetTriggerEnabled:
+        return SetTriggerEnabled(self.unit_of_work(), self.scheduler)
+
+    def delete_trigger(self) -> DeleteTrigger:
+        return DeleteTrigger(self.unit_of_work(), self.scheduler)
+
+    def fire_trigger(self) -> FireTrigger:
+        return FireTrigger(
+            self.unit_of_work(),
+            self.clock,
+            self.durable,
+            dispatcher=self.dispatcher,
+            scheduler=self.scheduler,
+        )
 
     def agents(self) -> AgentDrivers:
         """Drivers that perform in an operator's own browser."""
@@ -559,6 +589,7 @@ def build_container(settings: Settings | None = None) -> Container:
     )
 
     engine = create_engine(settings.database_url, echo=settings.debug)
+    credentials = SignedTokens(settings.auth_secret)
 
     container = Container(
         settings=settings,
@@ -596,7 +627,13 @@ def build_container(settings: Settings | None = None) -> Container:
             if settings.keycloak_realm_url and settings.keycloak_client_id
             else None
         ),
-        credentials=SignedTokens(settings.auth_secret),
+        credentials=credentials,
+        scheduler=TemporalScheduler(
+            address=settings.temporal_address, namespace=settings.temporal_namespace
+        ),
+        # Mints its own short-lived credential for the trigger's principal, so
+        # a scheduled run is asked for by the person who put it on the clock.
+        dispatcher=ApiRunDispatcher(settings.api_url, credentials),
         durable=TemporalDurableExecution(
             address=settings.temporal_address, namespace=settings.temporal_namespace
         ),

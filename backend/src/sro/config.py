@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     somebody actually runs.
     """
 
+    api_url: str = "http://localhost:8000"
+    """Where this deployment's own API answers.
+
+    Used by the worker, and only for one thing: a scheduled run bound to an
+    operator's browser has to be asked for by the process holding that browser's
+    channel, which is the API rather than the worker. Wrong here means scheduled
+    device runs fail with a message naming this setting; nothing else notices."""
+
     temporal_address: str = "localhost:7233"
     temporal_namespace: str = "default"
 

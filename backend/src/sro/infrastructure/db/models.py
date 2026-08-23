@@ -325,3 +325,40 @@ class ObservationPolicyRow(Base):
     tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     policy: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
+
+
+class TriggerRow(Base):
+    """What starts a run when nobody typed a sentence."""
+
+    __tablename__ = "triggers"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    skill_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+
+    cron: Mapped[str | None] = mapped_column(String(120))
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
+    parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+
+    device_id: Mapped[str | None] = mapped_column(String(64))
+    medium: Mapped[str] = mapped_column(String(16), nullable=False, default="network")
+
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    writes: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Not nullable by accident: a trigger for a skill that writes cannot exist
+    # without one, and the entity refuses to be built otherwise.
+    authorized_by: Mapped[str | None] = mapped_column(String(64))
+    requires_confirmation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    may_take_focus: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_run_id: Mapped[str | None] = mapped_column(String(64))
+    disabled_reason: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        Index("ix_triggers_tenant_created", "tenant_id", "created_at"),
+        Index("ix_triggers_tenant_skill", "tenant_id", "skill_id"),
+    )

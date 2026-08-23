@@ -36,6 +36,8 @@ from tests.unit.fakes import (
     FakeHttpCaller,
     FakeIdFactory,
     FakeIntentParser,
+    FakeRunDispatcher,
+    FakeScheduler,
     FakeSignInDriver,
     FakeTranscriber,
     FakeUiDriver,
@@ -85,6 +87,8 @@ class _FakeContainer(Container):
         self.intent_parser = FakeIntentParser()
         self.pursuits = Pursuits()
         self.agent_sockets = DeviceSockets()
+        self.scheduler = FakeScheduler()
+        self.dispatcher = FakeRunDispatcher()
         # Last: the executor it wraps reaches for the http caller and the
         # driver above, so the fakes have to exist before it is built.
         self.durable = FakeDurableExecution(self.induce_skill(), execute=self.execute_skill())

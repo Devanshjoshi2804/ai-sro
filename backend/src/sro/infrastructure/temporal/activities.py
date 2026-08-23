@@ -26,6 +26,7 @@ from sro.domain.shared.identifiers import (
     RecordingId,
     SkillId,
     TenantId,
+    TriggerId,
 )
 
 
@@ -90,6 +91,21 @@ class ReapRequest:
     tenant_id: str
     recording_id: str
     browser_session_id: str
+
+
+@dataclass
+class TriggerRequest:
+    trigger_id: str
+    """The whole request. A schedule has no caller, so the tenant and the
+    principal come off the trigger itself rather than being carried here where
+    they could disagree with it."""
+
+
+@dataclass
+class TriggerResult:
+    trigger_id: str
+    run_id: str | None
+    skipped: str | None
 
 
 class Activities:
@@ -188,6 +204,17 @@ class Activities:
         ctx = _context(request.tenant_id, request.principal_id)
         run = await self._container.finish_run().execute(ctx, run_id=RunId(request.run_id))
         return run.status.value
+
+    @activity.defn(name="fire_trigger")
+    async def fire_trigger(self, request: TriggerRequest) -> TriggerResult:
+        """No context argument: a schedule has no caller, and the tenant comes
+        off the trigger."""
+        fired = await self._container.fire_trigger().execute(TriggerId(request.trigger_id))
+        return TriggerResult(
+            trigger_id=fired.trigger_id.value,
+            run_id=fired.run_id.value if fired.run_id else None,
+            skipped=fired.skipped,
+        )
 
 
 def _context(tenant_id: str, principal_id: str) -> RequestContext:

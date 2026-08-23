@@ -27,9 +27,11 @@ from sro.domain.shared.identifiers import (
     RecordingId,
     SkillId,
     TenantId,
+    TriggerId,
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.trigger import Trigger
 
 
 class RecordingRepository(Protocol):
@@ -302,6 +304,31 @@ class ObservationPolicyRepository(Protocol):
     async def save(self, tenant_id: TenantId, policy: ObservationPolicy) -> None: ...
 
 
+class TriggerRepository(Protocol):
+    async def add(self, trigger: Trigger) -> None: ...
+
+    async def get(self, tenant_id: TenantId, trigger_id: TriggerId) -> Trigger: ...
+
+    async def save(self, trigger: Trigger) -> None: ...
+
+    async def remove(self, tenant_id: TenantId, trigger_id: TriggerId) -> None: ...
+
+    async def list_for_tenant(
+        self, tenant_id: TenantId, *, skill_id: SkillId | None = None
+    ) -> tuple[Trigger, ...]:
+        """Newest first."""
+        ...
+
+    async def find(self, trigger_id: TriggerId) -> Trigger | None:
+        """Deliberately tenant-blind, and the only method here that is.
+
+        A schedule fires with an id and nothing else -- there is no request and
+        no caller to take a tenant from. What comes back carries its own, and
+        everything after this point is scoped by that.
+        """
+        ...
+
+
 class UnitOfWork(Protocol):
     """Transaction boundary. Leaving the block without ``commit`` rolls back."""
 
@@ -316,6 +343,7 @@ class UnitOfWork(Protocol):
     devices: DeviceRepository
     observations: ObservationRepository
     observation_policies: ObservationPolicyRepository
+    triggers: TriggerRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

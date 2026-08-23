@@ -26,6 +26,7 @@ from sro.application.ports.repositories import (
     RunRepository,
     SkillRepository,
     ThreadRepository,
+    TriggerRepository,
     UnitOfWork,
 )
 from sro.domain.chat.thread import Thread, ThreadId
@@ -46,9 +47,11 @@ from sro.domain.shared.identifiers import (
     RecordingId,
     SkillId,
     TenantId,
+    TriggerId,
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.trigger import Trigger
 from sro.infrastructure.db.codec import dump_policy
 from sro.infrastructure.db.mappers import (
     batch_to_row,
@@ -69,9 +72,11 @@ from sro.infrastructure.db.mappers import (
     row_to_run,
     row_to_skill,
     row_to_thread,
+    row_to_trigger,
     run_to_row,
     skill_to_row,
     thread_to_row,
+    trigger_to_row,
     update_connection_row,
     update_device_row,
     update_knowledge_row,
@@ -79,6 +84,7 @@ from sro.infrastructure.db.mappers import (
     update_run_row,
     update_skill_row,
     update_thread_row,
+    update_trigger_row,
 )
 from sro.infrastructure.db.models import (
     AgentDeviceRow,
@@ -92,6 +98,7 @@ from sro.infrastructure.db.models import (
     RunRow,
     SkillRow,
     ThreadRow,
+    TriggerRow,
 )
 
 
@@ -629,6 +636,49 @@ class SqlObservationPolicyRepository(ObservationPolicyRepository):
         row.policy = dump_policy(policy)
 
 
+class SqlTriggerRepository(TriggerRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, trigger: Trigger) -> None:
+        self._session.add(trigger_to_row(trigger))
+
+    async def get(self, tenant_id: TenantId, trigger_id: TriggerId) -> Trigger:
+        return row_to_trigger(await self._row(tenant_id, trigger_id))
+
+    async def save(self, trigger: Trigger) -> None:
+        update_trigger_row(await self._row(trigger.tenant_id, trigger.id), trigger)
+
+    async def remove(self, tenant_id: TenantId, trigger_id: TriggerId) -> None:
+        await self._session.execute(
+            delete(TriggerRow).where(
+                TriggerRow.id == trigger_id.value, TriggerRow.tenant_id == tenant_id.value
+            )
+        )
+
+    async def list_for_tenant(
+        self, tenant_id: TenantId, *, skill_id: SkillId | None = None
+    ) -> tuple[Trigger, ...]:
+        query = select(TriggerRow).where(TriggerRow.tenant_id == tenant_id.value)
+        if skill_id is not None:
+            query = query.where(TriggerRow.skill_id == skill_id.value)
+        rows = (await self._session.execute(query.order_by(TriggerRow.created_at.desc()))).scalars()
+        return tuple(row_to_trigger(row) for row in rows.all())
+
+    async def find(self, trigger_id: TriggerId) -> Trigger | None:
+        row = await self._session.get(TriggerRow, trigger_id.value)
+        return None if row is None else row_to_trigger(row)
+
+    async def _row(self, tenant_id: TenantId, trigger_id: TriggerId) -> TriggerRow:
+        query = select(TriggerRow).where(
+            TriggerRow.id == trigger_id.value, TriggerRow.tenant_id == tenant_id.value
+        )
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        if row is None:
+            raise NotFound(f"trigger {trigger_id} was not found")
+        return row
+
+
 class SqlUnitOfWork(UnitOfWork):
     """One session per block. The session opens on entry, not on construction,
     so a unit of work can be built once and used per request."""
@@ -650,6 +700,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.devices = SqlDeviceRepository(self._session)
         self.observations = SqlObservationRepository(self._session)
         self.observation_policies = SqlObservationPolicyRepository(self._session)
+        self.triggers = SqlTriggerRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

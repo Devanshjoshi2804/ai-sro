@@ -42,5 +42,9 @@ class BatchId(Identifier):
     the same batch rather than stored twice."""
 
 
+class TriggerId(Identifier):
+    """What starts a run when nobody typed a sentence."""
+
+
 class BrowserSessionId(Identifier):
     """Session in the browser provider. Owned by them, referenced by us."""

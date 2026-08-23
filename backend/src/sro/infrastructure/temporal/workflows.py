@@ -23,6 +23,8 @@ with workflow.unsafe.imports_passed_through():
         StartRunRequest,
         StepRequest,
         StepResult,
+        TriggerRequest,
+        TriggerResult,
     )
 
 _INDUCTION_RETRY = RetryPolicy(
@@ -163,3 +165,27 @@ class ExecutionWorkflow:
         )
         run_id: str = started.run_id
         return run_id
+
+
+@workflow.defn
+class TriggerWorkflow:
+    """One firing of one trigger.
+
+    Thin on purpose: everything it could decide -- whether the trigger is still
+    enabled, whether the skill still runs, whose authorisation applies -- is a
+    fact about now, and a workflow replays. It asks once and reports what it was
+    told.
+    """
+
+    @workflow.run
+    async def run(self, request: TriggerRequest) -> TriggerResult:
+        fired: TriggerResult = await workflow.execute_activity(
+            "fire_trigger",
+            request,
+            start_to_close_timeout=timedelta(minutes=10),
+            # Started, not retried. A trigger that fired and whose run went bad
+            # has a run to look at; a second firing would be a second set of
+            # writes against the same records, minutes apart, with nobody there.
+            retry_policy=RetryPolicy(maximum_attempts=1),
+        )
+        return fired

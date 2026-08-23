@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "AI-SRO",
+  "version": "0.1.0",
+  "description": "Watches how work is done, and does it back.",
+  "minimum_chrome_version": "116",
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "AI-SRO"
+  },
+  "options_page": "src/options/options.html",
+  "permissions": ["storage", "alarms", "scripting"],
+  "host_permissions": ["<all_urls>"]
+}

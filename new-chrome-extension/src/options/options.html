@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AI-SRO</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <h1>AI-SRO</h1>
+
+      <section id="state" class="card">
+        <p id="headline" class="headline">Not connected.</p>
+        <dl>
+          <dt>Device</dt><dd id="device">—</dd>
+          <dt>Policy</dt><dd id="policy">—</dd>
+          <dt>Last heartbeat</dt><dd id="beat">—</dd>
+          <dt>Trouble</dt><dd id="trouble">none</dd>
+        </dl>
+        <label class="switch">
+          <input type="checkbox" id="paused" />
+          <span>Pause observation on this browser</span>
+        </label>
+        <p class="note">
+          Your pause is yours. An administrator can also pause this device, and
+          that shows here too.
+        </p>
+      </section>
+
+      <section id="excluded" class="card">
+        <h2>Never observed</h2>
+        <p class="note">
+          Set by your organisation. Nothing of this extension runs on these
+          sites at all — no script is registered on them.
+        </p>
+        <ul id="exclusions"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Connection</h2>
+        <form id="sign-in">
+          <label>
+            Backend
+            <input id="api-url" type="url" placeholder="http://localhost:8000" required />
+          </label>
+          <label>
+            Credential
+            <input id="token" type="password" placeholder="paste the token" required />
+          </label>
+          <p class="note">
+            Issued by whoever runs the deployment:
+            <code>make token tenant=acme principal=you</code>. There is no sign-up.
+          </p>
+          <div class="row">
+            <button type="submit">Connect</button>
+            <button type="button" id="sign-out" class="quiet">Disconnect</button>
+          </div>
+        </form>
+      </section>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

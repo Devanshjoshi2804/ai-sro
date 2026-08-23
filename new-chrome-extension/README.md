@@ -23,6 +23,30 @@ invariants there before touching it.
 
 The backend track does not edit anything in this directory.
 
+## Running it
+
+```bash
+# 1. the mock, or the real backend on :8000
+python3 mock-server/server.py
+
+# 2. chrome://extensions -> Developer mode -> Load unpacked -> this directory
+# 3. the extension's Details -> Extension options
+#    backend  http://127.0.0.1:8000
+#    token    make token tenant=acme principal=you   (from the repo root)
+```
+
+Against the real backend, observation is off until somebody switches it on for
+the tenant -- that is the consent gate, not a bug:
+
+```bash
+make observe tenant=acme args="--on --exclude payroll.acme.com"
+```
+
+The badge reads `REC` only when a credential, a device, an enabled policy and
+neither pause all agree. When it does not, the options page says which one is
+missing, and it is never guessing: everything on that screen comes from the
+service worker's own state.
+
 ## Working without the backend
 
 `mock-server/` implements the frozen contract with canned responses. Build the
@@ -39,6 +63,10 @@ not edit it, and do not copy it here.
 `backend/tests/contract/test_observation_payloads.py` loads those exact files and
 asserts they parse into domain objects and satisfy every invariant. Neither side
 edits the other's code; a break in either half fails both people's `make check`.
+
+The credential lives in `chrome.storage.local`, not `session`: `session` is
+cleared when Chrome restarts, and an operator who has to paste a token every
+morning is an operator who turns the extension off.
 
 Regenerate a fixture by capturing the real thing, not by hand-editing the JSON —
 a hand-written fixture proves the fixture, not the extension.

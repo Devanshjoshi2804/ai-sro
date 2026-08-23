@@ -1,0 +1,80 @@
+:root {
+  color-scheme: light dark;
+  --ink: #111827;
+  --quiet: #6b7280;
+  --line: #e5e7eb;
+  --paper: #ffffff;
+  --ground: #f9fafb;
+  --alarm: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e5e7eb;
+    --quiet: #9ca3af;
+    --line: #374151;
+    --paper: #111827;
+    --ground: #0b1220;
+    --alarm: #f87171;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 2rem 1rem 4rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+main { max-width: 46rem; margin: 0 auto; }
+h1 { font-size: 1.25rem; margin: 0 0 1rem; }
+h2 { font-size: 0.95rem; margin: 0 0 0.5rem; }
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.headline { font-weight: 600; margin: 0 0 0.75rem; }
+.headline[data-on="true"]::before { content: "● "; color: var(--alarm); }
+.headline[data-on="false"]::before { content: "○ "; color: var(--quiet); }
+
+dl { display: grid; grid-template-columns: 9rem 1fr; gap: 0.25rem 1rem; margin: 0 0 1rem; }
+dt { color: var(--quiet); }
+dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.note { color: var(--quiet); font-size: 0.85rem; margin: 0.5rem 0 0; }
+.switch { display: flex; align-items: center; gap: 0.5rem; }
+
+ul { margin: 0; padding-left: 1.1rem; }
+li { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+
+form label { display: block; margin-bottom: 0.75rem; color: var(--quiet); font-size: 0.85rem; }
+input[type="url"], input[type="password"] {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+}
+
+.row { display: flex; gap: 0.5rem; }
+button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--paper);
+  font: inherit;
+  cursor: pointer;
+}
+button.quiet { background: transparent; color: var(--quiet); }

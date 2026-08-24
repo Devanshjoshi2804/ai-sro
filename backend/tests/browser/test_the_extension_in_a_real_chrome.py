@@ -115,6 +115,75 @@ def test_both_transports_were_captured(captured: dict[str, Any]) -> None:
     assert legacy, "the responseType=json call was lost, as it was when the getter threw"
 
 
+def test_the_patch_does_not_announce_itself_to_the_page(browser: Any, stub: Any) -> None:
+    """A page that can tell its `fetch` was replaced can behave differently
+    when it is -- refuse, degrade, or fingerprint the operator's browser as
+    one running this. The two tells are a custom property on the function and a
+    `toString()` that is not `[native code]`; neither may be visible.
+
+    Read in the page's own realm (`main_world`), because that is the realm a
+    site's own script runs in and the only one whose view of `fetch` matters.
+    """
+    api_url, batches = stub
+    worker = _service_worker(browser)
+    # Sign in *first*: the MAIN-world patch is registered only while capturing,
+    # so without this the page's `fetch` is the untouched native one and every
+    # "no tell" assertion below passes against nothing. The final upload check is
+    # what proves the patch is actually installed here -- invisible, not absent.
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+
+    page = browser.new_page()
+    page.goto(api_url)
+    # Registering the MAIN-world script is async; a page navigated in the same
+    # breath as sign-in can load before injection is in place, which no real
+    # operator hits (they sign in once, then browse). Reload with capture already
+    # on, the way every subsequent page loads, so injection is at document_start
+    # and singular -- then the tells below are read against the patch, not a race.
+    page.reload()
+
+    def in_page(expr: str) -> Any:
+        return page.evaluate(f"() => {{ {expr} }}", None)
+
+    diag = page.evaluate(
+        "() => ({"
+        " ft: window.fetch.toString(),"
+        " names: Object.getOwnPropertyNames(window.fetch),"
+        " ownToString: Object.getOwnPropertyDescriptor(window.fetch, 'toString') !== undefined,"
+        " source: Function.prototype.toString.call(window.fetch).slice(0, 80),"
+        "})",
+        None,
+    )
+    # The monkey-patch test every anti-bot library runs.
+    assert in_page("return window.fetch.toString()") == "function fetch() { [native code] }", diag
+    assert in_page("return window.XMLHttpRequest.prototype.open.toString()") == (
+        "function open() { [native code] }"
+    )
+    assert in_page("return window.XMLHttpRequest.prototype.send.toString()") == (
+        "function send() { [native code] }"
+    )
+    # The name is not a tell either.
+    assert in_page("return window.fetch.name") == "fetch"
+    # No enumerable or own marker property the page can find.
+    assert in_page("return window.fetch.__sro") is None
+    assert in_page("return Object.getOwnPropertyNames(window.fetch).includes('__sro')") is False
+    # The disguise survives being turned on itself.
+    assert in_page("return window.fetch.toString.toString()") == (
+        "function toString() { [native code] }"
+    )
+
+    # The patch really was installed and really is invisible: drive the page and
+    # prove its traffic reached the evidence plane. Without this the whole test
+    # is vacuous -- absence of tells is trivially true when nothing was patched.
+    page.click("#save")
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+    _flush(browser, worker)
+    assert "/api/orders" in json.dumps(batches), (
+        "the disguised patch captured nothing -- either it did not install or the "
+        "disguise broke capture, and the tells above were asserted against native fetch"
+    )
+
+
 def test_a_body_carried_on_a_request_object_is_still_captured(captured: dict[str, Any]) -> None:
     """`fetch(new Request(url, {body}))` reports its body on the Request, and
     reading it means consuming a clone. It used to be reported as no body at

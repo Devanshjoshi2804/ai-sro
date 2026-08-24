@@ -20,12 +20,53 @@
   // -- reading one to the end is a wait that never returns.
   const NEVER_READ = /event-stream|x-ndjson|multipart\/x-mixed-replace/;
 
-  // Installing twice would wrap our own wrapper and report every exchange once
-  // per layer. Marked on the patched functions rather than on `window`: one
-  // less global on a page that is not ours.
+  // Nothing this file adds may be visible to the page.
+  //
+  // A capture patch that a site can find is one a site can trip on -- read
+  // `window.fetch.toString()`, see it is not `[native code]`, and change how
+  // it behaves, or simply refuse. So the two things that would give it away
+  // are both kept off the objects the page can reach: state lives in a WeakMap
+  // keyed by the function or the XHR, never in a property on it, and each
+  // patched function reports the source of the native it replaced.
   const origFetch = window.fetch;
   const OrigXHR = window.XMLHttpRequest;
-  if ((origFetch && origFetch.__sro) || (OrigXHR && OrigXHR.prototype.open.__sro)) return;
+
+  // Per-object state the page cannot enumerate: the double-patch marks, and
+  // each XHR's in-flight call. A property like `xhr.__sro` would be readable
+  // by the page; a WeakMap entry is not, and is collected with its key.
+  const mark = new WeakMap();
+  const calls = new WeakMap();
+
+  // Installing twice would wrap our own wrapper and report every exchange once
+  // per layer.
+  if ((origFetch && mark.has(origFetch)) || (OrigXHR && mark.has(OrigXHR.prototype.open))) return;
+
+  /** Makes a replacement answer `toString()` the way the native it replaced
+   * would, so the usual "was this monkey-patched?" check sees native code. The
+   * function keeps its own name -- `sroFetch` would be as much of a tell as the
+   * source -- via an anonymous assignment plus a forced `name`. */
+  const disguise = (patched, name, original) => {
+    Object.defineProperty(patched, "name", { value: name, configurable: true });
+    const native = `function ${name}() { [native code] }`;
+    const toString = function toString() {
+      return native;
+    };
+    // The disguise has to survive the same check turned on itself: a site that
+    // reads `fetch.toString.toString()` must not find *that* patched either.
+    const metaNative = "function toString() { [native code] }";
+    Object.defineProperty(toString, "toString", {
+      value: () => metaNative,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(patched, "toString", {
+      value: toString,
+      configurable: true,
+      writable: true,
+    });
+    mark.set(patched, original || true);
+    return patched;
+  };
 
   // The random half matters: this file runs in every frame of every tab, and a
   // counter plus a millisecond collides across frames that load together.
@@ -164,7 +205,7 @@
   };
 
   if (origFetch) {
-    const patched = async function sroFetch(input, init) {
+    const patched = async function (input, init) {
       const request_id = nextId();
       const startedAt = new Date();
       const t0 = performance.now();
@@ -260,8 +301,7 @@
         throw error;
       }
     };
-    patched.__sro = true;
-    window.fetch = patched;
+    window.fetch = disguise(patched, "fetch", origFetch);
   }
 
   if (OrigXHR) {
@@ -269,30 +309,35 @@
     const SEND = OrigXHR.prototype.send;
     const SET_HEADER = OrigXHR.prototype.setRequestHeader;
 
-    const open = function sroOpen(method, url, ...rest) {
-      this.__sro = { method, url: String(url), headers: {} };
+    const open = function (method, url, ...rest) {
+      // State per XHR in a WeakMap, not on the object: `xhr.__sro` would be as
+      // readable to the page as a property it set itself.
+      const fresh = { method, url: String(url), headers: {} };
+      const bound = calls.has(this);
+      calls.set(this, fresh);
       // Bound once per object, never once per send. An XHR may legally be
       // reopened and reused; a listener added in `send` stayed attached with
       // the *previous* call's state closed over it, so the second response was
       // reported twice -- once correctly, and once pairing the first call's
       // method, url and body with the second call's status and response.
-      if (!this.__sroBound) {
-        this.__sroBound = true;
-        this.addEventListener("loadend", () => report(this));
-      }
+      if (!bound) this.addEventListener("loadend", () => report(this));
       return OPEN.call(this, method, url, ...rest);
     };
-    open.__sro = true;
-    OrigXHR.prototype.open = open;
+    OrigXHR.prototype.open = disguise(open, "open", OPEN);
 
-    OrigXHR.prototype.setRequestHeader = function sroSetHeader(name, value) {
-      if (this.__sro) this.__sro.headers[name] = value;
-      return SET_HEADER.call(this, name, value);
-    };
+    OrigXHR.prototype.setRequestHeader = disguise(
+      function (name, value) {
+        const state = calls.get(this);
+        if (state) state.headers[name] = value;
+        return SET_HEADER.call(this, name, value);
+      },
+      "setRequestHeader",
+      SET_HEADER,
+    );
 
     /** Reads whatever the *current* `open`/`send` pair produced. */
     const report = (xhr) => {
-      const state = xhr.__sro;
+      const state = calls.get(xhr);
       if (!state || state.startedAt === undefined) return;
 
       const duration_ms = Math.round(performance.now() - state.t0);
@@ -346,15 +391,19 @@
       });
     };
 
-    OrigXHR.prototype.send = function sroSend(body) {
-      const state = this.__sro;
-      if (state) {
-        state.requestBodyText = bodyToText(body);
-        state.request_id = nextId();
-        state.startedAt = new Date();
-        state.t0 = performance.now();
-      }
-      return SEND.call(this, body);
-    };
+    OrigXHR.prototype.send = disguise(
+      function (body) {
+        const state = calls.get(this);
+        if (state) {
+          state.requestBodyText = bodyToText(body);
+          state.request_id = nextId();
+          state.startedAt = new Date();
+          state.t0 = performance.now();
+        }
+        return SEND.call(this, body);
+      },
+      "send",
+      SEND,
+    );
   }
 })();

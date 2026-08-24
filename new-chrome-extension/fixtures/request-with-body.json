@@ -1,20 +1,24 @@
 {
   "kind": "request",
   "request": {
-    "request_id": "req_1787654321000_0",
+    "request_id": "req_k3x9f2a1_0",
     "method": "POST",
     "url": "https://wms.example.test/api/equipment",
     "resource_type": "xhr",
     "started_at": "2026-08-24T09:15:11.004Z",
     "request_headers": {
-      "content-type": "application/json"
+      "content-type": "application/json",
+      "Authorization": "«redacted»",
+      "X-Facility": "WH1"
     },
     "request_body": {
       "text": "{\"code\":\"TESTSRO\",\"password\":\"«redacted»\"}",
       "size_bytes": 44,
       "mime_type": "application/json",
       "encoding": null,
-      "redacted_fields": ["password"]
+      "redacted_fields": [
+        "password"
+      ]
     },
     "status": 200,
     "status_text": "OK",

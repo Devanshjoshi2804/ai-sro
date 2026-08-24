@@ -1,14 +1,30 @@
 // Isolated-world relay for network.main.js's captured exchanges.
 //
 // The MAIN-world patch cannot reach chrome.runtime; it dispatches a
-// CustomEvent instead, the one channel both worlds share. Redaction happens
-// here rather than in MAIN world so the credential word list stays one
-// generated file (recorder.generated.js, already loaded first) instead of a
-// second copy baked into the page-world patch.
+// CustomEvent instead, the one channel both realms share. Redaction happens
+// here rather than there so the credential rules live in the isolated world,
+// where the page cannot read or replace them -- sensitivity.generated.js is
+// loaded first and puts them on this world's window.
+//
+// Everything in this file fails closed. A body it cannot inspect is a body it
+// cannot promise is clean, so the text is dropped rather than stored: the
+// evidence plane keeps what arrives verbatim and there is no second chance to
+// redact it later.
 (() => {
   const MAX_TEXT = 200000;
+  const REDACTED = "«redacted»";
 
-  const isSecretName = (name) => (window.__sroIsSecretName ? window.__sroIsSecretName(name) : false);
+  /** Set when the body could not be inspected, so nothing may be kept from it.
+   * Named in `redacted_fields` so a reviewer sees a hole rather than a body
+   * that merely happened to contain no credentials. */
+  const UNINSPECTABLE = "«whole body: could not be parsed to redact»";
+
+  const isSecretName = window.__sroIsSecretName;
+  const isSecretHeader = window.__sroIsSecretHeader;
+  /** Both come from sensitivity.generated.js. If that file did not run, this
+   * one has no idea what a credential looks like, and the safe answer to
+   * "is this clean?" is no -- not "nothing matched". */
+  const canRedact = typeof isSecretName === "function" && typeof isSecretHeader === "function";
 
   const contentTypeOf = (headers) => {
     for (const key of Object.keys(headers || {})) {
@@ -22,7 +38,7 @@
     try {
       doc = JSON.parse(text);
     } catch {
-      return [text, []];
+      return null; // Not inspectable: caller drops it.
     }
     const removed = [];
     const walk = (node) => {
@@ -32,7 +48,7 @@
         for (const [key, value] of Object.entries(node)) {
           if (isSecretName(key)) {
             removed.push(key);
-            out[key] = "«redacted»";
+            out[key] = REDACTED;
           } else {
             out[key] = walk(value);
           }
@@ -50,11 +66,11 @@
     try {
       params = new URLSearchParams(text);
     } catch {
-      return [text, []];
+      return null;
     }
     const removed = [...new Set([...params.keys()].filter(isSecretName))];
     if (!removed.length) return [text, []];
-    for (const key of removed) params.set(key, "«redacted»");
+    for (const key of removed) params.set(key, REDACTED);
     return [params.toString(), removed];
   };
 
@@ -66,29 +82,53 @@
     let cleaned = text.replace(XML_FIELD, (whole, name, attrs) => {
       if (!isSecretName(name.split(":").pop())) return whole;
       removed.push(name);
-      return `<${name}${attrs}>«redacted»</${name}>`;
+      return `<${name}${attrs}>${REDACTED}</${name}>`;
     });
     cleaned = cleaned.replace(XML_ATTR, (whole, name) => {
       if (!isSecretName(name.split(":").pop())) return whole;
       removed.push(name);
-      return `${name}="«redacted»"`;
+      return `${name}="${REDACTED}"`;
     });
     return removed.length ? [cleaned, [...new Set(removed)]] : [text, []];
   };
 
+  /** `[text, removedFieldNames]`, or null when the body could not be inspected. */
   const redactBody = (text, contentType) => {
     const kind = (contentType || "").toLowerCase();
     const trimmed = text.trimStart();
-    if (kind.includes("json") || trimmed.startsWith("{") || trimmed.startsWith("[")) return redactJson(text);
+    if (kind.includes("json") || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      return redactJson(text);
+    }
     if (kind.includes("xml") || trimmed.startsWith("<")) return redactXml(text);
-    if (kind.includes("form-urlencoded") || (text.includes("=") && !text.includes("\n"))) return redactForm(text);
+    if (kind.includes("form-urlencoded") || (text.includes("=") && !text.includes("\n"))) {
+      return redactForm(text);
+    }
+    // Plain text with no structure: there are no field names to match, so
+    // there is nothing a name-based rule could find. Kept as it is, which is
+    // what the Python side does with the same input.
     return [text, []];
   };
 
-  const toBody = (text, contentType) => {
+  const emptyBody = (contentType, why) => ({
+    text: null,
+    size_bytes: 0,
+    mime_type: (contentType || "").split(";")[0].trim() || null,
+    encoding: null,
+    redacted_fields: [why],
+  });
+
+  const toBody = (text, contentType, truncated) => {
     if (text == null) return null;
-    const truncated = text.length > MAX_TEXT ? text.slice(0, MAX_TEXT) : text;
-    const [cleaned, redacted] = redactBody(truncated, contentType);
+    // A prefix of a document is not the document: truncated JSON does not
+    // parse, so it cannot be redacted, and storing it unredacted is exactly
+    // the failure this whole file exists to prevent.
+    if (truncated) return emptyBody(contentType, UNINSPECTABLE);
+    if (!canRedact) return emptyBody(contentType, UNINSPECTABLE);
+
+    const result = redactBody(text.slice(0, MAX_TEXT), contentType);
+    if (result === null) return emptyBody(contentType, UNINSPECTABLE);
+
+    const [cleaned, redacted] = result;
     return {
       text: cleaned,
       size_bytes: new TextEncoder().encode(cleaned).length,
@@ -98,34 +138,105 @@
     };
   };
 
+  /** Headers with every credential value removed and every name kept.
+   *
+   * An auth, CSRF or session value is never replayed -- `is_replayable` on the
+   * Python side answers SEMANTIC only -- so keeping one buys nothing and risks
+   * a live session key sitting in the evidence plane for a WMS, a mailbox and
+   * every other tab the operator had open. The name stays so the downstream
+   * classifier still sees the header was there. */
+  const redactHeaders = (headers) => {
+    const out = {};
+    for (const [name, value] of Object.entries(headers || {})) {
+      out[name] = canRedact && isSecretHeader(name) ? REDACTED : value;
+    }
+    return out;
+  };
+
+  /** A URL with credential-named query values removed.
+   *
+   * `?token=…` and `?api_key=…` are as much a credential as the header form,
+   * and the URL is stored on every single event. */
+  const redactUrl = (url) => {
+    if (!canRedact) return url;
+    let parsed;
+    try {
+      parsed = new URL(url, location.href);
+    } catch {
+      return url;
+    }
+    let touched = false;
+    for (const key of [...parsed.searchParams.keys()]) {
+      if (isSecretName(key)) {
+        parsed.searchParams.set(key, REDACTED);
+        touched = true;
+      }
+    }
+    return touched ? parsed.toString() : url;
+  };
+
+  const looksLikeRecord = (raw) =>
+    raw &&
+    typeof raw === "object" &&
+    typeof raw.method === "string" &&
+    raw.method.length > 0 &&
+    typeof raw.url === "string" &&
+    raw.url.length > 0 &&
+    typeof raw.started_at === "string";
+
   window.addEventListener("sro:request", (event) => {
+    // Any script in the page's realm can dispatch this -- the two realms share
+    // no channel a page cannot also write to, so nothing here is trusted on
+    // arrival. The shape is checked, the size is capped, and the service worker
+    // re-checks the host policy. A page can still forge a plausible exchange;
+    // what it cannot do is get an unredacted one, an oversized one, or one for
+    // a host the tenant excluded.
+    if (typeof event.detail !== "string" || event.detail.length > MAX_TEXT * 3) return;
+
     let raw;
     try {
       raw = JSON.parse(event.detail);
     } catch {
       return;
     }
+    if (!looksLikeRecord(raw)) return;
+
+    const requestHeaders = raw.request_headers || {};
+    const responseHeaders = raw.response_headers || {};
+
     const request = {
       request_id: raw.request_id,
       method: raw.method,
-      url: raw.url,
+      url: redactUrl(raw.url),
       resource_type: raw.resource_type,
       started_at: raw.started_at,
-      request_headers: raw.request_headers || {},
-      request_body: toBody(raw.request_body_text, contentTypeOf(raw.request_headers)),
+      request_headers: redactHeaders(requestHeaders),
+      request_body: toBody(
+        raw.request_body_text,
+        contentTypeOf(requestHeaders),
+        Boolean(raw.request_body_truncated),
+      ),
       status: raw.status,
       status_text: raw.status_text,
-      response_headers: raw.response_headers || {},
-      response_body: toBody(raw.response_body_text, contentTypeOf(raw.response_headers)),
-      redirect_chain:
-        raw.redirected && raw.final_url && raw.final_url !== raw.url
-          ? [{ url: raw.url, status: raw.status || 0, location: raw.final_url }]
-          : [],
+      response_headers: redactHeaders(responseHeaders),
+      response_body: toBody(
+        raw.response_body_text,
+        contentTypeOf(responseHeaders),
+        Boolean(raw.response_body_truncated),
+      ),
+      // Left empty on purpose. The passive tier sees that a redirect happened
+      // but not which hops or what they answered, and the protocol's rule for
+      // what this tier cannot obtain is that it is omitted, not faked. The
+      // teaching tier attaches the debugger and reports the real chain.
+      redirect_chain: [],
       duration_ms: raw.duration_ms,
       from_cache: false,
       failure_reason: raw.failure_reason,
       blocked_reason: null,
     };
-    chrome.runtime.sendMessage({ kind: "request", request, frameUrl: location.href }).catch(() => {});
+
+    chrome.runtime
+      .sendMessage({ kind: "request", request, frameUrl: location.href })
+      .catch(() => {});
   });
 })();

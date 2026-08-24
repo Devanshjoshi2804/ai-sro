@@ -28,10 +28,14 @@ export async function applyPolicy(policy, { on }) {
   await chrome.scripting.registerContentScripts([
     {
       id: ID,
-      // Order matters: observe.js defines window.__sroRecord and
-      // recorder.generated.js defines window.__sroIsSecretName before
-      // network.js, which reads both, runs.
-      js: ["src/content/observe.js", "src/content/recorder.generated.js", "src/content/network.js"],
+      // Order matters: sensitivity.generated.js puts the credential rules on
+      // this world's window before network.js, which refuses to store a body
+      // it cannot check them against.
+      js: [
+        "src/content/sensitivity.generated.js",
+        "src/content/observe.js",
+        "src/content/network.js",
+      ],
       matches,
       excludeMatches,
       // Both deliberate: `document_start` so the page's own scripts are not
@@ -43,10 +47,18 @@ export async function applyPolicy(policy, { on }) {
     },
     {
       id: MAIN_ID,
-      // The page's own realm, not the extension's isolated one -- see
-      // network.main.js for why. Same matches/excludeMatches: an excluded
-      // page gets no capture of any kind, not just gestures.
-      js: ["src/content/network.main.js"],
+      // The page's own realm, not the extension's isolated one. Both of these
+      // need the application's own globals: the network patch must be the
+      // `fetch` the page actually calls, and the recorder identifies a control
+      // through the framework's `Ext` registry, which does not exist in an
+      // isolated world. Each hands its result to the isolated world over a
+      // CustomEvent. Same matches/excludeMatches: an excluded page gets no
+      // capture of any kind, not just gestures.
+      js: [
+        "src/content/recorder-bridge.main.js",
+        "src/content/recorder.generated.js",
+        "src/content/network.main.js",
+      ],
       matches,
       excludeMatches,
       runAt: "document_start",
@@ -74,12 +86,19 @@ export async function registeredOn() {
  * it by absence. An excluded host must produce zero rows of every kind. */
 export function allowsHost(url, policy) {
   if (!policy) return false;
-  let hostname;
+  let parsed;
   try {
-    hostname = new URL(url).hostname;
+    parsed = new URL(url);
   } catch {
     return false;
   }
+  // The registration above matches http and https and nothing else, so those
+  // are the only schemes this may answer yes to. Without the check a
+  // `chrome://settings/passwords` visit has hostname "settings", matches no
+  // exclusion, and gets recorded -- as does the full path of a `file://` URL,
+  // on pages where no content script of ours has ever run.
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+  const hostname = parsed.hostname;
   const matchesHost = (pattern) => {
     const bare = pattern.replace(/^\*?\./, "");
     return hostname === bare || hostname.endsWith(`.${bare}`);

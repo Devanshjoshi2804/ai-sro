@@ -46,16 +46,53 @@ chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => {
 });
 
 async function pageEvent(page_kind, tab_id, url, timeStamp) {
-  const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
-  if (!allowed.on || !allowsHost(url, policy)) return;
-  await queue.enqueue({
-    kind: "page",
-    at: new Date(timeStamp).toISOString(),
-    page_kind,
-    url,
-    detail: null,
-    tab_id,
-  });
+  try {
+    const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
+    if (!allowed.on || !allowsHost(url, policy)) return;
+    await queue.enqueue({
+      kind: "page",
+      at: new Date(timeStamp).toISOString(),
+      page_kind,
+      url,
+      detail: null,
+      tab_id,
+    });
+  } catch (error) {
+    // A full or broken queue is the one failure that must not be silent:
+    // capture stopping quietly looks exactly like an operator with nothing
+    // to do, and nobody finds out for weeks.
+    await state.setLastError(`could not queue a page event: ${String(error)}`);
+  }
+}
+
+/** What the tenant's policy allows this request to keep.
+ *
+ * Both of these are delivered on every heartbeat and neither was being read,
+ * so a tenant that had switched response bodies off still had them uploaded,
+ * and `max_body_bytes` bounded nothing at all. */
+function underPolicy(request, policy) {
+  if (!request?.request_body && !request?.response_body) return request;
+  const limit = policy?.max_body_bytes ?? Infinity;
+
+  const allowed = (body, keep) => {
+    if (!body) return body;
+    if (!keep) return { ...body, text: null, size_bytes: 0, redacted_fields: ["«not captured»"] };
+    if ((body.size_bytes ?? 0) > limit) {
+      return {
+        ...body,
+        text: null,
+        size_bytes: 0,
+        redacted_fields: ["«dropped: larger than the tenant's max_body_bytes»"],
+      };
+    }
+    return body;
+  };
+
+  return {
+    ...request,
+    request_body: allowed(request.request_body, true),
+    response_body: allowed(request.response_body, policy?.capture_response_bodies !== false),
+  };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -69,29 +106,46 @@ async function handle(message, sender) {
     case "content-ready":
       return { ok: true };
     case "gesture":
+    case "request": {
+      // Every captured event is judged here, at the one point they all pass
+      // through, rather than by whether a content script happens to be
+      // running. Withdrawing a registration only stops *future* injections:
+      // a tab that was already open keeps its scripts, keeps its patched
+      // `fetch`, and keeps sending. Gating only on registration meant an
+      // operator who hit pause -- or a host that had just been excluded --
+      // went on being recorded for as long as the tab stayed open.
+      const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
+      const frameUrl = message.frameUrl;
+      if (!allowed.on || !allowsHost(frameUrl, policy)) {
+        return { ok: false, dropped: allowed.on ? "excluded host" : allowed.because };
+      }
       // tab_id comes from the sender, not the content script -- a frame has
       // no chrome.tabs access of its own to ask for it.
-      await queue.enqueue({
-        kind: "gesture",
-        gesture: message.gesture,
-        tab_id: sender?.tab?.id ?? null,
-        frame_url: message.frameUrl,
-      });
+      const tab_id = sender?.tab?.id ?? null;
+      await queue.enqueue(
+        message.kind === "gesture"
+          ? { kind: "gesture", gesture: message.gesture, tab_id, frame_url: frameUrl }
+          : {
+              kind: "request",
+              request: underPolicy(message.request, policy),
+              tab_id,
+              frame_url: frameUrl,
+            },
+      );
       return { ok: true };
-    case "request":
-      await queue.enqueue({
-        kind: "request",
-        request: message.request,
-        tab_id: sender?.tab?.id ?? null,
-        frame_url: message.frameUrl,
-      });
-      return { ok: true };
+    }
     case "sign-in":
       await state.setApiUrl(message.apiUrl);
       await state.setToken(message.token);
       return register(message.label);
     case "sign-out":
       await unregister();
+      // Before the credential goes, so nothing captured under it can be
+      // uploaded under the next one. What this browser recorded for one
+      // operator must not arrive in another operator's tenant because they
+      // shared a machine.
+      await queue.clear();
+      await state.newQueueEpoch();
       await state.forget();
       await badge();
       return { ok: true };
@@ -122,7 +176,15 @@ async function flushQueue() {
 
 /** Register this browser profile, then apply whatever policy came back. */
 async function register(label) {
+  const previous = await state.deviceId();
   const registered = await api.register(label || defaultLabel(), VERSION);
+  if (previous && previous !== registered.device_id) {
+    // A different device means a different credential, which may mean a
+    // different operator and a different tenant. Whatever the last one
+    // captured is theirs, not this one's, and it does not get uploaded here.
+    await queue.clear();
+    await state.newQueueEpoch();
+  }
   await state.setDeviceId(registered.device_id);
   await state.setPolicy(registered.policy);
   await state.setLastError("");
@@ -135,11 +197,22 @@ async function beat() {
   if (!deviceId) return;
 
   try {
-    const [policy, queuedEvents, queuedBytes] = await Promise.all([
-      state.policy(),
-      queue.count(),
-      queue.totalBytes(),
-    ]);
+    const policy = await state.policy();
+    // The budget is checked here because this tick already pays for a full
+    // scan of the store. Enforcing it per event would mean that scan on every
+    // click. The backend does not check it at all -- `ingest.py` says so in as
+    // many words -- so if this does not hold the line, nothing does.
+    const budget = policy?.daily_budget_bytes;
+    if (budget) {
+      const trimmed = await queue.trim(budget);
+      if (trimmed.strippedBodies || trimmed.droppedEvents) {
+        await state.setLastError(
+          `over the device's byte budget: dropped ${trimmed.droppedEvents} events and ` +
+            `${trimmed.strippedBodies} response bodies`,
+        );
+      }
+    }
+    const [queuedEvents, queuedBytes] = await Promise.all([queue.count(), queue.totalBytes()]);
     const answer = await api.heartbeat(deviceId, {
       queued_events: queuedEvents,
       queued_bytes: queuedBytes,

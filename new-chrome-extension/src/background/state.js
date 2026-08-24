@@ -14,6 +14,7 @@ const KEYS = {
   serverPaused: "sro.serverPaused",
   lastBeat: "sro.lastBeat",
   lastError: "sro.lastError",
+  queueEpoch: "sro.queueEpoch",
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
@@ -54,6 +55,23 @@ export const state = {
 
   lastError: () => read(KEYS.lastError, ""),
   setLastError: (message) => write(KEYS.lastError, message),
+
+  /** Distinguishes one lifetime of the event queue from the next.
+   *
+   * Batch ids are minted from IndexedDB row keys, and that counter restarts
+   * whenever the store is recreated. Without something that does not restart
+   * alongside it, the first batch after an evicted database would collide
+   * with one the backend had already stored. */
+  async queueEpoch() {
+    const held = await read(KEYS.queueEpoch, "");
+    if (held) return held;
+    return state.newQueueEpoch();
+  },
+  async newQueueEpoch() {
+    const minted = crypto.randomUUID().slice(0, 8);
+    await write(KEYS.queueEpoch, minted);
+    return minted;
+  },
 
   async forget() {
     await chrome.storage.local.remove(Object.values(KEYS));

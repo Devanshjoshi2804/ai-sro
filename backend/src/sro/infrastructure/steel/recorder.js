@@ -52,9 +52,6 @@
       .split(/[^A-Za-z]+/)
       .filter(Boolean)
       .map((word) => word.toLowerCase());
-  // Field-name check, not element-bound -- reused for network body redaction
-  // (a different content script, exposed on window rather than re-copying the
-  // word list a third time).
   const isSecretName = (name) => {
     const words = wordsOf(name);
     return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(''));
@@ -72,7 +69,6 @@
       .join(' ');
     return isSecretName(named);
   };
-  window.__sroIsSecretName = isSecretName;
 
   const cssPath = (el) => {
     const parts = [];

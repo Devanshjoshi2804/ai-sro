@@ -1,6 +1,7 @@
 // Just enough of IndexedDB to exercise queue.js outside a browser: single
-// store, keyPath + autoIncrement, add/delete/count/openCursor. Not a general
-// IndexedDB implementation -- do not grow this beyond what queue.js needs.
+// store, keyPath + autoIncrement, add/delete/clear/count/openCursor with
+// cursor update and delete. Not a general IndexedDB implementation -- do not
+// grow this beyond what queue.js needs.
 
 function microtask(fn) {
   Promise.resolve().then(fn);
@@ -20,11 +21,19 @@ class FakeRequest {
 }
 
 class FakeCursor {
-  constructor(rows, index, advance) {
+  constructor(rows, index, table, advance) {
     this.value = rows[index];
-    this._rows = rows;
+    this._table = table;
     this._index = index;
     this._advance = advance;
+  }
+  update(row) {
+    this._table.rows.set(row.id, { ...row });
+    return new FakeRequest();
+  }
+  delete() {
+    this._table.rows.delete(this.value.id);
+    return new FakeRequest();
   }
   continue() {
     this._advance(this._index + 1);
@@ -48,6 +57,12 @@ class FakeStore {
     req._succeed(undefined);
     return req;
   }
+  clear() {
+    const req = new FakeRequest();
+    this._table.rows.clear();
+    req._succeed(undefined);
+    return req;
+  }
   count() {
     const req = new FakeRequest();
     req._succeed(this._table.rows.size);
@@ -55,14 +70,21 @@ class FakeStore {
   }
   openCursor() {
     const req = new FakeRequest();
-    const rows = [...this._table.rows.values()].sort((a, b) => a.id - b.id);
+    const table = this._table;
+    // Snapshot the key order once, then re-read each row as the cursor
+    // reaches it -- a row updated or deleted mid-sweep must be seen as it is
+    // now, which is exactly what queue.trim() does.
+    const ids = [...table.rows.keys()].sort((a, b) => a - b);
     const advance = (index) => {
-      if (index >= rows.length) {
+      let at = index;
+      while (at < ids.length && !table.rows.has(ids[at])) at += 1;
+      if (at >= ids.length) {
         req.result = null;
         microtask(() => req.onsuccess?.());
         return;
       }
-      req.result = new FakeCursor(rows, index, advance);
+      const rows = ids.map((id) => table.rows.get(id));
+      req.result = new FakeCursor(rows, at, table, advance);
       microtask(() => req.onsuccess?.());
     };
     advance(0);
@@ -75,7 +97,10 @@ class FakeTransaction {
     this._table = table;
     this.oncomplete = null;
     this.onerror = null;
-    microtask(() => this.oncomplete?.());
+    this.onabort = null;
+    // One turn later than the cursor callbacks, so a sweep finishes before
+    // the transaction reports completion.
+    microtask(() => microtask(() => microtask(() => this.oncomplete?.())));
   }
   objectStore() {
     return new FakeStore(this._table);
@@ -85,6 +110,8 @@ class FakeTransaction {
 class FakeDB {
   constructor() {
     this._table = { rows: new Map(), nextId: 1 };
+    this.onversionchange = null;
+    this.onclose = null;
   }
   createObjectStore() {
     return new FakeStore(this._table);

@@ -1,0 +1,29 @@
+{
+  "kind": "request",
+  "request": {
+    "request_id": "req_k3x9f2a1_1",
+    "method": "POST",
+    "url": "https://wms.example.test/api/bulk",
+    "resource_type": "fetch",
+    "started_at": "2026-08-24T09:15:12.100Z",
+    "request_headers": { "content-type": "application/json" },
+    "request_body": {
+      "text": null,
+      "size_bytes": 0,
+      "mime_type": "application/json",
+      "encoding": null,
+      "redacted_fields": ["«whole body: could not be parsed to redact»"]
+    },
+    "status": 200,
+    "status_text": "OK",
+    "response_headers": { "content-type": "application/json" },
+    "response_body": null,
+    "redirect_chain": [],
+    "duration_ms": 88,
+    "from_cache": false,
+    "failure_reason": null,
+    "blocked_reason": null
+  },
+  "tab_id": 8,
+  "frame_url": "https://wms.example.test/orders"
+}

@@ -32,6 +32,13 @@
   };
 
   const MAX_TEXT = 200;
+  // What the operator actually typed, which is the thing that becomes a
+  // parameter, so it gets far more room than a label does -- but not unbounded
+  // room. observe.js drops a gesture whose JSON is over 128 KB, so an uncapped
+  // `value` from a notes field or a pasted spreadsheet took the whole gesture
+  // with it: the mined episode then showed a save with no edit before it.
+  // Losing the tail of one field beats losing the fact that it was edited.
+  const MAX_VALUE = 4096;
 
   // A credential field is recognised where it is typed, not later. Anything
   // matched here has its value dropped before it leaves the page: the evidence
@@ -232,7 +239,7 @@
       emit({
         kind: 'upload',
         target: describe(el),
-        value: [...el.files].map((file) => file.name).join(', '),
+        value: [...el.files].map((file) => file.name).join(', ').slice(0, MAX_VALUE),
         modifiers: [],
       });
       return;
@@ -242,7 +249,7 @@
     emit({
       kind,
       target: describe(el),
-      value: secret ? null : (el.value ?? null),
+      value: secret ? null : (el.value == null ? null : String(el.value).slice(0, MAX_VALUE)),
       secret,
       modifiers: [],
     });

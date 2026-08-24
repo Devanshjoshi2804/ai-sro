@@ -66,7 +66,12 @@ PAGE = """<!doctype html>
       xhr.open('POST', '/api/legacy');
       xhr.responseType = 'json';   // the shape whose responseText getter throws
       xhr.setRequestHeader('content-type', 'application/x-www-form-urlencoded');
+      // Awaited, not fired and forgotten. `__done` is what every test waits on
+      // before flushing, and an XHR that had not finished by then made every
+      // assertion about the XHR patch a race that usually won.
+      const legacy = new Promise((resolve) => xhr.addEventListener('loadend', resolve));
       xhr.send('clientCode=' + document.getElementById('client').value + '&token=SEKRIT');
+      await legacy;
       // The body on a Request rather than in init -- the shape that used to
       // be reported as having no body at all.
       await fetch(new Request('/api/wrapped', {

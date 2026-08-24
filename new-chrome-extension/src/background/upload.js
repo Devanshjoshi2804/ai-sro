@@ -29,9 +29,10 @@ function isPermanent(status) {
  * A batch id derived from the oldest queued row, not a fresh random one.
  *
  * A retry after a lost reply must look like the same batch, not a new one --
- * the backend's idempotence is keyed on this id, and the oldest row's own
- * key stays the same across retries because nothing is removed from the
- * queue until a batch actually lands.
+ * the backend's idempotence is keyed on this id. Minted once here and then
+ * held in `state.pendingBatch` until the batch is accounted for, because the
+ * oldest row does *not* reliably stay put: the heartbeat's `trim` runs on its
+ * own alarm and can delete the head between two attempts.
  *
  * The epoch is in the id because the row key alone is not unique over time:
  * IndexedDB's autoIncrement counter restarts at 1 whenever the store is
@@ -55,17 +56,42 @@ export async function flush(deviceId) {
   const rows = await queue.peek(MAX_EVENTS);
   if (!rows.length) return { uploaded: 0 };
 
-  let bytes = 0;
-  const kept = [];
-  for (const row of rows) {
-    // At least one event always goes, even past the byte cap -- a single
-    // oversized event must not queue forever behind a limit it alone exceeds.
-    if (kept.length && bytes + row.size > MAX_BYTES) break;
-    kept.push(row);
-    bytes += row.size;
+  // A store recreated under us rotates the epoch and clears any pending batch
+  // itself, inside queue.js's open() and before this call could see a row --
+  // so by the time `pendingBatch` is read below, a stale one from before the
+  // eviction cannot still be here.
+  const pending = await state.pendingBatch();
+  let kept;
+  let batchId;
+
+  if (pending) {
+    // Sent once already: it goes back as itself. Rows that `trim` removed in
+    // the meantime are simply absent -- what must not change is the id, or the
+    // survivors would be stored a second time under a new one.
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    kept = pending.ids.map((id) => byId.get(id)).filter(Boolean);
+    batchId = pending.batch_id;
+    if (!kept.length) {
+      await state.setPendingBatch(null);
+      return { uploaded: 0 };
+    }
+  } else {
+    kept = [];
+    let bytes = 0;
+    for (const row of rows) {
+      // At least one event always goes, even past the byte cap -- a single
+      // oversized event must not queue forever behind a limit it alone exceeds.
+      if (kept.length && bytes + row.size > MAX_BYTES) break;
+      kept.push(row);
+      bytes += row.size;
+    }
+    const epoch = await state.queueEpoch();
+    batchId = batchIdFor(deviceId, epoch, kept[0].id);
+    // Written before the attempt, not after: a reply that never arrives is
+    // exactly the case this exists for.
+    await state.setPendingBatch({ batch_id: batchId, ids: kept.map((row) => row.id) });
   }
 
-  const epoch = await state.queueEpoch();
   const startedAt = kept[0].queuedAt;
   // A clock that steps backwards -- an NTP correction mid-queue -- would
   // otherwise produce a batch that ended before it started, which the domain
@@ -74,7 +100,7 @@ export async function flush(deviceId) {
   const endedAt = Math.max(kept[kept.length - 1].queuedAt, startedAt);
 
   const body = {
-    batch_id: batchIdFor(deviceId, epoch, kept[0].id),
+    batch_id: batchId,
     device_id: deviceId,
     started_at: isoFrom(startedAt),
     ended_at: isoFrom(endedAt),
@@ -91,6 +117,7 @@ export async function flush(deviceId) {
       // Dropped, not retried. Said out loud rather than swallowed: evidence
       // being discarded is exactly the kind of thing that must not be quiet.
       await queue.remove(kept.map((row) => row.id));
+      await state.setPendingBatch(null);
       return {
         uploaded: 0,
         dropped: kept.length,
@@ -101,6 +128,7 @@ export async function flush(deviceId) {
   }
 
   await queue.remove(kept.map((row) => row.id));
+  await state.setPendingBatch(null);
   const remaining = await queue.count();
   return { uploaded: kept.length, remaining };
 }

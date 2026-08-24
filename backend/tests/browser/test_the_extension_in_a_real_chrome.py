@@ -21,6 +21,8 @@ CLIENT_CODE = "ACME-4471"
 PASSWORD = "hunter2-do-not-store"  # noqa: S105
 SESSION_TOKEN = "LIVE-SESSION-TOKEN"  # noqa: S105
 FORM_SECRET = "SEKRIT"  # noqa: S105
+URL_TOKEN = "LIVE-SSO-TOKEN"  # noqa: S105
+PLAIN_SECRET = "plaintext-password-value"  # noqa: S105
 
 
 def _service_worker(context: Any) -> Any:
@@ -117,9 +119,17 @@ def test_both_transports_were_captured(captured: dict[str, Any]) -> None:
 
 def test_the_patch_does_not_announce_itself_to_the_page(browser: Any, stub: Any) -> None:
     """A page that can tell its `fetch` was replaced can behave differently
-    when it is -- refuse, degrade, or fingerprint the operator's browser as
-    one running this. The two tells are a custom property on the function and a
-    `toString()` that is not `[native code]`; neither may be visible.
+    when it is -- refuse, degrade, or fingerprint the operator's browser as one
+    running this.
+
+    The checks below are the ones a fingerprinting library actually runs, not
+    the ones this patch happens to implement against. `fn.toString()` is the
+    weakest of them and was for a while the only one asserted, which made the
+    test green against a disguise that `Function.prototype.toString.call` --
+    the canonical form, used precisely because own-property overrides are the
+    obvious dodge -- walked straight past. `length` and the own-property list
+    are here for the same reason: each is a shorter tell than the one the
+    implementation set out to close.
 
     Read in the page's own realm (`main_world`), because that is the realm a
     site's own script runs in and the only one whose view of `fetch` matters.
@@ -154,22 +164,42 @@ def test_the_patch_does_not_announce_itself_to_the_page(browser: Any, stub: Any)
         "})",
         None,
     )
-    # The monkey-patch test every anti-bot library runs.
-    assert in_page("return window.fetch.toString()") == "function fetch() { [native code] }", diag
-    assert in_page("return window.XMLHttpRequest.prototype.open.toString()") == (
-        "function open() { [native code] }"
-    )
-    assert in_page("return window.XMLHttpRequest.prototype.send.toString()") == (
-        "function send() { [native code] }"
-    )
+    # The monkey-patch test every anti-bot library runs, in both spellings.
+    for name, expression in (
+        ("fetch", "window.fetch"),
+        ("open", "window.XMLHttpRequest.prototype.open"),
+        ("send", "window.XMLHttpRequest.prototype.send"),
+        ("setRequestHeader", "window.XMLHttpRequest.prototype.setRequestHeader"),
+    ):
+        native = f"function {name}() {{ [native code] }}"
+        assert in_page(f"return {expression}.toString()") == native, diag
+        assert in_page(f"return Function.prototype.toString.call({expression})") == native, diag
+
     # The name is not a tell either.
     assert in_page("return window.fetch.name") == "fetch"
-    # No enumerable or own marker property the page can find.
-    assert in_page("return window.fetch.__sro") is None
-    assert in_page("return Object.getOwnPropertyNames(window.fetch).includes('__sro')") is False
+    # Nor is the arity: `init` and `body` are optional in WebIDL, so a native
+    # `fetch` reports 1 and a native `send` reports 0. A replacement that
+    # declares its parameters reports 2 and 1, which is a one-token check.
+    assert in_page("return window.fetch.length") == 1
+    assert in_page("return window.XMLHttpRequest.prototype.send.length") == 0
+    assert in_page("return window.XMLHttpRequest.prototype.open.length") == 2
+    # No own property the page can find -- asserted as the whole list rather
+    # than as the absence of one historical marker name, which passes against
+    # native fetch, against any future marker, and against the `toString` that
+    # an own-property disguise would itself have added.
+    for expression in ("window.fetch", "window.XMLHttpRequest.prototype.open"):
+        assert sorted(in_page(f"return Object.getOwnPropertyNames({expression})")) == [
+            "length",
+            "name",
+        ], diag
     # The disguise survives being turned on itself.
     assert in_page("return window.fetch.toString.toString()") == (
         "function toString() { [native code] }"
+    )
+    # ...and does not swallow the source of a function it never patched, which
+    # is how a page's own framework finds its own code.
+    assert "return 1 + 1" in in_page(
+        "return Function.prototype.toString.call(function probe() { return 1 + 1; })"
     )
 
     # The patch really was installed and really is invisible: drive the page and
@@ -178,10 +208,69 @@ def test_the_patch_does_not_announce_itself_to_the_page(browser: Any, stub: Any)
     page.click("#save")
     page.wait_for_function("() => window.__done === true", timeout=15_000)
     _flush(browser, worker)
-    assert "/api/orders" in json.dumps(batches), (
+    sent = json.dumps(batches)
+    assert "/api/orders" in sent, (
         "the disguised patch captured nothing -- either it did not install or the "
         "disguise broke capture, and the tells above were asserted against native fetch"
     )
+    # The XHR half needs its own positive control: `disguise` rewrote `open`,
+    # `send` and `setRequestHeader` too, and every assertion above would still
+    # pass against an XHR patch that had silently stopped capturing.
+    assert "/api/legacy" in sent, (
+        "the XHR patch reported nothing, so the XHR tells above proved nothing"
+    )
+
+
+def test_a_credential_in_a_url_or_a_plain_body_is_redacted(browser: Any, stub: Any) -> None:
+    """Two ways a credential reached the evidence plane whole.
+
+    A magic-link or SSO callback carries a live token in its query string, and
+    `webNavigation` reports that URL to the service worker with no content
+    script involved -- so the isolated world's redaction never sees it, and the
+    backend redacts bodies and headers but never URLs.
+
+    An unstructured body is the other. `user=...\npassword=...` is JSON to no
+    parser, XML to no parser, and not form-urlencoded either, so it fell
+    through every branch and was stored verbatim with an empty
+    `redacted_fields` -- which reads as a body that was checked and found
+    clean.
+
+    Both halves are asserted together with the business data beside them,
+    because a redaction that eats real data is how people learn to turn
+    redaction off.
+    """
+    api_url, batches = stub
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+
+    page = browser.new_page()
+    page.goto(f"{api_url}/auth/callback?token={URL_TOKEN}&order={CLIENT_CODE}")
+    # With capture already on, so the navigation is seen the way every
+    # subsequent one is rather than racing the registration.
+    page.reload()
+    page.evaluate(
+        """async ([secret, code]) => {
+             await fetch('/api/plain', {
+               method: 'POST',
+               headers: {'content-type': 'text/plain'},
+               body: `user=alice\npassword=${secret}\nclientCode=${code}\n`,
+             });
+           }""",
+        [PLAIN_SECRET, CLIENT_CODE],
+    )
+    _flush(browser, worker)
+    page.close()
+
+    sent = json.dumps(batches)
+    assert URL_TOKEN not in sent, "a live token in a navigation URL reached the evidence plane"
+    assert PLAIN_SECRET not in sent, (
+        "a credential in an unstructured body reached the evidence plane"
+    )
+    # The other half of the rule: everything that is not a credential survived.
+    assert "/auth/callback" in sent, "the navigation itself was lost, not just its token"
+    assert CLIENT_CODE in sent, "redaction ate the business data beside the credential"
+    assert "alice" in sent, "redaction ate the non-credential field beside the credential"
 
 
 def test_a_body_carried_on_a_request_object_is_still_captured(captured: dict[str, Any]) -> None:

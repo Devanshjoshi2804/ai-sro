@@ -24,49 +24,87 @@
   //
   // A capture patch that a site can find is one a site can trip on -- read
   // `window.fetch.toString()`, see it is not `[native code]`, and change how
-  // it behaves, or simply refuse. So the two things that would give it away
-  // are both kept off the objects the page can reach: state lives in a WeakMap
-  // keyed by the function or the XHR, never in a property on it, and each
-  // patched function reports the source of the native it replaced.
+  // it behaves, or simply refuse. So none of what this installs is reachable
+  // from an object the page holds: per-object state lives in WeakMaps keyed by
+  // the XHR, and the "is this native?" answer comes from the prototype rather
+  // than from a property on the replacement.
   const origFetch = window.fetch;
   const OrigXHR = window.XMLHttpRequest;
 
-  // Per-object state the page cannot enumerate: the double-patch marks, and
-  // each XHR's in-flight call. A property like `xhr.__sro` would be readable
+  // Each XHR's in-flight call. A property like `xhr.__sro` would be readable
   // by the page; a WeakMap entry is not, and is collected with its key.
-  const mark = new WeakMap();
   const calls = new WeakMap();
 
-  // Installing twice would wrap our own wrapper and report every exchange once
-  // per layer.
-  if ((origFetch && mark.has(origFetch)) || (OrigXHR && mark.has(OrigXHR.prototype.open))) return;
+  // The double-patch mark has to outlive this IIFE, or it marks nothing: a
+  // WeakMap declared a few lines above the check is empty every time the check
+  // runs. So this file executing twice in one realm -- a `scripting.executeScript`
+  // re-inject, or a registration landing on a document that already has us --
+  // wrapped its own wrapper: every fetch reported twice, every XHR carrying two
+  // `loadend` listeners, and duplicated exchanges becoming duplicated candidate
+  // skills.
+  //
+  // Marked with a fresh, non-registry `Symbol()` on each replacement rather
+  // than `Symbol.for(...)`: a registry symbol is retrievable by anyone who
+  // computes the same string, so a page script could read the *exact* guard
+  // this file uses and ask it directly whether `window.fetch` was patched --
+  // the literal detection this file exists to prevent. A private symbol
+  // cannot be looked up, and the next run's own (different) private symbol
+  // cannot find it either -- so the check below asks only "does this object
+  // already carry an own symbol", not "does it carry *my* symbol". A native
+  // fetch or XHR method has none, so the presence of any is enough to answer
+  // the question without ever exposing what the marker is.
+  // ponytail: presence-of-a-symbol is itself a residual tell (a page could run
+  // the same getOwnPropertySymbols check this line does) -- narrower than a
+  // named, retrievable property, and about as far as a guard can get while
+  // still surviving a second execution of this same file with no channel back
+  // to the first run except objects the page already holds.
+  const alreadyPatched = (fn) => Boolean(fn) && Object.getOwnPropertySymbols(fn).length > 0;
+  if (alreadyPatched(origFetch) || (OrigXHR && alreadyPatched(OrigXHR.prototype.open))) return;
+  const GUARD = Symbol();
 
-  /** Makes a replacement answer `toString()` the way the native it replaced
-   * would, so the usual "was this monkey-patched?" check sees native code. The
-   * function keeps its own name -- `sroFetch` would be as much of a tell as the
-   * source -- via an anonymous assignment plus a forced `name`. */
-  const disguise = (patched, name, original) => {
-    Object.defineProperty(patched, "name", { value: name, configurable: true });
-    const native = `function ${name}() { [native code] }`;
-    const toString = function toString() {
-      return native;
-    };
-    // The disguise has to survive the same check turned on itself: a site that
-    // reads `fetch.toString.toString()` must not find *that* patched either.
-    const metaNative = "function toString() { [native code] }";
-    Object.defineProperty(toString, "toString", {
-      value: () => metaNative,
-      configurable: true,
-      writable: true,
-    });
-    Object.defineProperty(patched, "toString", {
-      value: toString,
-      configurable: true,
-      writable: true,
-    });
-    mark.set(patched, original || true);
-    return patched;
+  /** What each replacement says when it is asked for its source. */
+  const natives = new WeakMap();
+
+  /** Makes a replacement indistinguishable from the native it replaced, on
+   * every property a detection check actually reads.
+   *
+   * `name` and `length` are both part of the fingerprint: `sroFetch` would give
+   * it away as plainly as the source would, and so would `fetch.length === 2`
+   * where the native is 1 (`init` is optional, and so is `send`'s body). Both
+   * are taken from the original rather than written down here, so neither can
+   * drift from it. */
+  const disguise = (replacement, original) => {
+    // Every replacement below is an async function or a concise object method,
+    // both of which have exactly `length` and `name` as own properties. A plain
+    // `function () {}` expression would also carry `prototype` -- and, in a
+    // non-strict script, `arguments` and `caller` -- none of which a native
+    // method has, so `Object.getOwnPropertyNames` alone would give it away.
+    Object.defineProperty(replacement, "name", { value: original.name, configurable: true });
+    Object.defineProperty(replacement, "length", { value: original.length, configurable: true });
+    natives.set(replacement, `function ${original.name}() { [native code] }`);
+    Object.defineProperty(replacement, GUARD, { value: true, enumerable: false, configurable: true });
+    return replacement;
   };
+
+  // The disguise lives on `Function.prototype.toString`, not on each
+  // replacement's own `toString`. An own property is both bypassable and
+  // visible: `Function.prototype.toString.call(window.fetch)` walks straight
+  // past it -- which is exactly why fingerprinting libraries use that form and
+  // not `fetch.toString()` -- and an own `toString` makes
+  // `Object.getOwnPropertyNames(window.fetch)` read `["length","name","toString"]`
+  // where a native reads `["length","name"]`, which is a fresh tell in place of
+  // the one it removed. Answering from the prototype closes both, and the
+  // replacement disguises itself the same way, so turning the check on the
+  // check finds nothing either.
+  const ORIGINAL_TO_STRING = Function.prototype.toString;
+  const { toString: patchedToString } = {
+    toString() {
+      const native = natives.get(this);
+      return native === undefined ? ORIGINAL_TO_STRING.call(this) : native;
+    },
+  };
+  disguise(patchedToString, ORIGINAL_TO_STRING);
+  Function.prototype.toString = patchedToString;
 
   // The random half matters: this file runs in every frame of every tab, and a
   // counter plus a millisecond collides across frames that load together.
@@ -301,7 +339,7 @@
         throw error;
       }
     };
-    window.fetch = disguise(patched, "fetch", origFetch);
+    window.fetch = disguise(patched, origFetch);
   }
 
   if (OrigXHR) {
@@ -309,29 +347,33 @@
     const SEND = OrigXHR.prototype.send;
     const SET_HEADER = OrigXHR.prototype.setRequestHeader;
 
-    const open = function (method, url, ...rest) {
-      // State per XHR in a WeakMap, not on the object: `xhr.__sro` would be as
-      // readable to the page as a property it set itself.
-      const fresh = { method, url: String(url), headers: {} };
-      const bound = calls.has(this);
-      calls.set(this, fresh);
-      // Bound once per object, never once per send. An XHR may legally be
-      // reopened and reused; a listener added in `send` stayed attached with
-      // the *previous* call's state closed over it, so the second response was
-      // reported twice -- once correctly, and once pairing the first call's
-      // method, url and body with the second call's status and response.
-      if (!bound) this.addEventListener("loadend", () => report(this));
-      return OPEN.call(this, method, url, ...rest);
+    const { open } = {
+      open(method, url, ...rest) {
+        // State per XHR in a WeakMap, not on the object: `xhr.__sro` would be
+        // as readable to the page as a property it set itself.
+        const fresh = { method, url: String(url), headers: {} };
+        const bound = calls.has(this);
+        calls.set(this, fresh);
+        // Bound once per object, never once per send. An XHR may legally be
+        // reopened and reused; a listener added in `send` stayed attached with
+        // the *previous* call's state closed over it, so the second response
+        // was reported twice -- once correctly, and once pairing the first
+        // call's method, url and body with the second call's status and
+        // response.
+        if (!bound) this.addEventListener("loadend", () => report(this));
+        return OPEN.call(this, method, url, ...rest);
+      },
     };
-    OrigXHR.prototype.open = disguise(open, "open", OPEN);
+    OrigXHR.prototype.open = disguise(open, OPEN);
 
     OrigXHR.prototype.setRequestHeader = disguise(
-      function (name, value) {
-        const state = calls.get(this);
-        if (state) state.headers[name] = value;
-        return SET_HEADER.call(this, name, value);
-      },
-      "setRequestHeader",
+      {
+        setRequestHeader(name, value) {
+          const state = calls.get(this);
+          if (state) state.headers[name] = value;
+          return SET_HEADER.call(this, name, value);
+        },
+      }.setRequestHeader,
       SET_HEADER,
     );
 
@@ -392,17 +434,18 @@
     };
 
     OrigXHR.prototype.send = disguise(
-      function (body) {
-        const state = calls.get(this);
-        if (state) {
-          state.requestBodyText = bodyToText(body);
-          state.request_id = nextId();
-          state.startedAt = new Date();
-          state.t0 = performance.now();
-        }
-        return SEND.call(this, body);
-      },
-      "send",
+      {
+        send(body) {
+          const state = calls.get(this);
+          if (state) {
+            state.requestBodyText = bodyToText(body);
+            state.request_id = nextId();
+            state.startedAt = new Date();
+            state.t0 = performance.now();
+          }
+          return SEND.call(this, body);
+        },
+      }.send,
       SEND,
     );
   }

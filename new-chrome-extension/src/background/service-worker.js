@@ -5,6 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import * as queue from "./queue.js";
+import { redactUrl } from "../content/sensitivity.module.js";
 import { allowsHost, applyPolicy, unregister } from "./scripts.js";
 import { capturing, state } from "./state.js";
 import { flush } from "./upload.js";
@@ -42,8 +43,30 @@ chrome.webNavigation.onCompleted.addListener((d) => {
   if (d.frameId === 0) void pageEvent("loaded", d.tabId, d.url, d.timeStamp);
 });
 chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => {
-  void pageEvent("popup_opened", d.sourceTabId, d.url, d.timeStamp);
+  void popupEvent(d);
 });
+
+/** A popup is two hosts, so it is two policy checks.
+ *
+ * `pageEvent` below tests the host being opened. The opener was never tested
+ * at all, so an excluded page could spawn a popup and have it recorded --
+ * ADR 008 says an excluded page produces nothing, and a popup it opened is
+ * something. */
+async function popupEvent(d) {
+  let opener;
+  try {
+    opener = await chrome.tabs.get(d.sourceTabId);
+  } catch {
+    // The opener is gone already, so there is no host left to judge it by,
+    // and a popup that cannot be attributed is not evidence of anything.
+    return;
+  }
+  const policy = await state.policy();
+  if (!allowsHost(opener.url, policy)) return;
+  // The new tab's id, not the opener's: `url` is the new tab's, and the two
+  // together used to name one tab while describing another's page.
+  await pageEvent("popup_opened", d.tabId, d.url, d.timeStamp);
+}
 
 async function pageEvent(page_kind, tab_id, url, timeStamp) {
   try {
@@ -53,7 +76,11 @@ async function pageEvent(page_kind, tab_id, url, timeStamp) {
       kind: "page",
       at: new Date(timeStamp).toISOString(),
       page_kind,
-      url,
+      // Every stored URL goes through this. An SSO or magic-link callback
+      // carries a live credential in its query, `webNavigation` fires for it
+      // with no content script involved, and the backend redacts bodies and
+      // headers but never URLs -- so if this does not do it, nothing does.
+      url: redactUrl(url),
       detail: null,
       tab_id,
     });
@@ -122,21 +149,51 @@ async function handle(message, sender) {
       // tab_id comes from the sender, not the content script -- a frame has
       // no chrome.tabs access of its own to ask for it.
       const tab_id = sender?.tab?.id ?? null;
+      // Same rule as page events, at the same one point: a gesture carries the
+      // page's own `location.href` and every event carries the frame it
+      // happened in, and either can be the callback URL with the token in it.
       await queue.enqueue(
         message.kind === "gesture"
-          ? { kind: "gesture", gesture: message.gesture, tab_id, frame_url: frameUrl }
+          ? {
+              kind: "gesture",
+              gesture: { ...message.gesture, url: redactUrl(message.gesture?.url) },
+              tab_id,
+              frame_url: redactUrl(frameUrl),
+            }
           : {
               kind: "request",
-              request: underPolicy(message.request, policy),
+              request: {
+                ...underPolicy(message.request, policy),
+                url: redactUrl(message.request?.url),
+              },
               tab_id,
-              frame_url: frameUrl,
+              frame_url: redactUrl(frameUrl),
             },
       );
       return { ok: true };
     }
     case "sign-in":
+      // Everything the last credential left behind goes first, before the new
+      // one is written. Doing it after a successful `register` left a window
+      // where the new token was live and the old queue was still on disk: if
+      // `register` threw -- offline, a 500 -- capture stayed on with the old
+      // device id, and the next FLUSH alarm uploaded one operator's events
+      // under the other's credential, into the other's tenant. That is the
+      // exact thing the sign-out path below clears the queue to prevent.
+      await unregister();
+      await queue.clear();
+      await state.newQueueEpoch();
+      // A batch minted for the last operator names their epoch and their
+      // rows; left standing, the first flush under the new credential would
+      // retry it as itself and send the new operator's queue under the old
+      // operator's batch id.
+      await state.setPendingBatch(null);
+      await state.setDeviceId("");
+      await state.setPolicy(null);
       await state.setApiUrl(message.apiUrl);
       await state.setToken(message.token);
+      // Capture is off until the registration lands, and the badge says so.
+      await badge();
       return register(message.label);
     case "sign-out":
       await unregister();
@@ -185,15 +242,10 @@ async function flushQueue() {
 
 /** Register this browser profile, then apply whatever policy came back. */
 async function register(label) {
-  const previous = await state.deviceId();
+  // The queue was cleared and the epoch rotated by the `sign-in` case before
+  // this was reached, so there is nothing of a previous operator's left to
+  // guard against here -- and nothing that survives this call failing.
   const registered = await api.register(label || defaultLabel(), VERSION);
-  if (previous && previous !== registered.device_id) {
-    // A different device means a different credential, which may mean a
-    // different operator and a different tenant. Whatever the last one
-    // captured is theirs, not this one's, and it does not get uploaded here.
-    await queue.clear();
-    await state.newQueueEpoch();
-  }
   await state.setDeviceId(registered.device_id);
   await state.setPolicy(registered.policy);
   await state.setLastError("");

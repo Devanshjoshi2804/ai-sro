@@ -19,6 +19,10 @@
    * that merely happened to contain no credentials. */
   const UNINSPECTABLE = "«whole body: could not be parsed to redact»";
 
+  /** The URL equivalent: stored in place of a URL this world could not check
+   * for a credential, rather than the URL itself. */
+  const URL_UNINSPECTABLE = "«whole url: could not be checked for a credential»";
+
   const isSecretName = window.__sroIsSecretName;
   const isSecretHeader = window.__sroIsSecretHeader;
   /** Both come from sensitivity.generated.js. If that file did not run, this
@@ -92,6 +96,55 @@
     return removed.length ? [cleaned, [...new Set(removed)]] : [text, []];
   };
 
+  /** A multipart/form-data body: each part's `Content-Disposition` name and
+   * value are on separate lines, so the single-line pair scanner below never
+   * sees them together and cannot redact by name at all.
+   *
+   * `bodyToText` in network.main.js already turns an actual `FormData` object
+   * into url-encoded pairs before this file ever sees it -- `redactForm`
+   * handles that shape. This exists for the body sent as a pre-built
+   * multipart string, which arrives as real multipart wire syntax and reaches
+   * here unparsed. */
+  const redactMultipart = (text, contentType) => {
+    const boundaryMatch = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(contentType || "");
+    const boundary = boundaryMatch && (boundaryMatch[1] || boundaryMatch[2]).trim();
+    if (!boundary) return redactPairs(text);
+
+    const removed = [];
+    const parts = text.split(`--${boundary}`);
+    const cleaned = parts
+      .map((part) => {
+        const headerEnd = part.search(/\r?\n\r?\n/);
+        if (headerEnd === -1) return part;
+        const header = part.slice(0, headerEnd);
+        const nameMatch = /name="([^"]*)"/i.exec(header);
+        if (!nameMatch || !isSecretName(nameMatch[1])) return part;
+        removed.push(nameMatch[1]);
+        const gap = part.slice(headerEnd).match(/^\r?\n\r?\n/)[0];
+        const rest = part.slice(headerEnd + gap.length);
+        const valueEnd = rest.search(/\r?\n--/);
+        return header + gap + REDACTED + rest.slice(valueEnd === -1 ? rest.length : valueEnd);
+      })
+      .join(`--${boundary}`);
+    return removed.length ? [cleaned, [...new Set(removed)]] : [text, []];
+  };
+
+  /** Any `name=value` or `name: value` pair, wherever it sits in an otherwise
+   * unstructured body. The parsers above each want a whole well-formed
+   * document; this wants only a field name next to a field value, which is all
+   * a name-based rule needs to act. */
+  const PAIR = /([A-Za-z_][\w.-]*)(\s*[=:]\s*)([^\s&;,]*)/g;
+
+  const redactPairs = (text) => {
+    const removed = [];
+    const cleaned = text.replace(PAIR, (whole, name, separator) => {
+      if (!isSecretName(name)) return whole;
+      removed.push(name);
+      return `${name}${separator}${REDACTED}`;
+    });
+    return removed.length ? [cleaned, [...new Set(removed)]] : [text, []];
+  };
+
   /** `[text, removedFieldNames]`, or null when the body could not be inspected. */
   const redactBody = (text, contentType) => {
     const kind = (contentType || "").toLowerCase();
@@ -100,13 +153,16 @@
       return redactJson(text);
     }
     if (kind.includes("xml") || trimmed.startsWith("<")) return redactXml(text);
+    if (kind.includes("multipart/form-data")) return redactMultipart(text, contentType);
     if (kind.includes("form-urlencoded") || (text.includes("=") && !text.includes("\n"))) {
       return redactForm(text);
     }
-    // Plain text with no structure: there are no field names to match, so
-    // there is nothing a name-based rule could find. Kept as it is, which is
-    // what the Python side does with the same input.
-    return [text, []];
+    // No parser fits: an unknown content-type, or a `text/plain` post. That is
+    // not the same as "no field names are in here" -- `user=alice\npassword=x`
+    // matches none of the branches above and used to be stored verbatim with
+    // an empty `redacted_fields`, which reads to a reviewer as a body that was
+    // checked and found clean. Scanned for pairs instead.
+    return redactPairs(text);
   };
 
   const emptyBody = (contentType, why) => ({
@@ -155,24 +211,25 @@
 
   /** A URL with credential-named query values removed.
    *
-   * `?token=…` and `?api_key=…` are as much a credential as the header form,
-   * and the URL is stored on every single event. */
+   * The rule itself is generated (sensitivity.generated.js) so the worker and
+   * this world cannot disagree about what names a credential. Resolving
+   * against `location.href` first is this world's job: a page realm reports
+   * whatever it was given, including a relative path. */
   const redactUrl = (url) => {
-    if (!canRedact) return url;
-    let parsed;
+    // Same rule as the body and header paths above: `canRedact` false means
+    // this world never got sensitivity.generated.js's rules, and the safe
+    // answer to "is this clean?" is no, not "nothing matched" -- a raw URL
+    // returned here is a live token returned here.
+    if (!canRedact) return URL_UNINSPECTABLE;
+    let resolved;
     try {
-      parsed = new URL(url, location.href);
+      resolved = new URL(url, location.href).toString();
     } catch {
+      // Not URL-shaped at all -- nothing a query-string rule could act on,
+      // and not a value the redactor would recognise as a URL to check.
       return url;
     }
-    let touched = false;
-    for (const key of [...parsed.searchParams.keys()]) {
-      if (isSecretName(key)) {
-        parsed.searchParams.set(key, REDACTED);
-        touched = true;
-      }
-    }
-    return touched ? parsed.toString() : url;
+    return window.__sroRedactUrl(resolved);
   };
 
   // The other half of network.main.js's handshake. Latches the first secret it
@@ -207,7 +264,15 @@
     // re-checks the host policy. A page can still forge a plausible exchange;
     // what it cannot do is get an unredacted one, an oversized one, or one for
     // a host the tenant excluded.
-    if (typeof event.detail !== "string" || event.detail.length > MAX_TEXT * 3) return;
+    // The cap is the producer's own arithmetic, not a round number:
+    // network.main.js allows a request body and a response body of MAX_TEXT
+    // each, JSON-escaping roughly doubles a quote-heavy payload, and the
+    // headers and envelope ride along too. At MAX_TEXT * 3 an ordinary large
+    // API exchange exceeded it and the whole event vanished with no trace --
+    // no marker, no error, indistinguishable from a request that never
+    // happened. Anything past this cannot have come from our own patch, so
+    // dropping it silently is the hostile-page guard it was always meant to be.
+    if (typeof event.detail !== "string" || event.detail.length > MAX_TEXT * 8) return;
 
     let raw;
     try {

@@ -15,6 +15,7 @@ const KEYS = {
   lastBeat: "sro.lastBeat",
   lastError: "sro.lastError",
   queueEpoch: "sro.queueEpoch",
+  pendingBatch: "sro.pendingBatch",
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
@@ -72,6 +73,16 @@ export const state = {
     await write(KEYS.queueEpoch, minted);
     return minted;
   },
+
+  /** The batch that has been sent at least once and not yet accounted for:
+   * its id and the exact rows it named.
+   *
+   * Both, not just the id. `trim` can delete rows out from under a batch
+   * between attempts, and a retry that quietly picked up a different set --
+   * or minted a different id over an overlapping one -- is how the same
+   * events got stored twice. */
+  pendingBatch: () => read(KEYS.pendingBatch, null),
+  setPendingBatch: (batch) => write(KEYS.pendingBatch, batch),
 
   async forget() {
     await chrome.storage.local.remove(Object.values(KEYS));

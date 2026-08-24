@@ -69,6 +69,7 @@ from sro.application.observation.register import (
     RecordHeartbeat,
     RegisterDevice,
 )
+from sro.application.observation.retain import SweepRetention
 from sro.application.observation.teach import DismissCandidate, ReadCandidates, TeachCandidate
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.auth import Credentials
@@ -290,6 +291,9 @@ class Container:
 
     def forget_observations(self) -> ForgetObservations:
         return ForgetObservations(self.unit_of_work(), self.blobs, self.clock)
+
+    def sweep_retention(self) -> SweepRetention:
+        return SweepRetention(self.unit_of_work(), self.blobs, self.clock)
 
     def attach_artifact(self) -> AttachArtifact:
         return AttachArtifact(self.unit_of_work(), self.blobs, self.clock, self.transcriber)

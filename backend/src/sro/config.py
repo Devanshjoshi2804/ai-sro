@@ -134,6 +134,11 @@ class Settings(BaseSettings):
     sessions have been observed to last. This is only how often the question is
     asked, and asking is a cached read."""
 
+    retention_sweep_seconds: float = 86400.0
+    """How often expired evidence is deleted. Once a day by default: a
+    retention window is measured in days, so checking more often than that
+    buys nothing but repeated table scans."""
+
     auth_secret: str = ""
     """The key this deployment signs its own credentials with.
 

@@ -11,6 +11,7 @@ from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import Ingested, IngestObservation, ObservationRefused
 from sro.application.observation.policy import SetObservationPolicy
 from sro.application.observation.register import RecordHeartbeat, RegisterDevice
+from sro.application.observation.retain import SweepRetention
 from sro.domain.observation.batch import CaptureMode
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
@@ -181,6 +182,38 @@ async def test_an_operator_purging_their_own_hour_does_not_touch_a_colleagues() 
     assert set(uow.observations.rows) == {"bat_theirs"}
     assert [key for key in blobs.objects if "devansh" in key] == []
     assert [key for key in blobs.objects if "priya" in key] != []
+
+
+async def test_a_sweep_removes_evidence_past_its_own_tenants_window() -> None:
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    await SetObservationPolicy(uow).execute(
+        ACME, policy=ObservationPolicy(retention_days=1).enabled()
+    )
+    device_id = await _register(uow, ACME)
+    await _ingest(uow, blobs, device_id)
+
+    forgotten = await SweepRetention(
+        uow, blobs, FakeClock(datetime(2026, 3, 5, 9, 0, tzinfo=UTC))
+    ).execute()
+
+    assert forgotten["acme"].batches == 1
+    assert uow.observations.rows == {}
+
+
+async def test_a_sweep_leaves_evidence_still_inside_the_window() -> None:
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    await SetObservationPolicy(uow).execute(
+        ACME, policy=ObservationPolicy(retention_days=30).enabled()
+    )
+    device_id = await _register(uow, ACME)
+    await _ingest(uow, blobs, device_id)
+
+    forgotten = await SweepRetention(
+        uow, blobs, FakeClock(datetime(2026, 3, 5, 9, 0, tzinfo=UTC))
+    ).execute()
+
+    assert forgotten["acme"].batches == 0
+    assert set(uow.observations.rows) == {"bat_one"}
 
 
 async def _ingest(

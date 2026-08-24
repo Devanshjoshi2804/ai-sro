@@ -86,6 +86,27 @@ async def mine_lately(container: Container, every_seconds: float, window_hours: 
                 )
 
 
+async def retain_lately(container: Container, every_seconds: float) -> None:
+    """Delete evidence that has aged out of its tenant's own window.
+
+    A loop for the same reason as the keeper and the miner: nothing here needs
+    replaying, and a missed sweep costs one more day of storage rather than a
+    broken promise -- the next sweep finds the same rows and removes them.
+    """
+    while True:
+        await asyncio.sleep(every_seconds)
+        try:
+            forgotten = await container.sweep_retention().execute()
+        except Exception:
+            logger.exception("the retention sweep could not finish")
+            continue
+        for tenant, gone in forgotten.items():
+            if gone.batches:
+                logger.info(
+                    "%s: %s batch(es) past their retention window removed", tenant, gone.batches
+                )
+
+
 async def run() -> None:
     settings = get_settings()
     configure_logging()
@@ -116,12 +137,14 @@ async def run() -> None:
     miner = asyncio.create_task(
         mine_lately(container, settings.mining_sweep_seconds, settings.mining_window_hours)
     )
+    retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
     try:
         async with default, browser:
             await asyncio.Future()
     finally:
         keeper.cancel()
         miner.cancel()
+        retainer.cancel()
 
 
 def main() -> None:

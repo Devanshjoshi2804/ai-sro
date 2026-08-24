@@ -47,6 +47,7 @@ from sro.application.execution.read_runs import GetRun, ListRuns
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction.induce_skill import InduceSkill
+from sro.application.induction.seed_from_flow import SeedSkillFromFlow
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.intent.narrow import NarrowARead
 from sro.application.intent.next_steps import SuggestNext
@@ -399,6 +400,11 @@ class Container:
 
     def understand_recording(self) -> UnderstandRecording:
         return UnderstandRecording(self.unit_of_work(), self.interpreter, self.clock, self.ids)
+
+    def seed_skill_from_flow(self) -> SeedSkillFromFlow:
+        return SeedSkillFromFlow(
+            self.unit_of_work(), self.clock, self.ids, self.understand_recording()
+        )
 
     def promote_skill(self) -> PromoteSkill:
         return PromoteSkill(self.unit_of_work(), self.clock)

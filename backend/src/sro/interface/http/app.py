@@ -38,10 +38,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(level="DEBUG" if get_settings().debug else "INFO")
     container = build_container()
     app.state.container = container
-    try:
-        yield
-    finally:
-        await container.capture.stop_all()
+
+    mcp_server = container.mcp_server()
+    app.mount("/mcp", mcp_server.streamable_http_app(streamable_http_path="/"))
+    # streamable_http_app() wires its own lifespan into the sub-app Starlette
+    # returns, but FastAPI's custom `lifespan=` here replaces the default
+    # walk that would trigger it -- so its session manager's task group is
+    # started explicitly, in this one instead.
+    async with mcp_server.session_manager.run():
+        try:
+            yield
+        finally:
+            await container.capture.stop_all()
 
 
 def create_app() -> FastAPI:

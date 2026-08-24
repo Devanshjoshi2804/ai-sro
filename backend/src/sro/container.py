@@ -120,6 +120,7 @@ from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.infrastructure.http.api_runs import ApiRunDispatcher
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
+from sro.infrastructure.mcp.server import SkillToolServer
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.sign_in import PlaywrightSignIn
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
@@ -529,6 +530,17 @@ class Container:
 
     def get_run(self) -> GetRun:
         return GetRun(self.unit_of_work())
+
+    def mcp_server(self) -> SkillToolServer:
+        """A tool per runnable skill. One server per process: tenant comes from
+        the bearer token on each MCP request, not from how this is built."""
+        return SkillToolServer(
+            credentials=self.credentials,
+            list_skills=self.list_skills(),
+            get_skill=self.get_skill(),
+            durable=self.durable,
+            get_run=self.get_run(),
+        )
 
     def list_runs(self) -> ListRuns:
         return ListRuns(self.unit_of_work())

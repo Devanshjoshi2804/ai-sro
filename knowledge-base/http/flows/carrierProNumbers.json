@@ -1,0 +1,279 @@
+{
+  "spec": "carrierProNumbers",
+  "resource": "carrierProNumbers",
+  "applied": {
+    "addressName": "ZV Pro Addr",
+    "carrier": "048"
+  },
+  "invalid": [],
+  "calls": [
+    {
+      "endpoint": "wm/carriers",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers?query=%5B%5D&offset=0&limit=10&siteId=SG&subsites=----&_dc=1787553483283",
+        "query": {
+          "query": "[]",
+          "offset": "0",
+          "limit": "10",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787553483283"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3005a172a2ea836-DEL",
+          "authenticated": "true",
+          "content-length": "1768",
+          "date": "Mon, 24 Aug 2026 06:38:03 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"accountNumber\":null,\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"NONE\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":null,\"addressType\":null,\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":null,\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":null,\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":null,\"poolPointFlag\":null,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":null,\"residentialAddress\":null,\"resourceId\":\"NONE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/NONE\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":null,\"timeZone\":null,\"user\":null},\"addressId\":null,\"addressName\":null,\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/0000/addresses\",\"autoCloseShipments\":false,\"carrierCode\":\"0000\",\"carrierDetails\":[{\"allowBundling\":false,\"allowFluidLoading\":false,\"allowShipStagingOverride\":true,\"bookingRequiredBeforeTendering\":false,\"carrierCode\":\"0000\",\"carrierCodeServiceLevel\":\"0000 LT\",\"carrierType\":\"LT\",\"currencyCode\":null,\"dateLastModified\":\"2026-03-08T06:35:00.000+0000\",\"forceSinglePackageParcelShipments\":false,\"internationalDelivery\":false,\"lastModifiedBy\":\"NOUSER\",\"maximumValue\":0.0,\"maximumVolume\":0.0,\"maximumWeight\":0.0,\"releaseValue\":0.0,\"releaseValueUnitType\":null,\"resourceId\":\"0000*!LT\",\"saturdayDelivery\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/0000%2A%21LT\",\"serviceLevel\":\"LT\",\"serviceLevelName\":null,\"unitInsuranceValue\":0.0},{\"allowBundling\":false,\"allowFluidLoading\":false,\"allowShipStagingOverride\":true,\"bookingRequiredBeforeTendering\":false,\"carrierCode\":\"0000\",\"carrierCodeServiceLevel\":\"0000 TL\",\"carrierType\":\"T\",\"currencyCode\":null,\"dateLastModified\":\"2026-03-08T06:35:00.000+0000\",\"forceSinglePackageParcelShipments\":false,\"internationalDelivery\":false,\"lastModifiedBy\":\"NOUSER\",\"maximumValue\":0.0,\"maximumVolume\":0.0,\"maximumWeight\":0.0,\"releaseValue\":0.0,\"releaseValueUnitType\":null,\"resourceId\":\"0000*!TL\",\"saturdayDelivery\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/0000%2A%21TL\",\"serviceLevel\":\"TL\",\"serviceLevelName\":null,\"unitInsuranceValue\":0.0}],\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/0000/carrierDetails\",\"carrierMatrixs_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/0000/carrierMatrices\",\"carrierName\":\"Interface Carrier\",\"currencyCode\":null,\"exceptionHoursSet\":null,\"manifestStatusForAutoClose\":null,\"operationalHoursSet\":null,\"resourceId\":\"0000\",\"scacCode\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/0000\",\"timeToWait\":null},{\"accountNumber\":null,\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"NONE\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":null,\"addressType\":null,\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":null,\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":null,\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":null,\"poolPointFlag\":null,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":null,\"residentialAddress\":null,\"resourceId\":\"NONE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/NONE\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":null,\"timeZone\":null,\"user\":null},\"addressId\":null,\"addressName\":null,\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/001/addresses\",\"autoCloseShipments\":false,\"carrierCode\":\"001\",\"carrierDetails\":[{\"allowBundling\":false,\"allowFluidLoading\":false,\"allowShipStagingOverride\":false,\"bookingRequiredBeforeTendering\":false,\"carrierCode\":\"001\",\"carrierCodeServiceLevel\":\"001 LT\",\"carrierType\":\"LTL\",\"currencyCode\":null,\"dateLastModified\":\"2026-03-08T06:35:00.000+0000\",\"forceSinglePackageParcelShipments\":false,\"internationalDelivery\":false,\"lastModifiedBy\":\"NOUSER\",\"maximumValue\":0.0,\"maximumVolume\":0.0,\"maximumWeight\":0.0,\"releaseValue\":0.0,\"releaseValueUnitType\":null,\"resourceId\":\"001*!LT\",\"saturdayDelivery\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/001%2A%21LT\",\"serviceLevel\":\"LT\",\"serviceLevelName\":null,\"unitInsuranceValue\":0.0}],\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/001/carrierDetails\",\"carrierMatrixs_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/001/carrierMatrices\",\"carrierName\":\"001-DO NOT USE\",\"currencyCode\":null,\"exceptionHoursSet\":null,\"manifestStatusForAutoClose\":null,\"operationalHoursSet\":null,\"resourceId\":\"001\",\"scacCode\":\"001\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/001\",\"timeToWait\":null},{\"accountNumber\":null,\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"NONE\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":null,\"addressType\":null,\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":null,\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":null,\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":null,\"poolPointFlag\":null,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":null,\"residentialAddress\":null,\"resourceId\":\"NONE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/NONE\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":null,\"timeZone\":null,\"user\":null},\"addressId\":null,\"addressName\":null,\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/005/addresses\",\"autoCloseShipments\":false,\"carrierCode\":\"005\",\"carrierDetails\":[{\"allowBundling\":false,\"allowFluidLoading\":false,\"allowShipStagingOverride\":false,\"bookingRequiredBeforeTendering\":false,\"carrierCode\":\"005\",\"carrierCodeServiceLevel\":\"005 LT\",\"carrierType\":\"LTL\",\"currencyCode\":null,\"dateLastModified\":\"2026-03-08T06:35:00.000+0000\",\"forceSinglePackageParcelShipments\":false,\"internationalDelivery\":true,\"lastModifiedBy\":\"NOUSER\",\"maximumValue\":0.0,\"maximumVolume\":0.0,\"maximumWeight\":0.0,\"releaseValue\":0.0,\"releaseValueUnitType\":null,\"resourceId\":\"005*!LT\",\"saturdayDelivery\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/005%2A%21LT\",\"serviceLevel\":\"LT\",\"serviceLevelName\":null,\"unitInsuranceValue\":0.0}],\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/005/carrierDetails\",\"carrierMatrixs_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/005/carrierMatrices\",\"carrierName\":\"005-BEST METHOD\",\"currencyCode\":null,\"exceptionHoursSet\":null,\"manifestStatusForAutoClose\":null,\"operationalHoursSet\":null,\"resourceId\":\"005\",\"scacCode\":\"005\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/005\",\"timeToWait\":null},{\"accountNumber\":null,\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"NONE\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":null,\"addressType\":null,\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":null,\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":null,\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":null,\"poolPointFlag\":null,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":null,\"residentialAddress\":null,\"resourceId\":\"NONE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/NONE\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":null,\"timeZone\":null,\"user\":null},\"addressId\":null,\"addressName\":null,\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/021/addresses\",\"autoCloseShipments\":false,\"carrierCode\":\"021\",\"carrierDetails\":[{\"allowBundling\":false,\"allowFluidLoading\":false,\"allowShipStagingOverride\":false,\"bookingRequiredBeforeTendering\":false,\"carrierCode\":\"021\",\"carrierCodeServiceLevel\":\"021 LT\",\"carrierType\":\"LTL\",\"currencyCode\":null,\"dateLastModified\":\"2026-03-08T06:35:00.000+0000\",\"forceSinglePackageParcelShipments\":false,\"internationalDelivery\":false,\"lastModifiedBy\":\"NOUSER\",\"maximumValue\":0.0,\"maximumVolume\":0.0,\"maximumWeight\":0.0,\"releaseValue\":0.0,\"releaseValueUnitType\":null,\"resourceId\":\"021*!LT\",\"saturdayDelivery\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/021%2A%21LT\",\"serviceLevel\":\"LT\",\"serviceLevelName\":null,\"unitInsuranceValue\":0.0}],\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/021/carrierDetails\",\"carrierMatrixs_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/021/carrierMatrices\",\"carrierName\":\"021-BEST METHOD\",\"currencyCode\":null,\"exceptionHoursSet\":null,\"manifestStatusForAutoClose\":null,\"operationalHoursSet\":null,\"resourceId\":\"021\",\"scacCode\":\"021\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/021\",\"timeToWait\":null},{\"accountNumber\":null,\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"NONE\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":null,\"addressType\":null,\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":null,\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":null,\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":null,\"poolPointFlag\":null,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":null,\"residentialAddress\":null,\"resourceId\":\"NONE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/NONE\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":null,\"timeZone\":null,\"user\":null},\"addressId\":null,\"addressName\":null,\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/036/addresses\",\"autoCloseShipments\":false,\"carrierCode\":\"036\",\"carrierDetails\":[{\"allowBundling\":false,\"allowFluidLoading\":false,\"allowShipStagingOverride\":false,\"bookingRequiredBeforeTendering\":false,\"carrierCode\":\"036\",\"carrierCodeServiceLevel\":\"036 LT\",\"carrierType\":\"LTL\",\"currencyCode\":null,\"dateLastModified\":\"2026-03-08T06:35:00.000+0000\",\"forceSinglePackageParcelShipments\":false,\"internationalDelivery\":false,\"lastModifiedBy\":\"NOUSER\",\"maximumValue\":0.0,\"maximumVolume\":0.0,\"maximumWeight\":0.0,\"releaseValue\":0.0,\"releaseValueUnitType\":null,\"resourceId\":\"036*!LT\",\"saturdayDelivery\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/036%2A%21LT\",\"serviceLevel\":\"LT\",\"serviceLevelName\":null,\"unitInsuranceValue\":0.0}],\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/036/carrierDetails\",\"carrierMatrixs_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/036/carrierMatrices\",\"carrierName\":\"036-TRANS-ONTARIO EXPRESS\",\"currencyCode\":null,\"exceptionHoursSet\":null,\"manifestStatusForAutoClose\":null,\"operationalHoursSet\":null,\"resourceId\":\"036\",\"scacCode\":\"036\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/036\",\"timeToWait\":null},{\"accountNumber\":null,\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"NONE\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":null,\"addressType\":null,\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":null,\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":null,\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":null,\"poolPointFlag\":null,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":null,\"residentialAddress\":null,\"resourceId\":\"NONE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/NONE\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":null,\"timeZone\":null,\"user\":null},\"addressId\":null,\"addressName\":null,\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/040/addresses\",\"autoCloseShipments\":false,\"carrierCode\":\"040\",\"carrierDetails\":[{\"allowBundling\":false,\"allowFluidLoading\":false,\"allowShipStagingOverride\":false,\"bookingRequiredBeforeTendering\":false,\"carrierCode\":\"040\",\"carrierCodeServiceLevel\":\"040 INT\",\"carrierType\":\"INT\",\"currencyCode\":null,\"dateLastModified\":\"2026-03-08T06:35:00.000+0000\",\"forceSinglePackageParcelShipments\":false,\"internationalDelivery\":false,\"lastModifiedBy\":\"NOUSER\",\"maximumValue\":0.0,\"maximumVolume\":0.0,\"maximumWeight\":0.0,\"releaseValue\":0.0,\"releaseValueUnitType\":null,\"resourceId\":\"040*!INT\",\"saturdayDelivery\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/040%2A%21INT\",\"serviceLevel\":\"INT\",\"serviceLevelName\":null,\"unitInsuranceValue\":0.0},{\"allowBundling\":false,\"allowFluidLoading\":false,\"allowShipStagingOverride\":false,\"bookingRequiredBeforeTendering\":false,\"carrierCode\":\"040\",\"carrierCodeServiceLevel\":\"040 LT\",\"carrierType\":\"LTL\",\"currencyCode\":null,\"dateLastModified\":\"2026-03-08T06:35:00.000+0000\",\"forceSinglePackageParcelShipments\":false,\"internationalDelivery\":true,\"lastModifiedBy\":\"NOUSER\",\"maximumValue\":0.0,\"maximumVolume\":0.0,\"maximumWeight\":0.0,\"releaseValue\":0.0,\"releaseValueUnitType\":null,\"resourceId\":\"040*!LT\",\"saturdayDelivery\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/040%2A%21LT\",\"serviceLevel\":\"LT\",\"serviceLevelName\":null,\"unitInsuranceValue\":0.0}],\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/040/carrierDetails\",\"carrierMatrixs_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/040/carrierMatrices\",\"carrierName\":\"040-PICK UP\",\"currencyCode\":null,\"exceptionHoursSet\":null,\"manifestStatusForAutoClose\":null,\"operationalHoursSet\":null,\"resourceId\":\"040\",\"scacCode\":\"040\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/040\",\"timeToWait\":null},{\"accountNumber\":null,\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"NONE\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":null,\"addressType\":null,\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":null,\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":null,\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":null,\"poolPointFlag\":null,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":null,\"residentialAddress\":null,\"resourceId\":\"NONE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/NONE\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":null,\"timeZone\":null,\"user\":null},\"addressId\":null,\"addressName\":null,\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/046/addresses\",\"autoCloseShipments\":false,\"carrierCode\":\"046\",\"carrierDetails\":[{\"allowBundling\":false,\"allowFluidLoading\":false,\"allowShipStagingOverride\":false,\"bookingRequiredBeforeTendering\":false,\"carrierCode\":\"046\",\"carrierCodeServiceLevel\":\"046 LT\",\"carrierType\":\"LTL\",\"currencyCode\":null,\"dateLastModified\":\"2026-05-15T18:00:34.000+0000\",\"forceSinglePackageParcelShipments\":false,\"internationalDelivery\":false,\"lastModifiedBy\":\"IT-JHOOD\",\"maximumValue\":0.0,\"maximumVolume\":0.0,\"maximumWeight\":0.0,\"releaseValue\":0.0,\"releaseValueUnitType\":null,\"resourceId\":\"046*!LT\",\"saturdayDelivery\":false,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierDetails/046%2A%21LT\",\"serviceLevel\":\"LT\",\"serviceLevelName\":null,\"unitInsuranceValue\":0.0}],\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/046/carrierDetails\",\"carrierMatrixs_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/046/carrierMatrices\",\"carrierName\":\"046-VA TRANSPORT\",\"currencyCode\":null,\"exceptionHoursSet\":null,\"manifestStatusForAutoClose\":null,\"operationalHoursSet\":null,\"resourceId\":\"046\",\"scacCode\":\"046\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/046\",\"timeToWait\":null},{\"accountNumber\":null,\"address\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"NONE\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":null,\"addressType\":null,\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":null,\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":null,\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":null,\"poolPointFlag\":null,\"poolRati"
+      }
+    },
+    {
+      "endpoint": "wm/addresses",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses?siteId=SG&subsites=----&_dc=1787553484426",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787553484426"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"addressId\":\"\",\"hostExternalId\":\"\",\"addressName\":\"ZV Pro Addr\",\"addressLine1\":\"\",\"addressLine2\":\"\",\"addressLine3\":\"\",\"city\":\"\",\"state\":\"\",\"postalCode\":\"\",\"addressType\":\"WH\",\"clientId\":\"----\",\"countryName\":\"\",\"phoneNumber\":\"\",\"timeZone\":\"\",\"firstName\":\"\",\"lastName\":\"\",\"localeId\":\"\",\"customsSiteType\":\"\",\"globalLocationNumber\":\"\",\"customsTaxSite\":\"\",\"temporary\":false,\"residentialAddress\":false,\"receivingWebAddress\":\"\",\"contactName\":\"\",\"contactPhone\":\"\",\"attentionPhone\":\"\",\"faxNumber\":\"\",\"email\":\"\",\"contactTitle\":\"\",\"attentionName\":\"\",\"shippingPhone\":\"\",\"shippingWebAddress\":\"\",\"shippingContactName\":\"\",\"shippingContactPhone\":\"\",\"shippingAttentionPhone\":\"\",\"shippingFax\":\"\",\"shippingEmail\":\"\",\"shippingContactTitle\":\"\",\"shippingAttentionName\":\"\",\"honorific\":\"\",\"addressDistrict\":\"\",\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":\"\",\"region\":\"\",\"latitude\":\"\",\"longitude\":\"\"}"
+      },
+      "seq": 1,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000365906",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3005a1e2d31a836-DEL",
+          "authenticated": "true",
+          "content-length": "1239",
+          "date": "Mon, 24 Aug 2026 06:38:04 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000365906\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"ZV Pro Addr\",\"addressType\":\"WH\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"----\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000365906\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000365906\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000365906\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null}}"
+      }
+    },
+    {
+      "endpoint": "wm/carrierProNumbers",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierProNumbers?expand=%7BcarrierInfo%7D&siteId=SG&subsites=----&_dc=1787553484766",
+        "query": {
+          "expand": "{carrierInfo}",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787553484766"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"carrier\":\"048\",\"addressId\":\"A000365906\",\"addressName\":\"ZV Pro Addr\",\"poolPointAddressId\":\"----\",\"format\":\"\",\"numberLength\":\"\",\"nextValue\":\"\",\"prefix\":\"\",\"checkDigitMethod\":\"\",\"checkDigitMethodDescription\":\"\",\"separator\":\"\",\"carrierInfo\":\"\"}"
+      },
+      "seq": 2,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierProNumbers/A000365906%2A%21048%2A%21----",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3005a206e37a836-DEL",
+          "authenticated": "true",
+          "content-length": "1274",
+          "date": "Mon, 24 Aug 2026 06:38:05 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"addressId\":\"A000365906\",\"addressName\":\"ZV Pro Addr\",\"carrier\":\"048\",\"carrierInfo\":{\"accountNumber\":null,\"address\":null,\"addressId\":null,\"addressName\":null,\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048/addresses\",\"autoCloseShipments\":false,\"carrierCode\":\"048\",\"carrierDetails\":null,\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048/carrierDetails\",\"carrierMatrixs_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048/carrierMatrices\",\"carrierName\":\"048-BEST METHOD\",\"currencyCode\":null,\"exceptionHoursSet\":null,\"manifestStatusForAutoClose\":null,\"operationalHoursSet\":null,\"resourceId\":\"048\",\"scacCode\":\"048\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048\",\"timeToWait\":null},\"carrierInfo_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048\",\"checkDigitMethod\":null,\"checkDigitMethodDescription\":null,\"format\":null,\"nextValue\":null,\"numberLength\":null,\"poolPointAddressId\":\"----\",\"prefix\":null,\"resourceId\":\"A000365906*!048*!----\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierProNumbers/A000365906%2A%21048%2A%21----\",\"separator\":null,\"version\":1}}"
+      }
+    }
+  ],
+  "writes": [
+    {
+      "endpoint": "wm/addresses",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses?siteId=SG&subsites=----&_dc=1787553484426",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787553484426"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"addressId\":\"\",\"hostExternalId\":\"\",\"addressName\":\"ZV Pro Addr\",\"addressLine1\":\"\",\"addressLine2\":\"\",\"addressLine3\":\"\",\"city\":\"\",\"state\":\"\",\"postalCode\":\"\",\"addressType\":\"WH\",\"clientId\":\"----\",\"countryName\":\"\",\"phoneNumber\":\"\",\"timeZone\":\"\",\"firstName\":\"\",\"lastName\":\"\",\"localeId\":\"\",\"customsSiteType\":\"\",\"globalLocationNumber\":\"\",\"customsTaxSite\":\"\",\"temporary\":false,\"residentialAddress\":false,\"receivingWebAddress\":\"\",\"contactName\":\"\",\"contactPhone\":\"\",\"attentionPhone\":\"\",\"faxNumber\":\"\",\"email\":\"\",\"contactTitle\":\"\",\"attentionName\":\"\",\"shippingPhone\":\"\",\"shippingWebAddress\":\"\",\"shippingContactName\":\"\",\"shippingContactPhone\":\"\",\"shippingAttentionPhone\":\"\",\"shippingFax\":\"\",\"shippingEmail\":\"\",\"shippingContactTitle\":\"\",\"shippingAttentionName\":\"\",\"honorific\":\"\",\"addressDistrict\":\"\",\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":\"\",\"region\":\"\",\"latitude\":\"\",\"longitude\":\"\"}"
+      },
+      "seq": 1,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000365906",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3005a1e2d31a836-DEL",
+          "authenticated": "true",
+          "content-length": "1239",
+          "date": "Mon, 24 Aug 2026 06:38:04 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"absoluteGroup\":null,\"addressDistrict\":null,\"addressId\":\"A000365906\",\"addressLine1\":null,\"addressLine2\":null,\"addressLine3\":null,\"addressName\":\"ZV Pro Addr\",\"addressType\":\"WH\",\"allAddressFlag\":null,\"attentionName\":null,\"attentionPhone\":null,\"city\":null,\"clientId\":\"----\",\"contactName\":null,\"contactPhone\":null,\"contactTitle\":null,\"countryName\":null,\"customsSiteType\":null,\"customsTaxSite\":null,\"email\":null,\"faxNumber\":null,\"firstName\":null,\"globalLocationNumber\":null,\"honorific\":null,\"hostExternalId\":\"A000365906\",\"lastName\":null,\"latitude\":null,\"localeId\":null,\"longitude\":null,\"pagnum\":null,\"phoneNumber\":null,\"poBoxFlag\":false,\"poolPointFlag\":false,\"poolRatingServiceName\":null,\"postalCode\":null,\"receivingWebAddress\":null,\"region\":null,\"requestState\":\"ACCEPTED\",\"residentialAddress\":false,\"resourceId\":\"A000365906\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000365906\",\"shippingAttentionName\":null,\"shippingAttentionPhone\":null,\"shippingContactName\":null,\"shippingContactPhone\":null,\"shippingContactTitle\":null,\"shippingEmail\":null,\"shippingFax\":null,\"shippingPhone\":null,\"shippingWebAddress\":null,\"state\":null,\"temporary\":false,\"timeZone\":null,\"user\":null}}"
+      }
+    },
+    {
+      "endpoint": "wm/carrierProNumbers",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierProNumbers?expand=%7BcarrierInfo%7D&siteId=SG&subsites=----&_dc=1787553484766",
+        "query": {
+          "expand": "{carrierInfo}",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787553484766"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"carrier\":\"048\",\"addressId\":\"A000365906\",\"addressName\":\"ZV Pro Addr\",\"poolPointAddressId\":\"----\",\"format\":\"\",\"numberLength\":\"\",\"nextValue\":\"\",\"prefix\":\"\",\"checkDigitMethod\":\"\",\"checkDigitMethodDescription\":\"\",\"separator\":\"\",\"carrierInfo\":\"\"}"
+      },
+      "seq": 2,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierProNumbers/A000365906%2A%21048%2A%21----",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3005a206e37a836-DEL",
+          "authenticated": "true",
+          "content-length": "1274",
+          "date": "Mon, 24 Aug 2026 06:38:05 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"addressId\":\"A000365906\",\"addressName\":\"ZV Pro Addr\",\"carrier\":\"048\",\"carrierInfo\":{\"accountNumber\":null,\"address\":null,\"addressId\":null,\"addressName\":null,\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048/addresses\",\"autoCloseShipments\":false,\"carrierCode\":\"048\",\"carrierDetails\":null,\"carrierDetails_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048/carrierDetails\",\"carrierMatrixs_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048/carrierMatrices\",\"carrierName\":\"048-BEST METHOD\",\"currencyCode\":null,\"exceptionHoursSet\":null,\"manifestStatusForAutoClose\":null,\"operationalHoursSet\":null,\"resourceId\":\"048\",\"scacCode\":\"048\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048\",\"timeToWait\":null},\"carrierInfo_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carriers/048\",\"checkDigitMethod\":null,\"checkDigitMethodDescription\":null,\"format\":null,\"nextValue\":null,\"numberLength\":null,\"poolPointAddressId\":\"----\",\"prefix\":null,\"resourceId\":\"A000365906*!048*!----\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierProNumbers/A000365906%2A%21048%2A%21----\",\"separator\":null,\"version\":1}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "call": 1,
+        "endpoint": "wm/addresses",
+        "field": "data.addressId"
+      },
+      "to": {
+        "call": 2,
+        "endpoint": "wm/carrierProNumbers",
+        "field": "body:addressId"
+      },
+      "value": "A000365906"
+    },
+    {
+      "from": {
+        "call": 1,
+        "endpoint": "wm/addresses",
+        "field": "data.addressName"
+      },
+      "to": {
+        "call": 2,
+        "endpoint": "wm/carrierProNumbers",
+        "field": "body:addressName"
+      },
+      "value": "ZV Pro Addr"
+    },
+    {
+      "from": {
+        "call": 1,
+        "endpoint": "wm/addresses",
+        "field": "data.clientId"
+      },
+      "to": {
+        "call": 2,
+        "endpoint": "wm/carrierProNumbers",
+        "field": "body:poolPointAddressId"
+      },
+      "value": "----"
+    }
+  ]
+}

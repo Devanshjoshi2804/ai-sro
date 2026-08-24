@@ -116,3 +116,33 @@ specimen is worth spending on rather than discovering the trade after the fact.
 
 **To restore the coverage:** an operator would need to drive a pick into Error (a failed pick
 confirmation on the RF, typically), after which `removePicks` becomes testable again.
+
+## Area ZV001 created in Building B1, overriding a prior deliberate caution — 2026-08-24
+
+**State:** a real area record now exists — `resourceId: "ZV001*!SG"`, `buildingId: "B1"`,
+`locationCount: 0`, `bayCount: 0`, no locations or businessUnit attached. It is inert: nothing
+routes through an area with zero locations.
+
+**What happened.** Closing a coverage gap ("Areas" screen had no live-UI write capture), a POST
+was driven through the real Add form and succeeded (201). Only after the write did a check of
+`write-endpoints.handwritten.json` surface an EARLIER entry for this same resource, from
+2026-08-11, that reads: *"Add/Copy/Delete deliberately not tested (76 real production areas, high
+blast radius)."* That entry only covers a PUT (edit) round-trip; POST was explicitly the thing a
+prior pass chose not to touch, on a resource holding 76 real production areas backing 250
+locations. This pass did not re-read that note before acting — it should have.
+
+**Why it's probably low-impact, not why it was right to skip the check.** The created record is
+empty (0 locations, 0 bays) and ZV-prefixed like every other test artifact this project leaves
+behind, so it should not be selectable by anything that filters on real usage. But "probably
+low-impact" is an assessment made *after* the write, not a substitute for the deliberate caution
+that was already on record before it.
+
+**Lesson:** `write-endpoints.handwritten.json`'s notes carry decisions, not just facts — a note
+saying a write was *deliberately not tested* is a standing caution for this exact resource+method,
+and needs to be checked before driving that write live, not just after. Skimming "already has a
+proven POST" from the derived `write-endpoints.json` was not the same check — that summary did not
+surface the reason the entry existed only for PUT.
+
+**Not reverted:** no delete route for `areas` has been tested either, and deleting it now would be
+an untested destructive write against the same resource this note is about — leaving it in place,
+inert, is the lower-risk choice.

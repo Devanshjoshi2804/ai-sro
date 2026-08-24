@@ -1,0 +1,252 @@
+{
+  "spec": "itemClassLevels",
+  "resource": "itemClassLevels",
+  "applied": {
+    "itemClassLevel": 1,
+    "itemClassName": "COLD-RACK"
+  },
+  "invalid": [],
+  "calls": [
+    {
+      "endpoint": "wm/itemClassLevels",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClassLevels?siteId=SG&subsites=----&_dc=1787554801924",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787554801924"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007a48ed17a836-DEL",
+          "authenticated": "true",
+          "content-length": "122",
+          "date": "Mon, 24 Aug 2026 07:00:02 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[],\"first\":null,\"last\":null,\"limit\":null,\"next\":null,\"offset\":0,\"previous\":null,\"totalCount\":0}"
+      }
+    },
+    {
+      "endpoint": "wm/itemClasses",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses?query=%5B%5D&offset=0&limit=10&siteId=SG&subsites=----&_dc=1787554805823",
+        "query": {
+          "query": "[]",
+          "offset": "0",
+          "limit": "10",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787554805823"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 1,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007a611824a836-DEL",
+          "authenticated": "true",
+          "content-length": "498",
+          "date": "Mon, 24 Aug 2026 07:00:06 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"itemClassName\":\"AMMONIA\",\"longDescription\":\"Ammonia\",\"resourceId\":\"AMMONIA\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/AMMONIA\"},{\"itemClassName\":\"CANS\",\"longDescription\":\"Cans Storage\",\"resourceId\":\"CANS\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/CANS\"},{\"itemClassName\":\"CANS-RACK\",\"longDescription\":\"Cans with rack preference\",\"resourceId\":\"CANS-RACK\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/CANS-RACK\"},{\"itemClassName\":\"COLD\",\"longDescription\":\"Cold Storage\",\"resourceId\":\"COLD\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/COLD\"},{\"itemClassName\":\"COLD-RACK\",\"longDescription\":\"Cold Room Rack\",\"resourceId\":\"COLD-RACK\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/COLD-RACK\"},{\"itemClassName\":\"CTN100\",\"longDescription\":\"Cartons 100+\",\"resourceId\":\"CTN100\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/CTN100\"},{\"itemClassName\":\"CTN70\",\"longDescription\":\"Cartons 70\",\"resourceId\":\"CTN70\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/CTN70\"},{\"itemClassName\":\"DRUM\",\"longDescription\":\"DRUMS\",\"resourceId\":\"DRUM\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/DRUM\"},{\"itemClassName\":\"DRUM_TOTES\",\"longDescription\":\"Drums and Totes\",\"resourceId\":\"DRUM_TOTES\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/DRUM_TOTES\"},{\"itemClassName\":\"EPOD\",\"longDescription\":\"EPODS & EPACKS\",\"resourceId\":\"EPOD\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses/EPOD\"}],\"first\":null,\"last\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses?limit=10&offset=9&query=%5B%5D&siteId=SG&subsites=----\",\"limit\":10,\"next\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClasses?limit=10&offset=10&query=%5B%5D&siteId=SG&subsites=----\",\"offset\":0,\"previous\":null,\"totalCount\":19}"
+      }
+    },
+    {
+      "endpoint": "wm/itemClassLevels",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClassLevels?siteId=SG&subsites=----&_dc=1787554806910",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787554806910"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"itemClassName\":\"COLD-RACK\",\"itemClassLevel\":\"1\",\"warehouseId\":\"SG\",\"itemClassDescription\":\"\"}"
+      },
+      "seq": 2,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClassLevels/COLD-RACK%2A%21SG",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007a67dacfa836-DEL",
+          "authenticated": "true",
+          "content-length": "280",
+          "date": "Mon, 24 Aug 2026 07:00:07 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"itemClassDescription\":\"Cold Room Rack\",\"itemClassLevel\":\"1\",\"itemClassName\":\"COLD-RACK\",\"resourceId\":\"COLD-RACK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClassLevels/COLD-RACK%2A%21SG\",\"warehouseId\":\"SG\"}}"
+      }
+    },
+    {
+      "endpoint": "wm/itemClassLevels",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClassLevels?query=%5B%5D&siteId=SG&subsites=----&_dc=1787554807374",
+        "query": {
+          "query": "[]",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787554807374"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 3,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007a6acbf1a836-DEL",
+          "authenticated": "true",
+          "content-length": "271",
+          "date": "Mon, 24 Aug 2026 07:00:07 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"itemClassDescription\":\"Cold Room Rack\",\"itemClassLevel\":\"1\",\"itemClassName\":\"COLD-RACK\",\"resourceId\":\"COLD-RACK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClassLevels/COLD-RACK%2A%21SG\",\"warehouseId\":\"SG\"}],\"first\":null,\"last\":null,\"limit\":null,\"next\":null,\"offset\":0,\"previous\":null,\"totalCount\":1}"
+      }
+    }
+  ],
+  "writes": [
+    {
+      "endpoint": "wm/itemClassLevels",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClassLevels?siteId=SG&subsites=----&_dc=1787554806910",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787554806910"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"itemClassName\":\"COLD-RACK\",\"itemClassLevel\":\"1\",\"warehouseId\":\"SG\",\"itemClassDescription\":\"\"}"
+      },
+      "seq": 2,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClassLevels/COLD-RACK%2A%21SG",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007a67dacfa836-DEL",
+          "authenticated": "true",
+          "content-length": "280",
+          "date": "Mon, 24 Aug 2026 07:00:07 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"itemClassDescription\":\"Cold Room Rack\",\"itemClassLevel\":\"1\",\"itemClassName\":\"COLD-RACK\",\"resourceId\":\"COLD-RACK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/itemClassLevels/COLD-RACK%2A%21SG\",\"warehouseId\":\"SG\"}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "call": 1,
+        "endpoint": "wm/itemClasses",
+        "field": "data[4].itemClassName"
+      },
+      "to": {
+        "call": 2,
+        "endpoint": "wm/itemClassLevels",
+        "field": "body:itemClassName"
+      },
+      "value": "COLD-RACK"
+    }
+  ]
+}

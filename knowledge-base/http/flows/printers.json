@@ -1,0 +1,923 @@
+{
+  "spec": "printers",
+  "resource": "printers",
+  "applied": {
+    "printerAddress": "ZVP1",
+    "printerName": "ZV cap",
+    "radio:Printer Status": "D",
+    "printerType": "i4440"
+  },
+  "invalid": [],
+  "calls": [
+    {
+      "endpoint": "wm/printers",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers?warehouseId=SG&siteId=SG&subsites=----&_dc=1787552761047",
+        "query": {
+          "warehouseId": "SG",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761047"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3004874fcfba836-DEL",
+          "authenticated": "true",
+          "content-length": "445",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"TCPAddress\":null,\"printQueue\":\"GAGMI-CAN-C5250-01\",\"printerAddress\":\"SG_DOC01\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC01\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC01%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-CAN-C5750-01\",\"printerAddress\":\"SG_DOC02\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC02\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC02*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC02%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJ4101-01\",\"printerAddress\":\"SG_DOC03\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC03\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC03*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC03%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJ4101-02\",\"printerAddress\":\"SG_DOC04\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC04\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC04*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC04%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM605-01\",\"printerAddress\":\"SG_DOC05\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC05\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC05*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC05%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM605-02\",\"printerAddress\":\"SG_DOC06\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC06\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC06*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC06%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM605-03\",\"printerAddress\":\"SG_DOC07\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC07\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC07*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC07%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM608-01\",\"printerAddress\":\"SG_DOC08\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC08\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC08*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC08%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/devices",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices?deviceClass=R&siteId=SG&subsites=----&_dc=1787552761053",
+        "query": {
+          "deviceClass": "R",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761053"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 1,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048750d03a836-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"activityDate\":\"2026-07-15T12:58:01.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/002A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":\"PERM-ADJ-LOC\",\"currentWorkArea\":\"WLOGICAL\",\"currentWorkZone\":\"99\",\"currentWorkZoneId\":10000,\"dateLastModified\":\"2023-10-13T15:23:41.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"002A\",\"deviceName\":\"002A\",\"deviceScanTypes\":null,\"displayHeight\":16,\"displayWidth\":20,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-DNESTOR\",\"lastUser\":\"EXT-SAEED1\",\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":0,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"002A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":\"U\",\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/002A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/002A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/002A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"002\",\"terminalType\":\"handheld\",\"terminalTypeDescription\":\"Handheld\",\"touchscreenDeviceFlag\":false,\"version\":5,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2025-09-10T16:51:55.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/003A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-10-04T16:38:03.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"003A\",\"deviceName\":\"003A\",\"deviceScanTypes\":null,\"displayHeight\":16,\"displayWidth\":20,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"IT-SMCCLURE\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":0,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"003A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/003A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/003A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/003A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"003\",\"terminalType\":\"handheld\",\"terminalTypeDescription\":\"Handheld\",\"touchscreenDeviceFlag\":false,\"version\":2,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2024-05-02T04:42:48.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/004A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2024-04-08T14:55:43.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"004A\",\"deviceName\":\"004A\",\"deviceScanTypes\":null,\"displayHeight\":16,\"displayWidth\":20,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"IT-PALEXANDER\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":0,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"004A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/004A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/004A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/004A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"004\",\"terminalType\":\"handheld\",\"terminalTypeDescription\":\"Handheld\",\"touchscreenDeviceFlag\":false,\"version\":2,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2024-04-24T02:41:49.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/005A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-10-20T17:55:21.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"005A\",\"deviceName\":\"005A\",\"deviceScanTypes\":null,\"displayHeight\":16,\"displayWidth\":20,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-DNESTOR\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":0,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"005A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/005A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/005A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/005A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"005\",\"terminalType\":\"handheld\",\"terminalTypeDescription\":\"Handheld\",\"touchscreenDeviceFlag\":false,\"version\":2,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/006A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:11.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"006A\",\"deviceName\":\"006A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"006A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/006A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/006A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/006A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"006\",\"terminalType\":\"vehicle\",\"terminalTypeDescription\":\"Vehicle\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2026-08-03T12:21:26.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/007A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":\"PERM-ADJ-LOC\",\"currentWorkArea\":\"WLOGICAL\",\"currentWorkZone\":\"99\",\"currentWorkZoneId\":10000,\"dateLastModified\":\"2023-09-25T14:59:11.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"007A\",\"deviceName\":\"007A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":\"EXT-SAEED1\",\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"007A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":\"U\",\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/007A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/007A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/007A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"007\",\"terminalType\":\"vehicle\",\"terminalTypeDescription\":\"Vehicle\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2026-06-20T07:58:19.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/008A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:11.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"008A\",\"deviceName\":\"008A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"008A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/008A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/008A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/008A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"008\",\"terminalType\":\"vehicle\",\"terminalTypeDescription\":\"Vehicle\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2026-06-15T18:37:06.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/009A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":\"DRS040\",\"currentWorkArea\":\"DCK-SW\",\"currentWorkZone\":\"DCK-SW-DDR\",\"currentWorkZoneId\":10331,\"dateLastModified\":\"2023-09-25T14:59:11.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"009A\",\"deviceName\":\"009A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":\"SLEWIS\",\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"009A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":\"U\",\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/009A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/009A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/009A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"009\",\"terminalType\":\"vehicle\",\"terminalTypeDescription\":\"Vehicle\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/010A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:11.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"010A\",\"deviceName\":\"010A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"010A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/010A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/010A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/010A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"010\",\"terminalType\":\"vehicle\",\"terminalTypeDescription\":\"Vehicle\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2024-05-04T06:24:34.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/011A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:12.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"011A\",\"deviceName\":\"011A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"011A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/011A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/011A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/011A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"011\",\"terminalType\":\"vehicle\",\"terminalTypeDescription\":\"Vehicle\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2024-06-18T15:43:42.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/012A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:12.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"012A\",\"deviceName\":\"012A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"012A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/012A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/012A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/012A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"012\",\"terminalType\":\"vehicle\",\"terminalTypeDescription\":\"Vehicle\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/013A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:12.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"013A\",\"deviceName\":\"013A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"013A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/013A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/013A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/013A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"013\",\"terminalType\":\"vehicle\",\"terminalTypeDescription\":\"Vehicle\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2025-02-07T14:08:59.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/014A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:12.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"014A\",\"deviceName\":\"014A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"014A*!SG\",\"rfVendorName\":\"DEFAULT\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/014A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/014A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/014A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"014\",\"terminalType\":\"vehicle\",\"terminalTypeDescription\":\"Vehicle\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":\"2026-02-11T20:30:02.000+0000\",\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/015A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":\"SB129\",\"currentWorkArea\":\"DCK-NE\",\"currentWorkZone\":\"DCK-NE-STG\",\"currentWorkZoneId\":10325,\"dateLastModified\":\"2023-09-25T14:59:12.000+0000\",\"deviceClass\":\"R\",\"deviceCode\":\"015A\",\"deviceName\":\"015A\",\"deviceScanTypes\":null,\"displayHeight\":8,\"displayWidth\":40,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":\"DSHIP"
+      }
+    },
+    {
+      "endpoint": "wm/devices",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices?deviceClass=V&siteId=SG&subsites=----&_dc=1787552761057",
+        "query": {
+          "deviceClass": "V",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761057"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 2,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048750d07a836-DEL",
+          "authenticated": "true",
+          "content-length": "729",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/001A%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:11.000+0000\",\"deviceClass\":\"V\",\"deviceCode\":\"001A\",\"deviceName\":\"001A\",\"deviceScanTypes\":null,\"displayHeight\":16,\"displayWidth\":21,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":10001,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"001A*!SG\",\"rfVendorName\":\"OLDNOR\",\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/001A%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/001A%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/001A%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":\"001\",\"terminalType\":\"handheld\",\"terminalTypeDescription\":\"Handheld\",\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/DREDD123%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:18.000+0000\",\"deviceClass\":\"V\",\"deviceCode\":\"DREDD123\",\"deviceName\":\"SRTJGSRYHKJDTHJMKS\",\"deviceScanTypes\":null,\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":10001,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"DREDD123*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/DREDD123%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/DREDD123%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/DREDD123%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/devices",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices?deviceClass=W&siteId=SG&subsites=----&_dc=1787552761062",
+        "query": {
+          "deviceClass": "W",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761062"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 3,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048750d0ba836-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/000%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2026-08-19T12:47:40.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"000\",\"deviceName\":\"SHAYLN\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"RKUCHIYAGM\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"000*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/000%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/000%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/000%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":2,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/012%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:12.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"012\",\"deviceName\":\"LATISHA\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"012*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/012%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/012%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/012%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/0219%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:12.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"0219\",\"deviceName\":\"356498641321\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"0219*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/0219%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/0219%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/0219%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/047B%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:12.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"047B\",\"deviceName\":\"6520\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"047B*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/047B%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/047B%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/047B%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/047V%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:12.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"047V\",\"deviceName\":\"work\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"047V*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/047V%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/047V%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/047V%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/064%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:13.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"064\",\"deviceName\":\"123\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"064*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/064%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/064%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/064%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/068%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:13.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"068\",\"deviceName\":\"DELL\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"068*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/068%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/068%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/068%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12345%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:14.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"12345\",\"deviceName\":\"12345\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"12345*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12345%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12345%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12345%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/123456789%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:14.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"123456789\",\"deviceName\":\"ljiuhkuiyhfgilkyhug\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"123456789*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/123456789%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/123456789%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/123456789%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12682062974%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:14.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"12682062974\",\"deviceName\":\"5TQKMF2\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"12682062974*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12682062974%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12682062974%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12682062974%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12787505534%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:14.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"12787505534\",\"deviceName\":\"DELL CPU\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"12787505534*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12787505534%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12787505534%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/12787505534%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/14V2JQ3%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:14.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"14V2JQ3\",\"deviceName\":\"14V2JQ3\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"14V2JQ3*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/14V2JQ3%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/14V2JQ3%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/14V2JQ3%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/1K37YW1%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:15.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"1K37YW1\",\"deviceName\":\"1K37YW1\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"1K37YW1*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/1K37YW1%2A%21SG/scaleWeight\",\"scannerSerialConfiguration\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/1K37YW1%2A%21SG\",\"shipmentsPending_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/1K37YW1%2A%21SG/shipmentsPendingPack\",\"specialHandlingLocation\":null,\"terminalID\":null,\"terminalType\":null,\"terminalTypeDescription\":null,\"touchscreenDeviceFlag\":false,\"version\":1,\"voiceTerminalId\":null,\"warehouseId\":\"SG\"},{\"activityDate\":null,\"consolidateAtPackStationFlag\":false,\"consolidateAtPackStationZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/devices/1L96YW1%2A%21SG/consolidateAtPackStationZone\",\"currentStorageLocation\":null,\"currentWorkArea\":null,\"currentWorkZone\":null,\"currentWorkZoneId\":null,\"dateLastModified\":\"2023-09-25T14:59:15.000+0000\",\"deviceClass\":\"W\",\"deviceCode\":\"1L96YW1\",\"deviceName\":\"1L96YW1\",\"deviceScanTypes\":[],\"displayHeight\":null,\"displayWidth\":null,\"homeWorkArea\":null,\"labelPrinterAddress\":null,\"lastModifiedBy\":\"OSG-BCODY\",\"lastUser\":null,\"localeId\":\"US_ENGLISH\",\"manifestCartonFlag\":false,\"movementZoneId\":null,\"outboundProcessingFlag\":false,\"packoutMovementZoneId\":null,\"printerAddress\":null,\"productionStation\":null,\"productionStationFlag\":false,\"reader\":null,\"resourceId\":\"1L96YW1*!SG\",\"rfVendorName\":null,\"rftMode\":null,\"scaleCommAddr\":null,\"scaleCommCmd\":null,\"scaleCommPort\":null,\"scaleWeight_uri"
+      }
+    },
+    {
+      "endpoint": "wm/policies",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies?query=%5B%7B%22OR%22%3A%5B%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SYSTEM-SECURITY%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22MTF-DUPLICATE-SESSION-BLOCKING%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22ENABLED%22%7D%2C%7B%22OR%22%3A%5B%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22----%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%5D%7D%5D%7D%2C%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22RDTALLOPR%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22MISCELLANEOUS%22%7D%2C%7B%22column%22%3A%22warehouseId%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SG%22%7D%2C%7B%22OR%22%3A%5B%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22RDTALLOPR-RF-RECOVERY-TIMEOUT-IN-SECONDS%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22RF-SESSION-RECOVERY%22%7D%5D%7D%5D%7D%5D%7D%5D&siteId=SG&subsites=----&_dc=1787552761116",
+        "query": {
+          "query": "[{\"OR\":[{\"AND\":[{\"column\":\"policyCode\",\"operator\":\"EQ\",\"value\":\"SYSTEM-SECURITY\"},{\"column\":\"policyVariable\",\"operator\":\"EQ\",\"value\":\"MTF-DUPLICATE-SESSION-BLOCKING\"},{\"column\":\"policyValue\",\"operator\":\"EQ\",\"value\":\"ENABLED\"},{\"OR\":[{\"column\":\"warehouseId\",\"operator\":\"EQ\",\"value\":\"----\"},{\"column\":\"warehouseId\",\"operator\":\"EQ\",\"value\":\"SG\"}]}]},{\"AND\":[{\"column\":\"policyCode\",\"operator\":\"EQ\",\"value\":\"RDTALLOPR\"},{\"column\":\"policyVariable\",\"operator\":\"EQ\",\"value\":\"MISCELLANEOUS\"},{\"column\":\"warehouseId\",\"operator\":\"EQ\",\"value\":\"SG\"},{\"OR\":[{\"column\":\"policyValue\",\"operator\":\"EQ\",\"value\":\"RDTALLOPR-RF-RECOVERY-TIMEOUT-IN-SECONDS\"},{\"column\":\"policyValue\",\"operator\":\"EQ\",\"value\":\"RF-SESSION-RECOVERY\"}]}]}]}]",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761116"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 4,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048756d37a836-DEL",
+          "authenticated": "true",
+          "content-length": "513",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"groupName\":\"mtf_data\",\"overrideFlag\":0,\"policyCode\":\"SYSTEM-SECURITY\",\"policyValue\":\"ENABLED\",\"policyVariable\":\"MTF-DUPLICATE-SESSION-BLOCKING\",\"resourceId\":\"SYSTEM-SECURITY*!ENABLED*!MTF-DUPLICATE-SESSION-BLOCKING*!0*!SG\",\"returnFloat1\":0.0,\"returnFloat2\":0.0,\"returnNumber1\":1,\"returnNumber2\":0,\"returnString1\":null,\"returnString2\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies/SYSTEM-SECURITY%2A%21ENABLED%2A%21MTF-DUPLICATE-SESSION-BLOCKING%2A%210%2A%21SG\",\"sortSequence\":0,\"warehouseId\":\"SG\"},{\"groupName\":null,\"overrideFlag\":1,\"policyCode\":\"RDTALLOPR\",\"policyValue\":\"RDTALLOPR-RF-RECOVERY-TIMEOUT-IN-SECONDS\",\"policyVariable\":\"MISCELLANEOUS\",\"resourceId\":\"RDTALLOPR*!RDTALLOPR-RF-RECOVERY-TIMEOUT-IN-SECONDS*!MISCELLANEOUS*!0*!SG\",\"returnFloat1\":0.0,\"returnFloat2\":0.0,\"returnNumber1\":20,\"returnNumber2\":0,\"returnString1\":null,\"returnString2\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies/RDTALLOPR%2A%21RDTALLOPR-RF-RECOVERY-TIMEOUT-IN-SECONDS%2A%21MISCELLANEOUS%2A%210%2A%21SG\",\"sortSequence\":0,\"warehouseId\":\"SG\"},{\"groupName\":null,\"overrideFlag\":1,\"policyCode\":\"RDTALLOPR\",\"policyValue\":\"RF-SESSION-RECOVERY\",\"policyVariable\":\"MISCELLANEOUS\",\"resourceId\":\"RDTALLOPR*!RF-SESSION-RECOVERY*!MISCELLANEOUS*!0*!SG\",\"returnFloat1\":0.0,\"returnFloat2\":0.0,\"returnNumber1\":1,\"returnNumber2\":0,\"returnString1\":null,\"returnString2\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies/RDTALLOPR%2A%21RF-SESSION-RECOVERY%2A%21MISCELLANEOUS%2A%210%2A%21SG\",\"sortSequence\":0,\"warehouseId\":\"SG\"}],\"first\":null,\"last\":null,\"limit\":null,\"next\":null,\"offset\":0,\"previous\":null,\"totalCount\":3}"
+      }
+    },
+    {
+      "endpoint": "wm/policies",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies?warehouseId=----&query=%5B%7B%22AND%22%3A%5B%7B%22column%22%3A%22policyCode%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22SYSTEM-SECURITY%22%7D%2C%7B%22column%22%3A%22policyVariable%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22MTF-DUPLICATE-SESSION-BLOCKING%22%7D%2C%7B%22column%22%3A%22policyValue%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22ENABLED%22%7D%5D%7D%5D&siteId=SG&subsites=----&_dc=1787552761118",
+        "query": {
+          "warehouseId": "----",
+          "query": "[{\"AND\":[{\"column\":\"policyCode\",\"operator\":\"EQ\",\"value\":\"SYSTEM-SECURITY\"},{\"column\":\"policyVariable\",\"operator\":\"EQ\",\"value\":\"MTF-DUPLICATE-SESSION-BLOCKING\"},{\"column\":\"policyValue\",\"operator\":\"EQ\",\"value\":\"ENABLED\"}]}]",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761118"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 5,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048756d3ba836-DEL",
+          "authenticated": "true",
+          "content-length": "386",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"groupName\":\"mtf_data\",\"overrideFlag\":1,\"policyCode\":\"SYSTEM-SECURITY\",\"policyValue\":\"ENABLED\",\"policyVariable\":\"MTF-DUPLICATE-SESSION-BLOCKING\",\"resourceId\":\"SYSTEM-SECURITY*!ENABLED*!MTF-DUPLICATE-SESSION-BLOCKING*!0*!----\",\"returnFloat1\":0.0,\"returnFloat2\":0.0,\"returnNumber1\":1,\"returnNumber2\":0,\"returnString1\":null,\"returnString2\":null,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/policies/SYSTEM-SECURITY%2A%21ENABLED%2A%21MTF-DUPLICATE-SESSION-BLOCKING%2A%210%2A%21----\",\"sortSequence\":0,\"warehouseId\":\"----\"}],\"first\":null,\"last\":null,\"limit\":null,\"next\":null,\"offset\":0,\"previous\":null,\"totalCount\":1}"
+      }
+    },
+    {
+      "endpoint": "wm/locales",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales?enable=true&siteId=SG&subsites=----&_dc=1787552761121",
+        "query": {
+          "enable": "true",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761121"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 6,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048756d3fa836-DEL",
+          "authenticated": "true",
+          "content-length": "950",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"MSWindowsClientLCId\":1043,\"MSWindowsServerLCId\":1043,\"NLSLANGUAGESetting\":\"DUTCH\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"THE NETHERLANDS\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"NLD\",\"enable\":true,\"localeDescription\":\"Dutch (Holland)\",\"localeId\":\"DUTCH_HOLLAND\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"DUTCH_HOLLAND\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/DUTCH_HOLLAND\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"nl_NL\"},{\"MSWindowsClientLCId\":1036,\"MSWindowsServerLCId\":1036,\"NLSLANGUAGESetting\":\"FRENCH\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"FRANCE\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"FRA\",\"enable\":true,\"localeDescription\":\"French (France)\",\"localeId\":\"FRENCH\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"FRENCH\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/FRENCH\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"fr_FR\"},{\"MSWindowsClientLCId\":1031,\"MSWindowsServerLCId\":1031,\"NLSLANGUAGESetting\":\"GERMAN\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"GERMANY\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"DEU\",\"enable\":true,\"localeDescription\":\"German (Germany)\",\"localeId\":\"GERMAN\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"GERMAN\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/GERMAN\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"de_DE\"},{\"MSWindowsClientLCId\":1038,\"MSWindowsServerLCId\":1038,\"NLSLANGUAGESetting\":\"HUNGARIAN\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"Hungary\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"HUN\",\"enable\":true,\"localeDescription\":\"Hungarian (Hungary)\",\"localeId\":\"HUNGARIAN\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"HUNGARIAN\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/HUNGARIAN\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"hu_HU\"},{\"MSWindowsClientLCId\":1040,\"MSWindowsServerLCId\":1040,\"NLSLANGUAGESetting\":\"ITALIAN\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"ITALY\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"ITA\",\"enable\":true,\"localeDescription\":\"Italian (Italy)\",\"localeId\":\"ITALIAN\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"ITALIAN\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/ITALIAN\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"it_IT\"},{\"MSWindowsClientLCId\":1041,\"MSWindowsServerLCId\":1041,\"NLSLANGUAGESetting\":\"JAPANESE\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"JAPAN\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"JPN\",\"enable\":true,\"localeDescription\":\"Japanese\",\"localeId\":\"JAPANESE\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"JAPANESE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/JAPANESE\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"ja_JP\"},{\"MSWindowsClientLCId\":1042,\"MSWindowsServerLCId\":1042,\"NLSLANGUAGESetting\":\"KOREAN\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"KOREA\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"KOR\",\"enable\":true,\"localeDescription\":\"Korean\",\"localeId\":\"KOREAN\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"KOREAN\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/KOREAN\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"ko_KR\"},{\"MSWindowsClientLCId\":2070,\"MSWindowsServerLCId\":2070,\"NLSLANGUAGESetting\":\"BRAZILIAN PORTUGUESE\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"BRAZIL\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"BRA\",\"enable\":true,\"localeDescription\":\"Portuguese (Brazilian)\",\"localeId\":\"BRAZILIAN_PORTUGUESE\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"BRAZILIAN_PORTUGUESE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/BRAZILIAN_PORTUGUESE\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"pt_BR\"},{\"MSWindowsClientLCId\":1049,\"MSWindowsServerLCId\":1049,\"NLSLANGUAGESetting\":\"RUSSIAN\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"RUSSIA\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"RUS\",\"enable\":true,\"localeDescription\":\"Russian (Russia)\",\"localeId\":\"RUSSIAN\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"RUSSIAN\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/RUSSIAN\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"ru_RU\"},{\"MSWindowsClientLCId\":2052,\"MSWindowsServerLCId\":2052,\"NLSLANGUAGESetting\":\"SIMPLIFIED CHINESE\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"CHINA\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"CHN\",\"enable\":true,\"localeDescription\":\"Simplified Chinese\",\"localeId\":\"SIMPLIFIED_CHINESE\",\"measurementUnitSystem\":\"M\",\"resourceId\":\"SIMPLIFIED_CHINESE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/SIMPLIFIED_CHINESE\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"zh_CN\"},{\"MSWindowsClientLCId\":1033,\"MSWindowsServerLCId\":1033,\"NLSLANGUAGESetting\":\"AMERICAN\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"AMERICA\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"USA\",\"enable\":true,\"localeDescription\":\"USA English\",\"localeId\":\"US_ENGLISH\",\"measurementUnitSystem\":\"U\",\"resourceId\":\"US_ENGLISH\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/US_ENGLISH\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"en_US\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/rfVendors",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors?siteId=SG&subsites=----&_dc=1787552761122",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761122"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 7,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048756d41a836-DEL",
+          "authenticated": "true",
+          "content-length": "452",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"resourceId\":\"ANY\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"ANY\",\"rfVendorResponse\":\"(.*)\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/ANY\"},{\"resourceId\":\"DEFAULT\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"DEFAULT\",\"rfVendorResponse\":\"(\\\\d{3})$\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/DEFAULT\"},{\"resourceId\":\"INT\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"INT\",\"rfVendorResponse\":\"(\\\\d*)\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/INT\"},{\"resourceId\":\"LXE\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"LXE\",\"rfVendorResponse\":\"[^\\\\/]*\\\\/[^\\\\/]*\\\\/[^\\\\/]*\\\\/[^\\\\/]*\\\\/0(\\\\d*)\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/LXE\"},{\"resourceId\":\"MAC\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"MAC\",\"rfVendorResponse\":\"([A-Fa-f\\\\d]{12})\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/MAC\"},{\"resourceId\":\"MAC6\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"MAC6\",\"rfVendorResponse\":\"([A-Fa-f\\\\d]{6})$\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/MAC6\"},{\"resourceId\":\"OLDNOR\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"OLDNOR\",\"rfVendorResponse\":\"(\\\\d*)\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/OLDNOR\"},{\"resourceId\":\"OLDSYM\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"OLDSYM\",\"rfVendorResponse\":\"\\\\d+.(\\\\d*)\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/OLDSYM\"},{\"resourceId\":\"OLDTEK\",\"rfVendorInquiry\":\"\\\\033P?tnum\\\\033\\\\\\\\\",\"rfVendorName\":\"OLDTEK\",\"rfVendorResponse\":\"(\\\\d*)\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/OLDTEK\"},{\"resourceId\":\"OLDTEL\",\"rfVendorInquiry\":\"\\\\033R08\\\\033\\\\\\\\\",\"rfVendorName\":\"OLDTEL\",\"rfVendorResponse\":\"(\\\\d*)\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/OLDTEL\"},{\"resourceId\":\"SSH\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"SSH\",\"rfVendorResponse\":\"(\\\\w{1,12})$\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/SSH\"},{\"resourceId\":\"TEK\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"TEK\",\"rfVendorResponse\":\"(\\\\d*)\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/TEK\"},{\"resourceId\":\"WAV\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"WAV\",\"rfVendorResponse\":\"(\\\\d*)\",\"rfVendorResponseTime\":1000,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/WAV\"},{\"resourceId\":\"WEBMTF\",\"rfVendorInquiry\":\"\\\\005\",\"rfVendorName\":\"WEBMTF\",\"rfVendorResponse\":\"(.*)\",\"rfVendorResponseTime\":1,\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/rfVendors/WEBMTF\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/codes",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes?columnName=term_typ&siteId=SG&subsites=----&_dc=1787552761123",
+        "query": {
+          "columnName": "term_typ",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761123"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 8,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048756d43a836-DEL",
+          "authenticated": "true",
+          "content-length": "330",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"codeValue\":\"handheld\",\"columnDescription\":\"Terminal Type\",\"columnName\":\"term_typ\",\"inUseFlag\":null,\"longDescription\":\"Handheld\",\"requiredFlag\":1,\"resourceId\":\"handheld*!term_typ\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/handheld%2A%21term_typ\",\"shortDescription\":\"Handheld\",\"sortSequence\":0},{\"codeValue\":\"vehicle\",\"columnDescription\":\"Terminal Type\",\"columnName\":\"term_typ\",\"inUseFlag\":null,\"longDescription\":\"Vehicle\",\"requiredFlag\":1,\"resourceId\":\"vehicle*!term_typ\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/vehicle%2A%21term_typ\",\"shortDescription\":\"Vehicle\",\"sortSequence\":0}],\"first\":null,\"last\":null,\"limit\":null,\"next\":null,\"offset\":0,\"previous\":null,\"totalCount\":2}"
+      }
+    },
+    {
+      "endpoint": "wm/workAreas",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas?warehouseId=SG&siteId=SG&subsites=----&_dc=1787552761124",
+        "query": {
+          "warehouseId": "SG",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761124"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 9,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048756d44a836-DEL",
+          "authenticated": "true",
+          "content-length": "917",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!DCK-EW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21DCK-EW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"DCK-EW\",\"workAreaDescription\":\"DCK-EW\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!DCK-NE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21DCK-NE\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"DCK-NE\",\"workAreaDescription\":\"DCK-NE\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!DCK-NW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21DCK-NW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"DCK-NW\",\"workAreaDescription\":\"DCK-NW\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!DCK-SE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21DCK-SE\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"DCK-SE\",\"workAreaDescription\":\"DCK-SE\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!DCK-SW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21DCK-SW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"DCK-SW\",\"workAreaDescription\":\"DCK-SW\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!DMG-SW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21DMG-SW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"DMG-SW\",\"workAreaDescription\":\"DMG-SW\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!HLD-SW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21HLD-SW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"HLD-SW\",\"workAreaDescription\":\"HLD-SW\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!PCK-MI\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21PCK-MI\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"PCK-MI\",\"workAreaDescription\":\"PCK-MI\"},{\"absolutePriority\":15,\"dateLastModified\":\"2024-04-15T17:15:55.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":\"0.0\",\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"IT-ATIER\",\"resourceId\":\"SG*!P-MI-CL\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21P-MI-CL\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"P-MI-CL\",\"workAreaDescription\":\"P-MI-CL\"},{\"absolutePriority\":15,\"dateLastModified\":\"2024-04-15T17:16:05.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":\"0.0\",\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"IT-ATIER\",\"resourceId\":\"SG*!P-MI-CL1\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21P-MI-CL1\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"P-MI-CL1\",\"workAreaDescription\":\"P-MI-CL1\"},{\"absolutePriority\":15,\"dateLastModified\":\"2024-04-15T17:16:22.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":\"0.0\",\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"IT-ATIER\",\"resourceId\":\"SG*!P-MI-MAG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21P-MI-MAG\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"P-MI-MAG\",\"workAreaDescription\":\"P-MI-MAG\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!PND-EW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21PND-EW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"PND-EW\",\"workAreaDescription\":\"PND-EW\"},{\"absolutePriority\":15,\"dateLastModified\":\"2024-04-26T02:23:11.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":\"0.0\",\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"IT-SMCCLURE\",\"resourceId\":\"SG*!SPK-WW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21SPK-WW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"SPK-WW\",\"workAreaDescription\":\"SPK-WW\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!STO-CO\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21STO-CO\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"STO-CO\",\"workAreaDescription\":\"STO-CO\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!STO-EW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21STO-EW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"STO-EW\",\"workAreaDescription\":\"STO-EW\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!STO-MI\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21STO-MI\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"STO-MI\",\"workAreaDescription\":\"STO-MI\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!STO-NE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21STO-NE\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"STO-NE\",\"workAreaDescription\":\"STO-NE\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!STO-NW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21STO-NW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"STO-NW\",\"workAreaDescription\":\"STO-NW\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!STO-SE\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21STO-SE\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"STO-SE\",\"workAreaDescription\":\"STO-SE\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!STO-SW\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21STO-SW\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"STO-SW\",\"workAreaDescription\":\"STO-SW\"},{\"absolutePriority\":null,\"dateLastModified\":\"2023-08-01T18:44:09.000+0000\",\"deltaPriority\":null,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":null,\"lastModifiedBy\":\"SUPER_CUSTOMER\",\"resourceId\":\"SG*!WLOGICAL\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21WLOGICAL\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"WLOGICAL\",\"workAreaDescription\":\"WLOGICAL\"},{\"absolutePriority\":15,\"dateLastModified\":\"2026-07-14T18:54:55.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"ASC-DSUDEEP\",\"resourceId\":\"SG*!WRK-GMHP\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21WRK-GMHP\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"WRK-GMHP\",\"workAreaDescription\":\"Grey Matter Hospital Area\"},{\"absolutePriority\":15,\"dateLastModified\":\"2026-07-14T18:54:55.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"ASC-DSUDEEP\",\"resourceId\":\"SG*!WRK-GMIB\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21WRK-GMIB\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"WRK-GMIB\",\"workAreaDescription\":\"Grey Matter Inbound Work Area\"},{\"absolutePriority\":15,\"dateLastModified\":\"2026-07-14T18:54:55.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"ASC-DSUDEEP\",\"resourceId\":\"SG*!WRK-GMMS\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21WRK-GMMS\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"WRK-GMMS\",\"workAreaDescription\":\"Grey Matter Miscellaneous Area\"},{\"absolutePriority\":15,\"dateLastModified\":\"2026-07-14T18:54:55.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"ASC-DSUDEEP\",\"resourceId\":\"SG*!WRK-GMOB\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21WRK-GMOB\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"WRK-GMOB\",\"workAreaDescription\":\"Grey Matter Oubound Work Area\"},{\"absolutePriority\":15,\"dateLastModified\":\"2026-07-14T18:54:55.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"ASC-DSUDEEP\",\"resourceId\":\"SG*!WRK-GMST\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21WRK-GMST\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"WRK-GMST\",\"workAreaDescription\":\"Grey Matter Storage Work Area\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!YRD-NY\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21YRD-NY\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"YRD-NY\",\"workAreaDescription\":\"North Yard\"},{\"absolutePriority\":15,\"dateLastModified\":\"2023-09-05T16:23:31.000+0000\",\"deltaPriority\":15,\"distanceThreshold\":null,\"homeWorkAreaAbsolutePriority\":5,\"lastModifiedBy\":\"TMP-SMCCLURE\",\"resourceId\":\"SG*!YRD-SY\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/workAreas/SG%2A%21YRD-SY\",\"voiceCode\":null,\"warehouseId\":\"SG\",\"workArea\":\"YRD-SY\",\"workAreaDescription\":\"South Yard\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/locales/userLocale",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/userLocale?siteId=SG&subsites=----&_dc=1787552761124",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761124"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 10,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048757d45a836-DEL",
+          "authenticated": "true",
+          "content-length": "359",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"MSWindowsClientLCId\":1033,\"MSWindowsServerLCId\":1033,\"NLSLANGUAGESetting\":\"AMERICAN\",\"NLSSORTSetting\":\"BINARY\",\"NLSTERRITORYSetting\":\"AMERICA\",\"RFServerLocale\":\"POSIX\",\"absoluteGroup\":\"mcs_data\",\"countryName\":\"USA\",\"currencyCode\":\"USD\",\"enable\":true,\"localeDescription\":\"USA English\",\"localeId\":\"US_ENGLISH\",\"measurementUnitSystem\":\"U\",\"resourceId\":\"US_ENGLISH\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locales/US_ENGLISH\",\"unixServerLocale\":\"POSIX\",\"voiceLanguageCode\":\"en_US\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/codes",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes?columnName=prtsts&siteId=SG&subsites=----&_dc=1787552761125",
+        "query": {
+          "columnName": "prtsts",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761125"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 11,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048757d46a836-DEL",
+          "authenticated": "true",
+          "content-length": "343",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"codeValue\":\"D\",\"columnDescription\":\"Printer Status\",\"columnName\":\"prtsts\",\"inUseFlag\":null,\"longDescription\":\"Disconnected\",\"requiredFlag\":0,\"resourceId\":\"D*!prtsts\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/D%2A%21prtsts\",\"shortDescription\":\"Disconnected\",\"sortSequence\":1},{\"codeValue\":\"C\",\"columnDescription\":\"Printer Status\",\"columnName\":\"prtsts\",\"inUseFlag\":null,\"longDescription\":\"Connected\",\"requiredFlag\":0,\"resourceId\":\"C*!prtsts\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/C%2A%21prtsts\",\"shortDescription\":\"Connected\",\"sortSequence\":2},{\"codeValue\":\"R\",\"columnDescription\":\"Printer Status\",\"columnName\":\"prtsts\",\"inUseFlag\":null,\"longDescription\":\"Rerouted\",\"requiredFlag\":0,\"resourceId\":\"R*!prtsts\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/R%2A%21prtsts\",\"shortDescription\":\"Rerouted\",\"sortSequence\":3}],\"first\":null,\"last\":null,\"limit\":null,\"next\":null,\"offset\":0,\"previous\":null,\"totalCount\":3}"
+      }
+    },
+    {
+      "endpoint": "wm/codes",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes?columnName=prttyp&siteId=SG&subsites=----&_dc=1787552761126",
+        "query": {
+          "columnName": "prttyp",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761126"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 12,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048757d47a836-DEL",
+          "authenticated": "true",
+          "content-length": "427",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"codeValue\":\"POSTSCRIPT\",\"columnDescription\":\"Printer Type\",\"columnName\":\"prttyp\",\"inUseFlag\":null,\"longDescription\":\"Postscript\",\"requiredFlag\":0,\"resourceId\":\"POSTSCRIPT*!prttyp\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/POSTSCRIPT%2A%21prttyp\",\"shortDescription\":\"Postscript\",\"sortSequence\":0},{\"codeValue\":\"z140xiII\",\"columnDescription\":\"Printer Type\",\"columnName\":\"prttyp\",\"inUseFlag\":null,\"longDescription\":\"Zebra 140Xi/XiII\",\"requiredFlag\":0,\"resourceId\":\"z140xiII*!prttyp\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/z140xiII%2A%21prttyp\",\"shortDescription\":\"Zebra 140XiII\",\"sortSequence\":1},{\"codeValue\":\"i4440\",\"columnDescription\":\"Printer Type\",\"columnName\":\"prttyp\",\"inUseFlag\":null,\"longDescription\":\"Intermec EasyCoder 4400\",\"requiredFlag\":0,\"resourceId\":\"i4440*!prttyp\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/i4440%2A%21prttyp\",\"shortDescription\":\"Intermec EC 4400\",\"sortSequence\":2},{\"codeValue\":\"zr4mplus\",\"columnDescription\":\"Printer Type\",\"columnName\":\"prttyp\",\"inUseFlag\":null,\"longDescription\":\"Zebra RFID\",\"requiredFlag\":0,\"resourceId\":\"zr4mplus*!prttyp\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/zr4mplus%2A%21prttyp\",\"shortDescription\":\"Zebra RFID\",\"sortSequence\":3}],\"first\":null,\"last\":null,\"limit\":null,\"next\":null,\"offset\":0,\"previous\":null,\"totalCount\":4}"
+      }
+    },
+    {
+      "endpoint": "wm/codes",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes?columnName=prtlng&siteId=SG&subsites=----&_dc=1787552761127",
+        "query": {
+          "columnName": "prtlng",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761127"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 13,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048757d49a836-DEL",
+          "authenticated": "true",
+          "content-length": "337",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"codeValue\":\"1\",\"columnDescription\":null,\"columnName\":\"prtlng\",\"inUseFlag\":null,\"longDescription\":\"Datamax Programming Language (DPL)\",\"requiredFlag\":0,\"resourceId\":\"1*!prtlng\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/1%2A%21prtlng\",\"shortDescription\":\"DPL\",\"sortSequence\":0},{\"codeValue\":\"0\",\"columnDescription\":null,\"columnName\":\"prtlng\",\"inUseFlag\":null,\"longDescription\":\"Zebra Programming Language (ZPL)\",\"requiredFlag\":0,\"resourceId\":\"0*!prtlng\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/codes/0%2A%21prtlng\",\"shortDescription\":\"ZPL\",\"sortSequence\":0}],\"first\":null,\"last\":null,\"limit\":null,\"next\":null,\"offset\":0,\"previous\":null,\"totalCount\":2}"
+      }
+    },
+    {
+      "endpoint": "rpux/filter/default/WMHardwarePrinter",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMHardwarePrinter?_dc=1787552761139&siteId=SG&subsites=----",
+        "query": {
+          "_dc": "1787552761139",
+          "siteId": "SG",
+          "subsites": "----"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "*/*"
+        },
+        "body": null
+      },
+      "seq": 14,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048758d52a836-DEL",
+          "authenticated": "true",
+          "content-length": "52",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"data\":null,\"count\":0,\"totalCount\":0}"
+      }
+    },
+    {
+      "endpoint": "rpux/filter/columns/WMHardwarePrinter",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMHardwarePrinter?siteId=SG&subsites=----&_dc=1787552761226",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552761226"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 15,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048761d80a836-DEL",
+          "authenticated": "true",
+          "content-length": "284",
+          "date": "Mon, 24 Aug 2026 06:26:01 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"data\":[{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMHardwarePrinter\",\"columnName\":\"printerAddress\",\"id\":\"printerAddress-WMHardwarePrinter\",\"resourceId\":\"printerAddress-WMHardwarePrinter\"},{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMHardwarePrinter\",\"columnName\":\"printerName\",\"id\":\"printerName-WMHardwarePrinter\",\"resourceId\":\"printerName-WMHardwarePrinter\"},{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMHardwarePrinter\",\"columnName\":\"printerStatus\",\"id\":\"printerStatus-WMHardwarePrinter\",\"resourceId\":\"printerStatus-WMHardwarePrinter\"},{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMHardwarePrinter\",\"columnName\":\"printerType\",\"id\":\"printerType-WMHardwarePrinter\",\"resourceId\":\"printerType-WMHardwarePrinter\"}],\"count\":4,\"totalCount\":4}"
+      }
+    },
+    {
+      "endpoint": "wm/printers",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers?siteId=SG&subsites=----&_dc=1787552766762",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552766762"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 16,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3004898bc98a836-DEL",
+          "authenticated": "true",
+          "content-length": "445",
+          "date": "Mon, 24 Aug 2026 06:26:07 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"TCPAddress\":null,\"printQueue\":\"GAGMI-CAN-C5250-01\",\"printerAddress\":\"SG_DOC01\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC01\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC01%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-CAN-C5750-01\",\"printerAddress\":\"SG_DOC02\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC02\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC02*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC02%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJ4101-01\",\"printerAddress\":\"SG_DOC03\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC03\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC03*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC03%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJ4101-02\",\"printerAddress\":\"SG_DOC04\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC04\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC04*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC04%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM605-01\",\"printerAddress\":\"SG_DOC05\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC05\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC05*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC05%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM605-02\",\"printerAddress\":\"SG_DOC06\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC06\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC06*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC06%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM605-03\",\"printerAddress\":\"SG_DOC07\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC07\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC07*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC07%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM608-01\",\"printerAddress\":\"SG_DOC08\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC08\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC08*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC08%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/printers",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers?siteId=SG&subsites=----&_dc=1787552771478",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552771478"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"printerAddress\":\"ZVP1\",\"printerName\":\"ZV cap\",\"printerType\":\"i4440\",\"printerStatus\":\"D\",\"TCPAddress\":\"\",\"reRoutePrinter\":\"\",\"serverQueueFlag\":false,\"printQueue\":\"\",\"printerStatusDescription\":\"\",\"printerTypeDescription\":\"\",\"warehouseId\":\"SG\",\"printerLanguage\":\"\",\"printerLanguageDescription\":\"\"}"
+      },
+      "seq": 17,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/ZVP1%2A%21SG",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048b62894a836-DEL",
+          "authenticated": "true",
+          "content-length": "495",
+          "date": "Mon, 24 Aug 2026 06:26:11 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"TCPAddress\":null,\"printQueue\":null,\"printerAddress\":\"ZVP1\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"ZV cap\",\"printerStatus\":\"D\",\"printerStatusDescription\":\"Disconnected\",\"printerType\":\"i4440\",\"printerTypeDescription\":\"Intermec EasyCoder 4400\",\"reRoutePrinter\":null,\"resourceId\":\"ZVP1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/ZVP1%2A%21SG\",\"serverQueueFlag\":false,\"warehouseId\":\"SG\"}}"
+      }
+    },
+    {
+      "endpoint": "wm/printers",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers?query=%5B%5D&warehouseId=SG&siteId=SG&subsites=----&_dc=1787552772048",
+        "query": {
+          "query": "[]",
+          "warehouseId": "SG",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552772048"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 18,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048b9b9dba836-DEL",
+          "authenticated": "true",
+          "content-length": "513",
+          "date": "Mon, 24 Aug 2026 06:26:12 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"TCPAddress\":null,\"printQueue\":\"GAGMI-CAN-C5250-01\",\"printerAddress\":\"SG_DOC01\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC01\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC01%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-CAN-C5750-01\",\"printerAddress\":\"SG_DOC02\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC02\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC02*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC02%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJ4101-01\",\"printerAddress\":\"SG_DOC03\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC03\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC03*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC03%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJ4101-02\",\"printerAddress\":\"SG_DOC04\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC04\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC04*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC04%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM605-01\",\"printerAddress\":\"SG_DOC05\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC05\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC05*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC05%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM605-02\",\"printerAddress\":\"SG_DOC06\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC06\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC06*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC06%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM605-03\",\"printerAddress\":\"SG_DOC07\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC07\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC07*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC07%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":\"GAGMI-HP-LJM608-01\",\"printerAddress\":\"SG_DOC08\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"SG_DOC08\",\"printerStatus\":\"C\",\"printerStatusDescription\":\"Connected\",\"printerType\":\"POSTSCRIPT\",\"printerTypeDescription\":\"Postscript\",\"reRoutePrinter\":null,\"resourceId\":\"SG_DOC08*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/SG_DOC08%2A%21SG\",\"serverQueueFlag\":true,\"warehouseId\":\"SG\"},{\"TCPAddress\":null,\"printQueue\":null,\"printerAddress\":\"ZVP1\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"ZV cap\",\"printerStatus\":\"D\",\"printerStatusDescription\":\"Disconnected\",\"printerType\":\"i4440\",\"printerTypeDescription\":\"Intermec EasyCoder 4400\",\"reRoutePrinter\":null,\"resourceId\":\"ZVP1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/ZVP1%2A%21SG\",\"serverQueueFlag\":false,\"warehouseId\":\"SG\"}]}"
+      }
+    }
+  ],
+  "writes": [
+    {
+      "endpoint": "wm/printers",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers?siteId=SG&subsites=----&_dc=1787552771478",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787552771478"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"printerAddress\":\"ZVP1\",\"printerName\":\"ZV cap\",\"printerType\":\"i4440\",\"printerStatus\":\"D\",\"TCPAddress\":\"\",\"reRoutePrinter\":\"\",\"serverQueueFlag\":false,\"printQueue\":\"\",\"printerStatusDescription\":\"\",\"printerTypeDescription\":\"\",\"warehouseId\":\"SG\",\"printerLanguage\":\"\",\"printerLanguageDescription\":\"\"}"
+      },
+      "seq": 17,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/ZVP1%2A%21SG",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30048b62894a836-DEL",
+          "authenticated": "true",
+          "content-length": "495",
+          "date": "Mon, 24 Aug 2026 06:26:11 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"TCPAddress\":null,\"printQueue\":null,\"printerAddress\":\"ZVP1\",\"printerLanguage\":null,\"printerLanguageDescription\":null,\"printerName\":\"ZV cap\",\"printerStatus\":\"D\",\"printerStatusDescription\":\"Disconnected\",\"printerType\":\"i4440\",\"printerTypeDescription\":\"Intermec EasyCoder 4400\",\"reRoutePrinter\":null,\"resourceId\":\"ZVP1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/printers/ZVP1%2A%21SG\",\"serverQueueFlag\":false,\"warehouseId\":\"SG\"}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "call": 12,
+        "endpoint": "wm/codes",
+        "field": "data[2].codeValue"
+      },
+      "to": {
+        "call": 17,
+        "endpoint": "wm/printers",
+        "field": "body:printerType"
+      },
+      "value": "i4440"
+    }
+  ]
+}

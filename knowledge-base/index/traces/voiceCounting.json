@@ -1,0 +1,12 @@
+{
+  "spec": "voiceCounting",
+  "resource": "voiceRegions",
+  "applied": {
+    "regionDescription": "ZV002",
+    "regionNumber": 2
+  },
+  "invalid": [],
+  "calls": [],
+  "writes": [],
+  "edges": []
+}

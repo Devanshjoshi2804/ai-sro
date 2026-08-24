@@ -1,0 +1,145 @@
+{
+  "spec": "movementPathCriterias",
+  "resource": "movementPathCriterias",
+  "applied": {
+    "criteriaIdentifier": "ZV001",
+    "longDescription": "ZV002"
+  },
+  "invalid": [],
+  "calls": [
+    {
+      "endpoint": "rpux/filter/default/WMMovementPathCriteriaGrid",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMMovementPathCriteriaGrid?_dc=1787554817152&siteId=SG&subsites=----",
+        "query": {
+          "_dc": "1787554817152",
+          "siteId": "SG",
+          "subsites": "----"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "*/*"
+        },
+        "body": null
+      },
+      "seq": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007aa7e96aa836-DEL",
+          "authenticated": "true",
+          "content-length": "52",
+          "date": "Mon, 24 Aug 2026 07:00:17 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"data\":null,\"count\":0,\"totalCount\":0}"
+      }
+    },
+    {
+      "endpoint": "wm/movementPathCriterias",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/movementPathCriterias?siteId=SG&subsites=----&_dc=1787554817329",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787554817329"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 1,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007aa8fa05a836-DEL",
+          "authenticated": "true",
+          "content-length": "61",
+          "date": "Mon, 24 Aug 2026 07:00:17 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[]}"
+      }
+    },
+    {
+      "endpoint": "rpux/filter/columns/WMMovementPathCriteriaGrid",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMMovementPathCriteriaGrid?siteId=SG&subsites=----&_dc=1787554817445",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787554817445"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 2,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007aa9ba4aa836-DEL",
+          "authenticated": "true",
+          "content-length": "287",
+          "date": "Mon, 24 Aug 2026 07:00:17 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"data\":[{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMMovementPathCriteriaGrid\",\"columnName\":\"criteriaIdentifier\",\"id\":\"criteriaIdentifier-WMMovementPathCriteriaGrid\",\"resourceId\":\"criteriaIdentifier-WMMovementPathCriteriaGrid\"},{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMMovementPathCriteriaGrid\",\"columnName\":\"definition\",\"id\":\"definition-WMMovementPathCriteriaGrid\",\"resourceId\":\"definition-WMMovementPathCriteriaGrid\"},{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMMovementPathCriteriaGrid\",\"columnName\":\"longDescription\",\"id\":\"longDescription-WMMovementPathCriteriaGrid\",\"resourceId\":\"longDescription-WMMovementPathCriteriaGrid\"}],\"count\":3,\"totalCount\":3}"
+      }
+    }
+  ],
+  "writes": [],
+  "edges": []
+}

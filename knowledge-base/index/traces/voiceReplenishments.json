@@ -1,0 +1,159 @@
+{
+  "spec": "voiceReplenishments",
+  "resource": "voiceRegions",
+  "applied": {
+    "regionDescription": "ZV003",
+    "regionNumber": 3,
+    "voiceSpokenLicenseLength": 1,
+    "spokenLocationLength": 1,
+    "checkDigitLength": 1
+  },
+  "invalid": [],
+  "calls": [
+    {
+      "endpoint": "wm/allocationSearchPaths",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/allocationSearchPaths?_dc=1787554884310&query=%5B%7B%22AND%22%3A%5B%7B%22column%22%3A%22searchPathType%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22RPL%22%7D%5D%7D%5D&limit=1&offset=0&countMapping=replenSearchPathsCount&siteId=SG&subsites=----",
+        "query": {
+          "_dc": "1787554884310",
+          "query": "[{\"AND\":[{\"column\":\"searchPathType\",\"operator\":\"EQ\",\"value\":\"RPL\"}]}]",
+          "limit": "1",
+          "offset": "0",
+          "countMapping": "replenSearchPathsCount",
+          "siteId": "SG",
+          "subsites": "----"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "*/*"
+        },
+        "body": null
+      },
+      "seq": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007c4bc9f5a836-DEL",
+          "authenticated": "true",
+          "content-length": "395",
+          "date": "Mon, 24 Aug 2026 07:01:24 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"allocationSearchPathId\":\"10108\",\"criteria_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/allocationSearchPaths/10108/allocationSearchPathCriteria\",\"resourceId\":\"10108\",\"searchPathName\":\"GM\",\"searchPathType\":\"RPL\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/allocationSearchPaths/10108\",\"sortSequence\":1,\"warehouseId\":\"SG\"}],\"first\":null,\"last\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/allocationSearchPaths?countMapping=replenSearchPathsCount&limit=1&offset=7&query=%5B%7B%22AND%22%3A%5B%7B%22column%22%3A%22searchPathType%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22RPL%22%7D%5D%7D%5D&siteId=SG&subsites=----\",\"limit\":1,\"next\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/allocationSearchPaths?countMapping=replenSearchPathsCount&limit=1&offset=1&query=%5B%7B%22AND%22%3A%5B%7B%22column%22%3A%22searchPathType%22%2C%22operator%22%3A%22EQ%22%2C%22value%22%3A%22RPL%22%7D%5D%7D%5D&siteId=SG&subsites=----\",\"offset\":0,\"previous\":null,\"totalCount\":8}"
+      }
+    },
+    {
+      "endpoint": "wm/replenishmentConfigurations",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/replenishmentConfigurations?_dc=1787554884311&limit=1&offset=0&countMapping=replenishmentConfigurations&siteId=SG&subsites=----",
+        "query": {
+          "_dc": "1787554884311",
+          "limit": "1",
+          "offset": "0",
+          "countMapping": "replenishmentConfigurations",
+          "siteId": "SG",
+          "subsites": "----"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "*/*"
+        },
+        "body": null
+      },
+      "seq": 1,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007c4bc9f9a836-DEL",
+          "authenticated": "true",
+          "content-length": "532",
+          "date": "Mon, 24 Aug 2026 07:01:24 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"PagedResponseBodyWrapper\",\"data\":[{\"completeFlag\":false,\"incrementPercentageFlag\":true,\"incrementUnits\":100,\"inventoryStatus\":\"AV\",\"inventoryStatusDescription\":\"AVAILABLE\",\"itemClientId\":\"----\",\"itemNumber\":\"0001072000\",\"item_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/items/----%2A%210001072000%2A%21SG\",\"maximumLocations\":0,\"maximumUnits\":100,\"minimumUnits\":0,\"movementZoneCode\":null,\"movementZoneDescription\":\"null|SG\",\"movementZoneId\":11224,\"movementZone_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/movementZones/11224\",\"percentageFlag\":true,\"releasePercentage\":100,\"replenishmentDate\":\"2024-05-10T15:38:11.000+0000\",\"replenishmentNumber\":\"RCF0000CZN\",\"resourceId\":\"RCF0000CZN\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/replenishmentConfigurations/RCF0000CZN\",\"storageLocation\":\"GO-0001072000\",\"warehouseId\":\"SG\"}],\"first\":null,\"last\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/replenishmentConfigurations?countMapping=replenishmentConfigurations&limit=1&offset=6765&siteId=SG&subsites=----\",\"limit\":1,\"next\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/replenishmentConfigurations?countMapping=replenishmentConfigurations&limit=1&offset=1&siteId=SG&subsites=----\",\"offset\":0,\"previous\":null,\"totalCount\":6766}"
+      }
+    },
+    {
+      "endpoint": "wm/pickMethods",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods?_dc=1787554884311&query=%5B%7B%22column%22%3A%22pickMethodId%22%2C%22operator%22%3A%22GE%22%2C%22value%22%3A0%7D%5D&limit=1&offset=0&countMapping=pickMethodsCount&siteId=SG&subsites=----",
+        "query": {
+          "_dc": "1787554884311",
+          "query": "[{\"column\":\"pickMethodId\",\"operator\":\"GE\",\"value\":0}]",
+          "limit": "1",
+          "offset": "0",
+          "countMapping": "pickMethodsCount",
+          "siteId": "SG",
+          "subsites": "----"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "*/*"
+        },
+        "body": null
+      },
+      "seq": 2,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3007c4bc9faa836-DEL",
+          "authenticated": "true",
+          "content-length": "1197",
+          "date": "Mon, 24 Aug 2026 07:01:25 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"cartonFlag\":false,\"description\":\"Pallet Pick\",\"inlineReplenishmentFlag\":false,\"listFlag\":false,\"mixCaseFlag\":false,\"pickMethodId\":10000,\"pickMethodName\":\"PALLETPICK\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":\"srcloc,dstloc,oprcod\",\"operationCode\":\"PCK\",\"pickMethodId\":10000,\"pickReleaseRuleId\":10003,\"resourceId\":\"10003\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10003\",\"thresholdPick\":false,\"workType\":\"P\"}],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10000\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10000\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"},{\"cartonFlag\":false,\"description\":\"Work Assignment\",\"inlineReplenishmentFlag\":false,\"listFlag\":true,\"mixCaseFlag\":false,\"pickMethodId\":10001,\"pickMethodName\":\"LISTPICK\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":\"oprcod,ship_id,src_pck_zone_id,srcloc_wrk_zone_id\",\"operationCode\":\"KPK\",\"pickMethodId\":10001,\"pickReleaseRuleId\":10004,\"resourceId\":\"10004\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10004\",\"thresholdPick\":false,\"workType\":\"K\"},{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":\"srcloc\",\"operationCode\":\"LPCK\",\"pickMethodId\":10001,\"pickReleaseRuleId\":10055,\"resourceId\":\"10055\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10055\",\"thresholdPick\":false,\"workType\":\"P\"}],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10001\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10001\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"},{\"cartonFlag\":false,\"description\":\"Replenishment\",\"inlineReplenishmentFlag\":false,\"listFlag\":false,\"mixCaseFlag\":false,\"pickMethodId\":10002,\"pickMethodName\":\"Replenishment\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[{\"action\":\"create work\",\"assignedToRole\":null,\"basePriority\":3,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"CRP\",\"pickMethodId\":10002,\"pickReleaseRuleId\":10005,\"resourceId\":\"10005\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10005\",\"thresholdPick\":false,\"workType\":\"E\"},{\"action\":\"create work\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"PRP\",\"pickMethodId\":10002,\"pickReleaseRuleId\":10045,\"resourceId\":\"10045\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10045\",\"thresholdPick\":false,\"workType\":\"E\"},{\"action\":\"create work\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"PRP\",\"pickMethodId\":10002,\"pickReleaseRuleId\":10048,\"resourceId\":\"10048\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10048\",\"thresholdPick\":false,\"workType\":\"T\"},{\"action\":\"create work\",\"assignedToRole\":null,\"basePriority\":2,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"PRP\",\"pickMethodId\":10002,\"pickReleaseRuleId\":10049,\"resourceId\":\"10049\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10049\",\"thresholdPick\":false,\"workType\":\"G\"},{\"action\":\"create work\",\"assignedToRole\":null,\"basePriority\":3,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"PRP\",\"pickMethodId\":10002,\"pickReleaseRuleId\":10054,\"resourceId\":\"10054\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10054\",\"thresholdPick\":false,\"workType\":\"M\"}],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10002\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10002\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"},{\"cartonFlag\":true,\"description\":\"Carton Pick\",\"inlineReplenishmentFlag\":false,\"listFlag\":false,\"mixCaseFlag\":false,\"pickMethodId\":10003,\"pickMethodName\":\"CartonPick\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"PPK\",\"pickMethodId\":10003,\"pickReleaseRuleId\":10006,\"resourceId\":\"10006\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10006\",\"thresholdPick\":false,\"workType\":\"P\"},{\"action\":\"SL_DO NOTHING\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"KPK\",\"pickMethodId\":10003,\"pickReleaseRuleId\":10007,\"resourceId\":\"10007\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10007\",\"thresholdPick\":false,\"workType\":\"K\"}],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10003\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10003\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"},{\"cartonFlag\":false,\"description\":\"Case Pick\",\"inlineReplenishmentFlag\":false,\"listFlag\":false,\"mixCaseFlag\":false,\"pickMethodId\":10004,\"pickMethodName\":\"CasePick\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"CPK\",\"pickMethodId\":10004,\"pickReleaseRuleId\":10008,\"resourceId\":\"10008\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10008\",\"thresholdPick\":false,\"workType\":\"P\"}],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10004\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10004\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"},{\"cartonFlag\":false,\"description\":\"Replenishment Split Pick\",\"inlineReplenishmentFlag\":false,\"listFlag\":false,\"mixCaseFlag\":false,\"pickMethodId\":10005,\"pickMethodName\":\"ReplenishmentSplitPk\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10005\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10005\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"},{\"cartonFlag\":false,\"description\":\"Storage Equipment Pick\",\"inlineReplenishmentFlag\":false,\"listFlag\":false,\"mixCaseFlag\":false,\"pickMethodId\":10006,\"pickMethodName\":\"StorageEquipPick\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":20,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"STOPCK\",\"pickMethodId\":10006,\"pickReleaseRuleId\":10009,\"resourceId\":\"10009\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10009\",\"thresholdPick\":false,\"workType\":\"P\"}],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10006\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10006\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"},{\"cartonFlag\":false,\"description\":\"Storage Equipment Replenishment Pick\",\"inlineReplenishmentFlag\":false,\"listFlag\":false,\"mixCaseFlag\":false,\"pickMethodId\":10007,\"pickMethodName\":\"StorageEquipReplen\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":20,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"RSTOPCK\",\"pickMethodId\":10007,\"pickReleaseRuleId\":10010,\"resourceId\":\"10010\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10010\",\"thresholdPick\":false,\"workType\":\"T\"},{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":20,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"RSTOPCK\",\"pickMethodId\":10007,\"pickReleaseRuleId\":10011,\"resourceId\":\"10011\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10011\",\"thresholdPick\":false,\"workType\":\"G\"},{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":20,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"RSTOPCK\",\"pickMethodId\":10007,\"pickReleaseRuleId\":10012,\"resourceId\":\"10012\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10012\",\"thresholdPick\":false,\"workType\":\"E\"},{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":20,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"RSTOPCK\",\"pickMethodId\":10007,\"pickReleaseRuleId\":10013,\"resourceId\":\"10013\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10013\",\"thresholdPick\":false,\"workType\":\"M\"},{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":20,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":null,\"operationCode\":\"RSTOPCK\",\"pickMethodId\":10007,\"pickReleaseRuleId\":10014,\"resourceId\":\"10014\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10014\",\"thresholdPick\":false,\"workType\":\"D\"}],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10007\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10007\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"},{\"cartonFlag\":false,\"description\":\"Work Assignment\",\"inlineReplenishmentFlag\":false,\"listFlag\":true,\"mixCaseFlag\":false,\"pickMethodId\":10014,\"pickMethodName\":\"LISTPICK\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":\"oprcod,ship_id,src_pck_zone_id,srcloc_wrk_zone_id\",\"operationCode\":\"KPK\",\"pickMethodId\":10014,\"pickReleaseRuleId\":10044,\"resourceId\":\"10044\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10044\",\"thresholdPick\":false,\"workType\":\"K\"},{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":\"srcloc\",\"operationCode\":\"LPCK\",\"pickMethodId\":10014,\"pickReleaseRuleId\":10046,\"resourceId\":\"10046\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10046\",\"thresholdPick\":false,\"workType\":\"P\"},{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":\"srcloc\",\"operationCode\":\"LPCK\",\"pickMethodId\":10014,\"pickReleaseRuleId\":10050,\"resourceId\":\"10050\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10050\",\"thresholdPick\":false,\"workType\":\"P\"},{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":\"oprcod,ship_id,src_pck_zone_id,srcloc_wrk_zone_id\",\"operationCode\":\"KPK\",\"pickMethodId\":10014,\"pickReleaseRuleId\":10051,\"resourceId\":\"10051\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10051\",\"thresholdPick\":false,\"workType\":\"K\"},{\"action\":\"CREATE WORK\",\"assignedToRole\":null,\"basePriority\":null,\"basePriorityOffset\":null,\"defaultFlag\":true,\"destinationMovementZone\":null,\"groupArgument\":\"oprcod,ship_id,src_pck_zone_id,srcloc_wrk_zone_id\",\"operationCode\":\"KPK\",\"pickMethodId\":10014,\"pickReleaseRuleId\":10052,\"resourceId\":\"10052\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickReleaseRules/10052\",\"thresholdPick\":false,\"workType\":\"K\"}],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10014\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10014\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"},{\"cartonFlag\":false,\"description\":\"Case Pick\",\"inlineReplenishmentFlag\":false,\"listFlag\":false,\"mixCaseFlag\":false,\"pickMethodId\":10015,\"pickMethodName\":\"CASEPICK\",\"pickPreValidationScheme\":\"DEF_DISABLE\",\"pickPreValidationScheme_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickPreValidationSchemes/DEF_DISABLE\",\"pickReleaseRules\":[],\"reserveTypeDuringPickRelease\":99,\"resourceId\":\"10015\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/pickMethods/10015\",\"specificCaseFlag\":false,\"warehouseId\":\"SG\"}]}"
+      }
+    }
+  ],
+  "writes": [],
+  "edges": []
+}

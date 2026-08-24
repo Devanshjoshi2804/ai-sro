@@ -1,0 +1,101 @@
+{
+  "spec": "carrierCrossReferences",
+  "resource": "carrierCrossReferences",
+  "applied": {
+    "carrier": "MLCW"
+  },
+  "invalid": [],
+  "calls": [
+    {
+      "endpoint": "wm/carrierCrossReferences",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierCrossReferences?siteId=SG&subsites=----&_dc=1787553517093",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787553517093"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"carrier\":\"MLCW\",\"serviceLevel\":\"m\",\"destinationName\":\"ENVEYO\",\"destinationLevel\":\"\",\"destinationCarrier\":\"\",\"serverPrintsLabelFlag\":false,\"serviceTitle\":\"\",\"parcelCarrierCode\":\"\",\"codAddressId\":\"\",\"crossReference\":\"MLCW|m - ENVEYO\"}"
+      },
+      "seq": 0,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierCrossReferences/MLCW%2A%21ENVEYO%2A%21m",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3005aea7e3fa836-DEL",
+          "authenticated": "true",
+          "content-length": "559",
+          "date": "Mon, 24 Aug 2026 06:38:37 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"carrier\":\"MLCW\",\"codAddressId\":null,\"destinationCarrier\":null,\"destinationLevel\":null,\"destinationName\":\"ENVEYO\",\"groundFlag\":false,\"meterNumber\":null,\"parcelCarrierCode\":null,\"parcelPackageType\":null,\"resourceId\":\"MLCW*!ENVEYO*!m\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierCrossReferences/MLCW%2A%21ENVEYO%2A%21m\",\"serverPrintsLabelFlag\":false,\"serviceIcon\":null,\"serviceLevel\":\"m\",\"serviceTitle\":null,\"serviceType\":null,\"shipperAddressId\":null,\"taxID\":null,\"trackingNumberType\":null}}"
+      }
+    }
+  ],
+  "writes": [
+    {
+      "endpoint": "wm/carrierCrossReferences",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierCrossReferences?siteId=SG&subsites=----&_dc=1787553517093",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787553517093"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"carrier\":\"MLCW\",\"serviceLevel\":\"m\",\"destinationName\":\"ENVEYO\",\"destinationLevel\":\"\",\"destinationCarrier\":\"\",\"serverPrintsLabelFlag\":false,\"serviceTitle\":\"\",\"parcelCarrierCode\":\"\",\"codAddressId\":\"\",\"crossReference\":\"MLCW|m - ENVEYO\"}"
+      },
+      "seq": 0,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierCrossReferences/MLCW%2A%21ENVEYO%2A%21m",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a3005aea7e3fa836-DEL",
+          "authenticated": "true",
+          "content-length": "559",
+          "date": "Mon, 24 Aug 2026 06:38:37 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"carrier\":\"MLCW\",\"codAddressId\":null,\"destinationCarrier\":null,\"destinationLevel\":null,\"destinationName\":\"ENVEYO\",\"groundFlag\":false,\"meterNumber\":null,\"parcelCarrierCode\":null,\"parcelPackageType\":null,\"resourceId\":\"MLCW*!ENVEYO*!m\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/carrierCrossReferences/MLCW%2A%21ENVEYO%2A%21m\",\"serverPrintsLabelFlag\":false,\"serviceIcon\":null,\"serviceLevel\":\"m\",\"serviceTitle\":null,\"serviceType\":null,\"shipperAddressId\":null,\"taxID\":null,\"trackingNumberType\":null}}"
+      }
+    }
+  ],
+  "edges": []
+}

@@ -1,0 +1,810 @@
+{
+  "spec": "areas",
+  "resource": "areas",
+  "applied": {
+    "areaCode": "ZV001",
+    "longDescription": "ZV002",
+    "buildingId": "B1"
+  },
+  "invalid": [],
+  "calls": [
+    {
+      "endpoint": "wm/buildings",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings?siteId=SG&subsites=----&_dc=1787555352552",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555352552"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 0,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087ba4ec2a836-DEL",
+          "authenticated": "true",
+          "content-length": "328",
+          "date": "Mon, 24 Aug 2026 07:09:13 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"addressId\":\"A000000022\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000000022\",\"areaCount\":94,\"buildingId\":\"B1\",\"businessFacility\":null,\"fluidLoadFlag\":1,\"locationCount\":61913,\"pickingBuildingSequences_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG/pickingSequences\",\"resourceId\":\"B1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG\",\"sortAttributeLocationStatus\":\"P\",\"sortDefaultFlag\":1,\"storageBuildingSequences_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG/storageSequences\",\"version\":97,\"warehouseId\":\"SG\"}]}"
+      }
+    },
+    {
+      "endpoint": "rpux/filter/default/WMAreas",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/default/WMAreas?_dc=1787555352594&siteId=SG&subsites=----",
+        "query": {
+          "_dc": "1787555352594",
+          "siteId": "SG",
+          "subsites": "----"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "*/*"
+        },
+        "body": null
+      },
+      "seq": 1,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087ba6ed5a836-DEL",
+          "authenticated": "true",
+          "content-length": "52",
+          "date": "Mon, 24 Aug 2026 07:09:12 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"data\":null,\"count\":0,\"totalCount\":0}"
+      }
+    },
+    {
+      "endpoint": "wm/buildings",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings?siteId=SG&subsites=----&_dc=1787555352616",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555352616"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 2,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087ba8ef1a836-DEL",
+          "authenticated": "true",
+          "content-length": "328",
+          "date": "Mon, 24 Aug 2026 07:09:13 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"addressId\":\"A000000022\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000000022\",\"areaCount\":94,\"buildingId\":\"B1\",\"businessFacility\":null,\"fluidLoadFlag\":1,\"locationCount\":61913,\"pickingBuildingSequences_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG/pickingSequences\",\"resourceId\":\"B1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG\",\"sortAttributeLocationStatus\":\"P\",\"sortDefaultFlag\":1,\"storageBuildingSequences_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG/storageSequences\",\"version\":97,\"warehouseId\":\"SG\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/buildings",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings?siteId=SG&subsites=----&_dc=1787555352654",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555352654"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 3,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087bacf1ea836-DEL",
+          "authenticated": "true",
+          "content-length": "328",
+          "date": "Mon, 24 Aug 2026 07:09:13 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"addressId\":\"A000000022\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000000022\",\"areaCount\":94,\"buildingId\":\"B1\",\"businessFacility\":null,\"fluidLoadFlag\":1,\"locationCount\":61913,\"pickingBuildingSequences_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG/pickingSequences\",\"resourceId\":\"B1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG\",\"sortAttributeLocationStatus\":\"P\",\"sortDefaultFlag\":1,\"storageBuildingSequences_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG/storageSequences\",\"version\":97,\"warehouseId\":\"SG\"}]}"
+      }
+    },
+    {
+      "endpoint": "rpux/filter/columns/WMAreas",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/rpux/filter/columns/WMAreas?siteId=SG&subsites=----&_dc=1787555352704",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555352704"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 4,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087bb1f31a836-DEL",
+          "authenticated": "true",
+          "content-length": "297",
+          "date": "Mon, 24 Aug 2026 07:09:13 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"data\":[{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMAreas\",\"columnName\":\"areaCode\",\"id\":\"areaCode-WMAreas\",\"resourceId\":\"areaCode-WMAreas\"},{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMAreas\",\"columnName\":\"businessUnit\",\"id\":\"businessUnit-WMAreas\",\"resourceId\":\"businessUnit-WMAreas\"},{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"N\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMAreas\",\"columnName\":\"locationCount\",\"id\":\"locationCount-WMAreas\",\"resourceId\":\"locationCount-WMAreas\"},{\"discriminator\":null,\"insertDate\":\"2024-01-11T14:28:27.000+0000\",\"modifiedDate\":\"2024-01-11T14:28:27.000+0000\",\"insertUserId\":null,\"modifiedUserId\":null,\"dataType\":\"S\",\"funcGroup\":\"GENERAL\",\"sortSequence\":10000,\"filterType\":\"WMAreas\",\"columnName\":\"longDescription\",\"id\":\"longDescription-WMAreas\",\"resourceId\":\"longDescription-WMAreas\"}],\"count\":4,\"totalCount\":4}"
+      }
+    },
+    {
+      "endpoint": "wm/buildings",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings?siteId=SG&subsites=----&_dc=1787555352816",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555352816"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 5,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087bbdf7aa836-DEL",
+          "authenticated": "true",
+          "content-length": "328",
+          "date": "Mon, 24 Aug 2026 07:09:14 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"addressId\":\"A000000022\",\"address_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/addresses/A000000022\",\"areaCount\":94,\"buildingId\":\"B1\",\"businessFacility\":null,\"fluidLoadFlag\":1,\"locationCount\":61913,\"pickingBuildingSequences_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG/pickingSequences\",\"resourceId\":\"B1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG\",\"sortAttributeLocationStatus\":\"P\",\"sortDefaultFlag\":1,\"storageBuildingSequences_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/buildings/B1%2A%21SG/storageSequences\",\"version\":97,\"warehouseId\":\"SG\"}]}"
+      }
+    },
+    {
+      "endpoint": "wm/areas",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas?query=%5B%5D&excludeLogicals=1&siteId=SG&subsites=----&_dc=1787555353073",
+        "query": {
+          "query": "[]",
+          "excludeLogicals": "1",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555353073"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 6,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087bd6813a836-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Mon, 24 Aug 2026 07:09:13 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"aisleId\":null,\"areaCode\":\"CO-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-PCK-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":250,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-FL&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":107,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":400,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"DCK-DDR\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":161,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=DCK-DDR&warehouseId=SG\",\"longDescription\":\"Ship-Receive Dock Door\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"DCK-DDR*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/DCK-DDR%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-DCK-RD\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":16,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-DCK-RD&warehouseId=SG\",\"longDescription\":\"East Wall Dock Rail\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-DCK-RD*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-DCK-RD%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":100,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPI\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPI&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack In\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPI*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPI%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPO\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPO&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack Out\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPO*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPO%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-DP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":828,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-DP&warehouseId=SG\",\"longDescription\":\"East Wall Storage\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-DP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-DP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":686,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-FL&warehouseId=SG\",\"longDescription\":\"East Wall Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":268,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-R1&warehouseId=SG\",\"longDescription\":\"East Wall Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-INB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":62,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-INB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Inbound Induction (STP) Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-INB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-INB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-OUB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":22,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-OUB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Outbound STP Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-OUB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-OUB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"LOST\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=LOST&warehouseId=SG\",\"longDescription\":\"LOST AREA \",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"LOST*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/LOST%2A%21SG\",\"shortDescription\":\"LOST\",\"storageFlag\":null,\"version\":98,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":211,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL%2A%21SG\",\"shortDescription\":\"MI-PCK-CL\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":150,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL1&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL1%2A%21SG\",\"shortDescription\":\"MI-PCK-CL1\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":191,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-FL&warehouseId=SG\",\"longDescription\":\"Middle Pick Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-LDZ\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-LDZ&warehouseId=SG\",\"longDescription\":\"Middle Pick Layer Pallet Build\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-LDZ*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-LDZ%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-MAG\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":104,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-MAG&warehouseId=SG\",\"longDescription\":\"Middle Pick Mag Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-MAG*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-MAG%2A%21SG\",\"shortDescription\":\"MI-PCK-MAG\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle Pick Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-PRB*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-PRB%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":424,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R1&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1120,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R2&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":766,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R3&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE1&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE2&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 2\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE3&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 3\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1652,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R1&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4286,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R2&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1225,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R3&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MN-DCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MN-DCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle North Dock Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MN-DCK-PRB*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MN-DCK-PRB%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MN-DCK-WRP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MN-DCK-WRP&warehouseId=SG\",\"longDescription\":\"Middle North Dock Wrap\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MN-DCK-WRP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MN-DCK-WRP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MS-DCK-WRP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MS-DCK-WRP&warehouseId=SG\",\"longDescription\":\"Middle South Dock Wrap\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"MS-DCK-WRP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MS-DCK-WRP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":103,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-DCK\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":77,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-DCK&warehouseId=SG\",\"longDescription\":\"Northeast Dock\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-DCK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-DCK%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-DP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":32,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-DP&warehouseId=SG\",\"longDescription\":\"Northeast Storage\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-DP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-DP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":635,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-FL&warehouseId=SG\",\"longDescription\":\"Northeast Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":80,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-R1&warehouseId=SG\",\"longDescription\":\"Northeast Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":102,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NW-DCK\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":49,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NW-DCK&warehouseId=SG\",\"longDescription\":\"Northwest Dock\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NW-DCK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NW-DCK%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NW-DCK-LTL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":5,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NW-DCK-LTL&warehouseId=SG\",\"longDescription\":\"Northwest Dock LTL\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NW-DCK-LTL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NW-DCK-LTL"
+      }
+    },
+    {
+      "endpoint": "wm/areas",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas?buildingId=B1&excludeLogicals=1&siteId=SG&subsites=----&_dc=1787555353792",
+        "query": {
+          "buildingId": "B1",
+          "excludeLogicals": "1",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555353792"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 7,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087c1eacaa836-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Mon, 24 Aug 2026 07:09:14 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"aisleId\":null,\"areaCode\":\"CO-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-PCK-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":250,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-FL&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":107,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":400,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"DCK-DDR\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":161,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=DCK-DDR&warehouseId=SG\",\"longDescription\":\"Ship-Receive Dock Door\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"DCK-DDR*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/DCK-DDR%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-DCK-RD\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":16,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-DCK-RD&warehouseId=SG\",\"longDescription\":\"East Wall Dock Rail\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-DCK-RD*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-DCK-RD%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":100,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPI\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPI&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack In\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPI*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPI%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPO\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPO&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack Out\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPO*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPO%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-DP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":828,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-DP&warehouseId=SG\",\"longDescription\":\"East Wall Storage\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-DP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-DP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":686,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-FL&warehouseId=SG\",\"longDescription\":\"East Wall Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":268,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-R1&warehouseId=SG\",\"longDescription\":\"East Wall Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-INB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":62,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-INB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Inbound Induction (STP) Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-INB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-INB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-OUB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":22,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-OUB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Outbound STP Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-OUB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-OUB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"LOST\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=LOST&warehouseId=SG\",\"longDescription\":\"LOST AREA \",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"LOST*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/LOST%2A%21SG\",\"shortDescription\":\"LOST\",\"storageFlag\":null,\"version\":98,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":211,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL%2A%21SG\",\"shortDescription\":\"MI-PCK-CL\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":150,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL1&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL1%2A%21SG\",\"shortDescription\":\"MI-PCK-CL1\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":191,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-FL&warehouseId=SG\",\"longDescription\":\"Middle Pick Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-LDZ\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-LDZ&warehouseId=SG\",\"longDescription\":\"Middle Pick Layer Pallet Build\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-LDZ*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-LDZ%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-MAG\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":104,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-MAG&warehouseId=SG\",\"longDescription\":\"Middle Pick Mag Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-MAG*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-MAG%2A%21SG\",\"shortDescription\":\"MI-PCK-MAG\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle Pick Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-PRB*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-PRB%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":424,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R1&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1120,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R2&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":766,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R3&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE1&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE2&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 2\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE3&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 3\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1652,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R1&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4286,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R2&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1225,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R3&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MN-DCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MN-DCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle North Dock Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MN-DCK-PRB*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MN-DCK-PRB%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MN-DCK-WRP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MN-DCK-WRP&warehouseId=SG\",\"longDescription\":\"Middle North Dock Wrap\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MN-DCK-WRP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MN-DCK-WRP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MS-DCK-WRP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MS-DCK-WRP&warehouseId=SG\",\"longDescription\":\"Middle South Dock Wrap\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"MS-DCK-WRP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MS-DCK-WRP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":103,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-DCK\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":77,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-DCK&warehouseId=SG\",\"longDescription\":\"Northeast Dock\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-DCK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-DCK%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-DP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":32,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-DP&warehouseId=SG\",\"longDescription\":\"Northeast Storage\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-DP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-DP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":635,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-FL&warehouseId=SG\",\"longDescription\":\"Northeast Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":80,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-R1&warehouseId=SG\",\"longDescription\":\"Northeast Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":102,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NW-DCK\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":49,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NW-DCK&warehouseId=SG\",\"longDescription\":\"Northwest Dock\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NW-DCK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NW-DCK%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NW-DCK-LTL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":5,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NW-DCK-LTL&warehouseId=SG\",\"longDescription\":\"Northwest Dock LTL\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NW-DCK-LTL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NW-DCK-LTL"
+      }
+    },
+    {
+      "endpoint": "wm/areas",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas?buildingId=B1&excludeLogicals=1&siteId=SG&subsites=----&_dc=1787555353908",
+        "query": {
+          "buildingId": "B1",
+          "excludeLogicals": "1",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555353908"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 8,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087c29b19a836-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Mon, 24 Aug 2026 07:09:14 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"aisleId\":null,\"areaCode\":\"CO-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-PCK-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":250,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-FL&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":107,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":400,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"DCK-DDR\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":161,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=DCK-DDR&warehouseId=SG\",\"longDescription\":\"Ship-Receive Dock Door\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"DCK-DDR*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/DCK-DDR%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-DCK-RD\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":16,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-DCK-RD&warehouseId=SG\",\"longDescription\":\"East Wall Dock Rail\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-DCK-RD*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-DCK-RD%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":100,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPI\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPI&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack In\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPI*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPI%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPO\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPO&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack Out\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPO*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPO%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-DP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":828,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-DP&warehouseId=SG\",\"longDescription\":\"East Wall Storage\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-DP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-DP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":686,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-FL&warehouseId=SG\",\"longDescription\":\"East Wall Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":268,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-R1&warehouseId=SG\",\"longDescription\":\"East Wall Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-INB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":62,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-INB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Inbound Induction (STP) Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-INB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-INB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-OUB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":22,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-OUB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Outbound STP Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-OUB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-OUB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"LOST\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=LOST&warehouseId=SG\",\"longDescription\":\"LOST AREA \",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"LOST*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/LOST%2A%21SG\",\"shortDescription\":\"LOST\",\"storageFlag\":null,\"version\":98,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":211,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL%2A%21SG\",\"shortDescription\":\"MI-PCK-CL\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":150,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL1&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL1%2A%21SG\",\"shortDescription\":\"MI-PCK-CL1\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":191,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-FL&warehouseId=SG\",\"longDescription\":\"Middle Pick Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-LDZ\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-LDZ&warehouseId=SG\",\"longDescription\":\"Middle Pick Layer Pallet Build\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-LDZ*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-LDZ%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-MAG\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":104,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-MAG&warehouseId=SG\",\"longDescription\":\"Middle Pick Mag Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-MAG*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-MAG%2A%21SG\",\"shortDescription\":\"MI-PCK-MAG\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle Pick Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-PRB*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-PRB%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":424,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R1&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1120,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R2&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":766,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R3&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE1&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE2&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 2\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE3&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 3\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1652,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R1&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4286,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R2&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1225,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R3&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MN-DCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MN-DCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle North Dock Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MN-DCK-PRB*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MN-DCK-PRB%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MN-DCK-WRP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MN-DCK-WRP&warehouseId=SG\",\"longDescription\":\"Middle North Dock Wrap\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MN-DCK-WRP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MN-DCK-WRP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MS-DCK-WRP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MS-DCK-WRP&warehouseId=SG\",\"longDescription\":\"Middle South Dock Wrap\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"MS-DCK-WRP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MS-DCK-WRP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":103,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-DCK\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":77,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-DCK&warehouseId=SG\",\"longDescription\":\"Northeast Dock\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-DCK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-DCK%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-DP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":32,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-DP&warehouseId=SG\",\"longDescription\":\"Northeast Storage\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-DP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-DP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":635,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-FL&warehouseId=SG\",\"longDescription\":\"Northeast Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":80,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-R1&warehouseId=SG\",\"longDescription\":\"Northeast Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":102,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NW-DCK\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":49,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NW-DCK&warehouseId=SG\",\"longDescription\":\"Northwest Dock\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NW-DCK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NW-DCK%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NW-DCK-LTL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":5,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NW-DCK-LTL&warehouseId=SG\",\"longDescription\":\"Northwest Dock LTL\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NW-DCK-LTL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NW-DCK-LTL"
+      }
+    },
+    {
+      "endpoint": "listBuildingMediaLinks",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/listBuildingMediaLinks?siteId=SG&subsites=----&_dc=1787555354663",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555354663"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "*/*"
+        },
+        "body": null
+      },
+      "seq": 9,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087c75d2ea836-DEL",
+          "authenticated": "true",
+          "content-length": "65",
+          "date": "Mon, 24 Aug 2026 07:09:16 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"appStatus\":0,\"count\":0,\"status\":0,\"data\":[],\"type\":\"J\"}"
+      }
+    },
+    {
+      "endpoint": "wm/businessUnits",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/businessUnits?siteId=SG&subsites=----&_dc=1787555358587",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555358587"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 10,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087dfdf08a836-DEL",
+          "authenticated": "true",
+          "content-length": "61",
+          "date": "Mon, 24 Aug 2026 07:09:18 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[]}"
+      }
+    },
+    {
+      "endpoint": "wm/areas",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas?siteId=SG&subsites=----&_dc=1787555358588",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555358588"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 11,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087dfdf0ba836-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Mon, 24 Aug 2026 07:09:19 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"aisleId\":null,\"areaCode\":\"ADJS\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":3,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=ADJS&warehouseId=SG\",\"longDescription\":\"ADJS Adjustments - Logical\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"ADJS*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/ADJS%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CADJ\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CADJ&warehouseId=SG\",\"longDescription\":\"CADJ Cycle Count Adjustments - Logical\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"CADJ*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CADJ%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-PCK-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":250,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-FL&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":107,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":400,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"DADJ\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=DADJ&warehouseId=SG\",\"longDescription\":\"DADJ Dekit Adjustment - Logical\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"DADJ*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/DADJ%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"DCK-DDR\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":161,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=DCK-DDR&warehouseId=SG\",\"longDescription\":\"Ship-Receive Dock Door\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"DCK-DDR*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/DCK-DDR%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"DKIT\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=DKIT&warehouseId=SG\",\"longDescription\":\"DKIT Dekitting - Logical\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"DKIT*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/DKIT%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"DSPCH\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":3126,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=DSPCH&warehouseId=SG\",\"longDescription\":\"DSPCH Dispatched Trailers - Logical\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"DSPCH*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/DSPCH%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-DCK-RD\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":16,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-DCK-RD&warehouseId=SG\",\"longDescription\":\"East Wall Dock Rail\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-DCK-RD*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-DCK-RD%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":100,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPI\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPI&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack In\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPI*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPI%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPO\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPO&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack Out\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPO*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPO%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-DP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":828,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-DP&warehouseId=SG\",\"longDescription\":\"East Wall Storage\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-DP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-DP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":686,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-FL&warehouseId=SG\",\"longDescription\":\"East Wall Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":268,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-R1&warehouseId=SG\",\"longDescription\":\"East Wall Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EXPR\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1065,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EXPR&warehouseId=SG\",\"longDescription\":\"EXPR Expected Receipts - Building 1 - Logical\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"EXPR*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EXPR%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Miscellaneous Lcations Area\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-INB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":62,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-INB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Inbound Induction (STP) Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-INB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-INB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-OUB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":22,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-OUB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Outbound STP Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-OUB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-OUB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-STOR-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":7125,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-STOR-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Controlled Storage Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-STOR-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-STOR-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"LOST\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=LOST&warehouseId=SG\",\"longDescription\":\"LOST AREA \",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"LOST*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/LOST%2A%21SG\",\"shortDescription\":\"LOST\",\"storageFlag\":null,\"version\":98,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":211,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL%2A%21SG\",\"shortDescription\":\"MI-PCK-CL\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":150,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL1&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL1%2A%21SG\",\"shortDescription\":\"MI-PCK-CL1\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":191,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-FL&warehouseId=SG\",\"longDescription\":\"Middle Pick Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-LDZ\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-LDZ&warehouseId=SG\",\"longDescription\":\"Middle Pick Layer Pallet Build\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-LDZ*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-LDZ%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-MAG\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":104,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-MAG&warehouseId=SG\",\"longDescription\":\"Middle Pick Mag Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-MAG*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-MAG%2A%21SG\",\"shortDescription\":\"MI-PCK-MAG\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle Pick Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-PRB*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-PRB%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":424,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R1&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1120,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R2&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":766,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R3&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE1&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE2&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 2\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE3&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 3\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1652,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R1&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4286,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R2&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1225,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R3&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MN-DCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MN-DCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle North Dock Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MN-DCK-PRB*!SG\",\"self_uri\":\"https://b"
+      }
+    },
+    {
+      "endpoint": "wm/floorPlan",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan?siteId=SG&subsites=----&_dc=1787555358931",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555358931"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 12,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087e20fd8a836-DEL",
+          "authenticated": "true",
+          "content-length": "356",
+          "date": "Mon, 24 Aug 2026 07:09:19 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000011\",\"resourceId\":\"0000011*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000011%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000012\",\"resourceId\":\"0000012*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000012%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000013\",\"resourceId\":\"0000013*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000013%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000014\",\"resourceId\":\"0000014*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000014%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000015\",\"resourceId\":\"0000015*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000015%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000016\",\"resourceId\":\"0000016*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000016%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000017\",\"resourceId\":\"0000017*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000017%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000018\",\"resourceId\":\"0000018*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000018%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000019\",\"resourceId\":\"0000019*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000019%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000020\",\"resourceId\":\"0000020*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000020%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000021\",\"resourceId\":\"0000021*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000021%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000022\",\"resourceId\":\"0000022*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000022%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325}]}"
+      }
+    },
+    {
+      "endpoint": "wm/areas",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas?siteId=SG&subsites=----&_dc=1787555362533",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555362533"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"areaCode\":\"ZV001\",\"warehouseId\":\"SG\",\"buildingId\":\"B1\",\"longDescription\":\"ZV002\",\"shortDescription\":\"ZV001\",\"locationCount\":0,\"bayCount\":0,\"aisleId\":\"\",\"lostLocation\":\"\",\"businessUnit\":\"\"}"
+      },
+      "seq": 13,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/ZV001%2A%21SG",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087f8886ca836-DEL",
+          "authenticated": "true",
+          "content-length": "544",
+          "date": "Mon, 24 Aug 2026 07:09:23 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"aisleId\":null,\"areaCode\":\"ZV001\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=ZV001&warehouseId=SG\",\"longDescription\":\"ZV002\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"ZV001*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/ZV001%2A%21SG\",\"shortDescription\":\"ZV001\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null}}"
+      }
+    },
+    {
+      "endpoint": "wm/floorPlan",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan?siteId=SG&subsites=----&_dc=1787555363335",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555363335"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 14,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087fd8a5ea836-DEL",
+          "authenticated": "true",
+          "content-length": "356",
+          "date": "Mon, 24 Aug 2026 07:09:23 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000011\",\"resourceId\":\"0000011*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000011%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000012\",\"resourceId\":\"0000012*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000012%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000013\",\"resourceId\":\"0000013*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000013%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000014\",\"resourceId\":\"0000014*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000014%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000015\",\"resourceId\":\"0000015*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000015%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000016\",\"resourceId\":\"0000016*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000016%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000017\",\"resourceId\":\"0000017*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000017%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000018\",\"resourceId\":\"0000018*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000018%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000019\",\"resourceId\":\"0000019*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000019%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000020\",\"resourceId\":\"0000020*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000020%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000021\",\"resourceId\":\"0000021*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000021%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000022\",\"resourceId\":\"0000022*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000022%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325}]}"
+      }
+    },
+    {
+      "endpoint": "wm/floorPlan",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan?siteId=SG&subsites=----&_dc=1787555363336",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555363336"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 15,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087fd8a5fa836-DEL",
+          "authenticated": "true",
+          "content-length": "356",
+          "date": "Mon, 24 Aug 2026 07:09:23 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000011\",\"resourceId\":\"0000011*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000011%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000012\",\"resourceId\":\"0000012*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000012%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000013\",\"resourceId\":\"0000013*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000013%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000014\",\"resourceId\":\"0000014*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000014%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000015\",\"resourceId\":\"0000015*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000015%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000016\",\"resourceId\":\"0000016*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000016%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000017\",\"resourceId\":\"0000017*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000017%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000018\",\"resourceId\":\"0000018*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000018%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000019\",\"resourceId\":\"0000019*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000019%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000020\",\"resourceId\":\"0000020*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000020%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000021\",\"resourceId\":\"0000021*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000021%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325},{\"buildingId\":\"B1\",\"height\":150,\"id\":\"0000022\",\"resourceId\":\"0000022*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/floorPlan/0000022%2A%21SG\",\"text\":\"CO-STO-FL\",\"type\":\"area\",\"warehouseId\":\"SG\",\"width\":245,\"x\":277,\"y\":325}]}"
+      }
+    },
+    {
+      "endpoint": "wm/areas",
+      "request": {
+        "method": "GET",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas?buildingId=B1&excludeLogicals=1&siteId=SG&subsites=----&_dc=1787555363373",
+        "query": {
+          "buildingId": "B1",
+          "excludeLogicals": "1",
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555363373"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json"
+        },
+        "body": null
+      },
+      "seq": 16,
+      "response": {
+        "status": 200,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "OK",
+          "content-encoding": "gzip",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087fdca75a836-DEL",
+          "authenticated": "true",
+          "refs-status-name": "OK",
+          "date": "Mon, 24 Aug 2026 07:09:23 GMT",
+          "content-type": "application/json;charset=utf-8",
+          "x-xss-protection": "1; mode=block",
+          "vary": "Accept-Encoding, User-Agent",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":[{\"aisleId\":null,\"areaCode\":\"CO-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-PCK-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":250,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-FL&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":107,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"CO-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":400,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=CO-STO-R1&warehouseId=SG\",\"longDescription\":\"Cold Room Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"CO-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/CO-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":105,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"DCK-DDR\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":161,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=DCK-DDR&warehouseId=SG\",\"longDescription\":\"Ship-Receive Dock Door\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"DCK-DDR*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/DCK-DDR%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-DCK-RD\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":16,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-DCK-RD&warehouseId=SG\",\"longDescription\":\"East Wall Dock Rail\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-DCK-RD*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-DCK-RD%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":100,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPI\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPI&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack In\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPI*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPI%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-PND-DPO\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-PND-DPO&warehouseId=SG\",\"longDescription\":\"East Wall Pickup and Deposit Deep Rack Out\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-PND-DPO*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-PND-DPO%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-DP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":828,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-DP&warehouseId=SG\",\"longDescription\":\"East Wall Storage\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-DP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-DP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":686,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-FL&warehouseId=SG\",\"longDescription\":\"East Wall Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"EW-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":268,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=EW-STO-R1&warehouseId=SG\",\"longDescription\":\"East Wall Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"EW-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/EW-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-INB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":62,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-INB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Inbound Induction (STP) Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-INB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-INB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"GM-OUB-01\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":22,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=GM-OUB-01&warehouseId=SG\",\"longDescription\":\"Grey Matter Outbound STP Area 01\",\"lostLocation\":\"GO-LOST\",\"productionFlag\":null,\"resourceId\":\"GM-OUB-01*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/GM-OUB-01%2A%21SG\",\"shortDescription\":\"Grey Matter Area\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"LOST\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=LOST&warehouseId=SG\",\"longDescription\":\"LOST AREA \",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"LOST*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/LOST%2A%21SG\",\"shortDescription\":\"LOST\",\"storageFlag\":null,\"version\":98,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":211,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL%2A%21SG\",\"shortDescription\":\"MI-PCK-CL\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-CL1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":150,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-CL1&warehouseId=SG\",\"longDescription\":\"Middle Pick Claw Line 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-CL1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-CL1%2A%21SG\",\"shortDescription\":\"MI-PCK-CL1\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":191,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-FL&warehouseId=SG\",\"longDescription\":\"Middle Pick Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-LDZ\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-LDZ&warehouseId=SG\",\"longDescription\":\"Middle Pick Layer Pallet Build\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-LDZ*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-LDZ%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-MAG\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":104,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-MAG&warehouseId=SG\",\"longDescription\":\"Middle Pick Mag Line\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-MAG*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-MAG%2A%21SG\",\"shortDescription\":\"MI-PCK-MAG\",\"storageFlag\":null,\"version\":97,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle Pick Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-PRB*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-PRB%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":424,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R1&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1120,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R2&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":766,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-R3&warehouseId=SG\",\"longDescription\":\"Middle Pick Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE1&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 1\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE2&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 2\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-PCK-RE3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-PCK-RE3&warehouseId=SG\",\"longDescription\":\"Middle Pick Replenishment Drop 3\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-PCK-RE3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-PCK-RE3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1652,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R1&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R2\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4286,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R2&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 2D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R2*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R2%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MI-STO-R3\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1225,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MI-STO-R3&warehouseId=SG\",\"longDescription\":\"Middle Storage Rack 3D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MI-STO-R3*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MI-STO-R3%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MN-DCK-PRB\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":1,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MN-DCK-PRB&warehouseId=SG\",\"longDescription\":\"Middle North Dock Problem\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MN-DCK-PRB*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MN-DCK-PRB%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MN-DCK-WRP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":4,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MN-DCK-WRP&warehouseId=SG\",\"longDescription\":\"Middle North Dock Wrap\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"MN-DCK-WRP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MN-DCK-WRP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"MS-DCK-WRP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":2,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=MS-DCK-WRP&warehouseId=SG\",\"longDescription\":\"Middle South Dock Wrap\",\"lostLocation\":\"LOST-01\",\"productionFlag\":null,\"resourceId\":\"MS-DCK-WRP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/MS-DCK-WRP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":103,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-DCK\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":77,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-DCK&warehouseId=SG\",\"longDescription\":\"Northeast Dock\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-DCK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-DCK%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-DP\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":32,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-DP&warehouseId=SG\",\"longDescription\":\"Northeast Storage\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-DP*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-DP%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-FL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":635,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-FL&warehouseId=SG\",\"longDescription\":\"Northeast Storage Floor\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-FL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-FL%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":104,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NE-STO-R1\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":80,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NE-STO-R1&warehouseId=SG\",\"longDescription\":\"Northeast Storage Rack 1D\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NE-STO-R1*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NE-STO-R1%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":102,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NW-DCK\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":49,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NW-DCK&warehouseId=SG\",\"longDescription\":\"Northwest Dock\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NW-DCK*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NW-DCK%2A%21SG\",\"shortDescription\":null,\"storageFlag\":null,\"version\":99,\"warehouseId\":\"SG\",\"workInProcessFlag\":null},{\"aisleId\":null,\"areaCode\":\"NW-DCK-LTL\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":5,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=NW-DCK-LTL&warehouseId=SG\",\"longDescription\":\"Northwest Dock LTL\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"NW-DCK-LTL*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/NW-DCK-LTL"
+      }
+    }
+  ],
+  "writes": [
+    {
+      "endpoint": "wm/areas",
+      "request": {
+        "method": "POST",
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas?siteId=SG&subsites=----&_dc=1787555362533",
+        "query": {
+          "siteId": "SG",
+          "subsites": "----",
+          "_dc": "1787555362533"
+        },
+        "headers": {
+          "sec-ch-ua-platform": "\"macOS\"",
+          "referer": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal/page?libraryContext=f4d6755ab6b6ede8edf0319d4a77ab06eb0bb8db4e0531487ba190d68edc16d8&siteId=SG&menu=wm.config&subsite=----",
+          "sec-ch-ua": "\"Not;A=Brand\";v=\"99\", \"Google Chrome\";v=\"139\", \"Chromium\";v=\"139\"",
+          "sec-ch-ua-mobile": "?0",
+          "x-requested-with": "XMLHttpRequest",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+          "accept": "application/json",
+          "content-type": "application/json"
+        },
+        "body": "{\"areaCode\":\"ZV001\",\"warehouseId\":\"SG\",\"buildingId\":\"B1\",\"longDescription\":\"ZV002\",\"shortDescription\":\"ZV001\",\"locationCount\":0,\"bayCount\":0,\"aisleId\":\"\",\"lostLocation\":\"\",\"businessUnit\":\"\"}"
+      },
+      "seq": 13,
+      "response": {
+        "status": 201,
+        "headers": {
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "refs-message": "Created",
+          "location": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/ZV001%2A%21SG",
+          "cf-cache-status": "DYNAMIC",
+          "refs-status": "0",
+          "x-content-type-options": "nosniff",
+          "cf-ray": "a30087f8886ca836-DEL",
+          "authenticated": "true",
+          "content-length": "544",
+          "date": "Mon, 24 Aug 2026 07:09:23 GMT",
+          "x-xss-protection": "1; mode=block",
+          "content-type": "application/json;charset=utf-8",
+          "refs-status-name": "OK",
+          "server": "cloudflare"
+        },
+        "body": "{\"@type\":\"ResponseBodyWrapper\",\"data\":{\"aisleId\":null,\"areaCode\":\"ZV001\",\"bayCount\":null,\"buildingId\":\"B1\",\"businessUnit\":null,\"locationCount\":0,\"locations_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/locations?areaCode=ZV001&warehouseId=SG\",\"longDescription\":\"ZV002\",\"lostLocation\":null,\"productionFlag\":null,\"resourceId\":\"ZV001*!SG\",\"self_uri\":\"https://bf56-kms-wms-web-np2.jdadelivers.com/data/WM/wm/areas/ZV001%2A%21SG\",\"shortDescription\":\"ZV001\",\"storageFlag\":null,\"version\":1,\"warehouseId\":\"SG\",\"workInProcessFlag\":null}}"
+      }
+    }
+  ],
+  "edges": []
+}

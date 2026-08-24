@@ -10,6 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <TopBar>
         <BarLink href="/console">Threads</BarLink>
         <BarLink href="/overview">Overview</BarLink>
+        <BarLink href="/candidates">Candidates</BarLink>
         <BarLink href="/recordings">Recordings</BarLink>
         <BarLink href="/skills">Skills</BarLink>
         <BarLink href="/runs">Runs</BarLink>

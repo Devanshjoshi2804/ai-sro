@@ -357,6 +357,7 @@ class TriggerRow(Base):
     last_fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_run_id: Mapped[str | None] = mapped_column(String(64))
     disabled_reason: Mapped[str | None] = mapped_column(Text)
+    inbound_token: Mapped[str | None] = mapped_column(String(64))
 
     __table_args__ = (
         Index("ix_triggers_tenant_created", "tenant_id", "created_at"),

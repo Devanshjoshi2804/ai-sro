@@ -25,6 +25,7 @@ from sro.application.ports.token import TokenRefused
 from sro.application.ports.vault import VaultUnavailable
 from sro.application.recording.start_recording import NoSessionForSystem
 from sro.application.trigger.create_trigger import TriggerRefused
+from sro.application.trigger.receive_inbound import InboundRefused
 from sro.domain.shared.errors import Conflict, DomainError, InvariantViolation, NotFound
 
 _STATUS_BY_ERROR: dict[type[Exception], int] = {
@@ -51,6 +52,9 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     ObservationRefused: status.HTTP_409_CONFLICT,
     NothingToTeach: status.HTTP_409_CONFLICT,
     TriggerRefused: status.HTTP_409_CONFLICT,
+    # Vague on purpose: an unauthenticated caller with a wrong id and one with
+    # a wrong token must not be able to tell which they got wrong.
+    InboundRefused: status.HTTP_404_NOT_FOUND,
     NoCredentials: status.HTTP_409_CONFLICT,
     # A login that did not complete is about the system's state, not the
     # request's shape: a stale password, a second factor, a changed page. All

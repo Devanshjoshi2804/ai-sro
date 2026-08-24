@@ -545,6 +545,7 @@ def update_trigger_row(row: TriggerRow, trigger: Trigger) -> None:
     row.last_fired_at = trigger.last_fired_at
     row.last_run_id = trigger.last_run_id.value if trigger.last_run_id else None
     row.disabled_reason = trigger.disabled_reason
+    row.inbound_token = trigger.inbound_token
 
 
 def row_to_trigger(row: TriggerRow) -> Trigger:
@@ -568,6 +569,7 @@ def row_to_trigger(row: TriggerRow) -> Trigger:
         last_fired_at=row.last_fired_at,
         last_run_id=RunId(row.last_run_id) if row.last_run_id else None,
         disabled_reason=row.disabled_reason,
+        inbound_token=row.inbound_token,
     )
 
 

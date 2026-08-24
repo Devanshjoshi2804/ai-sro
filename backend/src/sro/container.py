@@ -104,6 +104,7 @@ from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.trigger.create_trigger import CreateTrigger
 from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
+from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
@@ -232,6 +233,9 @@ class Container:
             dispatcher=self.dispatcher,
             scheduler=self.scheduler,
         )
+
+    def receive_inbound(self) -> ReceiveInbound:
+        return ReceiveInbound(self.unit_of_work(), self.fire_trigger())
 
     def agents(self) -> AgentDrivers:
         """Drivers that perform in an operator's own browser."""

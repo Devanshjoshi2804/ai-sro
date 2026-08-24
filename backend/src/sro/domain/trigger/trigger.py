@@ -78,6 +78,12 @@ class Trigger:
     last_run_id: RunId | None = None
     disabled_reason: str | None = None
 
+    inbound_token: str | None = None
+    """What a mail relay or a chat webhook presents instead of a tenant
+    credential -- there is no principal on the other end of an inbound
+    message, only this trigger's own secret. Minted once at creation; nothing
+    here rotates it."""
+
     def __post_init__(self) -> None:
         if self.created_at.tzinfo is None:
             raise InvariantViolation("Trigger.created_at must be timezone-aware")
@@ -94,6 +100,12 @@ class Trigger:
                 raise InvariantViolation(f"{self.timezone!r} is not a time zone") from unknown
         elif self.cron:
             raise InvariantViolation(f"a {self.kind} trigger does not run on a schedule")
+
+        if self.kind is TriggerKind.INBOUND:
+            if not self.inbound_token:
+                raise InvariantViolation("an inbound trigger needs a token to be reached by")
+        elif self.inbound_token is not None:
+            raise InvariantViolation(f"a {self.kind} trigger is not reached by a token")
 
         if self.writes and self.authorized_by is None:
             # The whole point of the record. Refused here, weeks before it

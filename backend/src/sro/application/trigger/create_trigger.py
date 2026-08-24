@@ -8,6 +8,7 @@ exists is a trigger that would work.
 
 from __future__ import annotations
 
+import secrets
 from dataclasses import dataclass
 
 from sro.application.context import RequestContext
@@ -102,6 +103,9 @@ class CreateTrigger:
                 authorized_by=ctx.principal_id if request.authorized_by else None,
                 requires_confirmation=writes and not request.auto_approve,
                 may_take_focus=request.may_take_focus,
+                inbound_token=(
+                    secrets.token_urlsafe(32) if request.kind is TriggerKind.INBOUND else None
+                ),
             )
 
             if trigger.is_scheduled:

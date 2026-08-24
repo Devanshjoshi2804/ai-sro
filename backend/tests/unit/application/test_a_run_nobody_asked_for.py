@@ -13,6 +13,7 @@ from sro.application.context import RequestContext
 from sro.application.trigger.create_trigger import CreateTrigger, NewTrigger, TriggerRefused
 from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, SetTriggerEnabled
+from sro.application.trigger.receive_inbound import InboundRefused, ReceiveInbound
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, SkillId, TriggerId
 from sro.domain.skill.promotion import PromotionStage
@@ -281,3 +282,57 @@ async def test_deleting_another_tenants_trigger_is_not_found_rather_than_done() 
         await DeleteTrigger(uow, scheduler).execute(CTX, trigger_id=TriggerId("trg-theirs"))
 
     assert "trg-theirs" in uow.triggers.rows
+
+
+async def test_an_inbound_trigger_is_minted_with_its_own_token() -> None:
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False)
+
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(skill_id=skill_id, kind=TriggerKind.INBOUND, parameters={"shipment_id": "1"}),
+    )
+
+    assert trigger.inbound_token is not None
+    assert trigger.cron is None
+    assert scheduler.scheduled == {}
+
+
+async def test_receiving_an_inbound_message_with_the_right_token_fires_it() -> None:
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False)
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(skill_id=skill_id, kind=TriggerKind.INBOUND, parameters={"shipment_id": "1"}),
+    )
+    assert trigger.inbound_token is not None
+    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution())
+
+    fired = await ReceiveInbound(uow, fire).execute(trigger.id, token=trigger.inbound_token)
+
+    assert fired.run_id is not None
+
+
+async def test_receiving_an_inbound_message_with_the_wrong_token_is_refused() -> None:
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False)
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(skill_id=skill_id, kind=TriggerKind.INBOUND, parameters={"shipment_id": "1"}),
+    )
+    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution())
+
+    with pytest.raises(InboundRefused):
+        await ReceiveInbound(uow, fire).execute(trigger.id, token="not-the-token")  # noqa: S106
+
+
+async def test_receiving_for_a_trigger_that_is_not_inbound_is_refused() -> None:
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False)
+    trigger = await _create(uow, scheduler).execute(
+        CTX, NewTrigger(skill_id=skill_id, cron=EVERY_WEEKDAY, parameters={"shipment_id": "1"})
+    )
+    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution())
+
+    with pytest.raises(InboundRefused):
+        await ReceiveInbound(uow, fire).execute(trigger.id, token="anything")  # noqa: S106

@@ -1237,6 +1237,10 @@ class TriggerModel(BaseModel):
     last_fired_at: datetime | None
     last_run_id: str | None
     disabled_reason: str | None
+    inbound_token: str | None
+    """What an inbound trigger's mail relay or chat webhook presents back. Only
+    ever readable by whoever can already read the trigger -- the same tenant
+    boundary that protects everything else here."""
 
     @classmethod
     def of(cls, trigger: Trigger) -> TriggerModel:
@@ -1259,6 +1263,7 @@ class TriggerModel(BaseModel):
             last_fired_at=trigger.last_fired_at,
             last_run_id=trigger.last_run_id.value if trigger.last_run_id else None,
             disabled_reason=trigger.disabled_reason,
+            inbound_token=trigger.inbound_token,
         )
 
 

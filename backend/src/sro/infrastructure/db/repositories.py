@@ -541,6 +541,15 @@ class SqlDeviceRepository(DeviceRepository):
 
     async def add(self, device: AgentDevice) -> None:
         self._session.add(device_to_row(device))
+        try:
+            # Flushed here, like the observation batch: two registrations for
+            # the same (tenant, principal, label) racing each other must not
+            # let the second one 500 instead of finding the first via
+            # `registered_as` the way RegisterDevice's own idempotency assumes.
+            await self._session.flush()
+        except IntegrityError as clash:
+            await self._session.rollback()
+            raise Conflict(f"a device is already registered as {device.label!r}") from clash
 
     async def get(self, tenant_id: TenantId, device_id: DeviceId) -> AgentDevice:
         return row_to_device(await self._row(tenant_id, device_id))
@@ -649,6 +658,15 @@ class SqlCandidateRepository(CandidateRepository):
 
     async def add(self, candidate: TaskCandidate) -> None:
         self._session.add(candidate_to_row(candidate))
+        try:
+            # A manual mine-now request can race the scheduled sweep onto the
+            # same new (tenant, principal, signature). Flushed here so that
+            # collision fails on its own row rather than rolling back every
+            # candidate the rest of that mining pass already found.
+            await self._session.flush()
+        except IntegrityError as clash:
+            await self._session.rollback()
+            raise Conflict(f"a candidate already exists for {candidate.signature!r}") from clash
 
     async def get(self, tenant_id: TenantId, candidate_id: CandidateId) -> TaskCandidate:
         return row_to_candidate(await self._row(tenant_id, candidate_id))

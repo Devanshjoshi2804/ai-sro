@@ -32,14 +32,16 @@ from sro.application.induction.understand import UnderstandRecording
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.domain.observation.candidate import Episode, TaskCandidate
+from sro.domain.observation.candidate import CandidateStatus, Episode, TaskCandidate
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import CandidateId, RecordingId, SkillId
 
 
 class NothingToTeach(DomainError):
-    """The evidence for this candidate is gone or was never enough."""
+    """The evidence for this candidate is gone or was never enough -- or the
+    decision about it was already made, by this same request racing itself
+    or by whoever clicked before this click landed."""
 
     code = "nothing_to_teach"
 
@@ -71,6 +73,14 @@ class TeachCandidate:
     async def execute(self, ctx: RequestContext, *, candidate_id: CandidateId) -> Taught:
         async with self._uow as uow:
             candidate = await uow.candidates.get(ctx.tenant_id, candidate_id)
+
+        if candidate.status is not CandidateStatus.NEW:
+            # Checked before gathering evidence and running induction, not
+            # only at the domain object's own guard at the end of this: a
+            # stale tab's retried teach, or a second operator's click after
+            # the first's, should not cost a full induction pass just to be
+            # refused by it.
+            raise NothingToTeach(f"this candidate is already {candidate.status}")
 
         episode = _best(candidate)
         if episode is None:
@@ -253,12 +263,18 @@ def _inside(at: datetime, episode: Episode) -> bool:
 
 def _at(raw: object) -> datetime | None:
     """The recorder's float seconds, or the ISO string everything else uses.
-    Same two rules segmentation applies, because it read the same lines."""
+    Same two rules segmentation applies, because it read the same lines --
+    including that an offset-less string is malformed, not naive: comparing
+    it against `episode.started_at` in `_inside()` below would raise rather
+    than answer, and this candidate's evidence would 500 instead of asking
+    for one more demonstration the way thin evidence otherwise always does.
+    """
     if isinstance(raw, int | float) and not isinstance(raw, bool):
         return epoch_to_datetime(float(raw))
     if isinstance(raw, str):
         try:
-            return datetime.fromisoformat(raw)
+            parsed = datetime.fromisoformat(raw)
         except ValueError:
             return None
+        return parsed if parsed.tzinfo is not None else None
     return None

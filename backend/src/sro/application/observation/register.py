@@ -10,6 +10,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId
 
 
@@ -67,8 +68,18 @@ class RegisterDevice:
                 registered_at=now,
                 last_seen_at=now,
             )
-            await uow.devices.add(device)
-            await uow.commit()
+            try:
+                await uow.devices.add(device)
+                await uow.commit()
+            except Conflict:
+                # Two registrations for the same (tenant, principal, label)
+                # raced. Idempotent means the loser comes back as the winner,
+                # not as a 409 an extension that only ever registers once has
+                # no reason to expect or retry.
+                won = await uow.devices.registered_as(ctx.tenant_id, ctx.principal_id, label)
+                if won is None:
+                    raise
+                return Registered(device_id=won.id, policy=policy)
         return Registered(device_id=device.id, policy=policy)
 
 

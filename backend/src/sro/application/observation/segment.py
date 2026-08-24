@@ -201,12 +201,22 @@ def _seconds(raw: object) -> datetime | None:
 
 
 def _iso(raw: object) -> datetime | None:
+    """A protocol timestamp, or ``None`` for one that is not.
+
+    ``fromisoformat`` parses an offset-less string too, silently returning a
+    naive datetime -- and a naive one sorted against a gesture's always-aware,
+    epoch-derived one raises `TypeError` rather than comparing. The protocol
+    requires an offset; a string without one is exactly as malformed as one
+    that fails to parse at all, and this file already skips those rather than
+    crashing a whole sweep over one line an old extension build sent wrong.
+    """
     if not isinstance(raw, str):
         return None
     try:
-        return datetime.fromisoformat(raw)
+        parsed = datetime.fromisoformat(raw)
     except ValueError:
         return None
+    return parsed if parsed.tzinfo is not None else None
 
 
 def _host(url: str) -> str:

@@ -65,6 +65,12 @@ class DeleteTrigger:
             # the same "not found" as one that never existed, and a blind
             # DELETE would answer 200 either way.
             trigger = await uow.triggers.get(ctx.tenant_id, trigger_id)
-            await self._scheduler.unschedule(trigger.id)
+            # Only a schedule kind was ever registered with the scheduler --
+            # the same gate SetTriggerEnabled applies. Without it, deleting a
+            # manual or inbound trigger, which never depended on it, could
+            # not be done during exactly the outage the rest of this system
+            # goes out of its way to tolerate.
+            if trigger.kind is TriggerKind.SCHEDULE:
+                await self._scheduler.unschedule(trigger.id)
             await uow.triggers.remove(ctx.tenant_id, trigger.id)
             await uow.commit()

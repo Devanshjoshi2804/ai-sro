@@ -9,9 +9,13 @@ for having come from a file instead of a click.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
+from sro.application.capture.events import InputEvent
 from sro.application.context import RequestContext
-from sro.application.induction.seed_from_flow import SeedSkillFromFlow
+from sro.application.induction.seed_from_flow import SeedSkillFromFlow, flow_to_events
 from sro.application.induction.understand import UnderstandRecording
+from sro.domain.recording.events import ActionKind
 from sro.domain.skill.parameter import ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.infrastructure.gemini.null_interpreter import NoInterpreter
@@ -117,3 +121,41 @@ async def test_a_read_only_dashboard_flow_is_skipped_not_crashed() -> None:
     assert seeded.skill_id is None
     assert seeded.skipped == "this flow has no calls"
     assert uow.skills.rows == {}
+
+
+async def test_a_value_that_is_only_a_substring_elsewhere_is_not_misattributed() -> None:
+    # Real collision in the recorded corpus: an unrelated read carries the
+    # applied value as part of a longer query string it shares with every
+    # other call in the file. A raw substring search used to let that read
+    # claim the parameter before the call that actually sends it.
+    flow = {
+        "spec": "clientsDuplicate",
+        "resource": "clients",
+        "applied": {"clientId": "CL1"},
+        "calls": [
+            {
+                "endpoint": "wm/warehouses",
+                "request": {
+                    "method": "GET",
+                    "url": "https://wms.test/api/warehouses?subsites=SPECIAL-CL1-TEST",
+                },
+                "response": {"status": 200},
+            },
+            {
+                "endpoint": "wm/clients",
+                "request": {
+                    "method": "POST",
+                    "url": "https://wms.test/api/clients",
+                    "body": '{"clientId": "CL1"}',
+                },
+                "response": {"status": 201},
+            },
+        ],
+    }
+
+    events = flow_to_events(flow, base_time=datetime(2026, 3, 1, tzinfo=UTC))
+    inputs = [event for event in events if isinstance(event, InputEvent)]
+
+    assert inputs[0].action.kind is ActionKind.NAVIGATE
+    assert inputs[1].action.kind is ActionKind.TYPE
+    assert inputs[1].action.value == "CL1"

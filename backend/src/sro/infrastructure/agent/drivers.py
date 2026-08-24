@@ -182,10 +182,27 @@ def _outcome(answer: Answer) -> UiOutcome:
     matched = answer.result.get("matched_by")
     return UiOutcome(
         performed=bool(answer.result.get("performed")),
-        matched_by=LocatorStrategy(str(matched)) if matched else None,
+        matched_by=_locator(matched),
         candidates=_int(answer.result.get("candidates")),
         detail=str(answer.result["detail"]) if answer.result.get("detail") else None,
     )
+
+
+def _locator(value: object) -> LocatorStrategy | None:
+    """Which of the five known strategies matched, or none.
+
+    An operator's extension is a different build than this deployment's own
+    code, unlike the local Playwright driver which only ever produces a
+    strategy it constructed itself -- version drift here is a fact about the
+    reply, not a reason a whole run's outcome should raise instead of just
+    losing this one diagnostic field.
+    """
+    if not value:
+        return None
+    try:
+        return LocatorStrategy(str(value))
+    except ValueError:
+        return None
 
 
 def _int(value: object) -> int:

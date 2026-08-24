@@ -16,7 +16,7 @@ from sro.application.ports.dispatch import DispatchFailed, RunDispatcher
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
-from sro.application.ports.system import Clock
+from sro.application.ports.system import Clock, IdFactory
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import TriggerId
 from sro.domain.trigger.trigger import Trigger
@@ -48,12 +48,14 @@ class FireTrigger:
         clock: Clock,
         durable: DurableExecution,
         *,
+        ids: IdFactory,
         dispatcher: RunDispatcher | None = None,
         scheduler: Scheduler | None = None,
     ) -> None:
         self._uow = uow
         self._clock = clock
         self._durable = durable
+        self._ids = ids
         self._dispatcher = dispatcher
         self._scheduler = scheduler
 
@@ -102,15 +104,23 @@ class FireTrigger:
 
     async def _start(self, ctx: RequestContext, trigger: Trigger, *, version: int) -> RunId:
         if trigger.device_id is None:
-            return await self._durable.execute_skill(
+            # Named before it starts, the same reason the console does this --
+            # `wait=False` alone is not fire-and-forget: the durable adapter's
+            # fast path only takes it once a run id is already there to
+            # return, and without one every fire blocked a worker activity
+            # slot for the run's full duration regardless of the flag.
+            run_id = self._ids.new_run_id()
+            await self._durable.execute_skill(
                 ctx,
                 skill_id=trigger.skill_id,
                 parameters=dict(trigger.parameters),
                 version=version,
                 authorized_by=trigger.authorized_by.value if trigger.authorized_by else None,
                 medium=trigger.medium.value,
+                run_id=run_id,
                 wait=False,
             )
+            return run_id
 
         # The channel to that browser is held by whichever process the
         # extension connected to, and this is not that process.

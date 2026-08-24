@@ -137,11 +137,22 @@ class TaskCandidate:
     def dismiss(self, reason: str) -> None:
         """Not worth automating, said by a person. Kept rather than deleted, so
         the miner does not offer it again next week."""
+        self._require_new("dismissed")
         if not reason.strip():
             raise InvariantViolation("a dismissal with no reason will be second-guessed")
         self.status = CandidateStatus.DISMISSED
         self.dismissed_reason = reason
 
     def taught(self, skill_id: SkillId) -> None:
+        self._require_new("taught")
         self.status = CandidateStatus.TAUGHT
         self.skill_id = skill_id
+
+    def _require_new(self, verb: str) -> None:
+        """Both transitions are one-way and terminal. Without this, a stale
+        tab's retried teach after a dismissal -- or a second operator's click
+        after the first's -- silently overwrites the decision already made:
+        a rejected task becomes a skill, or an existing skill's id is replaced
+        and every trigger still pointing at it is orphaned."""
+        if self.status is not CandidateStatus.NEW:
+            raise InvariantViolation(f"a {self.status} candidate cannot be {verb}")

@@ -14,6 +14,7 @@ an answer, not a run id to go poll.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from contextvars import ContextVar
 from typing import Any
 
@@ -113,16 +114,20 @@ class SkillToolServer(MCPServer[None]):
         self,
         *,
         credentials: Credentials,
-        list_skills: ListSkills,
-        get_skill: GetSkill,
+        list_skills: Callable[[], ListSkills],
+        get_skill: Callable[[], GetSkill],
         durable: DurableExecution,
-        get_run: GetRun,
+        get_run: Callable[[], GetRun],
     ) -> None:
         super().__init__(
             name="ai-sro",
             instructions="One tool per skill this tenant has taught and promoted past `recorded`.",
             middleware=[_authenticator(credentials)],
         )
+        # Factories, not instances: this server is built once for the whole
+        # process, but a `UnitOfWork` is not -- built once and shared, two
+        # concurrent requests would fight over the same session the way a
+        # fresh-per-request router call never does.
         self._list_skills = list_skills
         self._get_skill = get_skill
         self._durable = durable
@@ -130,7 +135,7 @@ class SkillToolServer(MCPServer[None]):
 
     async def list_tools(self) -> list[Tool]:
         ctx = _require_context()
-        skills = await self._list_skills.execute(ctx)
+        skills = await self._list_skills().execute(ctx)
         return [tool for skill in skills if (tool := _tool_for(skill)) is not None]
 
     async def call_tool(
@@ -138,7 +143,7 @@ class SkillToolServer(MCPServer[None]):
     ) -> CallToolResult:
         ctx = _require_context()
         skill_id = SkillId(name)
-        skill = await self._get_skill.execute(ctx, skill_id=skill_id)
+        skill = await self._get_skill().execute(ctx, skill_id=skill_id)
         version = skill.runnable
         if version is None:
             return CallToolResult(
@@ -166,5 +171,5 @@ class SkillToolServer(MCPServer[None]):
         except NotRunnable as exc:
             return CallToolResult(content=[TextContent(type="text", text=str(exc))], is_error=True)
 
-        run = await self._get_run.execute(ctx, run_id=run_id)
+        run = await self._get_run().execute(ctx, run_id=run_id)
         return CallToolResult(content=[TextContent(type="text", text=_summarise(run))])

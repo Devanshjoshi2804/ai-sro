@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+from sro.application.observation.artifacts import artifact_prefixes
 from sro.application.observation.forget import Forgotten
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
@@ -56,4 +57,6 @@ class SweepRetention:
 
         for batch in doomed:
             await self._blobs.forget(batch.uri)
+            for prefix in artifact_prefixes(batch):
+                await self._blobs.forget_prefix(prefix)
         return Forgotten(batches=len(doomed), events=sum(batch.event_count for batch in doomed))

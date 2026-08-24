@@ -158,11 +158,29 @@ async def test_firing_starts_the_run_durably_and_records_which_one() -> None:
     )
     durable = FakeDurableExecution()
 
-    fired = await FireTrigger(uow, FakeClock(), durable).execute(trigger.id)
+    fired = await FireTrigger(uow, FakeClock(), durable, ids=FakeIdFactory()).execute(trigger.id)
 
     assert fired.run_id is not None
     assert fired.skipped is None
     assert uow.triggers.rows[trigger.id.value].last_run_id == fired.run_id
+
+
+async def test_a_network_fire_does_not_block_on_the_run_finishing() -> None:
+    # wait=False alone is not fire-and-forget: the durable adapter's
+    # fast-return path only takes it once a run id is already there to
+    # hand back, so a fire without one blocked a worker slot regardless
+    # of the flag.
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False)
+    trigger = await _create(uow, scheduler).execute(
+        CTX, NewTrigger(skill_id=skill_id, cron=EVERY_WEEKDAY, parameters={"shipment_id": "1"})
+    )
+    durable = FakeDurableExecution()
+
+    fired = await FireTrigger(uow, FakeClock(), durable, ids=FakeIdFactory()).execute(trigger.id)
+
+    assert durable.waited == [False]
+    assert fired.run_id is not None
 
 
 async def test_a_trigger_bound_to_a_browser_is_asked_for_where_that_browser_is() -> None:
@@ -181,7 +199,9 @@ async def test_a_trigger_bound_to_a_browser_is_asked_for_where_that_browser_is()
     )
     durable = FakeDurableExecution()
 
-    fired = await FireTrigger(uow, FakeClock(), durable, dispatcher=dispatcher).execute(trigger.id)
+    fired = await FireTrigger(
+        uow, FakeClock(), durable, ids=FakeIdFactory(), dispatcher=dispatcher
+    ).execute(trigger.id)
 
     assert dispatcher.asked == [(skill_id.value, "dev-1")]
     assert fired.run_id is not None
@@ -202,7 +222,7 @@ async def test_a_closed_laptop_is_skipped_rather_than_disabling_the_trigger() ->
     )
 
     fired = await FireTrigger(
-        uow, FakeClock(), FakeDurableExecution(), dispatcher=dispatcher
+        uow, FakeClock(), FakeDurableExecution(), ids=FakeIdFactory(), dispatcher=dispatcher
     ).execute(trigger.id)
 
     assert fired.run_id is None
@@ -226,7 +246,9 @@ async def test_a_skill_re_induced_into_something_that_writes_stops_its_trigger()
     skill.add_version(writing)
     writing.promote(PromotionStage.SHADOW, f.at(900), f.OPERATOR)
 
-    fired = await FireTrigger(uow, FakeClock(), FakeDurableExecution()).execute(trigger.id)
+    fired = await FireTrigger(
+        uow, FakeClock(), FakeDurableExecution(), ids=FakeIdFactory()
+    ).execute(trigger.id)
 
     assert fired.run_id is None
     assert uow.triggers.rows[trigger.id.value].enabled is False
@@ -238,7 +260,7 @@ async def test_a_schedule_that_outlived_its_trigger_removes_itself() -> None:
     scheduler.scheduled["trg-gone"] = EVERY_WEEKDAY
 
     fired = await FireTrigger(
-        uow, FakeClock(), FakeDurableExecution(), scheduler=scheduler
+        uow, FakeClock(), FakeDurableExecution(), ids=FakeIdFactory(), scheduler=scheduler
     ).execute(TriggerId("trg-gone"))
 
     assert fired.skipped == "no such trigger"
@@ -284,6 +306,23 @@ async def test_deleting_another_tenants_trigger_is_not_found_rather_than_done() 
     assert "trg-theirs" in uow.triggers.rows
 
 
+async def test_deleting_an_inbound_trigger_never_asks_the_scheduler() -> None:
+    # It was never registered with Temporal in the first place -- an outage
+    # there must not be able to block deleting something that never depended
+    # on it, the same gate SetTriggerEnabled already applies.
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False)
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(skill_id=skill_id, kind=TriggerKind.INBOUND, parameters={"shipment_id": "1"}),
+    )
+
+    await DeleteTrigger(uow, scheduler).execute(CTX, trigger_id=trigger.id)
+
+    assert scheduler.unschedule_calls == []
+    assert trigger.id.value not in uow.triggers.rows
+
+
 async def test_an_inbound_trigger_is_minted_with_its_own_token() -> None:
     uow, scheduler = FakeUnitOfWork(), FakeScheduler()
     skill_id = await _skill(uow, writes=False)
@@ -298,6 +337,44 @@ async def test_an_inbound_trigger_is_minted_with_its_own_token() -> None:
     assert scheduler.scheduled == {}
 
 
+async def test_an_inbound_write_has_nowhere_to_ask_so_it_says_so() -> None:
+    # The same gap a scheduled write has: nobody is there when the message
+    # arrives, so auto_approve, a named person, or waiting are the only honest
+    # options -- exactly like a schedule, and unlike a manual "fire now".
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=True)
+
+    with pytest.raises(TriggerRefused, match="confirmation"):
+        await _create(uow, scheduler).execute(
+            CTX,
+            NewTrigger(
+                skill_id=skill_id,
+                kind=TriggerKind.INBOUND,
+                parameters={"shipment_id": "1"},
+                authorized_by=True,
+            ),
+        )
+
+
+async def test_auto_approve_lets_an_inbound_write_through() -> None:
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=True)
+
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(
+            skill_id=skill_id,
+            kind=TriggerKind.INBOUND,
+            parameters={"shipment_id": "1"},
+            authorized_by=True,
+            auto_approve=True,
+        ),
+    )
+
+    assert trigger.auto_approves is True
+    assert trigger.inbound_token is not None
+
+
 async def test_receiving_an_inbound_message_with_the_right_token_fires_it() -> None:
     uow, scheduler = FakeUnitOfWork(), FakeScheduler()
     skill_id = await _skill(uow, writes=False)
@@ -306,7 +383,7 @@ async def test_receiving_an_inbound_message_with_the_right_token_fires_it() -> N
         NewTrigger(skill_id=skill_id, kind=TriggerKind.INBOUND, parameters={"shipment_id": "1"}),
     )
     assert trigger.inbound_token is not None
-    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution())
+    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution(), ids=FakeIdFactory())
 
     fired = await ReceiveInbound(uow, fire).execute(trigger.id, token=trigger.inbound_token)
 
@@ -320,7 +397,7 @@ async def test_receiving_an_inbound_message_with_the_wrong_token_is_refused() ->
         CTX,
         NewTrigger(skill_id=skill_id, kind=TriggerKind.INBOUND, parameters={"shipment_id": "1"}),
     )
-    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution())
+    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution(), ids=FakeIdFactory())
 
     with pytest.raises(InboundRefused):
         await ReceiveInbound(uow, fire).execute(trigger.id, token="not-the-token")  # noqa: S106
@@ -332,7 +409,24 @@ async def test_receiving_for_a_trigger_that_is_not_inbound_is_refused() -> None:
     trigger = await _create(uow, scheduler).execute(
         CTX, NewTrigger(skill_id=skill_id, cron=EVERY_WEEKDAY, parameters={"shipment_id": "1"})
     )
-    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution())
+    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution(), ids=FakeIdFactory())
 
     with pytest.raises(InboundRefused):
         await ReceiveInbound(uow, fire).execute(trigger.id, token="anything")  # noqa: S106
+
+
+async def test_a_non_ascii_token_is_refused_not_a_crash() -> None:
+    # hmac.compare_digest raises TypeError on a non-ASCII str, and Starlette
+    # decodes every header through latin-1 -- any byte >= 0x80 becomes one.
+    # A crash here would answer 500 instead of 404, telling an unauthenticated
+    # caller its id was real when a wrong token alone would have said nothing.
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False)
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(skill_id=skill_id, kind=TriggerKind.INBOUND, parameters={"shipment_id": "1"}),
+    )
+    fire = FireTrigger(uow, FakeClock(), FakeDurableExecution(), ids=FakeIdFactory())
+
+    with pytest.raises(InboundRefused):
+        await ReceiveInbound(uow, fire).execute(trigger.id, token="caf\xe9")  # noqa: S106

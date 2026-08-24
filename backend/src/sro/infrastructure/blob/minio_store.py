@@ -13,6 +13,7 @@ from typing import Any
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 from sro.application.ports.blob import BlobStore
 
@@ -78,7 +79,38 @@ class MinioBlobStore(BlobStore):
             self._client.delete_object, Bucket=self._bucket, Key=uri[len(prefix) :]
         )
 
+    async def forget_prefix(self, prefix: str) -> None:
+        keys = await asyncio.to_thread(self._list_keys, prefix)
+        # S3's batch delete takes at most 1000 keys per call.
+        for start in range(0, len(keys), 1000):
+            chunk = keys[start : start + 1000]
+            await asyncio.to_thread(
+                self._client.delete_objects,
+                Bucket=self._bucket,
+                Delete={"Objects": [{"Key": key} for key in chunk]},
+            )
+
+    def _list_keys(self, prefix: str) -> list[str]:
+        paginator = self._client.get_paginator("list_objects_v2")
+        return [
+            entry["Key"]
+            for page in paginator.paginate(Bucket=self._bucket, Prefix=prefix)
+            for entry in page.get("Contents", [])
+        ]
+
     async def get(self, key: str) -> bytes:
-        response = await asyncio.to_thread(self._client.get_object, Bucket=self._bucket, Key=key)
+        try:
+            response = await asyncio.to_thread(
+                self._client.get_object, Bucket=self._bucket, Key=key
+            )
+        except ClientError as missing:
+            # The port's contract for "not there" is `KeyError` -- the fake
+            # raises it because that is what a dict does, and every caller
+            # (the miner, a teach reading a batch that aged out mid-sweep) is
+            # written against that, not against botocore's own exception.
+            code = missing.response.get("Error", {}).get("Code")
+            if code in ("NoSuchKey", "404"):
+                raise KeyError(key) from missing
+            raise
         body: bytes = response["Body"].read()
         return body

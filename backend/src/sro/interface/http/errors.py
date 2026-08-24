@@ -20,6 +20,7 @@ from sro.application.induction.errors import InductionFailed
 from sro.application.observation.ingest import ObservationRefused
 from sro.application.observation.teach import NothingToTeach
 from sro.application.ports.browser import BrowserUnavailable
+from sro.application.ports.schedule import SchedulerUnavailable
 from sro.application.ports.sign_in import SignInFailed
 from sro.application.ports.token import TokenRefused
 from sro.application.ports.vault import VaultUnavailable
@@ -40,6 +41,7 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     InductionFailed: status.HTTP_422_UNPROCESSABLE_CONTENT,
     BrowserUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     VaultUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    SchedulerUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     NotAuthenticated: status.HTTP_409_CONFLICT,
     Refused: status.HTTP_409_CONFLICT,
     # The durable path re-raises every refusal as NotRunnable, so without this
@@ -168,6 +170,7 @@ def install_error_handlers(app: FastAPI) -> None:
         InductionFailed,
         BrowserUnavailable,
         VaultUnavailable,
+        SchedulerUnavailable,
         NotAuthenticated,
         # Not a DomainError, so it needs saying: without this a failed login is
         # a 500 and the operator is told nothing they can act on.

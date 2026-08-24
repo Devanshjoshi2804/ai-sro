@@ -186,10 +186,14 @@ def _flows(root: Path, system: str) -> Iterator[Claim]:
     order", with a pointer at the file for whoever needs the rest.
 
     Only the full-cascade shape (``calls`` of real request/response pairs) is
-    read here. A second, terser shape also lives under this directory --
-    ``phases`` of one-line ``METHOD path -> status`` strings, no real bodies --
-    and has nothing this claim could replay or cite precisely; it is skipped
-    rather than half-represented.
+    read here. Two other shapes also live under this directory -- ``phases``
+    of one-line ``METHOD path -> status`` strings, and a flat read-only-
+    dashboard shape with a top-level method/url and no nested request or
+    response at all -- and neither has anything this claim could replay or
+    cite precisely. Both are skipped rather than half-represented: a call
+    missing the nested shape used to leave method/status silently null
+    instead of raising anything, so a flow with real writes was cited here
+    as having none.
     """
     flows_dir = root / "http" / "flows"
     if not flows_dir.is_dir():
@@ -202,7 +206,9 @@ def _flows(root: Path, system: str) -> Iterator[Claim]:
         spec = document.get("spec") or path.stem
         resource = document.get("resource") or spec
         calls = document.get("calls") or []
-        if not calls:
+        if not calls or not all(
+            isinstance(call.get("request"), dict) and call["request"].get("url") for call in calls
+        ):
             continue
         steps = [
             {

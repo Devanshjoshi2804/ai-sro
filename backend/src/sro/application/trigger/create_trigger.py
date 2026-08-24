@@ -78,12 +78,15 @@ class CreateTrigger:
                 raise TriggerRefused(
                     "this skill changes the system, so a trigger for it must be authorised"
                 )
-            if writes and request.kind is TriggerKind.SCHEDULE and not request.auto_approve:
+            if writes and request.kind is not TriggerKind.MANUAL and not request.auto_approve:
                 # The confirmation queue -- a fire becoming a card somebody
                 # presses -- does not exist yet. Until it does, the honest
                 # options are auto-approve, chosen by a named person, or wait.
+                # A manual trigger is exempt: the click that fires it is the
+                # confirmation. A schedule and an inbound message both fire
+                # with nobody there to ask, which is exactly the same gap.
                 raise TriggerRefused(
-                    "a scheduled write has nowhere to ask for confirmation yet: "
+                    f"a {request.kind} write has nowhere to ask for confirmation yet: "
                     "either set auto_approve, or start this one by hand"
                 )
 

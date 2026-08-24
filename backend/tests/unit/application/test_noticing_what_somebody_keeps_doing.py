@@ -77,6 +77,30 @@ def test_a_pause_ends_a_piece_of_work_because_the_person_went_elsewhere() -> Non
     assert found[0].signature == found[1].signature
 
 
+def test_a_request_timestamp_missing_its_offset_is_skipped_not_crashed() -> None:
+    # The protocol requires an offset; datetime.fromisoformat parses one
+    # without it anyway, silently naive -- sorted() against a gesture's
+    # always-aware, epoch-derived timestamp used to raise straight through it.
+    events = [
+        _gesture(START),
+        {
+            "kind": "request",
+            "request": {
+                "request_id": "r1",
+                "method": "GET",
+                "url": f"{WMS}/api/suppliers",
+                "resource_type": "xhr",
+                "started_at": "2026-03-01T09:00:01",
+                "status": 200,
+            },
+        },
+    ]
+
+    found = segment(read(_payload(events), BatchId("bat-1")))
+
+    assert found == ()
+
+
 def test_two_doings_of_one_task_have_the_same_signature_despite_different_records() -> None:
     # /api/suppliers/S1 and /api/suppliers/S2 are the same step. Which record it
     # was is what induction exists to find; here it would only stop the two

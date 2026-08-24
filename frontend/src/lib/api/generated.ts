@@ -123,6 +123,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inbound/{trigger_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive Inbound */
+        post: operations["receive_inbound_v1_inbound__trigger_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/analytics/summary": {
         parameters: {
             query?: never;
@@ -1668,6 +1685,12 @@ export interface components {
             /** Frame Index */
             frame_index: number | null;
         };
+        /**
+         * Medium
+         * @description Which rung of the ladder performed a step.
+         * @enum {string}
+         */
+        Medium: "network" | "ui" | "vision";
         /** MessageModel */
         MessageModel: {
             /** Id */
@@ -1722,11 +1745,8 @@ export interface components {
         NewTriggerRequest: {
             /** Skill Id */
             skill_id: string;
-            /**
-             * Kind
-             * @default schedule
-             */
-            kind: string;
+            /** @default schedule */
+            kind: components["schemas"]["TriggerKind"];
             /** Cron */
             cron?: string | null;
             /**
@@ -1740,11 +1760,8 @@ export interface components {
             };
             /** Device Id */
             device_id?: string | null;
-            /**
-             * Medium
-             * @default network
-             */
-            medium: string;
+            /** @default network */
+            medium: components["schemas"]["Medium"];
             /**
              * Authorized By
              * @default false
@@ -2562,6 +2579,11 @@ export interface components {
             /** Failed Runs */
             failed_runs: number;
         };
+        /**
+         * TriggerKind
+         * @enum {string}
+         */
+        TriggerKind: "manual" | "schedule" | "inbound";
         /** TriggerModel */
         TriggerModel: {
             /** Id */
@@ -2605,6 +2627,8 @@ export interface components {
             last_run_id: string | null;
             /** Disabled Reason */
             disabled_reason: string | null;
+            /** Inbound Token */
+            inbound_token: string | null;
         };
         /** UiPlanModel */
         UiPlanModel: {
@@ -3093,6 +3117,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservationPolicyModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    receive_inbound_v1_inbound__trigger_id__post: {
+        parameters: {
+            query?: never;
+            header: {
+                "x-inbound-token": string;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiredModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

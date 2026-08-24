@@ -94,6 +94,16 @@ class ReadSummary:
             candidates = await uow.candidates.list_for_tenant(ctx.tenant_id)
             runs = await uow.runs.since(ctx.tenant_id, since=since)
 
+        # list_for_tenant has no window of its own -- it is every candidate this
+        # tenant has ever had, dismissed or not. Without this, the day-range
+        # control on the screen would change everything except what it looks
+        # most like it should change.
+        candidates = tuple(
+            candidate
+            for candidate in candidates
+            if candidate.last_seen is None or candidate.last_seen >= since
+        )
+
         by_skill = _runs_by_skill(runs)
         lines = tuple(
             sorted(

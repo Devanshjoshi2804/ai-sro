@@ -38,3 +38,14 @@ class BlobStore(Protocol):
         A URI from somewhere else is left alone rather than guessed at.
         """
         ...
+
+    async def forget_prefix(self, prefix: str) -> None:
+        """Delete everything stored under a key prefix. Idempotent, like
+        ``forget``.
+
+        A batch's screenshots have no row of their own to hold a URI --
+        `StoreObservationArtifact` keys them by tenant/principal/day/batch
+        instead, exactly so a purge can find every frame of one batch without
+        having recorded each one. This is the other half of that trade.
+        """
+        ...

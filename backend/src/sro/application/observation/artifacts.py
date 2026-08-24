@@ -9,6 +9,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
+from sro.domain.observation.batch import ObservationBatch
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import BatchId, DeviceId
@@ -24,6 +25,21 @@ demonstration somebody started. An observation stream has no narration."""
 class Stored:
     uri: str
     size_bytes: int
+
+
+def artifact_prefixes(batch: ObservationBatch) -> tuple[str, ...]:
+    """Every key prefix a purge of this batch's artifacts has to sweep.
+
+    Usually one: an artifact is dated by the day it was uploaded, which is
+    almost always the day the batch it illustrates covers. A batch spanning
+    midnight gets both days rather than risk leaving one behind -- the same
+    key shape `execute()` below writes, read back rather than re-derived a
+    second way.
+    """
+    days = {batch.started_at.date(), batch.ended_at.date()}
+    return tuple(
+        f"{batch.tenant_id}/{batch.principal_id}/{day.isoformat()}/{batch.id}/" for day in days
+    )
 
 
 class StoreObservationArtifact:

@@ -23,6 +23,7 @@ from sro.domain.observation.batch import CaptureMode, ObservationBatch
 from sro.domain.observation.candidate import Episode, TaskCandidate
 from sro.domain.shared.identifiers import BatchId, CandidateId, DeviceId, SkillId
 from sro.domain.skill.promotion import PromotionStage
+from sro.interface.http.schemas import SummaryModel
 from tests import factories as f
 from tests.unit.fakes import FakeUnitOfWork
 
@@ -174,3 +175,48 @@ async def test_a_task_nobody_taught_shows_what_it_is_still_costing() -> None:
     assert line.times_seen == 3
     assert line.minutes_spent == 6.0
     assert line.minutes_saved == 0.0
+
+
+async def test_a_candidate_last_seen_before_the_window_is_not_counted() -> None:
+    # list_for_tenant has no window of its own; the summary has to apply one,
+    # or the day-range control on the screen changes nothing it looks like it
+    # should change.
+    uow = FakeUnitOfWork()
+    stale_time = WEEK - timedelta(days=1)
+    await uow.candidates.add(
+        TaskCandidate(
+            id=CandidateId("cnd-stale"),
+            tenant_id=f.TENANT,
+            principal_id=f.OPERATOR,
+            signature="GET api/old",
+            host="wms.test",
+            title="Read old on wms.test",
+            episodes=(
+                Episode(
+                    started_at=stale_time,
+                    ended_at=stale_time + timedelta(seconds=60),
+                    host="wms.test",
+                    batch_ids=(BatchId("bat-old"),),
+                    gestures=1,
+                    calls=1,
+                ),
+            ),
+        )
+    )
+
+    summary = await ReadSummary(uow).execute(CTX, since=WEEK)
+
+    assert summary.noticing.tasks == 0
+    assert summary.tasks == ()
+
+
+async def test_the_summary_serialises_to_the_wire_without_crashing() -> None:
+    # SummaryModel.of() used to call vars() on frozen, slotted dataclasses,
+    # which have no __dict__ -- every request to the endpoint 500ed.
+    uow = await _seeded(runs=2)
+
+    summary = await ReadSummary(uow).execute(CTX, since=WEEK)
+    model = SummaryModel.of(summary)
+
+    assert model.doing.runs == 2
+    assert model.tasks[0].runs == 2

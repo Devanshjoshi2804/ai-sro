@@ -7,9 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from sro.application.trigger.create_trigger import NewTrigger
-from sro.domain.execution.run import Medium
 from sro.domain.shared.identifiers import DeviceId, SkillId, TriggerId
-from sro.domain.trigger.trigger import TriggerKind
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     ChangeTriggerRequest,
@@ -35,12 +33,12 @@ async def create_trigger(
         ctx,
         NewTrigger(
             skill_id=SkillId(body.skill_id),
-            kind=TriggerKind(body.kind),
+            kind=body.kind,
             cron=body.cron,
             timezone=body.timezone,
             parameters=body.parameters,
             device_id=DeviceId(body.device_id) if body.device_id else None,
-            medium=Medium(body.medium),
+            medium=body.medium,
             authorized_by=body.authorized_by,
             auto_approve=body.auto_approve,
             may_take_focus=body.may_take_focus,

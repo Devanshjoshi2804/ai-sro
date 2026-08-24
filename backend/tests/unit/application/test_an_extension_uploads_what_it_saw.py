@@ -13,7 +13,9 @@ from sro.application.observation.policy import SetObservationPolicy
 from sro.application.observation.register import RecordHeartbeat, RegisterDevice
 from sro.application.observation.retain import SweepRetention
 from sro.domain.observation.batch import CaptureMode
+from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
 from tests.unit.fakes import FakeBlobStore, FakeClock, FakeIdFactory, FakeUnitOfWork
 
@@ -52,6 +54,44 @@ async def test_a_reinstalled_extension_comes_back_as_the_device_it_was() -> None
     assert again.device_id == first.device_id
     assert len(uow.devices.rows) == 1
     assert uow.devices.rows[first.device_id.value].extension_version == "0.2.0"
+
+
+async def test_two_registrations_racing_the_same_label_both_come_back_as_one_device() -> None:
+    # Both saw no existing row and both tried to add(); the real repository
+    # turns the loser's IntegrityError into Conflict, and this is what the
+    # "idempotent" docstring promises happens next -- not a 500.
+    uow = FakeUnitOfWork()
+    winner = AgentDevice(
+        id=DeviceId("dev-winner"),
+        tenant_id=TenantId("acme"),
+        principal_id=PrincipalId("devansh"),
+        label="laptop",
+        extension_version="0.1.0",
+        registered_at=datetime(2026, 3, 1, tzinfo=UTC),
+        last_seen_at=datetime(2026, 3, 1, tzinfo=UTC),
+    )
+    uow.devices = _RacyDevices(uow.devices, winner)  # type: ignore[assignment]
+
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ACME, label="laptop", extension_version="0.2.0"
+    )
+
+    assert registered.device_id == winner.id
+
+
+class _RacyDevices:
+    """The other request's write already landed by the time this one flushes."""
+
+    def __init__(self, real: object, winner: AgentDevice) -> None:
+        self._real = real
+        self._winner = winner
+
+    async def add(self, device: AgentDevice) -> None:
+        await self._real.add(self._winner)  # type: ignore[attr-defined]
+        raise Conflict(f"a device is already registered as {device.label!r}")
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._real, name)
 
 
 async def test_registering_answers_with_a_policy_that_captures_nothing_by_default() -> None:
@@ -173,6 +213,9 @@ async def test_an_operator_purging_their_own_hour_does_not_touch_a_colleagues() 
     theirs = await _register(uow, OTHER, label="priya-laptop")
     await _ingest(uow, blobs, mine, batch_id="bat_mine")
     await _ingest(uow, blobs, theirs, ctx=OTHER, batch_id="bat_theirs")
+    await blobs.put(
+        "acme/devansh/2026-03-01/bat_mine/screenshot/00001.png", b"x", content_type="image/png"
+    )
 
     forgotten = await ForgetObservations(uow, blobs, FakeClock()).execute(
         ACME, since=datetime(2026, 3, 1, 0, 0, tzinfo=UTC)
@@ -198,6 +241,27 @@ async def test_a_sweep_removes_evidence_past_its_own_tenants_window() -> None:
 
     assert forgotten["acme"].batches == 1
     assert uow.observations.rows == {}
+
+
+async def test_a_sweep_also_removes_the_batchs_screenshots() -> None:
+    # StoreObservationArtifact keys a screenshot by tenant/principal/day/batch
+    # with no row of its own -- this is the only way a purge finds it.
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    await SetObservationPolicy(uow).execute(
+        ACME, policy=ObservationPolicy(retention_days=1).enabled()
+    )
+    device_id = await _register(uow, ACME)
+    await _ingest(uow, blobs, device_id)
+    await blobs.put(
+        "acme/devansh/2026-03-01/bat_one/screenshot/00001.png", b"x", content_type="image/png"
+    )
+
+    forgotten = await SweepRetention(
+        uow, blobs, FakeClock(datetime(2026, 3, 5, 9, 0, tzinfo=UTC))
+    ).execute()
+
+    assert forgotten["acme"].batches == 1
+    assert [key for key in blobs.objects if "bat_one" in key] == []
 
 
 async def test_a_sweep_leaves_evidence_still_inside_the_window() -> None:

@@ -256,6 +256,10 @@ class FakeBlobStore:
         if uri.startswith(prefix):
             self.objects.pop(uri[len(prefix) :], None)
 
+    async def forget_prefix(self, prefix: str) -> None:
+        for key in [key for key in self.objects if key.startswith(prefix)]:
+            del self.objects[key]
+
 
 class FakeTranscriber:
     """Unavailable unless given text, matching the production default."""
@@ -300,6 +304,10 @@ class FakeDurableExecution:
         self.watching: list[str] = []
         self.finished: list[str] = []
         self.started: list[str] = []
+        self.waited: list[bool] = []
+        """One entry per `execute_skill` call, the `wait` it was actually
+        given -- so a test can prove a caller asked not to be blocked, not
+        just that a run id came back."""
 
     async def induce_skill(
         self,
@@ -326,6 +334,7 @@ class FakeDurableExecution:
         wait: bool = True,
     ) -> RunId:
         self.started.append(str(skill_id))
+        self.waited.append(wait)
         if self._execute is None:
             # A caller that only needs to know a run was started -- a trigger,
             # say -- rather than what it did.
@@ -1001,6 +1010,7 @@ class FakeScheduler:
     def __init__(self, *, available: bool = True) -> None:
         self.available = available
         self.scheduled: dict[str, str] = {}
+        self.unschedule_calls: list[str] = []
 
     async def schedule(self, trigger: Trigger) -> None:
         if not self.available:
@@ -1008,6 +1018,7 @@ class FakeScheduler:
         self.scheduled[trigger.id.value] = trigger.cron or ""
 
     async def unschedule(self, trigger_id: TriggerId) -> None:
+        self.unschedule_calls.append(trigger_id.value)
         self.scheduled.pop(trigger_id.value, None)
 
 

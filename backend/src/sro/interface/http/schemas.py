@@ -7,6 +7,7 @@ behind them stay free to change.
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any
 
@@ -17,7 +18,7 @@ from sro.application.execution.pursuits import PursuitProgress
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
 from sro.domain.chat.thread import Thread
-from sro.domain.execution.run import Run, StepOutcome
+from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
 from sro.domain.observation.candidate import Episode, TaskCandidate
 from sro.domain.observation.device import AgentDevice
@@ -27,7 +28,7 @@ from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.track_record import why_not_autonomous
-from sro.domain.trigger.trigger import Trigger
+from sro.domain.trigger.trigger import Trigger, TriggerKind
 
 
 class ObjectiveKeyModel(BaseModel):
@@ -1185,7 +1186,7 @@ class ForgottenResponse(BaseModel):
 
 class NewTriggerRequest(BaseModel):
     skill_id: str
-    kind: str = "schedule"
+    kind: TriggerKind = TriggerKind.SCHEDULE
     cron: str | None = None
     """Five fields, in the scheduler's own dialect. `0 7 * * 1-5` is every
     weekday at seven."""
@@ -1199,7 +1200,7 @@ class NewTriggerRequest(BaseModel):
     """Run it in this operator's browser. Such a run happens only while that
     browser is connected, which is a property of a laptop rather than a fault."""
 
-    medium: str = "network"
+    medium: Medium = Medium.NETWORK
     authorized_by: bool = False
     """Whether the caller stands behind every run this will start. Required for
     a skill that changes the system, and the name comes from the credential."""
@@ -1407,8 +1408,8 @@ class SummaryModel(BaseModel):
     def of(cls, summary: Summary) -> SummaryModel:
         return cls(
             since=summary.since,
-            watching=WatchingModel(**vars(summary.watching)),
-            noticing=NoticingModel(**vars(summary.noticing)),
-            doing=DoingModel(**vars(summary.doing)),
-            tasks=[TaskLineModel(**vars(line)) for line in summary.tasks],
+            watching=WatchingModel(**asdict(summary.watching)),
+            noticing=NoticingModel(**asdict(summary.noticing)),
+            doing=DoingModel(**asdict(summary.doing)),
+            tasks=[TaskLineModel(**asdict(line)) for line in summary.tasks],
         )

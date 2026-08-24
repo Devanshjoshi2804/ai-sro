@@ -65,6 +65,28 @@ async def test_a_gesture_reports_which_locator_actually_worked() -> None:
     assert socket.sent[0]["payload"]["locators"][0]["strategy"] == "component"
 
 
+async def test_an_unknown_locator_strategy_loses_a_field_not_the_whole_outcome() -> None:
+    # The extension is a different build than this deployment's own code.
+    # A `matched_by` outside the five known strategies used to raise
+    # ValueError uncaught, 500ing a device-bound run instead of just losing
+    # this one diagnostic field.
+    agents, sockets, socket = _wired()
+
+    performing = asyncio.create_task(
+        agents.ui(ACME, LAPTOP).perform(action=ActionKind.CLICK, locators=CLICK)
+    )
+    await _reply(
+        sockets,
+        socket,
+        ok=True,
+        result={"performed": True, "matched_by": "some-future-strategy", "candidates": 1},
+    )
+    outcome = await performing
+
+    assert outcome.performed is True
+    assert outcome.matched_by is None
+
+
 async def test_a_control_that_moved_is_a_failed_gesture_not_a_missing_browser() -> None:
     agents, sockets, socket = _wired()
 

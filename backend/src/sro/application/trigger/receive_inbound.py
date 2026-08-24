@@ -4,7 +4,12 @@ There is no principal on the other end of an email -- no bearer token, no
 tenant to prove by reading a row the caller's own credential unlocked. The
 per-trigger token is the only thing standing in for that, so it is checked in
 constant time and a wrong trigger id and a wrong token look identical from the
-outside: neither should tell an unauthenticated caller which one it got wrong.
+outside: neither should tell an unauthenticated caller which one it got wrong
+-- which is also why the comparison is on bytes. `hmac.compare_digest` raises
+`TypeError` for a non-ASCII `str`, and Starlette decodes every header value
+through latin-1, so a header byte >= 0x80 always becomes a non-ASCII `str`
+that would otherwise turn a 404 into an unhandled 500 -- itself a signal an
+unauthenticated caller could read.
 """
 
 from __future__ import annotations
@@ -37,7 +42,7 @@ class ReceiveInbound:
             trigger is None
             or trigger.kind is not TriggerKind.INBOUND
             or trigger.inbound_token is None
-            or not hmac.compare_digest(trigger.inbound_token, token)
+            or not hmac.compare_digest(trigger.inbound_token.encode(), token.encode())
         ):
             raise InboundRefused("no such inbound trigger")
         return await self._fire.execute(trigger_id)

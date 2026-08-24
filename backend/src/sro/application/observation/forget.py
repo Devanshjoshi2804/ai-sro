@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sro.application.context import RequestContext
+from sro.application.observation.artifacts import artifact_prefixes
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
@@ -48,4 +49,6 @@ class ForgetObservations:
 
         for batch in doomed:
             await self._blobs.forget(batch.uri)
+            for prefix in artifact_prefixes(batch):
+                await self._blobs.forget_prefix(prefix)
         return Forgotten(batches=len(doomed), events=sum(batch.event_count for batch in doomed))

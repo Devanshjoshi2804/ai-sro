@@ -22,7 +22,8 @@ from sro.application.capture.events import CaptureEvent, InputEvent, RequestEven
 from sro.application.capture.identity import derive_objective_key
 from sro.application.context import RequestContext
 from sro.application.induction.errors import InductionFailed
-from sro.application.induction.jsonutil import JsonValue
+from sro.application.induction.jsonutil import JsonValue, as_text, leaves
+from sro.application.induction.sites import parse_json, url_path_segments, url_query_pairs
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -31,6 +32,25 @@ from sro.domain.recording.events import ActionKind, InputAction
 from sro.domain.recording.network import Body, CapturedRequest
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.identifiers import RecordingId, SkillId
+
+
+def _addressable_values(request: CapturedRequest) -> set[str]:
+    """Every value this call sent somewhere a diff would call addressable.
+
+    Not a substring search: ``clientId="----"`` is not "typed" by a call that
+    merely mentions ``----`` somewhere in a query string it shares with every
+    other call in the file (a real collision in the recorded corpus, on the
+    generic placeholder Blue Yonder itself uses). A URL path segment, a query
+    value, and a JSON body leaf are the only places `diff.py`'s own two-run
+    comparison ever looks either -- reusing exactly that vocabulary instead of
+    a second, cruder one closes off everything past those three.
+    """
+    values = set(url_path_segments(request.url))
+    values.update(value for _, value in url_query_pairs(request.url))
+    document = parse_json(request.request_text)
+    if document is not None:
+        values.update(as_text(leaf) for _, leaf in leaves(document))
+    return values
 
 
 def flow_to_events(flow: Mapping[str, JsonValue], *, base_time: datetime) -> list[CaptureEvent]:
@@ -70,9 +90,13 @@ def flow_to_events(flow: Mapping[str, JsonValue], *, base_time: datetime) -> lis
         captured = _captured_request(
             request, response, index=index, at=at + timedelta(milliseconds=1)
         )
-        haystack = f"{captured.url} {captured.request_text or ''}"
+        addressable = _addressable_values(captured)
         typed_field = next(
-            (name for name, value in applied.items() if name not in claimed and value in haystack),
+            (
+                name
+                for name, value in applied.items()
+                if name not in claimed and value in addressable
+            ),
             None,
         )
         if typed_field is not None:

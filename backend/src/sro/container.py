@@ -232,6 +232,7 @@ class Container:
             self.unit_of_work(),
             self.clock,
             self.durable,
+            ids=self.ids,
             dispatcher=self.dispatcher,
             scheduler=self.scheduler,
         )
@@ -547,13 +548,15 @@ class Container:
 
     def mcp_server(self) -> SkillToolServer:
         """A tool per runnable skill. One server per process: tenant comes from
-        the bearer token on each MCP request, not from how this is built."""
+        the bearer token on each MCP request, not from how this is built --
+        and the use cases are passed as factories, not instances, so each
+        request gets its own `UnitOfWork` the same way an HTTP route does."""
         return SkillToolServer(
             credentials=self.credentials,
-            list_skills=self.list_skills(),
-            get_skill=self.get_skill(),
+            list_skills=self.list_skills,
+            get_skill=self.get_skill,
             durable=self.durable,
-            get_run=self.get_run(),
+            get_run=self.get_run,
         )
 
     def list_runs(self) -> ListRuns:

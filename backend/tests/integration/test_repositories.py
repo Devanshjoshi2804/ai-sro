@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
@@ -231,7 +230,10 @@ class TestObservation:
             await uow.devices.add(_device(device_id="dev-1"))
             await uow.commit()
 
-        with pytest.raises(IntegrityError):
+        # A raced registration finds this as Conflict, not a raw driver
+        # exception with no registered handler -- RegisterDevice catches it
+        # and comes back as the winner, which needs a classified error to do.
+        with pytest.raises(Conflict):
             async with SqlUnitOfWork(session_factory) as uow:
                 await uow.devices.add(_device(device_id="dev-2"))
                 await uow.commit()
@@ -432,7 +434,10 @@ class TestCandidates:
             await uow.candidates.add(_candidate())
             await uow.commit()
 
-        with pytest.raises(IntegrityError):
+        # A manual mine-now request racing the scheduled sweep onto the same
+        # candidate finds this as Conflict, not a raw driver exception no
+        # handler in errors.py knows what to do with.
+        with pytest.raises(Conflict):
             async with SqlUnitOfWork(session_factory) as uow:
                 await uow.candidates.add(_candidate(candidate_id="cnd-2"))
                 await uow.commit()

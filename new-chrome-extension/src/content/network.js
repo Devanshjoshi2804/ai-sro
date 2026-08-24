@@ -175,6 +175,22 @@
     return touched ? parsed.toString() : url;
   };
 
+  // The other half of network.main.js's handshake. Latches the first secret it
+  // is told and then stops listening, so the only value it will ever accept is
+  // the one exchanged at document_start -- before any page script existed to
+  // send a different one.
+  let expected = null;
+  const HELLO = "sro:hello";
+  const latch = (event) => {
+    if (expected !== null) return;
+    expected = event.detail;
+    window.removeEventListener(HELLO, latch);
+  };
+  window.addEventListener(HELLO, latch);
+  // Covers the page-realm half having loaded first, in which case its opening
+  // announcement was made before this listener existed.
+  window.dispatchEvent(new CustomEvent("sro:need-hello"));
+
   const looksLikeRecord = (raw) =>
     raw &&
     typeof raw === "object" &&
@@ -200,6 +216,10 @@
       return;
     }
     if (!looksLikeRecord(raw)) return;
+    // Not from the patch we installed. A page can dispatch this event as
+    // easily as we can, and a fabricated exchange would become a candidate
+    // skill the operator is one day offered.
+    if (expected === null || raw.__from !== expected) return;
 
     const requestHeaders = raw.request_headers || {};
     const responseHeaders = raw.response_headers || {};

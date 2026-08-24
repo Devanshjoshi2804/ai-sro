@@ -209,3 +209,9 @@ filterwarnings = [
     # had passed. About sockets being collected late, never about our code.
     "ignore::ResourceWarning",
 ]
+markers = [
+    # Needs a real Chromium with the unpacked extension loaded. Run by
+    # `make test-browser`, kept out of `make check` because it depends on a
+    # browser being installed rather than on this repository alone.
+    "browser: drives a real browser with the extension loaded",
+]

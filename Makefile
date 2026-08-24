@@ -10,7 +10,7 @@ FRONTEND := cd frontend &&
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs reset install migrate revision api worker web vault-key \
         lint lint-backend lint-frontend format test test-unit test-integration \
-        test-contract types check ingest-kb seed-skills gen-recorder
+        test-contract test-browser types check ingest-kb seed-skills gen-recorder
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -113,4 +113,7 @@ test-integration: ## Tests against real Postgres/MinIO via testcontainers
 test-contract: ## Fuzz the API against its own OpenAPI schema
 	$(BACKEND) uv run pytest tests/contract -q
 
-check: lint test test-contract ## What CI runs
+test-browser: ## Drive a real Chrome with the extension loaded
+	$(BACKEND) uv run pytest tests/browser -q
+
+check: lint test test-contract test-browser ## What CI runs

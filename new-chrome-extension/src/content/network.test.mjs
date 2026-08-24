@@ -12,15 +12,36 @@ import path from "node:path";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (name) => readFileSync(path.join(here, name), "utf-8");
 
+const NONCE = "test-realm-nonce";
+
 /** Runs the real generated rules, so this checks what actually ships rather
- * than a hand-written stand-in that could disagree with it. */
-function makeSandbox({ withRules = true } = {}) {
+ * than a hand-written stand-in that could disagree with it.
+ *
+ * `window` here is a small event target because network.js does a handshake
+ * with the page-realm patch on load; `answerHandshake` plays that half. With
+ * it left out, nothing has ever proved it came from us, which is the whole
+ * point of the exchange. */
+function makeSandbox({ withRules = true, answerHandshake = true } = {}) {
   const sent = [];
+  const listeners = {};
   const sandbox = {
     window: {
       addEventListener: (type, fn) => {
-        if (type === "sro:request") sandbox.__handler = fn;
+        (listeners[type] ||= []).push(fn);
       },
+      removeEventListener: (type, fn) => {
+        listeners[type] = (listeners[type] || []).filter((each) => each !== fn);
+      },
+      dispatchEvent: (event) => {
+        for (const fn of [...(listeners[event.type] || [])]) fn(event);
+        return true;
+      },
+    },
+    CustomEvent: class {
+      constructor(type, init) {
+        this.type = type;
+        this.detail = init?.detail;
+      }
     },
     chrome: { runtime: { sendMessage: (msg) => (sent.push(msg), Promise.resolve({ ok: true })) } },
     location: { href: "https://wms.example.test/orders" },
@@ -32,13 +53,23 @@ function makeSandbox({ withRules = true } = {}) {
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   if (withRules) vm.runInContext(read("sensitivity.generated.js"), sandbox);
+  if (answerHandshake) {
+    // The page-realm half, answering the request network.js makes on load.
+    (listeners["sro:need-hello"] ||= []).push(() => {
+      sandbox.window.dispatchEvent(new sandbox.CustomEvent("sro:hello", { detail: NONCE }));
+    });
+  }
   vm.runInContext(read("network.js"), sandbox);
+  sandbox.__fire = (raw) =>
+    sandbox.window.dispatchEvent(
+      new sandbox.CustomEvent("sro:request", { detail: JSON.stringify(raw) }),
+    );
   return sandbox;
 }
 
 function run(raw, options) {
   const sandbox = makeSandbox(options);
-  sandbox.__handler({ detail: JSON.stringify(raw) });
+  sandbox.__fire({ __from: NONCE, ...raw });
   // Cross the vm-realm boundary: sandbox arrays/objects are foreign to this
   // realm's Array/Object, which trips deepStrictEqual's identity checks.
   return JSON.parse(JSON.stringify(sandbox.sent));
@@ -184,10 +215,29 @@ const base = {
 // A page can dispatch this event too. Junk is refused rather than forwarded.
 {
   const sandbox = makeSandbox();
-  sandbox.__handler({ detail: JSON.stringify({ nonsense: true }) });
-  sandbox.__handler({ detail: "not json at all" });
-  sandbox.__handler({ detail: 42 });
+  sandbox.__fire({ nonsense: true });
+  sandbox.window.dispatchEvent(new sandbox.CustomEvent("sro:request", { detail: "not json" }));
+  sandbox.window.dispatchEvent(new sandbox.CustomEvent("sro:request", { detail: 42 }));
   assert.strictEqual(sandbox.sent.length, 0, "malformed records are not forwarded");
+}
+
+// A well-formed record that did not come from our patch is refused: a page
+// can dispatch this event as easily as we can, and a fabricated exchange
+// becomes a candidate skill somebody is offered.
+{
+  const sandbox = makeSandbox();
+  sandbox.__fire({ ...base, __from: "guessed-wrong" });
+  sandbox.__fire({ ...base }); // no provenance at all
+  assert.strictEqual(sandbox.sent.length, 0, "a forged exchange was forwarded");
+  sandbox.__fire({ ...base, __from: NONCE });
+  assert.strictEqual(sandbox.sent.length, 1, "the genuine record still goes");
+}
+
+// With no handshake completed, nothing is accepted rather than everything.
+{
+  const sandbox = makeSandbox({ answerHandshake: false });
+  sandbox.__fire({ ...base, __from: NONCE });
+  assert.strictEqual(sandbox.sent.length, 0, "records were accepted with no handshake");
 }
 
 console.log("network.test.mjs: ok");

@@ -29,12 +29,40 @@
 
   // The random half matters: this file runs in every frame of every tab, and a
   // counter plus a millisecond collides across frames that load together.
-  const REALM = Math.random().toString(36).slice(2, 10);
+  const REALM = crypto.randomUUID();
   let counter = 0;
-  const nextId = () => `req_${REALM}_${counter++}`;
+  const nextId = () => `req_${REALM.slice(0, 8)}_${counter++}`;
+
+  // A secret shared with the isolated world, so a record it receives can be
+  // known to have come from here.
+  //
+  // The exchange is safe because of *when* it happens: a content script at
+  // `document_start` runs before any of the page's own script, so there is no
+  // page code yet that could be listening for it or could have dispatched a
+  // convincing one first. Both halves stop talking after a single exchange --
+  // this listener is removed once it has answered -- so a page script asking
+  // later is answered by nobody.
+  //
+  // What this does not cover: a frame the page created and attached a listener
+  // to before our scripts were injected into it. Gestures are not covered
+  // either and cannot be -- `window.__sroRecord` has to be reachable from this
+  // realm for the recorder to call it at all.
+  const HELLO = "sro:hello";
+  const NEED = "sro:need-hello";
+  const say = () => window.dispatchEvent(new CustomEvent(HELLO, { detail: REALM }));
+  const answer = () => {
+    window.removeEventListener(NEED, answer);
+    say();
+  };
+  window.addEventListener(NEED, answer);
+  // Covers the isolated half having loaded first; if it has not, its own
+  // request reaches the listener above. Either order completes the handshake.
+  say();
 
   const emit = (record) => {
-    window.dispatchEvent(new CustomEvent("sro:request", { detail: JSON.stringify(record) }));
+    window.dispatchEvent(
+      new CustomEvent("sro:request", { detail: JSON.stringify({ ...record, __from: REALM }) }),
+    );
   };
 
   const isTextual = (contentType) => {
@@ -150,10 +178,20 @@
       } catch {
         requestHeaders = {};
       }
-      // ponytail: a body carried on a Request object rather than in `init` is
-      // not read -- doing so needs input.clone() and an await before the call
-      // goes out. Add if a real app is seen to send one.
       const requestBodyText = bodyToText(init && init.body);
+      // `fetch(new Request(url, {body}))` keeps its body on the Request, where
+      // reading it means consuming a clone -- which is async. The clone is
+      // taken now, before the call goes out and while the body is still
+      // unread, but it is not *read* until alongside the response, so nothing
+      // here delays the request the page asked for.
+      let requestClone = null;
+      if (requestBodyText === null && input && typeof input !== "string" && input.body) {
+        try {
+          requestClone = input.clone();
+        } catch {
+          requestClone = null;
+        }
+      }
 
       try {
         const response = await origFetch.call(this, input, init);
@@ -169,8 +207,13 @@
         // that never ends would otherwise be a fetch that never resolves, and
         // an extension that hangs the application it is watching is worse than
         // one that captures nothing.
-        readBody(response.clone(), contentType)
-          .then(({ text, truncated }) => {
+        Promise.all([
+          readBody(response.clone(), contentType),
+          requestClone
+            ? readBody(requestClone, requestClone.headers.get("content-type"))
+            : Promise.resolve({ text: requestBodyText, truncated: false }),
+        ])
+          .then(([{ text, truncated }, sent]) => {
             emit({
               request_id,
               method,
@@ -178,8 +221,8 @@
               resource_type: "fetch",
               started_at: startedAt.toISOString(),
               request_headers: requestHeaders,
-              request_body_text: requestBodyText,
-              request_body_truncated: false,
+              request_body_text: sent.text,
+              request_body_truncated: sent.truncated,
               status,
               status_text: statusText,
               response_headers: responseHeaders,

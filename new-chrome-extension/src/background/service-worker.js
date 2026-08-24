@@ -152,6 +152,12 @@ async function handle(message, sender) {
     case "set-paused":
       await state.setPaused(Boolean(message.paused));
       return settle();
+    case "flush":
+      // Upload now rather than on the next tick. The options page offers this
+      // so an operator who is about to close the laptop can see the queue go,
+      // and it is how a test drives a whole capture through without waiting
+      // out an alarm.
+      return flushQueue();
     case "status":
       return status();
     default:
@@ -162,15 +168,18 @@ async function handle(message, sender) {
 async function flushQueue() {
   const deviceId = await state.deviceId();
   const allowed = await capturing();
-  if (!deviceId || !allowed.on) return;
+  if (!deviceId || !allowed.on) return { uploaded: 0, because: allowed.because || "not registered" };
   try {
     const result = await flush(deviceId);
     if (result.error) await state.setLastError(result.error);
     else if (result.uploaded) await state.setLastError("");
+    return result;
   } catch (error) {
     // A 401 already dropped the token in api.js; settle() reflects that as
     // "no credential" on the next status read rather than repeating it here.
-    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+    const message = error instanceof ApiError ? error.message : String(error);
+    await state.setLastError(message);
+    return { uploaded: 0, error: message };
   }
 }
 

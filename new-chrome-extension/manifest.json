@@ -12,6 +12,6 @@
     "default_title": "AI-SRO"
   },
   "options_page": "src/options/options.html",
-  "permissions": ["storage", "alarms", "scripting"],
+  "permissions": ["storage", "alarms", "scripting", "webNavigation"],
   "host_permissions": ["<all_urls>"]
 }

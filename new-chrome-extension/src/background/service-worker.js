@@ -5,7 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import * as queue from "./queue.js";
-import { applyPolicy, unregister } from "./scripts.js";
+import { allowsHost, applyPolicy, unregister } from "./scripts.js";
 import { capturing, state } from "./state.js";
 import { flush } from "./upload.js";
 
@@ -32,6 +32,32 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === FLUSH) void flushQueue();
 });
 
+// Page lifecycle, straight from the platform -- no content script needed for
+// this, and nothing rides on a page having one registered at all.
+// ponytail: main frame only; add per-iframe navigation if a miner needs it.
+chrome.webNavigation.onCommitted.addListener((d) => {
+  if (d.frameId === 0) void pageEvent("navigated", d.tabId, d.url, d.timeStamp);
+});
+chrome.webNavigation.onCompleted.addListener((d) => {
+  if (d.frameId === 0) void pageEvent("loaded", d.tabId, d.url, d.timeStamp);
+});
+chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => {
+  void pageEvent("popup_opened", d.sourceTabId, d.url, d.timeStamp);
+});
+
+async function pageEvent(page_kind, tab_id, url, timeStamp) {
+  const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
+  if (!allowed.on || !allowsHost(url, policy)) return;
+  await queue.enqueue({
+    kind: "page",
+    at: new Date(timeStamp).toISOString(),
+    page_kind,
+    url,
+    detail: null,
+    tab_id,
+  });
+}
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   // Returning true keeps the channel open for the async answer.
   handle(message, sender).then(respond, (error) => respond({ error: String(error) }));
@@ -48,6 +74,14 @@ async function handle(message, sender) {
       await queue.enqueue({
         kind: "gesture",
         gesture: message.gesture,
+        tab_id: sender?.tab?.id ?? null,
+        frame_url: message.frameUrl,
+      });
+      return { ok: true };
+    case "request":
+      await queue.enqueue({
+        kind: "request",
+        request: message.request,
         tab_id: sender?.tab?.id ?? null,
         frame_url: message.frameUrl,
       });

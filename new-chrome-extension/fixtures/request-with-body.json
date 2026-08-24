@@ -1,0 +1,39 @@
+{
+  "kind": "request",
+  "request": {
+    "request_id": "req_1787654321000_0",
+    "method": "POST",
+    "url": "https://wms.example.test/api/equipment",
+    "resource_type": "xhr",
+    "started_at": "2026-08-24T09:15:11.004Z",
+    "request_headers": {
+      "content-type": "application/json"
+    },
+    "request_body": {
+      "text": "{\"code\":\"TESTSRO\",\"password\":\"«redacted»\"}",
+      "size_bytes": 44,
+      "mime_type": "application/json",
+      "encoding": null,
+      "redacted_fields": ["password"]
+    },
+    "status": 200,
+    "status_text": "OK",
+    "response_headers": {
+      "content-type": "application/json"
+    },
+    "response_body": {
+      "text": "{\"id\":812,\"code\":\"TESTSRO\"}",
+      "size_bytes": 27,
+      "mime_type": "application/json",
+      "encoding": null,
+      "redacted_fields": []
+    },
+    "redirect_chain": [],
+    "duration_ms": 344,
+    "from_cache": false,
+    "failure_reason": null,
+    "blocked_reason": null
+  },
+  "tab_id": 8,
+  "frame_url": "https://wms.example.test/orders"
+}

@@ -71,6 +71,49 @@
       },
       "tab_id": 8,
       "frame_url": "https://example.test/orders"
+    },
+    {
+      "kind": "request",
+      "request": {
+        "request_id": "req_1787654322900_1",
+        "method": "POST",
+        "url": "https://example.test/api/orders",
+        "resource_type": "fetch",
+        "started_at": "2026-08-24T09:15:11.004Z",
+        "request_headers": { "content-type": "application/json" },
+        "request_body": {
+          "text": "{\"code\":\"ACME\"}",
+          "size_bytes": 16,
+          "mime_type": "application/json",
+          "encoding": null,
+          "redacted_fields": []
+        },
+        "status": 201,
+        "status_text": "Created",
+        "response_headers": { "content-type": "application/json" },
+        "response_body": {
+          "text": "{\"id\":812}",
+          "size_bytes": 10,
+          "mime_type": "application/json",
+          "encoding": null,
+          "redacted_fields": []
+        },
+        "redirect_chain": [],
+        "duration_ms": 210,
+        "from_cache": false,
+        "failure_reason": null,
+        "blocked_reason": null
+      },
+      "tab_id": 8,
+      "frame_url": "https://example.test/orders"
+    },
+    {
+      "kind": "page",
+      "at": "2026-08-24T09:15:11.400Z",
+      "page_kind": "loaded",
+      "url": "https://example.test/orders",
+      "detail": null,
+      "tab_id": 8
     }
   ]
 }

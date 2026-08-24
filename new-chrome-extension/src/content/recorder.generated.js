@@ -55,6 +55,13 @@
       .split(/[^A-Za-z]+/)
       .filter(Boolean)
       .map((word) => word.toLowerCase());
+  // Field-name check, not element-bound -- reused for network body redaction
+  // (a different content script, exposed on window rather than re-copying the
+  // word list a third time).
+  const isSecretName = (name) => {
+    const words = wordsOf(name);
+    return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(''));
+  };
   const isSecretField = (el) => {
     if (!el || el.nodeType !== 1) return false;
     // What the page itself says is a credential, which is the only signal here
@@ -66,9 +73,9 @@
     const named = [el.name, el.id, el.getAttribute('aria-label'), el.getAttribute('placeholder')]
       .filter(Boolean)
       .join(' ');
-    const words = wordsOf(named);
-    return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(''));
+    return isSecretName(named);
   };
+  window.__sroIsSecretName = isSecretName;
 
   const cssPath = (el) => {
     const parts = [];

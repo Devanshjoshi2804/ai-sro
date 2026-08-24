@@ -10,7 +10,7 @@ FRONTEND := cd frontend &&
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs reset install migrate revision api worker web vault-key \
         lint lint-backend lint-frontend format test test-unit test-integration \
-        test-contract types check ingest-kb seed-skills
+        test-contract types check ingest-kb seed-skills gen-recorder
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -79,6 +79,9 @@ observe: ## Read or change a tenant's observation policy: make observe tenant=ac
 types: ## Regenerate frontend API types from the backend OpenAPI document
 	$(BACKEND) uv run python -m sro.interface.http.export_openapi > ../frontend/openapi.json
 	$(FRONTEND) npm run generate:types
+
+gen-recorder: ## Regenerate the extension's copy of the page recorder, secrets baked in
+	$(BACKEND) uv run python -m sro.infrastructure.steel.generate_extension_recorder
 
 # --- quality ----------------------------------------------------------------
 

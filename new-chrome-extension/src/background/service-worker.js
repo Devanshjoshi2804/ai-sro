@@ -4,37 +4,53 @@
 // it is idle and every wake-up starts from storage.
 
 import { api, ApiError } from "./api.js";
+import * as queue from "./queue.js";
 import { applyPolicy, unregister } from "./scripts.js";
 import { capturing, state } from "./state.js";
+import { flush } from "./upload.js";
 
 const BEAT = "sro-heartbeat";
+const FLUSH = "sro-flush";
 const EVERY_MINUTES = 1;
 
 const VERSION = chrome.runtime.getManifest().version;
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(BEAT, { periodInMinutes: EVERY_MINUTES });
+  chrome.alarms.create(FLUSH, { periodInMinutes: EVERY_MINUTES });
   void settle();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   chrome.alarms.create(BEAT, { periodInMinutes: EVERY_MINUTES });
+  chrome.alarms.create(FLUSH, { periodInMinutes: EVERY_MINUTES });
   void settle();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === BEAT) void beat();
+  if (alarm.name === FLUSH) void flushQueue();
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, respond) => {
+chrome.runtime.onMessage.addListener((message, sender, respond) => {
   // Returning true keeps the channel open for the async answer.
-  handle(message).then(respond, (error) => respond({ error: String(error) }));
+  handle(message, sender).then(respond, (error) => respond({ error: String(error) }));
   return true;
 });
 
-async function handle(message) {
+async function handle(message, sender) {
   switch (message?.kind) {
     case "content-ready":
+      return { ok: true };
+    case "gesture":
+      // tab_id comes from the sender, not the content script -- a frame has
+      // no chrome.tabs access of its own to ask for it.
+      await queue.enqueue({
+        kind: "gesture",
+        gesture: message.gesture,
+        tab_id: sender?.tab?.id ?? null,
+        frame_url: message.frameUrl,
+      });
       return { ok: true };
     case "sign-in":
       await state.setApiUrl(message.apiUrl);
@@ -55,6 +71,21 @@ async function handle(message) {
   }
 }
 
+async function flushQueue() {
+  const deviceId = await state.deviceId();
+  const allowed = await capturing();
+  if (!deviceId || !allowed.on) return;
+  try {
+    const result = await flush(deviceId);
+    if (result.error) await state.setLastError(result.error);
+    else if (result.uploaded) await state.setLastError("");
+  } catch (error) {
+    // A 401 already dropped the token in api.js; settle() reflects that as
+    // "no credential" on the next status read rather than repeating it here.
+    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+  }
+}
+
 /** Register this browser profile, then apply whatever policy came back. */
 async function register(label) {
   const registered = await api.register(label || defaultLabel(), VERSION);
@@ -70,10 +101,14 @@ async function beat() {
   if (!deviceId) return;
 
   try {
-    const policy = await state.policy();
+    const [policy, queuedEvents, queuedBytes] = await Promise.all([
+      state.policy(),
+      queue.count(),
+      queue.totalBytes(),
+    ]);
     const answer = await api.heartbeat(deviceId, {
-      queued_events: 0,
-      queued_bytes: 0,
+      queued_events: queuedEvents,
+      queued_bytes: queuedBytes,
       policy_version: policy?.version ?? null,
     });
     if (answer.policy) await state.setPolicy(answer.policy);

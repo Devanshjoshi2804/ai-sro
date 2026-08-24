@@ -1,0 +1,33 @@
+{
+  "kind": "gesture",
+  "gesture": {
+    "kind": "type",
+    "target": {
+      "tag": "input",
+      "role": null,
+      "name": "Client Code",
+      "secret": false,
+      "text": null,
+      "testId": null,
+      "cssPath": "div.x-panel > input:nth-of-type(2)",
+      "xpath": "/html[1]/body[1]/div[3]/input[2]",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 120,
+        "height": 24
+      },
+      "attributes": {
+        "type": "text"
+      },
+      "component": null
+    },
+    "value": "ACME",
+    "secret": false,
+    "modifiers": [],
+    "at": 1787654322.5,
+    "url": "https://example.test/orders"
+  },
+  "tab_id": 8,
+  "frame_url": "https://example.test/orders"
+}

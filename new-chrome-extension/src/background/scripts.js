@@ -27,7 +27,9 @@ export async function applyPolicy(policy, { on }) {
   await chrome.scripting.registerContentScripts([
     {
       id: ID,
-      js: ["src/content/observe.js"],
+      // Order matters: observe.js defines window.__sroRecord before
+      // recorder.generated.js's IIFE runs and calls it.
+      js: ["src/content/observe.js", "src/content/recorder.generated.js"],
       matches,
       excludeMatches,
       // Both deliberate: `document_start` so the page's own scripts are not

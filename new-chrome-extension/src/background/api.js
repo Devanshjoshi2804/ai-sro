@@ -48,5 +48,7 @@ export const api = {
       body: beat,
     }),
 
+  observations: (batch) => call("/v1/observations", { method: "POST", body: batch }),
+
   policy: () => call("/v1/agents/policy"),
 };

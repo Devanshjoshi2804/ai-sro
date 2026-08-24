@@ -280,6 +280,15 @@ class SqlRunRepository(RunRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_run(row) for row in rows)
 
+    async def since(self, tenant_id: TenantId, *, since: datetime) -> tuple[Run, ...]:
+        query = (
+            select(RunRow)
+            .where(RunRow.tenant_id == tenant_id.value, RunRow.started_at >= since)
+            .order_by(RunRow.started_at)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_run(row) for row in rows)
+
     async def finished_since(
         self, tenant_id: TenantId, *, target_system: str, since: datetime
     ) -> tuple[Run, ...]:

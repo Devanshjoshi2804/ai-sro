@@ -12,6 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from sro.application.analytics.summary import Summary
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.intent.match import Candidate
 from sro.application.intent.resolve import Resolution
@@ -1348,3 +1349,61 @@ class MinedModel(BaseModel):
     candidates_seen: int
     candidates_new: int
     occurrences_new: int
+
+
+class WatchingModel(BaseModel):
+    devices: int
+    batches: int
+    events: int
+    hours: float
+
+
+class NoticingModel(BaseModel):
+    tasks: int
+    worth_offering: int
+    taught: int
+    dismissed: int
+    by_kind: dict[str, int]
+
+
+class DoingModel(BaseModel):
+    runs: int
+    clean: int
+    degraded: int
+    failed: int
+    withheld: int
+    writes_sent: int
+    minutes_saved: float
+
+
+class TaskLineModel(BaseModel):
+    title: str
+    host: str
+    kind: str
+    status: str
+    times_seen: int
+    median_seconds: float
+    minutes_spent: float
+    skill_id: str | None
+    runs: int
+    minutes_saved: float
+
+
+class SummaryModel(BaseModel):
+    """Everything on the overview, derived from rows somebody can open."""
+
+    since: datetime
+    watching: WatchingModel
+    noticing: NoticingModel
+    doing: DoingModel
+    tasks: list[TaskLineModel]
+
+    @classmethod
+    def of(cls, summary: Summary) -> SummaryModel:
+        return cls(
+            since=summary.since,
+            watching=WatchingModel(**vars(summary.watching)),
+            noticing=NoticingModel(**vars(summary.noticing)),
+            doing=DoingModel(**vars(summary.doing)),
+            tasks=[TaskLineModel(**vars(line)) for line in summary.tasks],
+        )

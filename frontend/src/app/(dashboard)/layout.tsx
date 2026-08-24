@@ -9,6 +9,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen flex-col" style={{ background: "#F6F6F4" }}>
       <TopBar>
         <BarLink href="/console">Threads</BarLink>
+        <BarLink href="/overview">Overview</BarLink>
         <BarLink href="/recordings">Recordings</BarLink>
         <BarLink href="/skills">Skills</BarLink>
         <BarLink href="/runs">Runs</BarLink>

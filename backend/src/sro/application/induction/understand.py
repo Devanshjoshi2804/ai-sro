@@ -22,7 +22,12 @@ from sro.application.capture.identity import derive_objective_key, system_of
 from sro.application.context import RequestContext
 from sro.application.induction import narration as narration_alignment
 from sro.application.induction.assertions import StepEvidence
-from sro.application.induction.diff import Parameterisation, Substitution, unfold
+from sro.application.induction.diff import (
+    Parameterisation,
+    Substitution,
+    typed_values,
+    unfold,
+)
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.sites import (
@@ -107,7 +112,11 @@ class UnderstandRecording:
             )
         )
 
-        proposed = _believable(reading, recording.frames)
+        # Typed first, and they win. A frame recording that a human entered a
+        # value is stronger evidence than a model's reading of the same text --
+        # and it is the value most certain to want a different answer next run.
+        entered = _entered(recording.frames)
+        proposed = entered | _believable(reading, recording.frames, claimed=entered)
         steps = _steps(recording, reading, proposed)
         parameters = tuple(
             Parameter(
@@ -143,8 +152,9 @@ class UnderstandRecording:
                     induced_at=now,
                     induced_by=ctx.principal_id,
                     note=(
-                        "read from one demonstration: the calls are evidence, the description "
-                        "and the parameters are a model's reading of it"
+                        "read from one demonstration: the calls are evidence, the values the "
+                        "operator typed are recovered from the frames, and the description is "
+                        "a model's reading of the rest"
                     ),
                 ),
                 summary=reading.summary
@@ -220,20 +230,52 @@ def _calls(frame: ActionFrame) -> tuple[CapturedRequest, ...]:
     return tuple(r for r in frame.requests if not is_background_traffic(r.url))
 
 
-def _believable(reading: Reading, frames: tuple[ActionFrame, ...]) -> dict[str, tuple[str, str]]:
+TYPED_IN = "typed by the operator, and carried by a later call"
+
+
+def _entered(frames: tuple[ActionFrame, ...]) -> dict[str, tuple[str, str]]:
+    """Values a person typed that the calls afterwards carried.
+
+    Not an inference, and not a model's: the frame records that a human entered
+    this value and the control records what it was called. Without this, one
+    demonstration has nothing to disagree with, so the supplier code somebody
+    had just typed into a box looked as fixed as the endpoint -- and replaying it
+    creates that same supplier again.
+
+    The two-run path has recovered these since the day it was written. This one
+    is the path a mined candidate takes, which is now most of them.
+    """
+    entered: dict[str, tuple[str, str]] = {}
+    for choice in typed_values(frames):
+        if choice.field.isidentifier() and choice.value.strip():
+            entered[choice.field] = (choice.value, TYPED_IN)
+    return entered
+
+
+def _believable(
+    reading: Reading,
+    frames: tuple[ActionFrame, ...],
+    *,
+    claimed: dict[str, tuple[str, str]] | None = None,
+) -> dict[str, tuple[str, str]]:
     """Candidates whose value actually appears in what was captured.
 
     The check that keeps this honest: a model can name any parameter it likes,
     and only the ones pointing at a literal in the evidence survive.
+
+    A value already recovered from a typed box is skipped whatever the model
+    called it: two names for one value would put two placeholders at one site,
+    and the second would quietly win.
     """
     haystack = _as_text(frames)
+    spoken_for = {value for value, _ in (claimed or {}).values()}
     kept: dict[str, tuple[str, str]] = {}
     for candidate in reading.parameters:
         value = candidate.value.strip()
-        if not value or value not in haystack:
+        if not value or value not in haystack or value in spoken_for:
             continue
         name = candidate.name.strip()
-        if not name.isidentifier() or name in kept:
+        if not name.isidentifier() or name in kept or name in (claimed or {}):
             continue
         kept[name] = (value, candidate.description)
     return kept

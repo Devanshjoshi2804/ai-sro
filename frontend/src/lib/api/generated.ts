@@ -123,6 +123,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/analytics/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Summary
+         * @description A week by default, because a week is the unit a shift pattern repeats in.
+         */
+        get: operations["read_summary_v1_analytics_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/candidates": {
         parameters: {
             query?: never;
@@ -1425,6 +1445,23 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** DoingModel */
+        DoingModel: {
+            /** Runs */
+            runs: number;
+            /** Clean */
+            clean: number;
+            /** Degraded */
+            degraded: number;
+            /** Failed */
+            failed: number;
+            /** Withheld */
+            withheld: number;
+            /** Writes Sent */
+            writes_sent: number;
+            /** Minutes Saved */
+            minutes_saved: number;
+        };
         /**
          * EntryKind
          * @enum {string}
@@ -1723,6 +1760,21 @@ export interface components {
              * @default false
              */
             may_take_focus: boolean;
+        };
+        /** NoticingModel */
+        NoticingModel: {
+            /** Tasks */
+            tasks: number;
+            /** Worth Offering */
+            worth_offering: number;
+            /** Taught */
+            taught: number;
+            /** Dismissed */
+            dismissed: number;
+            /** By Kind */
+            by_kind: {
+                [key: string]: number;
+            };
         };
         /** ObjectiveKeyModel */
         ObjectiveKeyModel: {
@@ -2348,6 +2400,22 @@ export interface components {
             found_labels: string[];
         };
         /**
+         * SummaryModel
+         * @description Everything on the overview, derived from rows somebody can open.
+         */
+        SummaryModel: {
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            watching: components["schemas"]["WatchingModel"];
+            noticing: components["schemas"]["NoticingModel"];
+            doing: components["schemas"]["DoingModel"];
+            /** Tasks */
+            tasks: components["schemas"]["TaskLineModel"][];
+        };
+        /**
          * TaskCandidateModel
          * @description A task somebody keeps doing, offered rather than acted on.
          */
@@ -2380,6 +2448,29 @@ export interface components {
             named_by_model: boolean;
             /** Episodes */
             episodes: components["schemas"]["EpisodeModel"][];
+        };
+        /** TaskLineModel */
+        TaskLineModel: {
+            /** Title */
+            title: string;
+            /** Host */
+            host: string;
+            /** Kind */
+            kind: string;
+            /** Status */
+            status: string;
+            /** Times Seen */
+            times_seen: number;
+            /** Median Seconds */
+            median_seconds: number;
+            /** Minutes Spent */
+            minutes_spent: number;
+            /** Skill Id */
+            skill_id: string | null;
+            /** Runs */
+            runs: number;
+            /** Minutes Saved */
+            minutes_saved: number;
         };
         /** TaughtModel */
         TaughtModel: {
@@ -2547,6 +2638,17 @@ export interface components {
             proposed_parameter_count: number;
             /** Caveat */
             caveat: string;
+        };
+        /** WatchingModel */
+        WatchingModel: {
+            /** Devices */
+            devices: number;
+            /** Batches */
+            batches: number;
+            /** Events */
+            events: number;
+            /** Hours */
+            hours: number;
         };
     };
     responses: never;
@@ -2991,6 +3093,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservationPolicyModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    read_summary_v1_analytics_summary_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

@@ -472,6 +472,13 @@ class FakeRunRepository:
     async def save(self, run: Run) -> None:
         await self.add(run)
 
+    async def since(self, tenant_id: TenantId, *, since: datetime) -> tuple[Run, ...]:
+        return tuple(
+            run
+            for run in self.rows.values()
+            if run.tenant_id == tenant_id and run.started_at >= since
+        )
+
     async def finished_since(
         self, tenant_id: TenantId, *, target_system: str, since: datetime
     ) -> tuple[Run, ...]:

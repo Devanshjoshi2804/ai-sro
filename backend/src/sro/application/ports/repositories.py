@@ -137,6 +137,16 @@ class RunRepository(Protocol):
         """Runs against one system that have ended. What the breaker reads."""
         ...
 
+    async def since(self, tenant_id: TenantId, *, since: datetime) -> tuple[Run, ...]:
+        """Every run in a window, whatever it was for. What a summary counts.
+
+        ponytail: whole rows, and the caller judges each one with the same
+        function that judged it at finish -- so the numbers on a screen agree
+        with the ladder rather than being a second opinion about it. Becomes a
+        GROUP BY when a tenant does thousands of runs a day.
+        """
+        ...
+
 
 class KnowledgeRepository(Protocol):
     async def add(self, entry: KnowledgeEntry) -> None: ...

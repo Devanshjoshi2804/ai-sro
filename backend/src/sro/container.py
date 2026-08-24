@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.application.analytics.summary import ReadSummary
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.connection.browsers import Browsers
@@ -189,6 +190,9 @@ class Container:
         except SQLAlchemyError:
             return False
         return True
+
+    def read_summary(self) -> ReadSummary:
+        return ReadSummary(self.unit_of_work())
 
     def mine_observations(self) -> MineObservations:
         return MineObservations(self.unit_of_work(), self.blobs, self.ids)

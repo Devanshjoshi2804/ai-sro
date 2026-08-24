@@ -1182,6 +1182,293 @@
         }
       }
     },
+    "/v1/analytics/summary": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Read Summary",
+        "description": "A week by default, because a week is the unit a shift pattern repeats in.",
+        "operationId": "read_summary_v1_analytics_summary_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 7,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryModel"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one this deployment rejects.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such thing, or not yours.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The system's state says no, not the request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request cannot be processed as asked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Something this depends on is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/candidates": {
       "get": {
         "tags": [
@@ -17836,6 +18123,49 @@
         ],
         "title": "DismissCandidateRequest"
       },
+      "DoingModel": {
+        "properties": {
+          "runs": {
+            "type": "integer",
+            "title": "Runs"
+          },
+          "clean": {
+            "type": "integer",
+            "title": "Clean"
+          },
+          "degraded": {
+            "type": "integer",
+            "title": "Degraded"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "withheld": {
+            "type": "integer",
+            "title": "Withheld"
+          },
+          "writes_sent": {
+            "type": "integer",
+            "title": "Writes Sent"
+          },
+          "minutes_saved": {
+            "type": "number",
+            "title": "Minutes Saved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "runs",
+          "clean",
+          "degraded",
+          "failed",
+          "withheld",
+          "writes_sent",
+          "minutes_saved"
+        ],
+        "title": "DoingModel"
+      },
       "EntryKind": {
         "type": "string",
         "enum": [
@@ -18587,6 +18917,42 @@
           "skill_id"
         ],
         "title": "NewTriggerRequest"
+      },
+      "NoticingModel": {
+        "properties": {
+          "tasks": {
+            "type": "integer",
+            "title": "Tasks"
+          },
+          "worth_offering": {
+            "type": "integer",
+            "title": "Worth Offering"
+          },
+          "taught": {
+            "type": "integer",
+            "title": "Taught"
+          },
+          "dismissed": {
+            "type": "integer",
+            "title": "Dismissed"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tasks",
+          "worth_offering",
+          "taught",
+          "dismissed",
+          "by_kind"
+        ],
+        "title": "NoticingModel"
       },
       "ObjectiveKeyModel": {
         "properties": {
@@ -20352,6 +20718,41 @@
         ],
         "title": "StepOutcomeModel"
       },
+      "SummaryModel": {
+        "properties": {
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Since"
+          },
+          "watching": {
+            "$ref": "#/components/schemas/WatchingModel"
+          },
+          "noticing": {
+            "$ref": "#/components/schemas/NoticingModel"
+          },
+          "doing": {
+            "$ref": "#/components/schemas/DoingModel"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskLineModel"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "since",
+          "watching",
+          "noticing",
+          "doing",
+          "tasks"
+        ],
+        "title": "SummaryModel",
+        "description": "Everything on the overview, derived from rows somebody can open."
+      },
       "TaskCandidateModel": {
         "properties": {
           "id": {
@@ -20463,6 +20864,71 @@
         ],
         "title": "TaskCandidateModel",
         "description": "A task somebody keeps doing, offered rather than acted on."
+      },
+      "TaskLineModel": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "host": {
+            "type": "string",
+            "title": "Host"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "times_seen": {
+            "type": "integer",
+            "title": "Times Seen"
+          },
+          "median_seconds": {
+            "type": "number",
+            "title": "Median Seconds"
+          },
+          "minutes_spent": {
+            "type": "number",
+            "title": "Minutes Spent"
+          },
+          "skill_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill Id"
+          },
+          "runs": {
+            "type": "integer",
+            "title": "Runs"
+          },
+          "minutes_saved": {
+            "type": "number",
+            "title": "Minutes Saved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "host",
+          "kind",
+          "status",
+          "times_seen",
+          "median_seconds",
+          "minutes_spent",
+          "skill_id",
+          "runs",
+          "minutes_saved"
+        ],
+        "title": "TaskLineModel"
       },
       "TaughtModel": {
         "properties": {
@@ -20965,6 +21431,34 @@
           "caveat"
         ],
         "title": "UnderstoodResponse"
+      },
+      "WatchingModel": {
+        "properties": {
+          "devices": {
+            "type": "integer",
+            "title": "Devices"
+          },
+          "batches": {
+            "type": "integer",
+            "title": "Batches"
+          },
+          "events": {
+            "type": "integer",
+            "title": "Events"
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "devices",
+          "batches",
+          "events",
+          "hours"
+        ],
+        "title": "WatchingModel"
       }
     }
   }

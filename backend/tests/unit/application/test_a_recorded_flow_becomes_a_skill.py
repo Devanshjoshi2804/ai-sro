@@ -98,3 +98,22 @@ async def test_a_flow_with_no_calls_is_skipped_not_failed() -> None:
     assert seeded.skill_id is None
     assert seeded.skipped == "this flow has no calls"
     assert uow.skills.rows == {}
+
+
+async def test_a_read_only_dashboard_flow_is_skipped_not_crashed() -> None:
+    # A different shape lives under the same directory: calls flat, with a
+    # top-level url/status and no nested request or response at all.
+    uow = FakeUnitOfWork()
+    dashboard = {
+        "screen": "inventory",
+        "readOnly": True,
+        "calls": [
+            {"seq": 0, "method": "GET", "url": "https://wms.test/api/devices", "status": 200}
+        ],
+    }
+
+    seeded = await _seeder(uow).execute(CTX, flow=dashboard, system="blue_yonder")
+
+    assert seeded.skill_id is None
+    assert seeded.skipped == "this flow has no calls"
+    assert uow.skills.rows == {}

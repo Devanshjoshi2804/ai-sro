@@ -33,8 +33,22 @@ def test_every_kind_of_thing_the_base_records_is_read(claims: tuple) -> None:
     assert kinds[EntryKind.ENDPOINT] > 500, "551 endpoints were catalogued"
     assert kinds[EntryKind.FIELD] > 200
     assert kinds[EntryKind.FORM] > 50
+    assert kinds[EntryKind.FLOW] > 10, "the full-cascade flows (not the terse lifecycle ones)"
     assert kinds[EntryKind.STATUS] > 100
     assert kinds[EntryKind.QUIRK] > 10
+
+
+def test_a_flow_with_a_colliding_resource_name_still_gets_its_own_claim(
+    claims: tuple,
+) -> None:
+    """A duplicate-name rejection flow and the ordinary create both name the
+    same resource. `spec` is what tells them apart; `resource` alone would
+    have silently dropped one at ingest."""
+    flows = [claim for claim in claims if claim.kind is EntryKind.FLOW]
+    resources = {claim.body["resource"] for claim in flows}
+
+    colliding = [r for r in resources if sum(1 for c in flows if c.body["resource"] == r) > 1]
+    assert colliding, "the base has more than one flow for the same resource"
 
 
 def test_claims_keep_the_evidence_level_they_were_recorded_at(claims: tuple) -> None:

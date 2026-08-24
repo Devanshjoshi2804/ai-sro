@@ -32,17 +32,13 @@ _EVIDENCE_BY_NAME = {
 
 
 def read_catalogue(root: Path, *, system: str) -> tuple[Claim, ...]:
-    """Every claim the recorded base makes, in one pass.
-
-    Flows (`http/flows/*.json`) are deliberately skipped: no key appears in all
-    35 files, so there is nothing to read them by that would not be guesswork.
-    They stay as human-readable evidence until something needs them.
-    """
+    """Every claim the recorded base makes, in one pass."""
     claims: list[Claim] = []
     claims.extend(_screens(root, system))
     claims.extend(_endpoints(root, system))
     claims.extend(_fields(root, system))
     claims.extend(_forms(root, system))
+    claims.extend(_flows(root, system))
     claims.extend(_statuses(root, system))
     claims.extend(_quirks(root, system))
     return tuple(claims)
@@ -177,6 +173,59 @@ def _forms(root: Path, system: str) -> Iterator[Claim]:
                 "create_via": form.get("create_via"),
             },
             source="index/form-models-all.json",
+            evidence=EvidenceLevel.OBSERVED,
+        )
+
+
+def _flows(root: Path, system: str) -> Iterator[Claim]:
+    """A recorded call cascade: what a create or update actually sends, in order.
+
+    Deliberately compact. The full exchange -- headers, real payloads, real
+    responses -- is what `seed_skills` reads to induce a runnable skill from;
+    a claim only needs enough to answer "what does this send and in what
+    order", with a pointer at the file for whoever needs the rest.
+
+    Only the full-cascade shape (``calls`` of real request/response pairs) is
+    read here. A second, terser shape also lives under this directory --
+    ``phases`` of one-line ``METHOD path -> status`` strings, no real bodies --
+    and has nothing this claim could replay or cite precisely; it is skipped
+    rather than half-represented.
+    """
+    flows_dir = root / "http" / "flows"
+    if not flows_dir.is_dir():
+        return
+    for path in sorted(flows_dir.glob("*.json")):
+        document = json.loads(path.read_text())
+        # `resource` alone collides -- a duplicate-name rejection flow and the
+        # ordinary create both name `clients`. `spec` is the file's own scenario
+        # name and is unique by construction: it is where the filename came from.
+        spec = document.get("spec") or path.stem
+        resource = document.get("resource") or spec
+        calls = document.get("calls") or []
+        if not calls:
+            continue
+        steps = [
+            {
+                "method": (call.get("request") or {}).get("method"),
+                "endpoint": call.get("endpoint"),
+                "status": (call.get("response") or {}).get("status"),
+            }
+            for call in calls
+        ]
+        writes = sum(1 for step in steps if step["method"] not in (None, "GET", "HEAD"))
+        yield Claim(
+            system=system,
+            kind=EntryKind.FLOW,
+            key=spec,
+            title=f"{resource} — recorded cascade ({len(calls)} calls, {writes} writes)",
+            body={
+                "resource": resource,
+                "spec": spec,
+                "applied": document.get("applied") or {},
+                "steps": steps,
+                "evidence_file": f"http/flows/{path.name}",
+            },
+            source=f"http/flows/{path.name}",
             evidence=EvidenceLevel.OBSERVED,
         )
 

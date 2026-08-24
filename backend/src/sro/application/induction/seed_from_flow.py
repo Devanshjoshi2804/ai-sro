@@ -43,7 +43,18 @@ def flow_to_events(flow: Mapping[str, JsonValue], *, base_time: datetime) -> lis
     the same self-referential frame the single-demonstration path already
     proves out: `typed_values()` finds its own action's value in its own
     request and recovers the parameter without a second, separate step.
+
+    Not every file under ``http/flows/`` is this shape -- a terser one records
+    a read-only dashboard's calls flat, with no nested request or response at
+    all. Nothing here is a task to replay either way, so a call missing that
+    shape empties the whole flow rather than seeding a skill from half of it.
     """
+    calls = flow.get("calls") or []
+    if not all(
+        isinstance(call.get("request"), Mapping) and call["request"].get("url") for call in calls
+    ):
+        return []
+
     applied = {
         name: value
         for name, value in (flow.get("applied") or {}).items()
@@ -52,7 +63,7 @@ def flow_to_events(flow: Mapping[str, JsonValue], *, base_time: datetime) -> lis
     claimed: set[str] = set()
     events: list[CaptureEvent] = []
 
-    for index, call in enumerate(flow.get("calls") or []):
+    for index, call in enumerate(calls):
         request = call.get("request") or {}
         response = call.get("response") or {}
         at = base_time + timedelta(seconds=index)

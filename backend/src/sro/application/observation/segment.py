@@ -77,7 +77,75 @@ def read(payload: bytes, batch_id: BatchId) -> tuple[Observed, ...]:
 def segment(observed: Sequence[Observed]) -> tuple[Segment, ...]:
     """Pieces of work, in the order they happened."""
     ordered = sorted(observed, key=lambda one: one.at)
-    return tuple(segment for run in _runs(ordered) if (segment := _segment(run)) is not None)
+    return tuple(
+        segment
+        for run in _runs(ordered)
+        for piece in _repetitions(run)
+        if (segment := _segment(piece)) is not None
+    )
+
+
+def _repetitions(run: Sequence[Observed]) -> Iterator[Sequence[Observed]]:
+    """A run that is one task done several times, cut back into the several.
+
+    A pause is not the only boundary there is. Somebody working through a pile
+    takes the next job off it without stopping, so twenty adjustments in an hour
+    arrive as one run with no gap in it -- and the piece of work that gets
+    counted is "twenty adjustments", seen once, which never reaches the number
+    of times that makes a task worth offering. The most repetitive work in the
+    warehouse was the work this was blindest to.
+
+    Cut where the sequence of calls turns out to be one block repeated: the
+    period of the sequence, by its own prefix function. Exact repetition only,
+    which is deliberately timid -- a run with one extra click in the middle of
+    the third doing is left whole rather than cut somewhere invented. Robotic
+    process mining does this by finding the back edges of a control-flow graph
+    over the log and tolerating noise between them (Leno et al., ICPM 2020);
+    that is the same idea with a budget for imperfection, and it is where this
+    should go when there is real observation to tune it against.
+    """
+    calls = [(index, one) for index, one in enumerate(run) if one.is_call]
+    shapes = [f"{one.method.upper()} {url_shape(one.url)}" for _, one in calls]
+    period = _period(shapes)
+    if period is None:
+        yield run
+        return
+
+    for start in range(0, len(calls) - period + 1, period):
+        # From the gesture that caused this block's first call: a task begins
+        # when somebody touches something, not when the page answers.
+        at = calls[start][0]
+        while at and run[at - 1].is_gesture:
+            at -= 1
+        end = calls[start + period][0] if start + period < len(calls) else len(run)
+        while end and run[end - 1].is_gesture:
+            end -= 1
+        yield run[at:end]
+
+
+def _period(shapes: Sequence[str]) -> int | None:
+    """The length of the block this sequence repeats, if it repeats whole.
+
+    The prefix function of string matching, over call shapes rather than
+    characters: the shortest period is the length minus the longest border, and
+    it is a real repetition only where it divides the length evenly and does so
+    more than once.
+    """
+    if len(shapes) < 2:
+        return None
+    border = [0] * len(shapes)
+    length = 0
+    for index in range(1, len(shapes)):
+        while length and shapes[index] != shapes[length]:
+            length = border[length - 1]
+        if shapes[index] == shapes[length]:
+            length += 1
+        border[index] = length
+
+    period = len(shapes) - border[-1]
+    if period == len(shapes) or len(shapes) % period:
+        return None
+    return period
 
 
 def _runs(ordered: Sequence[Observed]) -> Iterator[list[Observed]]:

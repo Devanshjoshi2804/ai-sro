@@ -78,6 +78,15 @@ a test stands in for the other side of a contract, assert the real side
 somewhere too: `frontend/src/features/console/embedded-credential.test.tsx`
 exists for exactly that reason.
 
+**A step's credentials come from the system it is calling.** Not from the
+skill's objective key. A skill whose steps call two systems -- taught by
+`TeachWorkflow` from two candidates a person joined -- would otherwise resolve
+the first system's cookie, bearer, minted token and referer for every step, and
+post one customer system's live session to another. `session_scope` is derived
+per call in `execute_skill._perform`, and `resolve_headers` ignores a credential
+reference that names a different system from the calling one. See
+`docs/12-execution-and-agents.md`.
+
 **A wire type change is not finished until `make types` has run.** It writes
 `frontend/openapi.json` and `frontend/src/lib/api/generated.ts`, and both are
 committed. Four fields once shipped without it and the pipeline's contract step

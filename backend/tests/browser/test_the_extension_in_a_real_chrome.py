@@ -837,6 +837,87 @@ def test_a_request_is_sent_with_the_operator_s_own_session(
     assert body["body"] == '{"code":"TESTSRO"}'
 
 
+def test_a_session_the_backend_supplies_is_not_what_goes_out(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """The tab's own session, and only ever that.
+
+    `Cookie` is a forbidden header name for `fetch`: the browser drops whatever
+    the caller set and sends the tab's own. So a run in somebody's browser is
+    authenticated by their session whether or not the deployment holds one --
+    and a resolved cookie travelling with the command is a value that reaches
+    nothing, while the executor refuses to send the step without it.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+    api_url, _ = stub
+    page.evaluate("() => { document.cookie = 'wms_session=the-operator; path=/'; }")
+
+    open_channel.command(
+        "cmd_forged",
+        "http.send",
+        {
+            "method": "POST",
+            "url": f"{api_url}/api/echo",
+            "headers": {"cookie": "wms_session=from-the-vault"},
+            "body": "{}",
+        },
+    )
+    answer = open_channel.answer("cmd_forged")
+    page.close()
+
+    assert answer["ok"] is True, answer
+    assert json.loads(answer["result"]["body"])["cookie"] == "wms_session=the-operator", (
+        "the header the executor resolved reached the wire; it is supposed to be dropped"
+    )
+
+
+def test_each_half_of_a_workflow_is_sent_from_its_own_system_s_tab(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """A workflow is one skill whose steps call two systems.
+
+    Both halves going out of one tab is the failure that has two faces: the ERP
+    call arrives carrying the WMS's session -- one customer system's credentials
+    handed to another -- and it arrives unauthenticated for the system it is
+    actually addressed to. The tab is picked per call, from the call's own URL,
+    which is the only thing that makes both halves right at once.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+    api_url, _ = stub
+    page.evaluate("() => { document.cookie = 'wms_session=warehouse; path=/'; }")
+
+    # A second system, as far as a browser is concerned: the same stub answers
+    # on `localhost` as on `127.0.0.1`, and cookies do not cross between them.
+    other_url = api_url.replace("127.0.0.1", "localhost")
+    other = browser.new_page()
+    other.goto(other_url)
+    other.evaluate("() => { document.cookie = 'erp_session=finance; path=/'; }")
+
+    sent = {}
+    for name, url in (("cmd_wms", api_url), ("cmd_erp", other_url)):
+        open_channel.command(
+            name,
+            "http.send",
+            {
+                "method": "POST",
+                "url": f"{url}/api/echo",
+                "headers": {"content-type": "application/json"},
+                "body": "{}",
+            },
+        )
+        answer = open_channel.answer(name)
+        assert answer["ok"] is True, answer
+        sent[name] = json.loads(answer["result"]["body"])["cookie"]
+
+    other.close()
+    page.close()
+
+    assert sent["cmd_wms"] == "wms_session=warehouse"
+    assert sent["cmd_erp"] == "erp_session=finance", (
+        "the second half went out of the first half's tab, carrying its session"
+    )
+
+
 def test_navigating_the_tab_the_operator_is_watching_is_refused(
     browser: Any, stub: Any, channel: Any
 ) -> None:

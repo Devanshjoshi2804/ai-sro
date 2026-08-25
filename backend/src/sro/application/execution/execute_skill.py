@@ -15,10 +15,12 @@ What this is careful about, in order of how much damage the alternative does:
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from urllib.parse import urlsplit
 
+from sro.application.capture.identity import system_named, system_of
 from sro.application.context import RequestContext
 from sro.application.execution.answer import MAX_ROWS, Answer, merge, read_answer
 from sro.application.execution.headers import client_headers, resolve_headers
@@ -34,6 +36,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.token import TokenRefused, TokenSource
 from sro.application.ports.ui import ResolvedLocator, UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
+from sro.domain.connection.connection import Connection
 from sro.domain.execution.escalation import FailureKind, next_medium
 from sro.domain.execution.run import (
     Medium,
@@ -47,6 +50,7 @@ from sro.domain.execution.safety import FAILURE_WINDOW, WRITE_WINDOW, RunFact, a
 from sro.domain.execution.verdict import judge
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId
+from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillStep, SkillVersion
@@ -234,6 +238,9 @@ class ExecuteStep:
     async def execute(self, ctx: RequestContext, *, run_id: RunId, index: int) -> StepOutcome:
         async with self._uow as uow:
             run = await uow.runs.get(ctx.tenant_id, run_id)
+            # Read here because a step's credentials depend on which system it
+            # is calling, and a workflow's steps do not all call the same one.
+            connections = await uow.connections.list_for_tenant(ctx.tenant_id)
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
 
         version = skill.version(run.skill_version)
@@ -257,13 +264,13 @@ class ExecuteStep:
             if parameter.kind is ParameterKind.DERIVED and parameter.source_step_index == index
         )
 
-        session_scope = f"{skill.objective_key.target_system}/{skill.objective_key.facility}"
         outcome, derived, failure = await self._perform(
             run,
             step,
             values=run.values,
             scope=str(ctx.tenant_id),
-            session_scope=session_scope,
+            objective=skill.objective_key,
+            connections=connections,
             produces=produces,
             parameters=tuple(version.parameters),
         )
@@ -289,7 +296,8 @@ class ExecuteStep:
                 step,
                 values=run.values,
                 scope=str(ctx.tenant_id),
-                session_scope=session_scope,
+                objective=skill.objective_key,
+                connections=connections,
                 produces=produces,
             )
             outcome = replace(
@@ -367,7 +375,9 @@ class ExecuteStep:
             logger.info("no access token for %s: %s", system, refusal)
             return None
 
-    def _ui_for(self, run: Run, version: SkillVersion | None = None) -> UiDriver | None:
+    def _ui_for(
+        self, run: Run, version: SkillVersion | None = None, step: SkillStep | None = None
+    ) -> UiDriver | None:
         """The browser this run is performed in, and the page in it.
 
         A run bound to a device never falls back to the deployment's own
@@ -384,7 +394,7 @@ class ExecuteStep:
         if self._agents is None:
             return None
         return self._agents.ui(
-            run.tenant_id, run.device_id, _origin_of(version), run.may_take_focus
+            run.tenant_id, run.device_id, _origin_of(version, step), run.may_take_focus
         )
 
     def _caller_for(self, run: Run) -> HttpCaller:
@@ -594,7 +604,8 @@ class ExecuteStep:
         *,
         values: dict[str, str],
         scope: str,
-        session_scope: str,
+        objective: ObjectiveKey,
+        connections: Sequence[Connection],
         produces: tuple[Parameter, ...] = (),
         parameters: tuple[Parameter, ...] = (),
     ) -> tuple[StepOutcome, dict[str, str], FailureKind | None]:
@@ -682,6 +693,29 @@ class ExecuteStep:
                 None,
             )
 
+        # Whose session this call goes out under, decided by the host it is
+        # going to rather than by the skill it belongs to.
+        #
+        # Everything credential-shaped hangs off this: the stored cookie, the
+        # minted CSRF token, the live referer, and the bearer. A workflow's
+        # second half keyed to its first would fetch the WMS's live token and
+        # post it to the ERP -- one system's session handed to another, silently
+        # -- and would fail to authenticate against the ERP into the bargain.
+        #
+        # A host nobody has connected falls back to the skill's own system,
+        # which is every run there has ever been: a device run against a system
+        # this deployment holds no credentials for is the whole point of naming
+        # a device, and dropping its headers would break it.
+        # A host nobody has connected falls back to the skill's own system --
+        # every run there has ever been -- but only where the whole skill is
+        # that one system. A workflow's unconnected half falling back would
+        # resolve the *other* system's bearer and referer and send them there,
+        # which is the leak this per-call scope exists to close.
+        calling = system_of(connections, url) or (
+            system_named(connections, url) if len(run.systems) > 1 else objective.target_system
+        )
+        session_scope = f"{calling}/{objective.facility}"
+
         resolved = await resolve_headers(
             plan.headers,
             values=values,
@@ -689,13 +723,27 @@ class ExecuteStep:
             scope=scope,
             session_scope=session_scope,
             bearer=await self._bearer(scope, session_scope),
+            # The operator's own browser is the session. Nothing stored here is
+            # sent as one, and nothing stored here is required.
+            browser_session=run.device_id is not None,
         )
         if resolved.missing:
+            # A device run has already been given the browser's session, so
+            # what is missing here is a value minted per run -- and "connect
+            # the system" is advice that would not have helped: the token
+            # belongs to whichever session it was issued for, and this one is
+            # the operator's. Everything before the semicolon is the record the
+            # self-healer reads back, so only the advice changes.
+            advice = (
+                "connect the system"
+                if run.device_id is None
+                else "a run in your browser cannot mint it"
+            )
             return (
                 self._failed(
                     step,
                     key,
-                    "no live value for " + ", ".join(resolved.missing) + "; connect the system",
+                    "no live value for " + ", ".join(resolved.missing) + f"; {advice}",
                 ),
                 {},
                 FailureKind.CREDENTIAL_MISSING,
@@ -910,24 +958,35 @@ class ExecuteSkill:
         return await self._finish.execute(ctx, run_id=run.id)
 
 
-def _origin_of(version: SkillVersion | None) -> str | None:
-    """The system a skill was taught on, as a bare scheme and host.
+def _origin_of(version: SkillVersion | None, step: SkillStep | None = None) -> str | None:
+    """The page a step acts on, as a bare scheme and host.
 
-    Read off the first step whose recorded call names one. A parameterised host
-    is no answer at all -- the placeholder is not filled in until a step runs,
-    and a tab cannot be chosen by a template -- so those are passed over rather
-    than guessed at, and a skill made only of UI steps simply has no origin to
-    give.
+    The step's own recorded call where it has one, because a skill's steps do
+    not all belong to the same system: a workflow checks the WMS and then
+    records the receipt in the ERP, and a driver bound to one origin for the
+    whole run would attempt the second half in the first half's tab.
+
+    Where the step has no call of its own -- a UI-only step, or one whose host
+    is parameterised -- the version answers instead, from the first step that
+    names one. A parameterised host is no answer at all: the placeholder is not
+    filled in until the step runs, and a tab cannot be chosen by a template.
     """
+    if step is not None and (named := _origin_of_call(step)) is not None:
+        return named
     if version is None:
         return None
-    for step in version.steps:
-        if step.network_plan is None:
-            continue
-        raw = step.network_plan.url.raw
-        parts = urlsplit(raw)
-        if parts.scheme in ("http", "https") and parts.netloc and "$" not in parts.netloc:
-            return f"{parts.scheme}://{parts.netloc}"
+    for each in version.steps:
+        if (named := _origin_of_call(each)) is not None:
+            return named
+    return None
+
+
+def _origin_of_call(step: SkillStep) -> str | None:
+    if step.network_plan is None:
+        return None
+    parts = urlsplit(step.network_plan.url.raw)
+    if parts.scheme in ("http", "https") and parts.netloc and "$" not in parts.netloc:
+        return f"{parts.scheme}://{parts.netloc}"
     return None
 
 

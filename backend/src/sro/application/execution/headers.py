@@ -34,6 +34,7 @@ async def resolve_headers(
     scope: str,
     session_scope: str,
     bearer: str | None = None,
+    browser_session: bool = False,
 ) -> ResolvedHeaders:
     """``scope`` is the tenant whose session is used, prefixed onto every key.
 
@@ -77,17 +78,35 @@ async def resolve_headers(
             continue  # the HTTP client owns these
 
         if plan.credential_ref is not None:
+            if browser_session:
+                # This call goes out of a page the operator is signed in to, and
+                # `Cookie` is a forbidden header name for `fetch`: the browser
+                # drops whatever we set and sends the tab's own. Proved in
+                # Chrome -- `test_a_session_the_backend_supplies_is_not_what_
+                # goes_out`. So resolving it is a value that reaches nothing,
+                # and *requiring* it refuses the one case naming a device exists
+                # for: a system this deployment holds no credentials for.
+                continue
             if bearer and plan.name.lower() == "cookie":
                 # Both would be sent otherwise, and a stale session cookie
                 # beside a good token is how a call gets refused for the reason
                 # that was just fixed.
                 continue
-            secret = await vault.get(f"{scope}/{plan.credential_ref}")
+            # Induction writes one system into every step's reference, because
+            # a skill had one. A workflow does not, and the reference on its
+            # second half names the first half's system: resolving it verbatim
+            # posts the WMS's cookie to the ERP. The calling system, which
+            # `session_scope` carries, decides -- and no fall back to the
+            # reference, which would leak the same value by the other door.
+            ref = plan.credential_ref
+            if _system_of(ref) != _system_of(session_scope):
+                ref = f"{session_scope}/{plan.name.lower()}"
+            secret = await vault.get(f"{scope}/{ref}")
             if secret is None:
                 # A skill names `<system>/<site>/cookie`; a login is to a
                 # system. Falling back keeps a skill taught at one site usable
                 # at another the same connection reaches.
-                secret = await vault.get(f"{scope}/{_system_of(plan.credential_ref)}/cookie")
+                secret = await vault.get(f"{scope}/{_system_of(ref)}/cookie")
             if secret is None:
                 missing.append(plan.name)
             else:

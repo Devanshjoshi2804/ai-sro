@@ -118,6 +118,39 @@ skill is usable by any tenant holding a login to that system and by no other.
 A header that cannot be resolved stops the step; the call never goes out
 degraded, because a request missing its session is a request as somebody else.
 
+**Whose session, decided per call.** The scope those references resolve under is
+`<system>/<facility>`, and the system is the one the *call* is going to, not the
+one the skill is keyed by. It matters for a workflow: a skill that checks the
+WMS and records the receipt in the ERP would otherwise resolve the WMS's cookie,
+bearer, minted token and live referer for both halves — one customer system's
+session posted to another, and unauthenticated against the system it was
+actually addressed to. Where the reference on a step names a different system
+from the one being called, the calling system's key wins and there is no falling
+back to the reference. Where nobody has connected the host at all, the skill's
+own system stands — but only for a skill that is that one system. A workflow's
+unconnected half is *another system*, not this one under a different name, so it
+resolves under its own and finds nothing; falling back would send the first
+system's bearer to whoever answers at the second's address.
+
+**A run in somebody's browser takes its session from the browser.** Nothing
+stored here is sent as one and nothing stored here is required: `Cookie` is a
+forbidden header name for `fetch`, so a session resolved out of the vault is
+dropped on the way out and the tab's own is sent instead — proved in a real
+Chrome by `test_a_session_the_backend_supplies_is_not_what_goes_out`. Requiring
+it refused the one case naming a device exists for, with "connect the system"
+about a system nobody needs to connect. A bearer is *not* a forbidden header,
+which is why the scope above has to stop at the system boundary.
+
+What can still be missing in a browser is a value minted per run, and the
+refusal says so rather than saying "connect the system" — connecting it would
+not have helped, because the token belongs to whichever session it was issued
+for and this one is the operator's. Whether Blue Yonder's `CSRF-ENCRYPT-TOKEN`
+is bound to the session that issued it is unresolved: it expires with that
+session, so the stored one is at best useless in somebody else's browser, and
+this deployment has not yet observed which. Until it has, the stored value is
+still sent — dropping it on a guess would break every device write on a system
+that does not bind them.
+
 The honest gap: "minted" is aspirational. Blue Yonder issues
 `CSRF-ENCRYPT-TOKEN` at login and no page, cookie or storage key exposes it, so
 it is supplied through `POST /v1/connections/{id}/session-headers` by whoever can

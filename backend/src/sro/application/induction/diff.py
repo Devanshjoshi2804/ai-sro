@@ -26,11 +26,13 @@ from sro.application.induction.sites import (
     url_path_segments,
     url_query_pairs,
 )
+from sro.application.induction.transform import discover
 from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.network import CapturedRequest
 from sro.domain.recording.sensitivity import classify_header, is_replayable
 from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
+from sro.domain.skill.transform import Transform
 
 _UNREMARKABLE = frozenset({"", "true", "false", "null", "0", "1"})
 """Values too common to be evidence of anything, wherever they turn up."""
@@ -659,6 +661,11 @@ def _find_produced(
     forty rows -- at the same pointer in both runs, and where the place it is
     later sent has a name, the response has to use that same name for it. The
     system's own vocabulary is the evidence; agreement on it is not luck.
+
+    And deliberately no reformatting here, unlike `_find_source`. A rewriting is
+    read off one pair and believed because it also explains the other; here both
+    runs carry the same value, so the second pair is the first one again and a
+    rule would only ever be checked against itself.
     """
     if value.strip().lower() in _UNREMARKABLE:
         return None
@@ -756,7 +763,7 @@ def _build_parameter(
     value_a: str,
     value_b: str,
     sites: list[Difference],
-    source: tuple[int, str] | None,
+    source: tuple[int, str, Transform | None] | None,
 ) -> Parameter:
     if source is None:
         return Parameter(
@@ -765,14 +772,22 @@ def _build_parameter(
             description=_where(sites),
             observed_values=(value_a, value_b),
         )
-    step_index, pointer = source
+    step_index, pointer, rewrite = source
+    described = f"produced by step {step_index} response at {pointer}"
+    if rewrite is not None:
+        # Said in the description because a reviewer approving a write has to be
+        # able to disagree with it: "produced by step 0" reads as verbatim, and
+        # a value silently reformatted on the way is exactly the kind of thing
+        # somebody should be able to catch by eye.
+        described += f", {rewrite.said_plainly()}"
     return Parameter(
         name=name,
         kind=ParameterKind.DERIVED,
-        description=f"produced by step {step_index} response at {pointer}",
+        description=described,
         observed_values=(value_a, value_b),
         source_step_index=step_index,
         source_pointer=pointer,
+        transform=rewrite,
     )
 
 
@@ -981,20 +996,38 @@ def _find_source(
     run_b: tuple[ActionFrame, ...],
     *,
     before: int,
-) -> tuple[int, str] | None:
+) -> tuple[int, str, Transform | None] | None:
     """Find an earlier response producing this value in *both* runs.
 
     Requiring both is what separates a real data dependency from a coincidence.
     A coincidence promoted to DERIVED leaves a parameter nothing can populate.
+
+    Verbatim first, everywhere, before any reformatting is considered: a value
+    handed over unchanged is the ordinary case and must never be explained by a
+    story about padding that happens to fit.
     """
-    for step_index in range(before):
-        # Every call the gesture made, not its "primary" one: a Save that
-        # created a record and then addressed it answers twice, and the id the
-        # next step needs is in whichever of those the frame did not rank first.
-        leaves_b = {pointer: str(leaf) for pointer, leaf in _response_leaves(run_b[step_index])}
-        for pointer, leaf in _response_leaves(run_a[step_index]):
-            if str(leaf) == value_a and leaves_b.get(pointer) == value_b:
-                return step_index, pointer
+    for verbatim in (True, False):
+        for step_index in range(before):
+            # Every call the gesture made, not its "primary" one: a Save that
+            # created a record and then addressed it answers twice, and the id
+            # the next step needs is in whichever of those the frame did not
+            # rank first.
+            leaves_b = {pointer: str(leaf) for pointer, leaf in _response_leaves(run_b[step_index])}
+            for pointer, leaf in _response_leaves(run_a[step_index]):
+                source_a, source_b = str(leaf), leaves_b.get(pointer)
+                if source_b is None:
+                    continue
+                if verbatim:
+                    if source_a == value_a and source_b == value_b:
+                        return step_index, pointer, None
+                    continue
+                # Read off this run, then required to explain the other one --
+                # from the same place in the same response. A rule that fits one
+                # pair fits a great many pairs; a rule that fits both, where the
+                # two runs sent different values, is what the task does.
+                rewrite = discover(source_a, value_a)
+                if rewrite is not None and rewrite.apply(source_b) == value_b:
+                    return step_index, pointer, rewrite
     return None
 
 

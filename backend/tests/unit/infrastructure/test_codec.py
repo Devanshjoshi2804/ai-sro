@@ -8,6 +8,8 @@ sets of states, timezone-aware timestamps. Those are what these assert.
 from __future__ import annotations
 
 from sro.domain.recording.network import Body, Initiator, InitiatorKind, StackFrame
+from sro.domain.skill.parameter import Parameter, ParameterKind
+from sro.domain.skill.transform import Transform
 from sro.infrastructure.db.codec import (
     dump_artifacts,
     dump_frames,
@@ -61,3 +63,29 @@ def test_a_skill_version_round_trips_with_its_provenance() -> None:
     assert restored[0].parameters == versions[0].parameters
     assert restored[0].provenance == versions[0].provenance
     assert restored[0].stage is versions[0].stage
+
+
+def test_what_was_done_to_a_derived_value_comes_back_with_it() -> None:
+    """A skill version is a JSONB document, so a field the codec cannot carry is
+    a field that silently becomes `None` on the next read -- and a transformation
+    that disappears sends `77` where the demonstration proved `LPN-00077`."""
+    versions = (
+        f.skill_version(
+            steps=(f.step(index=0, network_plan=None), f.step(index=1)),
+            parameters=(
+                Parameter(
+                    name="shipment_id",
+                    kind=ParameterKind.DERIVED,
+                    source_step_index=0,
+                    source_pointer="/data/waveId",
+                    transform=Transform(ops=(("pad", "5", "0"), ("prefix", "LPN-"))),
+                ),
+            ),
+        ),
+    )
+
+    restored = load_versions(dump_versions(versions))
+
+    carried = restored[0].parameters[0].transform
+    assert carried is not None
+    assert carried.apply("77") == "LPN-00077"

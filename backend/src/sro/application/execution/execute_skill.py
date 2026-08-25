@@ -1046,7 +1046,13 @@ def _derive(produces: tuple[Parameter, ...], response: HttpResponse) -> dict[str
             continue
         value = extract(response, parameter.source_pointer)
         if value is not None:
-            bound[parameter.name] = value
+            # Reformatted on the way where the demonstrations were: the WMS
+            # answers `42` and the ERP is sent `LPN-00042`, and sending the bare
+            # number would be a write the target system rejects or, worse,
+            # accepts against the wrong record.
+            bound[parameter.name] = (
+                parameter.transform.apply(value) if parameter.transform else value
+            )
     return bound
 
 

@@ -1,6 +1,6 @@
 # ADR 004 — Parameters come from a two-run diff, not from a model
 
-**Status:** accepted · v0
+**Status:** accepted · v1
 
 ## Context
 
@@ -37,6 +37,45 @@ can ever populate.
 This matters because session tokens, generated LPNs and server-assigned ids all
 change between runs. A naive "it changed, so ask the user" rule would prompt an
 operator for a value only the server can know.
+
+### A value reformatted on the way is still derived, if both runs say so
+
+**Amended, v1.** Equality was the only recognised link between a response and a
+later call, so a value the task *reformats* — `42` answered by the WMS, sent to
+the ERP as `LPN-00042` — was not derived at all. It became an `input`: a
+question put to an operator who does not know where the number comes from
+either. That is the ordinary shape of work that crosses two systems, and it is
+now the ordinary shape of a skill (`docs/15`, `TeachWorkflow`).
+
+So a link may also be a small reformatting — trimmed, recased, zero-padded, a
+constant prefix or suffix — under exactly the standard the rest of this ADR
+holds: the rewriting is read off one run and must then explain the **other**
+run's pair, from the same pointer of the same earlier response. Rules always fit
+one pair. A rule that fits both, where the two runs carried different values, is
+what the task does.
+
+What keeps this from being the inference this ADR exists to prevent:
+
+- **Verbatim wins, everywhere, first.** A value handed over unchanged is never
+  explained by a longer story about padding that happens to fit — including
+  when an *earlier* step could be reformatted into it and a later one carries it
+  outright.
+- **A single character is not evidence.** `7` occurs inside a hundred values by
+  accident, so the source has to contribute at least two characters.
+- **A digit touching a digit is not a boundary.** `42` occurs inside `LPN-00042`;
+  reading that as the prefix `LPN-000` reproduces the example and gets the next
+  run wrong. Those occurrences are skipped, and the padding that actually
+  happened is found instead.
+- **Six operations, and no search.** Anything a person cannot check by eye
+  against two examples is not expressible. The general form of this problem is
+  program synthesis by example (Leno et al., arXiv:2001.01007, searching with
+  A*); that is the right shape when a transformation is worth more than these
+  six, and it is a decision to take then rather than now.
+- **The reviewer is told.** The parameter's description says what was done —
+  *"produced by step 0 response at /data/waveId, padded to 5 with '0', then
+  prefixed with 'LPN-'"* — because a value silently reformatted on its way into
+  another company's system is exactly what somebody approving a write should be
+  able to disagree with.
 
 ### Structural disagreement is an error, not a guess
 

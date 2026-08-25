@@ -7,6 +7,7 @@ from enum import StrEnum
 
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.skill.lookup import Options
+from sro.domain.skill.transform import Transform
 
 
 class ParameterKind(StrEnum):
@@ -43,6 +44,13 @@ class Parameter:
 
     source_step_index: int | None = None
     source_pointer: str | None = None
+
+    transform: Transform | None = None
+    """What was done to the value between the response and the call that sent it.
+
+    Absent for the ordinary case, where it was handed over unchanged. Present
+    where two demonstrations agreed on a reformatting -- `42` answered, `LPN-00042`
+    sent -- which is the shape of most work that crosses two systems."""
 
     options: Options | None = None
     """Where this value can be chosen from, where the screen chose it.

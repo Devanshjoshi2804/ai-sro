@@ -111,6 +111,15 @@ every step, not only the writing ones — whether a step writes is knowable only
 after it has been built, and a read losing a retry costs less than a write
 gaining one.
 
+**A derived value may have been reformatted.** A parameter carries the pointer
+of the response that produces it and, where two demonstrations agreed on one, a
+small rewriting to apply on the way: trimmed, recased, zero-padded, a constant
+prefix or suffix. `42` comes back from the WMS and `LPN-00042` goes to the ERP.
+The rewriting is applied in `_derive`, at the moment the value is bound, so every
+later step sees the value the demonstration proved rather than the raw one -- and
+the reviewer sees it spelled out in the parameter's description. ADR 004 has the
+rule that keeps it evidence rather than a guess.
+
 **Where the credentials come from.** A skill's header plan holds references, not
 values: `<blue_yonder/SG/cookie>` for the session, `<minted per run>` for CSRF.
 The executor prefixes the tenant and resolves both out of the vault, so one

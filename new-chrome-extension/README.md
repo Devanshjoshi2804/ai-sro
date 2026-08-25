@@ -47,6 +47,29 @@ neither pause all agree. When it does not, the options page says which one is
 missing, and it is never guessing: everything on that screen comes from the
 service worker's own state.
 
+## Screenshots
+
+A gesture on an allowed page is illustrated by a PNG of what the operator was
+looking at, uploaded to `/v1/observations/artifacts` and keyed to the gesture it
+follows by `frame_index`. Four things bound it, and all four are enforced here
+rather than by the backend:
+
+- the tenant's `capture_screenshots`, which is off unless the policy says on;
+- the tenant's `screenshot_max_per_minute`, spent only on a picture that was
+  actually taken;
+- the host of the whole document the gesture's frame sits in, so an allowed
+  widget inside an excluded page is never photographed;
+- the device's `daily_budget_bytes` — pictures are the first thing the queue
+  gives up when it is over, before response bodies and long before a gesture.
+
+Chrome adds a fifth of its own: it refuses more than two captures a second.
+
+Once the batch carrying a gesture is accepted, its picture moves to a store of
+its own keyed `batch_id:frame_index`, and uploads from there on the same alarm.
+So an upload that fails is retried without re-sending the batch, and staging the
+same batch twice replaces the row rather than queueing a second copy. Three
+failed attempts and the picture is dropped, loudly — the options page says so.
+
 ## Working without the backend
 
 `mock-server/` implements the frozen contract with canned responses. Build the

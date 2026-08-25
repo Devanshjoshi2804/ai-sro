@@ -9,8 +9,19 @@
 import { state } from "./state.js";
 
 const DB_NAME = "sro-observation-queue";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = "events";
+
+/** Screenshots whose batch has already been accepted, waiting for their own
+ * upload. They leave the event row they were captured on the moment that
+ * batch lands: the events are stored by then, and holding accepted evidence
+ * in the queue to retry one picture would re-send the whole batch with it.
+ *
+ * Keyed by the batch and frame they belong to rather than by a counter, so a
+ * flush that stages the same batch twice -- a reply lost after the events
+ * were stored -- overwrites its own row instead of queueing a second copy of
+ * the same picture. */
+const SHOTS = "shots";
 
 let opening = null;
 
@@ -19,13 +30,19 @@ function open() {
     opening = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       let freshlyCreated = false;
-      request.onupgradeneeded = () => {
-        // Fires when the store is created -- a first install, or a database
-        // that was deleted or evicted underneath us. Either way the
-        // autoIncrement counter restarts at 1, which the next row this
-        // worker hands out will reuse.
-        freshlyCreated = true;
-        request.result.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
+      request.onupgradeneeded = (event) => {
+        // `oldVersion === 0` is the store being created -- a first install, or
+        // a database that was deleted or evicted underneath us. Either way the
+        // autoIncrement counter restarts at 1, which the next row this worker
+        // hands out will reuse. A version *upgrade* is not that: the rows and
+        // the counter are still there, and rotating the epoch under them would
+        // re-mint an id for a batch already in flight.
+        freshlyCreated = event.oldVersion === 0;
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains(SHOTS)) db.createObjectStore(SHOTS, { keyPath: "id" });
       };
       request.onsuccess = () => {
         const db = request.result;
@@ -89,13 +106,22 @@ function settle(tx, resolve, reject, value) {
  * cap and the heartbeat's `queued_bytes` were wrong by that much. */
 const sizeOf = (event) => new TextEncoder().encode(JSON.stringify(event)).length;
 
-/** Add one protocol-shaped event to the tail of the queue. */
-export async function enqueue(event) {
+/**
+ * Add one protocol-shaped event to the tail of the queue, with the screenshot
+ * that illustrates it when there is one.
+ *
+ * The screenshot rides on the row rather than in the event: it is not an event
+ * kind the protocol has, it is uploaded to a different endpoint, and keeping it
+ * beside its gesture is what lets `flush` name the frame it belongs to without
+ * a second store to keep in step. `size` stays the size of the event alone --
+ * it is what bounds a batch's JSON, which the picture is not part of.
+ */
+export async function enqueue(event, shot = null) {
   const db = await open();
   const size = sizeOf(event);
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).add({ queuedAt: Date.now(), size, event });
+    tx.objectStore(STORE).add({ queuedAt: Date.now(), size, event, shot });
     settle(tx, resolve, reject);
   });
 }
@@ -123,6 +149,7 @@ export async function peek(limit) {
         queuedAt: cursor.value.queuedAt,
         size: cursor.value.size,
         event: cursor.value.event,
+        shot: cursor.value.shot || null,
       });
       cursor.continue();
     };
@@ -144,15 +171,101 @@ export async function remove(ids) {
   });
 }
 
-/** Empty the queue. Used when the credential changes: what one operator's
- * browser captured must never be uploaded under the next operator's identity,
- * into the next operator's tenant. */
+/** Empty the queue, pictures included. Used when the credential changes: what
+ * one operator's browser captured must never be uploaded under the next
+ * operator's identity, into the next operator's tenant. A staged screenshot is
+ * the most literal form of that -- it is a photograph of the last operator's
+ * screen -- so it goes with everything else. */
 export async function clear() {
   const db = await open();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
+    const tx = db.transaction([STORE, SHOTS], "readwrite");
     tx.objectStore(STORE).clear();
+    tx.objectStore(SHOTS).clear();
     settle(tx, resolve, reject);
+  });
+}
+
+/**
+ * Move the pictures of a batch that has just been accepted into the shot
+ * store, keyed by the frame each one illustrates.
+ *
+ * `put`, not `add`: the key is the batch and the frame, so staging the same
+ * batch twice replaces the row rather than doubling it.
+ */
+export async function stageShots(batchId, staged) {
+  if (!staged.length) return;
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SHOTS, "readwrite");
+    const store = tx.objectStore(SHOTS);
+    for (const { frameIndex, shot } of staged) {
+      store.put({
+        id: `${batchId}:${frameIndex}`,
+        batchId,
+        frameIndex,
+        stagedAt: Date.now(),
+        attempts: 0,
+        mime: shot.mime,
+        size: shot.size,
+        bytes: shot.bytes,
+      });
+    }
+    settle(tx, resolve, reject);
+  });
+}
+
+/** The oldest `limit` staged screenshots, left in place. */
+export async function peekShots(limit) {
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const rows = [];
+    const tx = db.transaction(SHOTS, "readonly");
+    const cursorRequest = tx.objectStore(SHOTS).openCursor();
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (!cursor || rows.length >= limit) {
+        resolve(rows.sort((a, b) => a.stagedAt - b.stagedAt).slice(0, limit));
+        return;
+      }
+      rows.push(cursor.value);
+      cursor.continue();
+    };
+    cursorRequest.onerror = () => reject(cursorRequest.error);
+    tx.onabort = () => reject(tx.error || new Error("the queue transaction was aborted"));
+  });
+}
+
+/** Remove staged screenshots -- uploaded, refused for good, or given up. */
+export async function removeShots(ids) {
+  if (!ids.length) return;
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SHOTS, "readwrite");
+    const store = tx.objectStore(SHOTS);
+    for (const id of ids) store.delete(id);
+    settle(tx, resolve, reject);
+  });
+}
+
+/** Count one failed attempt against a staged screenshot and answer with the
+ * total, which is what decides when to stop trying. */
+export async function noteShotAttempt(id) {
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SHOTS, "readwrite");
+    const store = tx.objectStore(SHOTS);
+    const request = store.get(id);
+    let attempts = 0;
+    request.onsuccess = () => {
+      const row = request.result;
+      if (!row) return;
+      attempts = (row.attempts || 0) + 1;
+      store.put({ ...row, attempts });
+    };
+    request.onerror = () => reject(request.error);
+    settle(tx, resolve, reject, undefined);
+    tx.oncomplete = () => resolve(attempts);
   });
 }
 
@@ -165,21 +278,31 @@ export async function count() {
   });
 }
 
-/** Summed from each row's own recorded size -- a fresh scan every heartbeat,
- * not a running total kept in a second place that could drift from it. */
+/** Summed from each row's own recorded size, screenshots included -- a fresh
+ * scan every heartbeat, not a running total kept in a second place that could
+ * drift from it.
+ *
+ * The pictures are counted because they are most of the bytes: a device whose
+ * budget only ever measured the JSON would have reported a nearly empty queue
+ * while holding a hundred megabytes of PNG. */
 export async function totalBytes() {
+  const [events, shots] = await Promise.all([sumOf(STORE), sumOf(SHOTS)]);
+  return events + shots;
+}
+
+async function sumOf(store) {
   const db = await open();
   return new Promise((resolve, reject) => {
     let total = 0;
-    const tx = db.transaction(STORE, "readonly");
-    const cursorRequest = tx.objectStore(STORE).openCursor();
+    const tx = db.transaction(store, "readonly");
+    const cursorRequest = tx.objectStore(store).openCursor();
     cursorRequest.onsuccess = () => {
       const cursor = cursorRequest.result;
       if (!cursor) {
         resolve(total);
         return;
       }
-      total += cursor.value.size || 0;
+      total += (cursor.value.size || 0) + (cursor.value.shot?.size || 0);
       cursor.continue();
     };
     cursorRequest.onerror = () => reject(cursorRequest.error);
@@ -191,11 +314,19 @@ export async function totalBytes() {
  * Bring the queue back under `maxBytes`, giving up the least valuable thing
  * first. Returns what it did.
  *
- * The order is the one the design settled on before any of this was written:
- * response bodies go, then whole non-gesture events, and a gesture is never
- * dropped. A gesture is the record that the operator did something at all --
- * lose it and the task did not happen as far as any miner can tell, whereas
- * losing a response body only costs some of the detail about how it went.
+ * The order is the one the design settled on before any of this was written,
+ * with screenshots added at the front of it: staged pictures go, then the
+ * pictures still riding on an unsent gesture, then response bodies, then whole
+ * non-gesture events, and a gesture is never dropped. A gesture is the record
+ * that the operator did something at all -- lose it and the task did not
+ * happen as far as any miner can tell. A screenshot is the other end of that
+ * scale: it is the largest thing here and it only illustrates a gesture that
+ * is being kept anyway.
+ *
+ * Staged before unstaged because a staged picture's gesture is already stored
+ * on the server -- giving it up costs the illustration and nothing else --
+ * whereas one still on a queued row has yet to travel, and travels for free
+ * with the batch that carries the gesture it belongs to.
  *
  * Without this the queue grew without limit whenever the backend was
  * unreachable or capture was paused, until IndexedDB refused a write and
@@ -203,16 +334,20 @@ export async function totalBytes() {
  */
 export async function trim(maxBytes) {
   let total = await totalBytes();
-  if (total <= maxBytes) return { strippedBodies: 0, droppedEvents: 0, bytes: total };
+  if (total <= maxBytes) {
+    return { droppedShots: 0, strippedShots: 0, strippedBodies: 0, droppedEvents: 0, bytes: total };
+  }
 
   const db = await open();
+  let droppedShots = 0;
+  let strippedShots = 0;
   let strippedBodies = 0;
   let droppedEvents = 0;
 
-  const sweep = (shouldAct, act) =>
+  const sweep = (store, shouldAct, act) =>
     new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      const cursorRequest = tx.objectStore(STORE).openCursor();
+      const tx = db.transaction(store, "readwrite");
+      const cursorRequest = tx.objectStore(store).openCursor();
       cursorRequest.onsuccess = () => {
         const cursor = cursorRequest.result;
         if (!cursor || total <= maxBytes) {
@@ -221,7 +356,7 @@ export async function trim(maxBytes) {
         }
         const row = cursor.value;
         if (shouldAct(row)) {
-          const before = row.size || 0;
+          const before = (row.size || 0) + (row.shot?.size || 0);
           const after = act(cursor, row);
           total -= before - after;
         }
@@ -231,27 +366,56 @@ export async function trim(maxBytes) {
       tx.onabort = () => reject(tx.error || new Error("the queue transaction was aborted"));
     });
 
-  // First pass: the response body of a request event, oldest first.
+  // First pass: the staged screenshots. In key order, which is batch order --
+  // near enough to oldest-first, and nothing here needs it to be exact.
   await sweep(
-    (row) => row.event?.kind === "request" && row.event.request?.response_body?.text,
-    (cursor, row) => {
-      const event = row.event;
-      event.request.response_body = {
-        ...event.request.response_body,
-        text: null,
-        size_bytes: 0,
-        redacted_fields: ["«dropped: the device was over its byte budget»"],
-      };
-      const size = sizeOf(event);
-      cursor.update({ ...row, event, size });
-      strippedBodies += 1;
-      return size;
+    SHOTS,
+    () => true,
+    (cursor) => {
+      cursor.delete();
+      droppedShots += 1;
+      return 0;
     },
   );
 
-  // Second pass: whole events, but never a gesture.
+  // Second pass: the screenshots still riding on a queued gesture.
   if (total > maxBytes) {
     await sweep(
+      STORE,
+      (row) => row.shot,
+      (cursor, row) => {
+        cursor.update({ ...row, shot: null });
+        strippedShots += 1;
+        return row.size || 0;
+      },
+    );
+  }
+
+  // Third pass: the response body of a request event, oldest first.
+  if (total > maxBytes) {
+    await sweep(
+      STORE,
+      (row) => row.event?.kind === "request" && row.event.request?.response_body?.text,
+      (cursor, row) => {
+        const event = row.event;
+        event.request.response_body = {
+          ...event.request.response_body,
+          text: null,
+          size_bytes: 0,
+          redacted_fields: ["«dropped: the device was over its byte budget»"],
+        };
+        const size = sizeOf(event);
+        cursor.update({ ...row, event, size });
+        strippedBodies += 1;
+        return size;
+      },
+    );
+  }
+
+  // Fourth pass: whole events, but never a gesture.
+  if (total > maxBytes) {
+    await sweep(
+      STORE,
       (row) => row.event?.kind !== "gesture",
       (cursor) => {
         cursor.delete();
@@ -261,5 +425,5 @@ export async function trim(maxBytes) {
     );
   }
 
-  return { strippedBodies, droppedEvents, bytes: total };
+  return { droppedShots, strippedShots, strippedBodies, droppedEvents, bytes: total };
 }

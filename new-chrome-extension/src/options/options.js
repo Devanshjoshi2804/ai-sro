@@ -15,8 +15,16 @@ function render(status) {
     : `Not observing — ${status.because}.`;
 
   $("device").textContent = status.deviceId || "not registered";
+  // Screenshots are named here because they are the most invasive thing this
+  // extension collects, and an operator who cannot see that pictures of their
+  // screen are being taken has not been told.
   $("policy").textContent = status.policy
-    ? `version ${status.policy.version}, ${status.policy.capture_enabled ? "enabled" : "not enabled"} for your tenant`
+    ? `version ${status.policy.version}, ${status.policy.capture_enabled ? "enabled" : "not enabled"} ` +
+      `for your tenant, ${
+        status.policy.capture_screenshots
+          ? `screenshots up to ${status.policy.screenshot_max_per_minute ?? 20} a minute`
+          : "no screenshots"
+      }`
     : "none yet";
   $("beat").textContent = status.lastBeat
     ? new Date(status.lastBeat).toLocaleString()

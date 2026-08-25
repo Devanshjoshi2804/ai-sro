@@ -16,6 +16,7 @@ const KEYS = {
   lastError: "sro.lastError",
   queueEpoch: "sro.queueEpoch",
   pendingBatch: "sro.pendingBatch",
+  shotTimes: "sro.shotTimes",
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
@@ -83,6 +84,12 @@ export const state = {
    * events got stored twice. */
   pendingBatch: () => read(KEYS.pendingBatch, null),
   setPendingBatch: (batch) => write(KEYS.pendingBatch, batch),
+
+  /** When the last minute's screenshots were taken, so the policy's
+   * per-minute cap survives this worker being evicted between two clicks --
+   * which, at a human's pace, is most pairs of clicks. */
+  shotTimes: () => read(KEYS.shotTimes, []),
+  setShotTimes: (times) => write(KEYS.shotTimes, times),
 
   async forget() {
     await chrome.storage.local.remove(Object.values(KEYS));

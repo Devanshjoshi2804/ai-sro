@@ -10,8 +10,11 @@ export class ApiError extends Error {
   }
 }
 
-async function call(path, { method = "GET", body, signal } = {}) {
+async function call(path, { method = "GET", body, form, signal } = {}) {
   const [base, token] = await Promise.all([state.apiUrl(), state.token()]);
+  // A multipart body names its own content type, boundary and all, and a
+  // Content-Type set here would replace it with one the boundary is missing
+  // from -- which every parser reads as a body with no parts in it.
   const response = await fetch(`${base}${path}`, {
     method,
     signal,
@@ -19,7 +22,7 @@ async function call(path, { method = "GET", body, signal } = {}) {
       Authorization: `Bearer ${token}`,
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: form !== undefined ? form : body === undefined ? undefined : JSON.stringify(body),
   });
 
   if (response.status === 401) {
@@ -49,6 +52,11 @@ export const api = {
     }),
 
   observations: (batch) => call("/v1/observations", { method: "POST", body: batch }),
+
+  /** A screenshot or an oversized body, uploaded beside the batch it
+   * illustrates. `form` carries device_id, batch_id, kind, file and the
+   * frame_index that says which gesture it followed. */
+  artifact: (form) => call("/v1/observations/artifacts", { method: "POST", form }),
 
   policy: () => call("/v1/agents/policy"),
 };

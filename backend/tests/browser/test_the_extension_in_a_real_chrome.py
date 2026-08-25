@@ -55,11 +55,24 @@ def _drive(context: Any, url: str) -> Any:
     return page
 
 
+def _status(context: Any, worker: Any) -> dict[str, Any]:
+    page = context.new_page()
+    page.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
+    status = page.evaluate("""async () => await chrome.runtime.sendMessage({kind: "status"})""")
+    page.close()
+    return status
+
+
 def _flush(context: Any, worker: Any) -> None:
     page = context.new_page()
     page.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
     page.evaluate("""async () => await chrome.runtime.sendMessage({kind: "flush"})""")
     page.close()
+
+
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+SHOTS_PER_MINUTE = 3
+"""What the stub's policy allows. Low enough for a test to reach it."""
 
 
 @pytest.fixture
@@ -490,3 +503,151 @@ def test_an_excluded_host_produces_nothing_at_all(browser: Any, stub: Any) -> No
     events = [event for batch in batches for event in batch["events"]]
     assert not events, f"an excluded host produced {len(events)} events"
     assert CLIENT_CODE not in json.dumps(batches)
+
+
+def test_a_gesture_is_illustrated_by_a_screenshot_of_the_page(
+    captured: dict[str, Any], artifacts: list[dict[str, Any]]
+) -> None:
+    """The picture is a real PNG, filed against the batch that carries the
+    gesture it follows, and named by which gesture that is.
+
+    Asserted against the multipart the extension actually sent, because the
+    key the backend writes is built from these fields and nothing else: a
+    `frame_index` that named no gesture would file the picture where no miner
+    reading the batch would look for it.
+    """
+    assert artifacts, "no screenshot was uploaded for a page full of clicking"
+
+    batch_ids = {batch["batch_id"] for batch in captured["batches"]}
+    gestures_in = {
+        batch["batch_id"]: sum(1 for e in batch["events"] if e["kind"] == "gesture")
+        for batch in captured["batches"]
+    }
+
+    for shot in artifacts:
+        assert shot["kind"] == "screenshot", shot["kind"]
+        assert shot["device_id"] == "dev_browsertest"
+        assert shot["batch_id"] in batch_ids, "a screenshot filed against no batch that was sent"
+        assert shot["file"].startswith(PNG_MAGIC), "what was uploaded is not a PNG"
+        frame = int(shot["frame_index"])
+        assert 0 <= frame < gestures_in[shot["batch_id"]], (
+            f"frame {frame} names no gesture in a batch of {gestures_in[shot['batch_id']]}"
+        )
+
+    assert len({(s["batch_id"], s["frame_index"]) for s in artifacts}) == len(artifacts), (
+        "two screenshots claim the same frame, so one overwrites the other"
+    )
+
+
+def test_the_screenshots_stop_at_the_tenant_s_cap(
+    browser: Any, stub: Any, artifacts: list[dict[str, Any]]
+) -> None:
+    """A picture per gesture is the expensive thing this extension can do.
+
+    The cap is the tenant's, delivered on the policy, and it is enforced here
+    rather than by the backend -- so if this does not hold it, nothing does.
+    Ten deliberate clicks against a cap of three.
+    """
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+
+    page = browser.new_page()
+    page.goto(api_url)
+    page.reload()
+    # Paced past Chrome's own limit, which is not the one under test: it
+    # refuses more than two `captureVisibleTab` calls a second, so ten clicks
+    # in a tight loop are answered by two pictures whatever the tenant's cap
+    # says. Spaced out, every attempt is allowed to reach the cap, and the cap
+    # is the only thing deciding how many are taken.
+    for _ in range(10):
+        page.click("#save")
+        page.wait_for_timeout(200)
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+    _flush(browser, worker)
+    page.close()
+
+    # Exactly the cap, not merely under it. Ten clicks with no cap in force
+    # send ten; a cap that spent a slot on a capture Chrome had refused would
+    # send fewer, and "fewer" is what an assertion of "at most three" cannot
+    # tell from a cap that works.
+    assert len(artifacts) == SHOTS_PER_MINUTE, (
+        f"{len(artifacts)} screenshots went for a cap of {SHOTS_PER_MINUTE} a minute"
+    )
+
+
+def test_a_screenshot_the_backend_fumbles_is_retried_on_the_next_tick(
+    browser: Any,
+    stub: Any,
+    artifacts: list[dict[str, Any]],
+    fumble_artifacts: Any,
+) -> None:
+    """A picture outlives the batch it belongs to.
+
+    It used to be given up the moment its upload failed, because the only
+    alternative on offer was holding evidence the backend had already stored
+    in the queue and re-sending the whole batch to carry one PNG. Staged
+    against the batch that has been accepted, it can simply be tried again --
+    and the batch, which is the expensive half, is not sent a second time.
+    """
+    api_url, batches = stub
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+
+    fumble_artifacts(1)
+    page = _drive(browser, api_url)
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+
+    _flush(browser, worker)
+    assert batches, "the events did not go, so there is no batch for a screenshot to wait on"
+    assert not artifacts, "the stub was told to refuse the first screenshot and did not"
+    sent_batches = len(batches)
+
+    _flush(browser, worker)
+    page.close()
+
+    assert artifacts, "the refused screenshot was given up rather than tried again"
+    assert len(batches) == sent_batches, (
+        "the batch was uploaded a second time to carry a screenshot, which is what "
+        "staging them separately exists to avoid"
+    )
+    assert artifacts[0]["file"].startswith(PNG_MAGIC)
+    assert artifacts[0]["batch_id"] == batches[0]["batch_id"], (
+        "the retry filed the picture against a different batch than the one it illustrates"
+    )
+
+
+def test_a_screenshot_the_backend_keeps_refusing_is_eventually_given_up(
+    browser: Any,
+    stub: Any,
+    artifacts: list[dict[str, Any]],
+    fumble_artifacts: Any,
+) -> None:
+    """Retrying has to have a floor, or one unlucky picture is retried on
+    every alarm for as long as the browser is open -- holding its bytes on the
+    device the whole time. Three attempts, then it is dropped and said out
+    loud, and the pictures behind it are not held up by it.
+    """
+    api_url, batches = stub
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+
+    fumble_artifacts(3)
+    page = _drive(browser, api_url)
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+
+    for _ in range(3):
+        _flush(browser, worker)
+    assert not artifacts, "the stub was told to refuse three uploads and did not"
+
+    trouble = _status(browser, worker)["lastError"]
+    assert "given up after 3 attempts" in trouble, f"the operator was not told: {trouble!r}"
+
+    # The one that was given up does not take the rest of the queue with it.
+    _flush(browser, worker)
+    page.close()
+    assert artifacts, "the pictures behind the one that was dropped never went"
+    assert batches, "the events went, whatever happened to the pictures"

@@ -54,6 +54,20 @@ class Contract(BaseHTTPRequestHandler):
         if not self._authorised():
             return self._send(401, self._problem(401, "that credential was not accepted"))
 
+        if self.path == "/v1/observations/artifacts":
+            # multipart, so it is not read as JSON. The bytes are counted and
+            # dropped: what the extension needs back is the key the real
+            # backend would have written.
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length)
+            stored = STATE["artifacts"]
+            stored.append(len(raw))  # type: ignore[union-attr]
+            self.log_message("artifact, %d bytes", len(raw))
+            return self._send(
+                201,
+                {"uri": f"s3://mock/artifact-{len(stored)}.png", "size_bytes": len(raw)},  # type: ignore[arg-type]
+            )
+
         body = self._body()
 
         if self.path == "/v1/agents/register":
@@ -164,6 +178,7 @@ def main() -> int:
         devices={},
         labels={},
         batches=[],
+        artifacts=[],
     )
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Contract)

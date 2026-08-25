@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import threading
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any, ClassVar
@@ -94,6 +94,10 @@ class _Stub(BaseHTTPRequestHandler):
     """The frozen contract, answered with canned replies. See docs/14."""
 
     batches: ClassVar[list[dict[str, Any]]] = []
+    artifacts: ClassVar[list[dict[str, Any]]] = []
+    fumble_artifacts: ClassVar[int] = 0
+    """Answer this many artifact uploads with a 503 before taking any. A lost
+    reply from the blob store is the ordinary way one of these fails."""
 
     def log_message(self, *args: Any) -> None:
         pass
@@ -141,8 +145,12 @@ class _Stub(BaseHTTPRequestHandler):
                             # policy decision rather than a mocked one.
                             "exclude_hosts": ["localhost"],
                             "include_hosts": [],
-                            "capture_screenshots": False,
-                            "screenshot_max_per_minute": 20,
+                            # On, so the screenshot half is exercised by every
+                            # test here rather than by one that opts in. The
+                            # cap is deliberately low: a test that clicks a
+                            # handful of times must be able to reach it.
+                            "capture_screenshots": True,
+                            "screenshot_max_per_minute": 3,
                             "capture_response_bodies": True,
                             "max_body_bytes": 262144,
                             "daily_budget_bytes": 524288000,
@@ -154,6 +162,15 @@ class _Stub(BaseHTTPRequestHandler):
             return
         if self.path.endswith("/heartbeat"):
             self._send(200, json.dumps({"pause": False, "policy": None}).encode())
+            return
+        if self.path == "/v1/observations/artifacts":
+            if _Stub.fumble_artifacts > 0:
+                _Stub.fumble_artifacts -= 1
+                self._send(503, json.dumps({"detail": "the blob store is busy"}).encode())
+                return
+            _Stub.artifacts.append(_parts(self.headers.get("Content-Type", ""), raw))
+            stored = {"uri": "s3://stub/shot.png", "size_bytes": len(raw)}
+            self._send(201, json.dumps(stored).encode())
             return
         if self.path == "/v1/observations":
             batch = json.loads(raw)
@@ -175,9 +192,28 @@ class _Stub(BaseHTTPRequestHandler):
         self._send(200, json.dumps({"ok": True}).encode())
 
 
+def _parts(content_type: str, raw: bytes) -> dict[str, Any]:
+    """One multipart body, as the fields it carries.
+
+    Hand-parsed rather than through `email` or `cgi`: the file part is PNG, and
+    every stdlib parser here either decodes it as text or is gone in 3.13.
+    """
+    boundary = content_type.split("boundary=", 1)[1].strip('"').encode()
+    fields: dict[str, Any] = {}
+    for part in raw.split(b"--" + boundary)[1:-1]:
+        head, _, value = part.lstrip(b"\r\n").partition(b"\r\n\r\n")
+        disposition = head.split(b"\r\n")[0].decode("latin-1")
+        name = disposition.split('name="', 1)[1].split('"', 1)[0]
+        body = value[: -len(b"\r\n")] if value.endswith(b"\r\n") else value
+        fields[name] = body if "filename=" in disposition else body.decode()
+    return fields
+
+
 @pytest.fixture
 def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.batches = []
+    _Stub.artifacts = []
+    _Stub.fumble_artifacts = 0
     server = HTTPServer(("127.0.0.1", 0), _Stub)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -186,6 +222,26 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     finally:
         server.shutdown()
         server.server_close()
+
+
+@pytest.fixture
+def artifacts(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """What the extension uploaded to `/v1/observations/artifacts`, in order.
+
+    Alongside `stub` rather than inside its tuple so the tests that predate
+    screenshots keep unpacking two things.
+    """
+    return _Stub.artifacts
+
+
+@pytest.fixture
+def fumble_artifacts(stub: tuple[str, list[dict[str, Any]]]) -> Callable[[int], None]:
+    """Make the stub lose the next `times` screenshot uploads."""
+
+    def fumble(times: int) -> None:
+        _Stub.fumble_artifacts = times
+
+    return fumble
 
 
 @pytest.fixture

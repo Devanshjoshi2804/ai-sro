@@ -1,6 +1,7 @@
-// Just enough of IndexedDB to exercise queue.js outside a browser: single
-// store, keyPath + autoIncrement, add/delete/clear/count/openCursor with
-// cursor update and delete. Not a general IndexedDB implementation -- do not
+// Just enough of IndexedDB to exercise queue.js outside a browser: named
+// stores, keyPath with or without autoIncrement, add/put/get/delete/clear/
+// count/openCursor with cursor update and delete, and an upgrade that reports
+// the version it came from. Not a general IndexedDB implementation -- do not
 // grow this beyond what queue.js needs.
 
 function microtask(fn) {
@@ -46,9 +47,19 @@ class FakeStore {
   }
   add(row) {
     const req = new FakeRequest();
-    const id = this._table.nextId++;
+    // A store whose rows name their own key -- the shot store keys by batch
+    // and frame -- keeps the key it was given; the event store counts.
+    const id = row.id ?? this._table.nextId++;
     this._table.rows.set(id, { ...row, id });
     req._succeed(id);
+    return req;
+  }
+  put(row) {
+    return this.add(row);
+  }
+  get(id) {
+    const req = new FakeRequest();
+    req._succeed(this._table.rows.get(id));
     return req;
   }
   delete(id) {
@@ -74,7 +85,7 @@ class FakeStore {
     // Snapshot the key order once, then re-read each row as the cursor
     // reaches it -- a row updated or deleted mid-sweep must be seen as it is
     // now, which is exactly what queue.trim() does.
-    const ids = [...table.rows.keys()].sort((a, b) => a - b);
+    const ids = [...table.rows.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
     const advance = (index) => {
       let at = index;
       while (at < ids.length && !table.rows.has(ids[at])) at += 1;
@@ -93,8 +104,8 @@ class FakeStore {
 }
 
 class FakeTransaction {
-  constructor(table) {
-    this._table = table;
+  constructor(tables) {
+    this._tables = tables;
     this.oncomplete = null;
     this.onerror = null;
     this.onabort = null;
@@ -102,22 +113,25 @@ class FakeTransaction {
     // the transaction reports completion.
     microtask(() => microtask(() => microtask(() => this.oncomplete?.())));
   }
-  objectStore() {
-    return new FakeStore(this._table);
+  objectStore(name) {
+    return new FakeStore(this._tables.get(name));
   }
 }
 
 class FakeDB {
   constructor() {
-    this._table = { rows: new Map(), nextId: 1 };
+    this._tables = new Map();
+    this.objectStoreNames = { contains: (name) => this._tables.has(name) };
     this.onversionchange = null;
     this.onclose = null;
   }
-  createObjectStore() {
-    return new FakeStore(this._table);
+  createObjectStore(name) {
+    const table = { rows: new Map(), nextId: 1 };
+    this._tables.set(name, table);
+    return new FakeStore(table);
   }
   transaction() {
-    return new FakeTransaction(this._table);
+    return new FakeTransaction(this._tables);
   }
 }
 
@@ -128,7 +142,9 @@ export function fakeIndexedDB() {
       const db = new FakeDB();
       microtask(() => {
         req.result = db;
-        req.onupgradeneeded?.();
+        // Always a fresh database here, so the upgrade reports coming from
+        // nothing -- which is what tells queue.js to rotate the epoch.
+        req.onupgradeneeded?.({ oldVersion: 0 });
         req.onsuccess?.();
       });
       return req;

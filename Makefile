@@ -116,4 +116,8 @@ test-contract: ## Fuzz the API against its own OpenAPI schema
 test-browser: ## Drive a real Chrome with the extension loaded
 	$(BACKEND) uv run pytest tests/browser -q
 
-check: lint test test-contract test-browser ## What CI runs
+test-extension: ## The extension's own self-checks, in plain node
+	node new-chrome-extension/src/background/queue.test.mjs
+	node new-chrome-extension/src/content/network.test.mjs
+
+check: lint test test-contract test-extension test-browser ## What CI runs

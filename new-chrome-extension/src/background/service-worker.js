@@ -7,6 +7,7 @@ import { api, ApiError } from "./api.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import { allowsHost, applyPolicy, unregister } from "./scripts.js";
+import { capture } from "./shots.js";
 import { capturing, state } from "./state.js";
 import { flush } from "./upload.js";
 
@@ -152,24 +153,35 @@ async function handle(message, sender) {
       // Same rule as page events, at the same one point: a gesture carries the
       // page's own `location.href` and every event carries the frame it
       // happened in, and either can be the callback URL with the token in it.
-      await queue.enqueue(
-        message.kind === "gesture"
-          ? {
-              kind: "gesture",
-              gesture: { ...message.gesture, url: redactUrl(message.gesture?.url) },
-              tab_id,
-              frame_url: redactUrl(frameUrl),
-            }
-          : {
-              kind: "request",
-              request: {
-                ...underPolicy(message.request, policy),
-                url: redactUrl(message.request?.url),
-              },
-              tab_id,
-              frame_url: redactUrl(frameUrl),
-            },
-      );
+      if (message.kind === "gesture") {
+        // Taken before the row is written so the picture and the gesture are
+        // one row: nothing to key together afterwards, and nothing left
+        // orphaned when the queue is cleared for a change of credential.
+        // `capture` decides for itself whether a picture is allowed at all --
+        // the tenant's policy, its per-minute cap, and the host of the whole
+        // document the gesture's frame sits in, which is what a photograph
+        // actually shows.
+        const shot = await capture(tab_id, policy);
+        await queue.enqueue(
+          {
+            kind: "gesture",
+            gesture: { ...message.gesture, url: redactUrl(message.gesture?.url) },
+            tab_id,
+            frame_url: redactUrl(frameUrl),
+          },
+          shot,
+        );
+        return { ok: true, screenshot: Boolean(shot) };
+      }
+      await queue.enqueue({
+        kind: "request",
+        request: {
+          ...underPolicy(message.request, policy),
+          url: redactUrl(message.request?.url),
+        },
+        tab_id,
+        frame_url: redactUrl(frameUrl),
+      });
       return { ok: true };
     }
     case "sign-in":
@@ -229,7 +241,7 @@ async function flushQueue() {
   try {
     const result = await flush(deviceId);
     if (result.error) await state.setLastError(result.error);
-    else if (result.uploaded) await state.setLastError("");
+    else if (result.uploaded || result.screenshots) await state.setLastError("");
     return result;
   } catch (error) {
     // A 401 already dropped the token in api.js; settle() reflects that as
@@ -266,10 +278,16 @@ async function beat() {
     const budget = policy?.daily_budget_bytes;
     if (budget) {
       const trimmed = await queue.trim(budget);
-      if (trimmed.strippedBodies || trimmed.droppedEvents) {
+      if (
+        trimmed.droppedShots ||
+        trimmed.strippedShots ||
+        trimmed.strippedBodies ||
+        trimmed.droppedEvents
+      ) {
         await state.setLastError(
-          `over the device's byte budget: dropped ${trimmed.droppedEvents} events and ` +
-            `${trimmed.strippedBodies} response bodies`,
+          `over the device's byte budget: dropped ${trimmed.droppedEvents} events, ` +
+            `${trimmed.strippedBodies} response bodies and ` +
+            `${trimmed.droppedShots + trimmed.strippedShots} screenshots`,
         );
       }
     }

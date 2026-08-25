@@ -14,6 +14,15 @@ import { state } from "./state.js";
 const MAX_EVENTS = 500;
 const MAX_BYTES = 2 * 1024 * 1024;
 
+/** How many staged screenshots go per tick. The alarm paces the rest, the same
+ * way it paces batches. */
+const MAX_SHOTS_PER_TICK = 10;
+
+/** A screenshot the backend will not take after this many tries is given up.
+ * Without a ceiling, one picture refused in a way that looks transient is
+ * retried on every alarm for as long as the browser runs. */
+const MAX_SHOT_ATTEMPTS = 3;
+
 /** Statuses worth trying again. Everything else in the 4xx range is the
  * backend saying no for a reason this device cannot fix by waiting: a refusal
  * (409), a batch it cannot parse (422), one too large to accept (413). Those
@@ -48,11 +57,34 @@ function isoFrom(ms) {
   return new Date(ms).toISOString();
 }
 
-/** Drains what fits into one batch and uploads it. Returns how many events
- * actually went, or an `error` when the attempt did not land at all. */
+/**
+ * Both halves of a tick: the events, then the pictures.
+ *
+ * The pictures drain whether or not there were events this time. Each one is
+ * keyed to a batch the backend has already accepted, so it no longer depends
+ * on anything still being in the event queue -- which is the point of staging
+ * them separately. A failed screenshot upload used to be given up on the spot,
+ * because the alternative was holding stored evidence in the queue and
+ * re-sending a whole batch to retry one PNG.
+ */
 export async function flush(deviceId) {
   if (!deviceId) return { uploaded: 0 };
 
+  const batch = await sendBatch(deviceId);
+  const shots = await drainShots(deviceId);
+
+  return {
+    ...batch,
+    screenshots: shots.sent,
+    // The events are the more important half, so their trouble is the trouble
+    // reported when both halves had some.
+    error: batch.error || shots.error,
+  };
+}
+
+/** Drains what fits into one batch and uploads it. Returns how many events
+ * actually went, or an `error` when the attempt did not land at all. */
+async function sendBatch(deviceId) {
   const rows = await queue.peek(MAX_EVENTS);
   if (!rows.length) return { uploaded: 0 };
 
@@ -127,8 +159,93 @@ export async function flush(deviceId) {
     return { uploaded: 0, error: error instanceof ApiError ? error.message : String(error) };
   }
 
+  // Before the rows go, and only now that the events are stored: a picture is
+  // keyed by the batch it belongs to, so one staged against a batch the
+  // backend never accepted is a picture nobody could find.
+  await queue.stageShots(batchId, framesOf(kept));
+
   await queue.remove(kept.map((row) => row.id));
   await state.setPendingBatch(null);
   const remaining = await queue.count();
   return { uploaded: kept.length, remaining };
+}
+
+/**
+ * The screenshots this batch carried, each with the frame it illustrates: the
+ * index of its gesture in this batch, counting gestures from zero.
+ *
+ * The counter walks every gesture, not only the photographed ones, so a
+ * gesture that went without a picture -- over the per-minute cap, a background
+ * tab, trimmed for the byte budget -- does not shift every later frame onto
+ * the wrong gesture. A retry indexes the same way it did the first time:
+ * `trim` strips a picture but never drops the gesture row it hangs on, so the
+ * gestures a re-sent batch names are the gestures it named before.
+ */
+function framesOf(kept) {
+  const staged = [];
+  let frameIndex = -1;
+  for (const row of kept) {
+    if (row.event?.kind !== "gesture") continue;
+    frameIndex += 1;
+    if (row.shot?.bytes) staged.push({ frameIndex, shot: row.shot });
+  }
+  return staged;
+}
+
+/**
+ * Upload staged screenshots, oldest first, and stop at the first sign the
+ * backend is not taking them.
+ *
+ * Stopping rather than working through the rest: they all go to the same
+ * endpoint that just refused, and a tick that tried ten in a row would spend
+ * ten requests learning the same thing. The alarm brings the next attempt.
+ */
+async function drainShots(deviceId) {
+  const rows = await queue.peekShots(MAX_SHOTS_PER_TICK);
+  if (!rows.length) return { sent: 0 };
+
+  let sent = 0;
+  for (const row of rows) {
+    const form = new FormData();
+    form.append("device_id", deviceId);
+    form.append("batch_id", row.batchId);
+    form.append("kind", "screenshot");
+    form.append("frame_index", String(row.frameIndex));
+    form.append(
+      "file",
+      new Blob([row.bytes], { type: row.mime }),
+      `${String(row.frameIndex).padStart(5, "0")}.png`,
+    );
+
+    try {
+      await api.artifact(form);
+      await queue.removeShots([row.id]);
+      sent += 1;
+      continue;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) throw error;
+
+      if (error instanceof ApiError && isPermanent(error.status)) {
+        // The same rule the batch follows: a refusal that will not change on
+        // the next attempt is a refusal, and the picture is dropped rather
+        // than retried forever. Said out loud, because evidence being
+        // discarded must not be quiet.
+        await queue.removeShots([row.id]);
+        return {
+          sent,
+          error: `the backend refused a screenshot permanently (${error.status}): ${error.message}`,
+        };
+      }
+
+      const why = error instanceof ApiError ? error.message : String(error);
+      const attempts = await queue.noteShotAttempt(row.id);
+      if (attempts >= MAX_SHOT_ATTEMPTS) {
+        await queue.removeShots([row.id]);
+        return { sent, error: `a screenshot was given up after ${attempts} attempts: ${why}` };
+      }
+      return { sent, error: `a screenshot did not upload, attempt ${attempts}: ${why}` };
+    }
+  }
+
+  return { sent };
 }

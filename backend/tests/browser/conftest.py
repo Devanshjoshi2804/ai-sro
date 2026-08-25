@@ -18,13 +18,16 @@ verbatim. `tests/contract/` already proves those bytes parse into the domain.
 from __future__ import annotations
 
 import json
+import queue
 import threading
 from collections.abc import Callable, Iterator
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, ClassVar
 
 import pytest
+
+from tests.browser.ws import Channel, accept_key, decode
 
 EXTENSION = Path(__file__).resolve().parents[3] / "new-chrome-extension"
 
@@ -44,6 +47,19 @@ PAGE = """<!doctype html>
     // reaches for: from an isolated world `window.Ext` is a different window's
     // property and none of this is visible, which is precisely the bug.
     window.Ext = {
+      // What `ui.perform`'s strongest locator asks. Two components, queried
+      // the way this WMS's own code queries them: by xtype and itemId.
+      ComponentQuery: {
+        query: (q) => {
+          const byQuery = {
+            'panel#clients textfield#clientCode': 'client',
+            'panel#clients button#saveButton': 'save',
+          };
+          const id = byQuery[q];
+          const dom = id ? document.getElementById(id) : null;
+          return dom ? [{isVisible: () => true, el: {dom}, inputEl: {dom}}] : [];
+        },
+      },
       getCmp: (id) => ({
         'client': {xtype: 'textfield', itemId: 'clientCode', name: 'clientCode',
                    fieldLabel: 'Client Code',
@@ -93,9 +109,14 @@ PAGE = """<!doctype html>
 class _Stub(BaseHTTPRequestHandler):
     """The frozen contract, answered with canned replies. See docs/14."""
 
+    # 1.1 because a WebSocket upgrade is not a thing an HTTP/1.0 response can
+    # carry, and Chrome refuses the handshake rather than explaining itself.
+    protocol_version = "HTTP/1.1"
+
     batches: ClassVar[list[dict[str, Any]]] = []
     artifacts: ClassVar[list[dict[str, Any]]] = []
     fumble_artifacts: ClassVar[int] = 0
+    channels: ClassVar[queue.Queue[Channel]] = queue.Queue()
     """Answer this many artifact uploads with a 503 before taking any. A lost
     reply from the blob store is the ordinary way one of these fails."""
 
@@ -115,6 +136,8 @@ class _Stub(BaseHTTPRequestHandler):
         self._send(204, b"")
 
     def do_GET(self) -> None:
+        if "websocket" in self.headers.get("Upgrade", "").lower():
+            return self._upgrade()
         if self.path == "/api/stream":
             # Deliberately never finished: an endless body is the case that
             # hung the page, and it must not hang this test either.
@@ -125,6 +148,36 @@ class _Stub(BaseHTTPRequestHandler):
             self.wfile.flush()
             return
         self._send(200, PAGE.encode(), "text/html; charset=utf-8")
+
+    def _upgrade(self) -> None:
+        """The command channel, on the same port everything else is on.
+
+        The credential rides in the subprotocol, and one has to be echoed or
+        Chrome fails the connection -- which would look exactly like an
+        extension that never dialled.
+        """
+        offered = [p.strip() for p in self.headers.get("Sec-WebSocket-Protocol", "").split(",")]
+        self.send_response(101)
+        self.send_header("Upgrade", "websocket")
+        self.send_header("Connection", "Upgrade")
+        self.send_header("Sec-WebSocket-Accept", accept_key(self.headers["Sec-WebSocket-Key"]))
+        if offered:
+            self.send_header("Sec-WebSocket-Protocol", offered[0])
+        self.end_headers()
+        self.wfile.flush()
+
+        channel = Channel(self.wfile)
+        _Stub.channels.put(channel)
+        while True:
+            opcode, payload = decode(self.rfile)
+            if opcode == 8:
+                return
+            if opcode != 1:
+                continue
+            try:
+                channel.messages.put(json.loads(payload))
+            except json.JSONDecodeError:
+                continue
 
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length") or 0)
@@ -162,6 +215,19 @@ class _Stub(BaseHTTPRequestHandler):
             return
         if self.path.endswith("/heartbeat"):
             self._send(200, json.dumps({"pause": False, "policy": None}).encode())
+            return
+        if self.path == "/api/echo":
+            # Says back what reached it, so the test can prove the call carried
+            # the page's own cookies rather than the extension's origin.
+            self._send(
+                200,
+                json.dumps(
+                    {
+                        "cookie": self.headers.get("Cookie", ""),
+                        "body": raw.decode("utf-8", "replace"),
+                    }
+                ).encode(),
+            )
             return
         if self.path == "/v1/observations/artifacts":
             if _Stub.fumble_artifacts > 0:
@@ -214,7 +280,11 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.batches = []
     _Stub.artifacts = []
     _Stub.fumble_artifacts = 0
-    server = HTTPServer(("127.0.0.1", 0), _Stub)
+    _Stub.channels = queue.Queue()
+    # Threading, because the command channel holds its connection open for the
+    # length of the test: on a single-threaded server that one socket is the
+    # whole server, and every upload behind it waits forever.
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _Stub)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -242,6 +312,20 @@ def fumble_artifacts(stub: tuple[str, list[dict[str, Any]]]) -> Callable[[int], 
         _Stub.fumble_artifacts = times
 
     return fumble
+
+
+@pytest.fixture
+def channel(stub: tuple[str, list[dict[str, Any]]]) -> Callable[[], Channel]:
+    """The socket the extension dialled, once it has. Waits for it rather than
+    assuming: the extension opens it a moment after registration lands."""
+
+    def dialled(timeout: float = 20.0) -> Channel:
+        try:
+            return _Stub.channels.get(timeout=timeout)
+        except queue.Empty:
+            raise AssertionError("the extension never opened a command channel") from None
+
+    return dialled
 
 
 @pytest.fixture

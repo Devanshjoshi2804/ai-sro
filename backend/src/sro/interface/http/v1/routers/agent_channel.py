@@ -55,7 +55,9 @@ async def commands(websocket: WebSocket, device_id: str) -> None:
 
     try:
         while True:
-            sockets.deliver(await websocket.receive_text())
+            # Named here, not by the message: a browser that told the registry
+            # which device it was could tell it that it was another one.
+            sockets.deliver(await websocket.receive_text(), ctx.tenant_id, device.id)
     except WebSocketDisconnect:
         pass
     except Exception:

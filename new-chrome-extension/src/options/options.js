@@ -26,6 +26,12 @@ function render(status) {
           : "no screenshots"
       }`
     : "none yet";
+  // Whether work can reach this browser at all, which is a different question
+  // from whether it is being observed -- and the screen should not make the
+  // operator guess which one "connected" meant.
+  $("channel").textContent =
+    { open: "open — this browser can be given work", connecting: "dialling…" }[status.channel] ||
+    "closed";
   $("beat").textContent = status.lastBeat
     ? new Date(status.lastBeat).toLocaleString()
     : "not yet";

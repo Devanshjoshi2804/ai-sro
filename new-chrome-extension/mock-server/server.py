@@ -14,10 +14,15 @@ See ../../docs/14-extension-protocol.md.
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import re
+import struct
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+_WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 STATE: dict[str, object] = {}
 
@@ -44,6 +49,8 @@ class Contract(BaseHTTPRequestHandler):
         self._send(204, None)
 
     def do_GET(self) -> None:  # noqa: N802
+        if "websocket" in self.headers.get("Upgrade", "").lower():
+            return self._channel()
         if self.path == "/v1/agents/policy":
             return self._send(200, policy())
         if self.path == "/v1/agents":
@@ -112,6 +119,46 @@ class Contract(BaseHTTPRequestHandler):
             )
 
         return self._send(404, self._problem(404, "no such thing"))
+
+    def _channel(self) -> None:
+        """Hold the command channel open and say what comes up it.
+
+        No commands go down it: this is the contract's shape, not a scheduler.
+        What it is for is the half the extension owns -- that it dials, that it
+        authenticates in the subprotocol, and that its keepalive keeps arriving,
+        which is what stops Chrome evicting the worker and taking the socket.
+        """
+        offered = [p.strip() for p in self.headers.get("Sec-WebSocket-Protocol", "").split(",")]
+        digest = hashlib.sha1(  # noqa: S324 - the handshake is specified as SHA-1
+            (self.headers["Sec-WebSocket-Key"] + _WS_GUID).encode()
+        ).digest()
+        self.send_response(101)
+        self.send_header("Upgrade", "websocket")
+        self.send_header("Connection", "Upgrade")
+        self.send_header("Sec-WebSocket-Accept", base64.b64encode(digest).decode())
+        if offered:
+            self.send_header("Sec-WebSocket-Protocol", offered[0])
+        self.end_headers()
+        self.wfile.flush()
+        self.log_message("a browser opened the command channel")
+
+        while True:
+            header = self.rfile.read(2)
+            if len(header) < 2 or (header[0] & 0x0F) == 8:
+                self.log_message("the command channel closed")
+                return
+            size = header[1] & 0x7F
+            if size == 126:
+                size = struct.unpack(">H", self.rfile.read(2))[0]
+            elif size == 127:
+                size = struct.unpack(">Q", self.rfile.read(8))[0]
+            mask = self.rfile.read(4) if header[1] & 0x80 else b""
+            payload = bytearray(self.rfile.read(size))
+            for index in range(len(payload)):
+                if mask:
+                    payload[index] ^= mask[index % 4]
+            if (header[0] & 0x0F) == 1:
+                self.log_message("channel: %s", bytes(payload).decode("utf-8", "replace")[:200])
 
     def do_DELETE(self) -> None:  # noqa: N802
         if not self._authorised():

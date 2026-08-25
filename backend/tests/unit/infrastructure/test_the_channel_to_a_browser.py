@@ -125,3 +125,62 @@ async def test_nonsense_from_a_browser_does_not_take_the_channel_down() -> None:
     sockets.deliver("not json at all")
     sockets.deliver(json.dumps(["a list"]))
     sockets.deliver(json.dumps({"command_id": "cmd_nobody_waited_for", "ok": True}))
+
+
+async def test_a_busy_browser_has_its_command_held_back() -> None:
+    """A replay landing mid-keystroke is a run and a person fighting over one
+    form. The browser says it is busy; the command waits."""
+    sockets, socket = DeviceSockets(timeout_s=1.0), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+    sockets.deliver(json.dumps({"kind": "busy", "for_ms": 200}), ACME, LAPTOP)
+
+    started = asyncio.get_running_loop().time()
+    sending = asyncio.create_task(
+        sockets.send(ACME, LAPTOP, kind="ui.url", payload={}, timeout_s=1.0)
+    )
+    await _answer(sockets, socket, ok=True, result={"url": "https://wms.example/"})
+    answer = await sending
+
+    assert answer.ok, "the command was dropped rather than delayed"
+    assert asyncio.get_running_loop().time() - started >= 0.15, (
+        "the command went straight out while the operator was typing"
+    )
+
+
+async def test_busy_may_delay_a_command_but_never_veto_it() -> None:
+    """Bounded by half the command's own deadline. A device that could hold
+    work back indefinitely is a device deciding whether work happens at all --
+    and a browser that says it is busy and then closes its laptop would be
+    exactly that."""
+    sockets, socket = DeviceSockets(timeout_s=1.0), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+    sockets.deliver(json.dumps({"kind": "busy", "for_ms": 30_000}), ACME, LAPTOP)
+
+    started = asyncio.get_running_loop().time()
+    sending = asyncio.create_task(
+        sockets.send(ACME, LAPTOP, kind="ui.url", payload={}, timeout_s=0.4)
+    )
+    await _answer(sockets, socket, ok=True, result={"url": "https://wms.example/"})
+    assert (await sending).ok
+
+    waited = asyncio.get_running_loop().time() - started
+    assert 0.15 <= waited < 0.35, f"waited {waited:.2f}s, which is not half of a 0.4s deadline"
+
+
+async def test_a_browser_cannot_say_it_is_some_other_device() -> None:
+    """The device a message is about comes from the router, which authenticated
+    it, and never from the message. Otherwise one operator's browser could
+    silence another's by claiming to be busy on its behalf."""
+    sockets, socket = DeviceSockets(timeout_s=1.0), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+    # No tenant or device named: an unsolicited message arriving through a path
+    # that cannot say who sent it changes nothing.
+    sockets.deliver(json.dumps({"kind": "busy", "for_ms": 30_000, "device_id": "dev-1"}))
+
+    started = asyncio.get_running_loop().time()
+    sending = asyncio.create_task(
+        sockets.send(ACME, LAPTOP, kind="ui.url", payload={}, timeout_s=1.0)
+    )
+    await _answer(sockets, socket, ok=True, result={"url": "https://wms.example/"})
+    assert (await sending).ok
+    assert asyncio.get_running_loop().time() - started < 0.1, "an unattributed message was believed"

@@ -27,6 +27,12 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 20.0
 
+MAX_BUSY_WAIT = 0.5
+"""How much of a command's own deadline may be spent waiting for the operator
+to stop typing, as a fraction of it. A device that says it is busy is asking for
+politeness, not for a veto: a run that waited out every keystroke would be a run
+that never happened on a busy morning."""
+
 
 class Socket(Protocol):
     """What the router hands over. Narrow so this file never imports a web
@@ -54,6 +60,7 @@ class DeviceSockets:
         self._timeout = timeout_s
         self._sockets: dict[tuple[str, str], Socket] = {}
         self._pending: dict[str, asyncio.Future[Answer]] = {}
+        self._busy: dict[tuple[str, str], float] = {}
 
     # -- the router's side ---------------------------------------------------
 
@@ -70,15 +77,35 @@ class DeviceSockets:
         if self._sockets.get(key) is socket:
             del self._sockets[key]
 
-    def deliver(self, raw: str) -> None:
+    def deliver(
+        self, raw: str, tenant_id: TenantId | None = None, device_id: DeviceId | None = None
+    ) -> None:
         """An answer arrived. Unknown ids are dropped, not raised: a reply to a
-        command that already timed out is late, not wrong."""
+        command that already timed out is late, not wrong.
+
+        The device is named by the router rather than by the message, because a
+        browser saying which device it is would be a browser that could say it
+        was another one. It is only needed for the unsolicited messages -- an
+        answer carries its own command id and needs nothing else.
+        """
         try:
             message = json.loads(raw)
         except json.JSONDecodeError:
             logger.warning("a device sent something that is not JSON")
             return
         if not isinstance(message, dict):
+            return
+
+        if message.get("kind") == "busy" and tenant_id is not None and device_id is not None:
+            # Self-expiring, and short. A browser that says it is busy and then
+            # closes its laptop must not leave a device nothing can be sent to
+            # until the process restarts, so the pause carries its own end
+            # rather than waiting for an "idle" that may never come.
+            for_ms = message.get("for_ms")
+            seconds = float(for_ms) / 1000 if isinstance(for_ms, int | float) else 5.0
+            self._busy[_key(tenant_id, device_id)] = asyncio.get_running_loop().time() + min(
+                seconds, 30.0
+            )
             return
 
         waiting = self._pending.pop(str(message.get("command_id", "")), None)
@@ -123,6 +150,7 @@ class DeviceSockets:
 
         command_id = f"cmd_{uuid.uuid4().hex}"
         deadline = timeout_s or self._timeout
+        await self._wait_out_the_operator(_key(tenant_id, device_id), deadline)
         waiting: asyncio.Future[Answer] = asyncio.get_running_loop().create_future()
         self._pending[command_id] = waiting
 
@@ -152,6 +180,23 @@ class DeviceSockets:
             )
         finally:
             self._pending.pop(command_id, None)
+
+    async def _wait_out_the_operator(self, key: tuple[str, str], deadline: float) -> None:
+        """Hold a command back while the operator is using their own browser.
+
+        Typing into a field a moment before a replay clicks it is how a run and
+        a person fight over the same form. Bounded by a fraction of the
+        command's own deadline: politeness that could stall a run indefinitely
+        would be a browser deciding whether work happens.
+        """
+        busy_until = self._busy.get(key)
+        if busy_until is None:
+            return
+        remaining = busy_until - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            self._busy.pop(key, None)
+            return
+        await asyncio.sleep(min(remaining, deadline * MAX_BUSY_WAIT))
 
 
 def _key(tenant_id: TenantId, device_id: DeviceId) -> tuple[str, str]:

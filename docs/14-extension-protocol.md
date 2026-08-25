@@ -278,8 +278,23 @@ The extension may also send unsolicited:
 
 ```jsonc
 { "kind": "hello", "extension_version": "0.1.0", "tabs": 12 }
-{ "kind": "busy",  "reason": "operator is typing" }   // backend queues rather than acts
+{ "kind": "busy",  "reason": "operator is typing", "for_ms": 5000 }
+{ "kind": "ping" }                                    // keepalive; the backend drops it
 ```
+
+`ping` every 20s while the channel is open. It is not politeness: Chrome closes
+an idle extension service worker after 30 seconds and takes the socket with it,
+and traffic on a WebSocket is what resets that timer. The backend already
+ignores any message with no `command_id`, so nothing has to be done with it.
+
+`busy` carries its own end. The backend holds new commands for that long, or
+until half the command's own deadline has gone, whichever is shorter — a device
+asking for politeness must not be able to veto the work. It is sent when the
+operator makes a gesture, rate-limited to one message per burst of typing rather
+than one per keystroke, and it is renewed by the next gesture. It arrives only
+where observation is on, since it is the operator's own input that produces it;
+a tenant with capture switched off gets a channel that never says it is busy,
+and the backend acts immediately.
 
 ### `ui.perform`
 
@@ -328,6 +343,25 @@ cookies and session apply.
 
 Failure kinds: `unreachable`, `no_tab_for_origin`, `timeout`.
 
+### `ui.perform_at`
+
+```jsonc
+// payload
+{ "action": "click", "x": 812, "y": 344, "value": null }
+// result — the same shape ui.perform answers with
+{ "performed": true, "matched_by": null, "candidates": 1, "detail": null }
+```
+
+What the vision rung sends: a coordinate is not a control the demonstration
+identified, so it is a different command and the run's record can never confuse
+the two. `x` and `y` are **CSS pixels in the viewport**, the same space
+`screenshot` reports its `width` and `height` in. Not device pixels: on any
+retina display the two differ by the scale factor, which is a click a quarter of
+the way up the page.
+
+Failure kinds: `control_not_found` (nothing at that point), `not_actionable`,
+`no_tab_for_system`, `aborted`.
+
 ### `ui.url`
 
 ```jsonc
@@ -339,24 +373,32 @@ Where the driven browser is, for the run's record.
 ### `screenshot`, `navigate`, `abort`
 
 ```jsonc
-// payload {"inline": true} answers with the image itself, which is what the
-// vision rung asks for: it is looking at the picture now, and a round trip
-// through object storage to read back what was just asked for is two more
-// places for it to be delayed or lost.
+// Always inline, which is what the vision rung asks for: it is looking at the
+// picture now, and a round trip through object storage to read back what was
+// just asked for is two more places for it to be delayed or lost. There is no
+// stored form -- a run keeps no screens, and an observation artifact is filed
+// against a batch a run does not have. The day something wants to read a run's
+// screens back, the thing to build is a run-scoped artifact endpoint, and this
+// command grows a payload flag then.
 { "kind": "screenshot", "payload": {"inline": true} }
    → { "image_base64": "iVBORw0…", "mime_type": "image/png",
        "width": 1600, "height": 1000, "text_digest": "Save: 100,200" }
-{ "kind": "screenshot", "payload": {"url_hint": "https://wms.example/…"} }
-   → { "artifact_uri": "s3://…", "width": 1600, "height": 1000 }
-{ "kind": "navigate",   "payload": {"url": "https://wms.example/…"} }
+{ "kind": "navigate",   "payload": {"url": "https://wms.example/…", "allow_focus": false} }
    → { "navigated": true }
 { "kind": "abort",      "payload": {"run_id": "run_…"} }
    → { "aborted": true }
 ```
 
 `navigate` and any command that would take focus are refused unless the run's
-trigger allows it (see the focus decision in the plan). The extension refuses
-with `error.kind = "focus_not_permitted"` rather than doing it anyway.
+trigger allows it (see the focus decision in the plan). The trigger's decision
+arrives as `allow_focus` on the payload, absent meaning no. The extension
+refuses with `error.kind = "focus_not_permitted"` rather than doing it anyway --
+and only where it would actually cost the operator their screen: navigating a
+tab they are not looking at is not taking focus.
+
+`width` and `height` on a screenshot are the **CSS viewport**, not the picture's
+own pixels: they are the space `ui.perform_at` acts in, and on a retina display
+the two differ by the display's scale factor.
 
 ---
 

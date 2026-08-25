@@ -8,6 +8,7 @@ existed there was nowhere that could be done.
 
 from __future__ import annotations
 
+import base64
 import json
 from typing import Any
 
@@ -37,7 +38,7 @@ def _sign_in(context: Any, worker: Any, api_url: str) -> dict[str, Any]:
     """Through the extension's own message API, not by writing storage."""
     page = context.new_page()
     page.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
-    status = page.evaluate(
+    status: dict[str, Any] = page.evaluate(
         """async ([apiUrl]) => await chrome.runtime.sendMessage(
              {kind: "sign-in", apiUrl, token: "test-token", label: "browser-test"})""",
         [api_url],
@@ -58,7 +59,9 @@ def _drive(context: Any, url: str) -> Any:
 def _status(context: Any, worker: Any) -> dict[str, Any]:
     page = context.new_page()
     page.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
-    status = page.evaluate("""async () => await chrome.runtime.sendMessage({kind: "status"})""")
+    status: dict[str, Any] = page.evaluate(
+        """async () => await chrome.runtime.sendMessage({kind: "status"})"""
+    )
     page.close()
     return status
 
@@ -651,3 +654,324 @@ def test_a_screenshot_the_backend_keeps_refusing_is_eventually_given_up(
     page.close()
     assert artifacts, "the pictures behind the one that was dropped never went"
     assert batches, "the events went, whatever happened to the pictures"
+
+
+def _dial(browser: Any, stub: Any, channel: Any) -> tuple[Any, Any]:
+    """Sign in, wait for the socket, and hand back the channel and a page."""
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+    open_channel = channel()
+    page = browser.new_page()
+    page.goto(api_url)
+    page.reload()
+    return open_channel, page
+
+
+def test_the_extension_dials_in_and_says_what_it_is(browser: Any, stub: Any, channel: Any) -> None:
+    """No endpoint drives a device; the browser has to dial out, or there is no
+    way in at all. `hello` is how the backend learns which build answered."""
+    open_channel, page = _dial(browser, stub, channel)
+    page.close()
+
+    hello = open_channel.saw("hello")
+    assert hello["extension_version"], "the extension did not name its version"
+    assert hello["tabs"] >= 1
+
+
+def test_a_control_is_found_by_the_page_s_own_component_query(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """The locator ladder, in the order it is given, answering with the rung
+    that worked.
+
+    `matched_by` is not a diagnostic nicety: a step that only ever matches on
+    the last fallback is a step about to break, and the backend records that.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+
+    open_channel.command(
+        "cmd_type",
+        "ui.perform",
+        {
+            "action": "type",
+            "value": CLIENT_CODE,
+            "locators": [
+                {
+                    "strategy": "component",
+                    "query": "panel#clients textfield#clientCode",
+                    "within": None,
+                    "visible_only": True,
+                },
+                {"strategy": "css_path", "query": "#client", "within": None, "visible_only": True},
+            ],
+        },
+    )
+    answer = open_channel.answer("cmd_type")
+    assert answer["ok"] is True, answer
+    assert answer["result"]["matched_by"] == "component", (
+        "the component query was skipped, so the ladder fell to a weaker rung"
+    )
+    assert answer["result"]["performed"] is True
+
+    # The value really is in the field: an answer of "performed" against a form
+    # nobody filled is the exact failure this rung exists to avoid.
+    assert page.input_value("#client") == CLIENT_CODE
+    page.close()
+
+
+def test_a_control_that_is_not_there_is_said_to_be_not_there(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """`control_not_found` is a fact about the page, and the backend counts it
+    against the skill. It must not be answered for anything else."""
+    open_channel, page = _dial(browser, stub, channel)
+
+    open_channel.command(
+        "cmd_missing",
+        "ui.perform",
+        {
+            "action": "click",
+            "value": None,
+            "locators": [
+                {
+                    "strategy": "test_id",
+                    "query": "nothing-here",
+                    "within": None,
+                    "visible_only": True,
+                }
+            ],
+        },
+    )
+    answer = open_channel.answer("cmd_missing")
+    page.close()
+
+    assert answer["ok"] is False
+    assert answer["error"]["kind"] == "control_not_found", answer
+    assert "test_id=nothing-here" in answer["error"]["detail"], (
+        "the answer does not say what it tried"
+    )
+
+
+def test_the_vision_rung_gets_a_screen_it_can_answer_in(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """A picture, the names of the controls on it, and the space both are
+    measured in.
+
+    The size reported is the CSS viewport rather than the picture's own pixels,
+    because the coordinates the model answers with are fed straight back as
+    `ui.perform_at`. On a retina display the two differ by the scale factor,
+    which is a click a quarter of the way up the page.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+    open_channel.command("cmd_shot", "screenshot", {"inline": True}, deadline_ms=30_000)
+    answer = open_channel.answer("cmd_shot", timeout=40.0)
+
+    viewport = page.evaluate("() => [window.innerWidth, window.innerHeight]")
+    page.close()
+
+    assert answer["ok"] is True, answer
+    result = answer["result"]
+    assert base64.b64decode(result["image_base64"]).startswith(PNG_MAGIC)
+    assert result["mime_type"] == "image/png"
+    assert [result["width"], result["height"]] == viewport, (
+        "the screen was measured in a different space than the one clicks land in"
+    )
+    assert "Client Code" in result["text_digest"], "the controls' own names were not read"
+
+
+def test_a_click_at_a_point_lands_where_it_was_aimed(browser: Any, stub: Any, channel: Any) -> None:
+    """The other half of the vision rung: a coordinate is not a control the
+    demonstration identified, so it is a separate command."""
+    open_channel, page = _dial(browser, stub, channel)
+    box = page.evaluate(
+        """() => {
+             const r = document.getElementById('save').getBoundingClientRect();
+             return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)];
+           }"""
+    )
+
+    open_channel.command(
+        "cmd_at", "ui.perform_at", {"action": "click", "x": box[0], "y": box[1], "value": None}
+    )
+    answer = open_channel.answer("cmd_at")
+    assert answer["ok"] is True, answer
+
+    # The page's own handler ran, which is the only proof the click was real.
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+    page.close()
+
+
+def test_a_request_is_sent_with_the_operator_s_own_session(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """The whole reason execution reaches into somebody's browser: the call
+    carries their cookies, so a skill can be replayed against a system this
+    deployment holds no credentials for."""
+    open_channel, page = _dial(browser, stub, channel)
+    page.evaluate("() => { document.cookie = 'wms_session=abc123; path=/'; }")
+
+    api_url, _ = stub
+    open_channel.command(
+        "cmd_http",
+        "http.send",
+        {
+            "method": "POST",
+            "url": f"{api_url}/api/echo",
+            "headers": {"content-type": "application/json"},
+            "body": '{"code":"TESTSRO"}',
+        },
+    )
+    answer = open_channel.answer("cmd_http")
+    page.close()
+
+    assert answer["ok"] is True, answer
+    assert answer["result"]["status"] == 200
+    body = json.loads(answer["result"]["body"])
+    assert body["cookie"] == "wms_session=abc123", (
+        "the request went without the page's session, which is the point of sending it from here"
+    )
+    assert body["body"] == '{"code":"TESTSRO"}'
+
+
+def test_navigating_the_tab_the_operator_is_watching_is_refused(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """Refused, not done quietly. A run started by a cron or a mail relay may
+    not take the screen out from under somebody who is working on it."""
+    open_channel, page = _dial(browser, stub, channel)
+    api_url, _ = stub
+
+    open_channel.command("cmd_nav", "navigate", {"url": f"{api_url}/somewhere-else"})
+    answer = open_channel.answer("cmd_nav")
+    page.close()
+
+    assert answer["ok"] is False
+    assert answer["error"]["kind"] == "focus_not_permitted", answer
+
+
+def test_an_aborted_run_is_refused_rather_than_performed(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    open_channel, page = _dial(browser, stub, channel)
+
+    open_channel.command("cmd_abort", "abort", {"run_id": "run_1"})
+    assert open_channel.answer("cmd_abort")["ok"] is True
+
+    open_channel.command(
+        "cmd_after",
+        "ui.perform",
+        {
+            "action": "click",
+            "value": None,
+            "locators": [
+                {"strategy": "css_path", "query": "#save", "within": None, "visible_only": True}
+            ],
+        },
+        run_id="run_1",
+    )
+    answer = open_channel.answer("cmd_after")
+    page.close()
+
+    assert answer["ok"] is False
+    assert answer["error"]["kind"] == "aborted", answer
+
+
+def test_a_replay_does_not_arrive_as_something_the_operator_did(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """The evidence plane must not fill up with a robot imitating a person.
+
+    A replayed click fires the page's listeners like any other, so the recorder
+    sees it and the patched fetch reports its traffic. Mined, that is the system
+    learning a task from its own replay of that task, and then offering it back
+    as something worth automating.
+    """
+    _, batches = stub
+    worker = _service_worker(browser)
+    open_channel, page = _dial(browser, stub, channel)
+
+    open_channel.command(
+        "cmd_drive",
+        "ui.perform",
+        {
+            "action": "click",
+            "value": None,
+            "locators": [
+                {
+                    "strategy": "component",
+                    "query": "panel#clients button#saveButton",
+                    "within": None,
+                    "visible_only": True,
+                }
+            ],
+        },
+    )
+    assert open_channel.answer("cmd_drive")["ok"] is True
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+
+    _flush(browser, worker)
+    page.close()
+
+    sent = json.dumps(batches)
+    assert "/api/orders" not in sent, "a replayed request was captured as the operator's own"
+    gestures = [e for b in batches for e in b["events"] if e["kind"] == "gesture"]
+    assert not gestures, f"a replayed click was captured as a gesture: {gestures}"
+
+
+def test_navigation_the_trigger_allows_is_performed_and_reported(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """The other side of the focus rule, and `ui.url` proving it happened.
+
+    `allow_focus` is the run's trigger saying the operator is watching this and
+    asked for it. Without a case that goes through, the refusal above is the
+    only path anything exercises and `navigate` could be broken outright.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+    api_url, _ = stub
+
+    open_channel.command("cmd_go", "navigate", {"url": f"{api_url}/orders", "allow_focus": True})
+    assert open_channel.answer("cmd_go") == {
+        "command_id": "cmd_go",
+        "ok": True,
+        "result": {"navigated": True},
+    }
+    page.wait_for_url(f"{api_url}/orders", timeout=15_000)
+
+    open_channel.command("cmd_where", "ui.url", {})
+    answer = open_channel.answer("cmd_where")
+    page.close()
+
+    assert answer["ok"] is True, answer
+    assert answer["result"]["url"] == f"{api_url}/orders", (
+        "the browser reported a different page than the one it is on"
+    )
+
+
+def test_the_browser_says_when_its_operator_is_working(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """Sent from the operator's own gestures, so the backend can queue rather
+    than act.
+
+    Typed into a real field, because the point is that a person at a keyboard
+    produces it: a page's own background traffic is not somebody working, and a
+    device that called every XHR "busy" would delay every run it was given.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+    page.fill("#client", CLIENT_CODE)
+    # Clicked away from the field, because a value typed into an input is
+    # reported when it is committed rather than per keystroke -- the same
+    # reason the recorder waits for `change`.
+    page.click("h1")
+
+    busy = open_channel.saw("busy")
+    page.close()
+
+    assert busy["reason"], "the operator was not told what made the browser busy"
+    assert 0 < busy["for_ms"] <= 30_000, (
+        f"a busy window of {busy['for_ms']}ms is not something the backend can bound"
+    )

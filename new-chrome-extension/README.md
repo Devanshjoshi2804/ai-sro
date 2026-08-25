@@ -70,6 +70,38 @@ So an upload that fails is retried without re-sending the batch, and staging the
 same batch twice replaces the row rather than queueing a second copy. Three
 failed attempts and the picture is dropped, loudly — the options page says so.
 
+## The command channel
+
+The extension dials `WS /v1/agents/{device_id}/commands` and answers what comes
+down it: `ui.perform` and `ui.perform_at`, `ui.url`, `screenshot`, `navigate`,
+`http.send`, `abort`. Every command is answered exactly once, including with an
+error — a command left unanswered reads to the backend as a device that went
+away, which fails the run by blaming the browser rather than the page.
+
+Three things are worth knowing before changing any of it:
+
+- **`ui.perform` runs in the page's realm**, because the component locator is a
+  question only the application's own framework can answer. `http.send` runs in
+  the isolated world instead: same origin and the same cookies, but not the
+  page's patched `fetch`, so a replayed request is never captured as the
+  operator's own.
+- **A tab being driven is not captured.** Gestures and requests from it are
+  dropped for the length of the command plus a settle window. Without that, the
+  miner learns a task from this extension replaying that task.
+- **The socket is the worker's lifetime.** Chrome evicts an idle service worker
+  after 30 seconds and takes the socket with it, so a keepalive goes up every
+  20 seconds and every alarm tick re-dials.
+
+While the operator is making gestures the extension sends `busy`, and the
+backend holds new commands for the shorter of that window and half the
+command's deadline — enough that a replay does not land in the middle of
+somebody typing, not enough for a browser to veto the work.
+
+The operator's own pause does not close the channel. That switch means "stop
+watching me"; running a skill they asked for is not watching, and a device that
+goes unreachable whenever somebody pauses observation is a device nobody can
+schedule work on. An administrator's pause does close it.
+
 ## Working without the backend
 
 `mock-server/` implements the frozen contract with canned responses. Build the

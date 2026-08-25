@@ -4,6 +4,8 @@
 // it is idle and every wake-up starts from storage.
 
 import { api, ApiError } from "./api.js";
+import * as channel from "./channel.js";
+import { isDriving } from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import { allowsHost, applyPolicy, unregister } from "./scripts.js";
@@ -32,6 +34,10 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === BEAT) void beat();
   if (alarm.name === FLUSH) void flushQueue();
+  // Every wake-up re-dials. Chrome evicts this worker while it is idle and the
+  // socket goes with it, so without this a quiet browser is an unreachable one
+  // until the operator happens to click something.
+  void channel.settle();
 });
 
 // Page lifecycle, straight from the platform -- no content script needed for
@@ -147,6 +153,18 @@ async function handle(message, sender) {
       if (!allowed.on || !allowsHost(frameUrl, policy)) {
         return { ok: false, dropped: allowed.on ? "excluded host" : allowed.because };
       }
+      // A tab this extension is driving for a run is not an operator working.
+      // Kept out of the evidence plane entirely: a replay's clicks and the
+      // calls they set off, mined as though somebody had done them, is the
+      // system learning a task from a robot imitating a person -- and then
+      // offering it back as something worth automating.
+      if (isDriving(sender?.tab?.id ?? null)) {
+        return { ok: false, dropped: "this browser is performing a run" };
+      }
+      // Somebody is working in here. Said out loud on the channel so a command
+      // queues instead of landing mid-keystroke -- only for gestures, because
+      // a page's background traffic is not a person at a keyboard.
+      if (message.kind === "gesture") channel.operatorIsWorking();
       // tab_id comes from the sender, not the content script -- a frame has
       // no chrome.tabs access of its own to ask for it.
       const tab_id = sender?.tab?.id ?? null;
@@ -193,6 +211,7 @@ async function handle(message, sender) {
       // under the other's credential, into the other's tenant. That is the
       // exact thing the sign-out path below clears the queue to prevent.
       await unregister();
+      channel.close();
       await queue.clear();
       await state.newQueueEpoch();
       // A batch minted for the last operator names their epoch and their
@@ -209,6 +228,9 @@ async function handle(message, sender) {
       return register(message.label);
     case "sign-out":
       await unregister();
+      // Before the credential goes: a socket authenticated as the operator
+      // who is leaving must not still be open for the next one.
+      channel.close();
       // Before the credential goes, so nothing captured under it can be
       // uploaded under the next one. What this browser recorded for one
       // operator must not arrive in another operator's tenant because they
@@ -309,10 +331,12 @@ async function beat() {
   await settle();
 }
 
-/** Make the browser match what is stored: scripts registered, badge honest. */
+/** Make the browser match what is stored: scripts registered, badge honest,
+ * and the command channel open or closed to match the credential. */
 async function settle() {
   const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
   await applyPolicy(policy, allowed);
+  await channel.settle();
   await badge();
   return status();
 }
@@ -341,6 +365,7 @@ async function status() {
   return {
     capturing: allowed.on,
     because: allowed.because,
+    channel: channel.status(),
     deviceId,
     policy,
     apiUrl,

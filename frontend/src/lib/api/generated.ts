@@ -254,6 +254,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/candidates/{candidate_id}/joins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Join
+         * @description Say what two candidates are to each other.
+         *
+         *     The line `docs/15-observation-to-tasks.md` draws: a model may notice that
+         *     two look like one piece of work and say why, and a person decides whether
+         *     they are. Answering `same` about a variant dismisses the other as a
+         *     duplicate of this one, naming it -- kept rather than deleted, so the miner
+         *     does not offer it again next week as though it were new.
+         */
+        post: operations["answer_join_v1_candidates__candidate_id__joins_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/candidates/{candidate_id}/dismiss": {
         parameters: {
             query?: never;
@@ -1223,6 +1249,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnswerJoinRequest
+         * @description What a person says two candidates are to each other.
+         */
+        AnswerJoinRequest: {
+            /** Other Id */
+            other_id: string;
+            kind: components["schemas"]["JoinKind"];
+            answer: components["schemas"]["JoinAnswer"];
+        };
         /** AnswerQuestionRequest */
         AnswerQuestionRequest: {
             /** System */
@@ -1626,6 +1662,16 @@ export interface components {
             derived_parameter_count: number;
         };
         /**
+         * JoinAnswer
+         * @enum {string}
+         */
+        JoinAnswer: "same" | "different";
+        /**
+         * JoinKind
+         * @enum {string}
+         */
+        JoinKind: "variant" | "workflow";
+        /**
          * JoinModel
          * @description A suggestion that this candidate and another are one piece of work.
          *
@@ -1642,6 +1688,10 @@ export interface components {
             because: string;
             /** By Model */
             by_model: boolean;
+            /** Answered */
+            answered?: string | null;
+            /** Answered By */
+            answered_by?: string | null;
         };
         /** KnowledgeEntryModel */
         KnowledgeEntryModel: {
@@ -3902,6 +3952,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaughtModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    answer_join_v1_candidates__candidate_id__joins_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerJoinRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskCandidateModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

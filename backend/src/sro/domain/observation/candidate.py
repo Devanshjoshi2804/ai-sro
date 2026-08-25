@@ -8,7 +8,7 @@ what is already stored rather than needing a new week of watching.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 from statistics import median
@@ -68,13 +68,27 @@ class JoinKind(StrEnum):
     host change, so this is a shape no single candidate can ever have."""
 
 
+class JoinAnswer(StrEnum):
+    SAME = "same"
+    """A person looked and said yes. For a variant that means one of the two is
+    a duplicate; for a workflow it means the pair is one job done in two
+    systems, which no single candidate can represent."""
+
+    DIFFERENT = "different"
+    """A person looked and said no. Kept rather than deleted, for the same
+    reason a dismissed candidate is kept: a question somebody has already
+    answered must not be asked again next week as though it were new."""
+
+
 @dataclass(frozen=True, slots=True)
 class Join:
-    """A suggestion that this candidate and another are one thing.
+    """A suggestion that this candidate and another are one thing, and what a
+    person said about it.
 
-    A suggestion, and it stays one. Nothing downstream reads it and nothing
-    merges on it: acting is a person's decision, because a suggestion the system
-    acted on is a task identity a model decided after all.
+    Until somebody answers, it is a suggestion and nothing acts on it -- a
+    suggestion the system acted on would be a task identity a model decided
+    after all. The answer is what turns it into a fact, and it names who said
+    so, because "these two are the same task" is a claim about somebody's work.
     """
 
     other_id: CandidateId
@@ -82,9 +96,18 @@ class Join:
     because: str
     by_model: bool = True
 
+    answered: JoinAnswer | None = None
+    answered_by: PrincipalId | None = None
+
     def __post_init__(self) -> None:
         if not self.because.strip():
             raise InvariantViolation("a join nobody can explain will not be believed")
+        if (self.answered is None) != (self.answered_by is None):
+            raise InvariantViolation("an answered join names who answered it")
+
+    @property
+    def is_answered(self) -> bool:
+        return self.answered is not None
 
 
 @dataclass(eq=False)
@@ -142,6 +165,13 @@ class TaskCandidate:
         return int(median(episode.duration_ms for episode in self.episodes))
 
     @property
+    def status_is_new(self) -> bool:
+        """Whether anything may still be decided about it. `dismiss` and
+        `taught` both refuse otherwise, and a second answer to one join should
+        not raise because the first already dismissed the duplicate."""
+        return self.status is CandidateStatus.NEW
+
+    @property
     def worth_offering(self) -> bool:
         return self.status is CandidateStatus.NEW and self.times_seen >= WORTH_OFFERING
 
@@ -173,21 +203,43 @@ class TaskCandidate:
         Replaces an earlier suggestion about the same pair rather than
         accumulating: the question was asked again because the evidence grew,
         and two answers to one question on a screen is a screen nobody trusts.
+
+        A pair somebody has already answered is left exactly as it is. Nothing
+        a model notices next week overrules a person who looked at these two
+        candidates and said what they were.
         """
         if join.other_id == self.id:
             raise InvariantViolation("a candidate cannot be a variant of itself")
-        already = next(
-            (
-                known
-                for known in self.joins
-                if known.other_id == join.other_id and known.kind is join.kind
-            ),
-            None,
-        )
+        already = self.join_with(join.other_id, join.kind)
+        if already is not None and already.is_answered:
+            return False
         if already == join:
             return False
         self.joins = (*(known for known in self.joins if known is not already), join)
         return True
+
+    def join_with(self, other_id: CandidateId, kind: JoinKind) -> Join | None:
+        return next(
+            (known for known in self.joins if known.other_id == other_id and known.kind is kind),
+            None,
+        )
+
+    def answer(
+        self, other_id: CandidateId, kind: JoinKind, answer: JoinAnswer, by: PrincipalId
+    ) -> Join:
+        """Somebody looked at the pair and said what it is.
+
+        Answerable only where something was suggested: an answer to a question
+        nobody asked has no evidence attached to it, and the reason a person
+        was shown these two together is half of what makes the answer readable
+        later.
+        """
+        known = self.join_with(other_id, kind)
+        if known is None:
+            raise InvariantViolation("nothing suggested these two were one thing")
+        answered = replace(known, answered=answer, answered_by=by)
+        self.joins = tuple(answered if one is known else one for one in self.joins)
+        return answered
 
     def dismiss(self, reason: str) -> None:
         """Not worth automating, said by a person. Kept rather than deleted, so

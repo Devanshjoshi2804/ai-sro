@@ -11,6 +11,7 @@ from sro.domain.observation.candidate import WORTH_OFFERING
 from sro.domain.shared.identifiers import CandidateId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
+    AnswerJoinRequest,
     DismissCandidateRequest,
     MinedModel,
     TaskCandidateModel,
@@ -94,6 +95,31 @@ async def teach_candidate(
         needs_demonstration=taught.needs_demonstration,
         because=taught.because,
     )
+
+
+@router.post("/{candidate_id}/joins")
+async def answer_join(
+    candidate_id: str,
+    body: AnswerJoinRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+) -> TaskCandidateModel:
+    """Say what two candidates are to each other.
+
+    The line `docs/15-observation-to-tasks.md` draws: a model may notice that
+    two look like one piece of work and say why, and a person decides whether
+    they are. Answering `same` about a variant dismisses the other as a
+    duplicate of this one, naming it -- kept rather than deleted, so the miner
+    does not offer it again next week as though it were new.
+    """
+    answered = await container.answer_join().execute(
+        ctx,
+        candidate_id=CandidateId(candidate_id),
+        other_id=CandidateId(body.other_id),
+        kind=body.kind,
+        answer=body.answer,
+    )
+    return TaskCandidateModel.of(answered)
 
 
 @router.post("/{candidate_id}/dismiss")

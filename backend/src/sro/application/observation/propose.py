@@ -27,9 +27,11 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.domain.observation.candidate import (
     CandidateStatus,
     Join,
+    JoinAnswer,
     JoinKind,
     TaskCandidate,
 )
+from sro.domain.shared.identifiers import CandidateId
 
 logger = logging.getLogger(__name__)
 
@@ -113,8 +115,12 @@ class ProposeAboutCandidates:
     async def _join(self, candidates: list[TaskCandidate]) -> tuple[int, int]:
         """Slots 2 and 3: what this candidate might be part of."""
         pairs = [
-            *_variants(candidates),
-            *_workflows(candidates),
+            (kind, first, second)
+            for kind, first, second in (*_variants(candidates), *_workflows(candidates))
+            # A pair somebody has already looked at is not a question any more.
+            # Asking the model again would spend a call to re-suggest what a
+            # person answered, and `suggest` would refuse to store it anyway.
+            if not _settled(first, second, kind)
         ][:MOST_PAIRS]
 
         joined = asked = 0
@@ -135,6 +141,57 @@ class ProposeAboutCandidates:
                 await uow.commit()
             joined += 1
         return joined, asked
+
+
+class AnswerJoin:
+    """A person saying what two candidates are to each other.
+
+    This is the line `docs/15` draws. A model may notice that two candidates
+    look like one piece of work and say why; it may not decide that they are,
+    because a candidate's identity is what makes mining re-runnable and pairing
+    exact. So the suggestion waits until somebody looks.
+
+    Answering `same` about a variant does the one thing that follows from it:
+    the other candidate is dismissed as a duplicate of this one, naming it. Not
+    deleted -- a dismissed candidate is kept precisely so the miner does not
+    offer it again next week as though it were new -- and not merged, because
+    merging two signatures would mean inventing a third that neither was.
+
+    Answering `same` about a workflow records exactly that and nothing more.
+    Two candidates in two systems being one job is a shape nothing here can
+    represent yet, and a fact recorded honestly is worth more than a merge that
+    would have to be undone.
+    """
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(
+        self,
+        ctx: RequestContext,
+        *,
+        candidate_id: CandidateId,
+        other_id: CandidateId,
+        kind: JoinKind,
+        answer: JoinAnswer,
+    ) -> TaskCandidate:
+        async with self._uow as uow:
+            candidate = await uow.candidates.get(ctx.tenant_id, candidate_id)
+            other = await uow.candidates.get(ctx.tenant_id, other_id)
+
+            candidate.answer(other_id, kind, answer, ctx.principal_id)
+            # On both, because the pair is the thing being answered and a
+            # screen showing one of them must not still be asking.
+            if other.join_with(candidate_id, kind) is not None:
+                other.answer(candidate_id, kind, answer, ctx.principal_id)
+
+            if answer is JoinAnswer.SAME and kind is JoinKind.VARIANT and other.status_is_new:
+                other.dismiss(f"the same task as {candidate.title}, done another way")
+
+            await uow.candidates.save(candidate)
+            await uow.candidates.save(other)
+            await uow.commit()
+        return candidate
 
 
 def _variants(
@@ -176,6 +233,17 @@ def _workflows(
             if _followed(first, second) + _followed(second, first) >= TOGETHER_TIMES:
                 pairs.append((JoinKind.WORKFLOW, first, second))
     return pairs
+
+
+def _settled(first: TaskCandidate, second: TaskCandidate, kind: JoinKind) -> bool:
+    """Whether a person has already said what this pair is."""
+    return any(
+        (candidate.join_with(other.id, kind) or _UNANSWERED).is_answered
+        for candidate, other in ((first, second), (second, first))
+    )
+
+
+_UNANSWERED = Join(other_id=CandidateId("none"), kind=JoinKind.VARIANT, because="not asked")
 
 
 def _followed(first: TaskCandidate, second: TaskCandidate) -> int:

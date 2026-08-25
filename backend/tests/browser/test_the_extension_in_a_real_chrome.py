@@ -1459,3 +1459,45 @@ def test_the_panel_shows_only_the_tasks_of_the_system_in_front_of_it(
     assert "Adjust an LPN quantity" in shown[0]
     # A sentence a model wrote is never presented as a fact about the task.
     assert "named by a model" in shown[0]
+
+
+def test_a_suggestion_the_panel_shows_is_one_a_person_can_answer(
+    browser: Any, stub: Any, answered_joins: list[dict[str, Any]]
+) -> None:
+    """The line `docs/15-observation-to-tasks.md` draws, made usable.
+
+    A model may notice that two candidates look like one piece of work and say
+    why; a person decides whether they are. Until somebody can answer, the
+    suggestion accumulates on a screen until the screen is ignored, and every
+    sweep asks it again.
+    """
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    system = browser.new_page()
+    system.goto(api_url)
+    panel = _panel(browser, worker)
+
+    row = panel.locator("#candidates li").first
+    row.wait_for(timeout=15_000)
+    assert "looks like the same task as another" in row.text_content(), (
+        "the suggestion the model made is not shown at all"
+    )
+
+    row.get_by_role("button", name="Same task").click()
+    panel.wait_for_timeout(1500)
+    after = panel.locator("#candidates li").first.text_content()
+    panel.close()
+    system.close()
+
+    assert answered_joins, "the panel answered nothing"
+    assert answered_joins[0]["other_id"] == "cnd-elsewhere"
+    assert answered_joins[0]["kind"] == "variant"
+    assert answered_joins[0]["answer"] == "same"
+    # And it stops asking: what comes back says who answered, not what a model
+    # noticed.
+    assert "cnd-here" in answered_joins[0]["path"]
+    # And it stops asking: the row states what was decided and by whom, rather
+    # than offering the same question again.
+    assert "said so" in after, f"the row is still asking a question somebody answered: {after!r}"

@@ -139,7 +139,16 @@ _CANDIDATES = [
         "skill_id": None,
         "dismissed_reason": None,
         "named_by_model": True,
-        "joins": [],
+        "joins": [
+            {
+                "other_id": "cnd-elsewhere",
+                "kind": "variant",
+                "because": "the second checks the count first",
+                "by_model": True,
+                "answered": None,
+                "answered_by": None,
+            }
+        ],
         "episodes": [],
     },
     {
@@ -175,6 +184,7 @@ class _Stub(BaseHTTPRequestHandler):
     channels: ClassVar[queue.Queue[Channel]] = queue.Queue()
     purges: ClassVar[list[str]] = []
     candidate_queries: ClassVar[list[str]] = []
+    answered_joins: ClassVar[list[dict[str, Any]]] = []
     recordings: ClassVar[list[str]] = []
     sealed: ClassVar[list[str]] = []
     """Answer this many artifact uploads with a 503 before taking any. A lost
@@ -320,6 +330,15 @@ class _Stub(BaseHTTPRequestHandler):
                 ).encode(),
             )
             return
+        if self.path.endswith("/joins"):
+            asked = json.loads(raw)
+            _Stub.answered_joins.append({"path": self.path, **asked})
+            # Kept, the way the real endpoint keeps it: the panel re-reads the
+            # list after answering, and a suggestion that came back still asking
+            # would be a screen that never stops asking.
+            _CANDIDATES[0]["joins"][0].update(answered=asked["answer"], answered_by="you")
+            self._send(200, json.dumps(_CANDIDATES[0]).encode())
+            return
         if self.path == "/api/echo":
             # Says back what reached it, so the test can prove the call carried
             # the page's own cookies rather than the extension's origin.
@@ -387,6 +406,8 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.channels = queue.Queue()
     _Stub.purges = []
     _Stub.candidate_queries = []
+    _Stub.answered_joins = []
+    _CANDIDATES[0]["joins"][0].update(answered=None, answered_by=None)
     _Stub.recordings = []
     _Stub.sealed = []
     # Threading, because the command channel holds its connection open for the
@@ -422,6 +443,12 @@ def demonstrations(stub: tuple[str, list[dict[str, Any]]]) -> tuple[list[str], l
 def candidate_queries(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
     """The `/v1/candidates` requests the panel made, as sent."""
     return _Stub.candidate_queries
+
+
+@pytest.fixture
+def answered_joins(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """What the panel said two candidates are to each other."""
+    return _Stub.answered_joins
 
 
 @pytest.fixture

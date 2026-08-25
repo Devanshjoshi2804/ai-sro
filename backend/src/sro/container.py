@@ -65,7 +65,7 @@ from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
 from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
-from sro.application.observation.propose import ProposeAboutCandidates
+from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
 from sro.application.observation.register import (
     ReadDevice,
     ReadDevices,
@@ -207,6 +207,9 @@ class Container:
         return MineEverything(
             self.unit_of_work(), self.mine_observations(), self.propose_about_candidates()
         )
+
+    def answer_join(self) -> AnswerJoin:
+        return AnswerJoin(self.unit_of_work())
 
     def propose_about_candidates(self) -> ProposeAboutCandidates:
         """The three model slots over what the miner found. Does nothing at all

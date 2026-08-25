@@ -81,6 +81,14 @@ export const api = {
   teachCandidate: (id) =>
     call(`/v1/candidates/${encodeURIComponent(id)}/teach`, { method: "POST", body: {} }),
 
+  /** What a person says two candidates are to each other. The model may only
+   * ever have suggested it. */
+  answerJoin: (id, otherId, kind, answer) =>
+    call(`/v1/candidates/${encodeURIComponent(id)}/joins`, {
+      method: "POST",
+      body: { other_id: otherId, kind, answer },
+    }),
+
   dismissCandidate: (id, reason) =>
     call(`/v1/candidates/${encodeURIComponent(id)}/dismiss`, {
       method: "POST",

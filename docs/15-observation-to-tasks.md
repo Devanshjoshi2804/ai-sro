@@ -158,11 +158,25 @@ screen means when replay has already failed.
 
 ---
 
-## Where this stops
+## Answering a suggestion
 
-Slots 2 and 3 suggest; they do not merge, and nothing downstream reads a
-suggestion. Acting on one is a person's decision, and the shape that decision
-should take — teach both as one skill, dismiss one as a duplicate, or stitch two
-recordings into one demonstration — is not built. That is deliberate: a
-suggestion nobody has acted on is a sentence on a screen, and a suggestion the
-system acts on is a task identity a model decided after all.
+Slots 2 and 3 suggest; a person answers, and the answer is the point. Until
+somebody says, the pair is a question — nothing downstream reads it and nothing
+merges on it. Once they have, it is a fact with their name on it.
+
+`POST /v1/candidates/{id}/joins` takes `same` or `different`, records it on
+**both** candidates, and one thing follows from it:
+
+| Answer | Kind | What happens |
+|---|---|---|
+| `same` | variant | The other candidate is **dismissed as a duplicate**, naming this one. Kept rather than deleted, like every dismissal, so the miner does not offer it again next week as though it were new. |
+| `same` | workflow | Recorded, and nothing else. Two candidates in two systems being one job is a shape nothing here can represent yet, and a fact recorded honestly beats a merge that would have to be undone. |
+| `different` | either | Recorded. Both candidates carry on exactly as they were. |
+
+**A model never overrules an answer.** `suggest()` leaves an answered pair
+alone, and the sweep skips it before spending a call — so a question somebody
+took off their screen does not come back next week wearing a new sentence.
+
+Merging is still not a thing this does. Two signatures do not merge into a third
+that neither was: the duplicate is dismissed, which is a decision about a
+candidate rather than an edit to what a candidate is.

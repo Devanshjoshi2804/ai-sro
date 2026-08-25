@@ -16,10 +16,23 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from sro.application.context import RequestContext
-from sro.application.observation.propose import MOST_PAIRS, ProposeAboutCandidates
+from sro.application.observation.propose import (
+    MOST_PAIRS,
+    AnswerJoin,
+    ProposeAboutCandidates,
+)
 from sro.application.ports.interpretation import Judgement, Reading, TaskName
-from sro.domain.observation.candidate import Episode, JoinKind, TaskCandidate
+from sro.domain.observation.candidate import (
+    CandidateStatus,
+    Episode,
+    JoinAnswer,
+    JoinKind,
+    TaskCandidate,
+)
+from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import BatchId, CandidateId, PrincipalId
 from tests import factories as f
 from tests.unit.fakes import FakeUnitOfWork
@@ -362,3 +375,144 @@ async def test_a_sweep_will_not_ask_about_more_pairs_than_it_is_allowed() -> Non
     await ProposeAboutCandidates(uow, interpreter).execute(CTX)
 
     assert len(interpreter.judged) == MOST_PAIRS
+
+
+# -- and what a person says back ---------------------------------------------
+
+
+async def _suggested(kind: JoinKind = JoinKind.VARIANT) -> FakeUnitOfWork:
+    """Two candidates the model has already joined."""
+    first = _candidate("cnd-1", at=_thrice(), named_by_model=True)
+    second = _candidate(
+        "cnd-2",
+        signature=ADJUST_WITH_A_DETOUR if kind is JoinKind.VARIANT else RECEIVE,
+        host="wms.acme.test" if kind is JoinKind.VARIANT else "erp.acme.test",
+        at=_thrice() if kind is JoinKind.VARIANT else _thrice(NINE + timedelta(minutes=3)),
+        named_by_model=True,
+    )
+    uow = await _world(first, second)
+    await ProposeAboutCandidates(
+        uow, FakeInterpreter(judgement=Judgement(joined=True, because="one task"))
+    ).execute(CTX)
+    return uow
+
+
+async def test_saying_two_are_the_same_dismisses_one_as_a_duplicate() -> None:
+    """The one consequence that follows from `same`, and the reason the answer
+    is a person's: a duplicate that stays on the list is a task somebody teaches
+    twice."""
+    uow = await _suggested()
+
+    kept = await AnswerJoin(uow).execute(
+        CTX,
+        candidate_id=CandidateId("cnd-1"),
+        other_id=CandidateId("cnd-2"),
+        kind=JoinKind.VARIANT,
+        answer=JoinAnswer.SAME,
+    )
+
+    duplicate = await uow.candidates.get(f.TENANT, CandidateId("cnd-2"))
+    assert kept.status is CandidateStatus.NEW, "the candidate somebody kept was dismissed"
+    assert duplicate.status is CandidateStatus.DISMISSED
+    assert kept.title in (duplicate.dismissed_reason or ""), (
+        "the duplicate does not say what it was a duplicate of"
+    )
+    # Kept, never deleted: the miner must not offer it again next week as if it
+    # were new.
+    assert duplicate.times_seen == 3
+
+
+async def test_the_answer_is_recorded_on_both_and_names_who_gave_it() -> None:
+    uow = await _suggested()
+
+    await AnswerJoin(uow).execute(
+        CTX,
+        candidate_id=CandidateId("cnd-1"),
+        other_id=CandidateId("cnd-2"),
+        kind=JoinKind.VARIANT,
+        answer=JoinAnswer.DIFFERENT,
+    )
+
+    for ident, other in (("cnd-1", "cnd-2"), ("cnd-2", "cnd-1")):
+        candidate = await uow.candidates.get(f.TENANT, CandidateId(ident))
+        join = candidate.join_with(CandidateId(other), JoinKind.VARIANT)
+        assert join is not None and join.answered is JoinAnswer.DIFFERENT, (
+            f"{ident} is still asking a question somebody answered"
+        )
+        assert join.answered_by == f.OPERATOR
+
+
+async def test_saying_no_leaves_both_candidates_alone() -> None:
+    uow = await _suggested()
+
+    await AnswerJoin(uow).execute(
+        CTX,
+        candidate_id=CandidateId("cnd-1"),
+        other_id=CandidateId("cnd-2"),
+        kind=JoinKind.VARIANT,
+        answer=JoinAnswer.DIFFERENT,
+    )
+
+    both = await uow.candidates.list_for_tenant(f.TENANT)
+    assert [candidate.status for candidate in both] == [CandidateStatus.NEW] * 2
+
+
+async def test_a_workflow_answered_yes_is_recorded_and_nothing_else() -> None:
+    """Two candidates in two systems being one job is a shape nothing here can
+    represent yet. A fact recorded honestly beats a merge that would have to be
+    undone."""
+    uow = await _suggested(JoinKind.WORKFLOW)
+
+    await AnswerJoin(uow).execute(
+        CTX,
+        candidate_id=CandidateId("cnd-1"),
+        other_id=CandidateId("cnd-2"),
+        kind=JoinKind.WORKFLOW,
+        answer=JoinAnswer.SAME,
+    )
+
+    both = await uow.candidates.list_for_tenant(f.TENANT)
+    assert [candidate.status for candidate in both] == [CandidateStatus.NEW] * 2
+
+
+async def test_the_next_sweep_does_not_ask_what_somebody_already_answered() -> None:
+    """The whole reason the answer is recorded rather than acted on and
+    forgotten. Re-suggesting is not only a wasted model call: it puts a
+    question back on a screen that a person has already taken off it."""
+    uow = await _suggested()
+    await AnswerJoin(uow).execute(
+        CTX,
+        candidate_id=CandidateId("cnd-1"),
+        other_id=CandidateId("cnd-2"),
+        kind=JoinKind.VARIANT,
+        answer=JoinAnswer.DIFFERENT,
+    )
+
+    interpreter = FakeInterpreter(judgement=Judgement(joined=True, because="asked again"))
+    await ProposeAboutCandidates(uow, interpreter).execute(CTX)
+
+    assert interpreter.judged == []
+    candidate = await uow.candidates.get(f.TENANT, CandidateId("cnd-1"))
+    join = candidate.join_with(CandidateId("cnd-2"), JoinKind.VARIANT)
+    assert join is not None and join.because == "one task", (
+        "a model overwrote the suggestion a person had answered"
+    )
+
+
+async def test_answering_something_nobody_suggested_is_refused() -> None:
+    """An answer with no suggestion behind it has no evidence attached, and the
+    reason the pair was shown together is half of what makes the answer
+    readable a month later."""
+    uow = await _world(
+        _candidate("cnd-1", at=_thrice()),
+        _candidate("cnd-2", signature=RECEIVE, at=_thrice()),
+    )
+
+    with pytest.raises(InvariantViolation, match="nothing suggested"):
+        await AnswerJoin(uow).execute(
+            CTX,
+            candidate_id=CandidateId("cnd-1"),
+            other_id=CandidateId("cnd-2"),
+            kind=JoinKind.VARIANT,
+            answer=JoinAnswer.SAME,
+        )

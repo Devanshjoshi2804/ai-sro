@@ -20,7 +20,13 @@ from sro.application.intent.resolve import Resolution
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
-from sro.domain.observation.candidate import Episode, Join, TaskCandidate
+from sro.domain.observation.candidate import (
+    Episode,
+    Join,
+    JoinAnswer,
+    JoinKind,
+    TaskCandidate,
+)
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
@@ -1328,6 +1334,12 @@ class JoinModel(BaseModel):
     because: str
     by_model: bool
 
+    answered: str | None = None
+    """`same` or `different`, once somebody has looked. Absent means it is
+    still a question, and a screen should be asking it rather than stating it."""
+
+    answered_by: str | None = None
+
     @classmethod
     def of(cls, join: Join) -> JoinModel:
         return cls(
@@ -1335,7 +1347,17 @@ class JoinModel(BaseModel):
             kind=join.kind.value,
             because=join.because,
             by_model=join.by_model,
+            answered=join.answered.value if join.answered else None,
+            answered_by=join.answered_by.value if join.answered_by else None,
         )
+
+
+class AnswerJoinRequest(BaseModel):
+    """What a person says two candidates are to each other."""
+
+    other_id: str
+    kind: JoinKind
+    answer: JoinAnswer
 
 
 class TaskCandidateModel(BaseModel):

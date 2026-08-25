@@ -194,17 +194,7 @@ function row(candidate) {
 
   item.append(title, facts);
 
-  // Read-only, deliberately: acting on one is a decision that belongs to a
-  // person and to a screen that does not exist yet.
-  for (const join of candidate.joins || []) {
-    const suggestion = document.createElement("p");
-    suggestion.className = "note";
-    suggestion.textContent =
-      join.kind === "workflow"
-        ? `looks like half of one job with another task — ${join.because}`
-        : `looks like the same task as another — ${join.because}`;
-    item.append(suggestion);
-  }
+  for (const join of candidate.joins || []) item.append(suggestion(candidate, join));
 
   const actions = document.createElement("div");
   actions.className = "row";
@@ -226,6 +216,62 @@ function row(candidate) {
   actions.append(teach, dismiss);
   item.append(actions);
   return item;
+}
+
+/** What a model noticed about this candidate, and the two words a person can
+ * answer it with.
+ *
+ * The answer is the point. A suggestion nobody can answer accumulates on a
+ * screen until the screen is ignored, and every sweep re-asks it -- so until
+ * somebody says, it is a question, and once they have, it is a fact with their
+ * name on it and the miner stops asking.
+ */
+function suggestion(candidate, join) {
+  const holder = document.createElement("div");
+
+  const said = document.createElement("p");
+  said.className = "note";
+  const what =
+    join.kind === "workflow"
+      ? "looks like half of one job with another task"
+      : "looks like the same task as another";
+  said.textContent = join.answered
+    ? `${join.answered === "same" ? "one job with another task" : "a different task"} — ` +
+      `${join.answered_by} said so`
+    : `${what} — ${join.because}`;
+  holder.append(said);
+
+  if (join.answered) return holder;
+
+  const actions = document.createElement("div");
+  actions.className = "row";
+  for (const [label, answer] of [
+    ["Same task", "same"],
+    ["Different", "different"],
+  ]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "quiet";
+    button.textContent = label;
+    button.addEventListener("click", async () => {
+      try {
+        await ask({
+          kind: "answer-join",
+          id: candidate.id,
+          otherId: join.other_id,
+          // `kind` is taken by the message itself, and a join has one too.
+          joinKind: join.kind,
+          answer,
+        });
+        await here();
+      } catch (error) {
+        said.textContent = error.message;
+      }
+    });
+    actions.append(button);
+  }
+  holder.append(actions);
+  return holder;
 }
 
 async function taught(candidate, item) {

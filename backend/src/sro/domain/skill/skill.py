@@ -98,6 +98,19 @@ class SkillVersion:
     demotion_reason: str | None = None
     """Why this version was pulled back down, when it was."""
 
+    systems: tuple[str, ...] = ()
+    """Every system this version touches, derived from what it was taught on.
+
+    Here rather than on the objective key, and the difference matters: the key
+    is compared for equality, and that comparison is what pairs two
+    demonstrations of one task. One stray host in one of them -- an identity
+    provider, a CDN that answered once -- would make two keys unequal, and the
+    pair would silently never pair.
+
+    Empty for everything taught before this existed, which is what they were: a
+    version that touches one system says so with `target_system` alone.
+    """
+
     when_to_use: str = ""
     """When to reach for it.
 
@@ -125,6 +138,16 @@ class SkillVersion:
             raise InvariantViolation("a skill nobody can describe is a skill nobody will find")
         self.summary = summary.strip()
         self.when_to_use = when_to_use.strip()
+
+    @property
+    def crosses_systems(self) -> bool:
+        """Whether performing this version touches more than one system.
+
+        Such a version is performed only in a browser that is signed in to all
+        of them -- the operator's own -- because this deployment holds one
+        session per system and never two at once.
+        """
+        return len(self.systems) > 1
 
     @property
     def changes_the_system(self) -> bool:

@@ -294,7 +294,14 @@ class SqlRunRepository(RunRepository):
     ) -> tuple[Run, ...]:
         query = select(RunRow).where(
             RunRow.tenant_id == tenant_id.value,
-            RunRow.target_system == target_system,
+            # Keyed by it, or one of the systems it touched on the way. A
+            # workflow that fails in its second system is stored under the
+            # first, and a breaker that could not see that would be protecting
+            # nothing while appearing to.
+            or_(
+                RunRow.target_system == target_system,
+                RunRow.systems.contains([target_system]),
+            ),
             RunRow.ended_at.is_not(None),
             RunRow.ended_at >= since,
         )

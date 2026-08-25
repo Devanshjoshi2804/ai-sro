@@ -90,6 +90,18 @@ def derive_objective_key(
     )
 
 
+def system_named(connections: Iterable[Connection], url: str | None) -> str:
+    """What to call the system this URL belongs to.
+
+    The connection's own label where somebody has connected it, and a label made
+    from the host where nobody has. Both are what `target_system` holds, which
+    is what matters: a system name and a hostname sitting side by side in the
+    same field is how a circuit breaker ends up protecting a system that does
+    not exist.
+    """
+    return system_of(connections, url) or _system_from(url or "", None)
+
+
 def system_of(connections: Iterable[Connection], *urls: str | None) -> str | None:
     """The system name the operator gave when they connected this host.
 

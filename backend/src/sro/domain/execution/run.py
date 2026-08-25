@@ -165,6 +165,16 @@ class Run:
     no -- a run that has not been told it may take somebody's screen has not
     been given permission to."""
 
+    systems: tuple[str, ...] = ()
+    """Every system this run touched, when that is more than one.
+
+    `target_system` alone is where the work lands, and it is what a run is keyed
+    by. For a workflow that also writes into a second system, being keyed by the
+    first means the second's circuit breaker never sees the failure -- so the
+    breaker is asked about all of them and, because of this, can be answered by
+    all of them. Half a breaker protects nothing and reads as though it does.
+    """
+
     target_system: str = ""
     """Which system this run wrote to.
 

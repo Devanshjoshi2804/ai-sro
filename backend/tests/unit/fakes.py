@@ -497,7 +497,9 @@ class FakeRunRepository:
             run
             for run in self.rows.values()
             if run.tenant_id == tenant_id
-            and run.target_system == target_system
+            # Mirrors the SQL exactly, including the second clause: this fake is
+            # what reproduces the breaker's behaviour in every unit test.
+            and (run.target_system == target_system or target_system in run.systems)
             and run.ended_at is not None
             and run.ended_at >= since
         )

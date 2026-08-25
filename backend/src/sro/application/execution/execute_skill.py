@@ -163,7 +163,12 @@ class StartRun:
         # Checked here because here is where nothing has happened yet. A
         # limit enforced after the first write is a limit that has already
         # been exceeded.
-        await refuse_if_breaker_is_open(uow, ctx, skill.objective_key.target_system, now)
+        #
+        # Every system it touches, not only the one it is keyed by: a workflow
+        # that writes into a second system must be stopped by that system's
+        # breaker, and keying alone would hide exactly that.
+        for system in version.systems or (skill.objective_key.target_system,):
+            await refuse_if_breaker_is_open(uow, ctx, system, now)
         return skill, version
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
@@ -189,6 +194,7 @@ class StartRun:
                 device_id=request.device_id,
                 may_take_focus=request.may_take_focus,
                 target_system=system,
+                systems=version.systems,
                 may_change_the_system=version.changes_the_system,
             )
             await uow.runs.add(run)
@@ -951,6 +957,16 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
     ):
         raise NotRunnable(
             f"a {version.stage} run performs real writes and must name the human who authorised it"
+        )
+    # A version that spans systems is performed in a browser signed in to all of
+    # them, and this deployment holds one session per system and never two at
+    # once. Refused here rather than discovered at step four, halfway through a
+    # job, with the first system already written to.
+    if version.crosses_systems and request.device_id is None:
+        raise NotRunnable(
+            "this skill works across "
+            + " and ".join(version.systems)
+            + ", so it runs in a browser that is signed in to all of them: name a device"
         )
     supplied = set(request.parameters)
     required = {p.name for p in version.parameters if p.kind is ParameterKind.INPUT}

@@ -136,6 +136,10 @@ class RunRow(Base):
     # could take an operator's screen before there was a browser to take it in.
     may_take_focus: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     target_system: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    # Every system the run touched, for the breaker of a system it wrote into
+    # without being keyed by. Empty for the ordinary single-system run, which is
+    # every run there has ever been.
+    systems: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
 
     requested_by: Mapped[str] = mapped_column(String(64), nullable=False)

@@ -254,6 +254,7 @@ def update_run_row(row: RunRow, run: Run) -> None:
     row.device_id = run.device_id.value if run.device_id else None
     row.may_take_focus = run.may_take_focus
     row.target_system = run.target_system
+    row.systems = list(run.systems)
     row.status = run.status.value
     row.requested_by = run.requested_by.value
     row.authorized_by = run.authorized_by.value if run.authorized_by else None
@@ -276,6 +277,7 @@ def row_to_run(row: RunRow) -> Run:
         device_id=DeviceId(row.device_id) if row.device_id else None,
         may_take_focus=bool(row.may_take_focus),
         target_system=row.target_system or "",
+        systems=tuple(row.systems or ()),
         parameters=dict(row.parameters),
         requested_by=PrincipalId(row.requested_by),
         started_at=row.started_at,

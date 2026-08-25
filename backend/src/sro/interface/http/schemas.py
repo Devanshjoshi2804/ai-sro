@@ -422,7 +422,6 @@ class SkillSummary(BaseModel):
     in a browser signed in to all of them, which a screen offering to put it on
     a clock has to know before it offers."""
 
-
     @classmethod
     def of(cls, skill: Skill) -> SkillSummary:
         latest = skill.versions[-1] if skill.versions else None
@@ -506,6 +505,19 @@ class TrackRecordModel(BaseModel):
     failed_runs: int
 
 
+class LoopModel(BaseModel):
+    """A block of steps done once for each thing an earlier step's answer listed."""
+
+    over_step_index: int
+    over_pointer: str
+    first_step: int
+    last_step: int
+    binds: dict[str, str]
+    says: str
+    """The band's label, in the words a reviewer reads: "once for each line
+    step 0 found"."""
+
+
 class SkillVersionModel(BaseModel):
     version: int
     stage: str
@@ -523,6 +535,10 @@ class SkillVersionModel(BaseModel):
     provenance_note: str
     steps: list[StepModel]
     parameters: list[ParameterModel]
+
+    loops: list[LoopModel]
+    """The blocks this version does once per thing in a list. Empty for most
+    skills, and the review screen draws a band around the steps of each."""
 
     systems: list[str]
     """Every system this version touches.
@@ -554,6 +570,17 @@ class SkillVersionModel(BaseModel):
             induced_by=version.provenance.induced_by.value,
             recording_ids=[r.value for r in version.provenance.recording_ids],
             provenance_note=version.provenance.note,
+            loops=[
+                LoopModel(
+                    over_step_index=loop.over_step_index,
+                    over_pointer=loop.over_pointer,
+                    first_step=loop.first_step,
+                    last_step=loop.last_step,
+                    binds={binding.parameter: binding.pointer for binding in loop.binds},
+                    says=loop.describe(),
+                )
+                for loop in version.loops
+            ],
             systems=list(version.systems),
             steps=[
                 StepModel(
@@ -767,6 +794,13 @@ class StepOutcomeModel(BaseModel):
     matched_by: str | None
     detail: str | None
 
+    plan_step: int = 0
+    """Which step of the version this was. The same number as `index` unless
+    the skill has a loop, whose body occupies several positions in the log."""
+
+    iteration: int = 0
+    """Which time round the loop, for a screen that says "line 2 of 3"."""
+
     found_rows: int | None = None
     found_total: int | None = None
     """How many exist, where the system said. `found_rows` is what this page
@@ -800,6 +834,8 @@ class StepOutcomeModel(BaseModel):
             escalated_from=step.escalated_from.value if step.escalated_from else None,
             escalation_reason=step.escalation_reason,
             matched_by=step.matched_by,
+            plan_step=step.step_index,
+            iteration=step.iteration,
             detail=step.detail,
             found_rows=step.found_rows,
             found_total=step.found_total,

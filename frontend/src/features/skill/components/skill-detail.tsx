@@ -180,9 +180,24 @@ export function SkillDetail({ skillId }: { skillId: string }) {
 
           <section className="space-y-3">
             <h2 className="text-lg font-medium">Steps</h2>
-            {latest.steps.map((step) => (
-              <StepCard key={step.index} step={step} />
-            ))}
+            {latest.steps.map((step) => {
+              const loop = (latest.loops ?? []).find(
+                (each) => step.index >= each.first_step && step.index <= each.last_step,
+              );
+              // The band is drawn once, at the top of the body it wraps: a
+              // reviewer approving a write has to see that this one is not sent
+              // once but once per thing the previous step found.
+              return (
+                <div key={step.index} className={loop ? "border-l-2 border-sky-400 pl-3" : ""}>
+                  {loop && step.index === loop.first_step && (
+                    <p className="text-muted-foreground pb-1 text-xs font-medium">
+                      ↻ {loop.says}
+                    </p>
+                  )}
+                  <StepCard step={step} />
+                </div>
+              );
+            })}
           </section>
         </>
       )}

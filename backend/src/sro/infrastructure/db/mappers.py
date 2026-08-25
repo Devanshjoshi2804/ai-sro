@@ -255,6 +255,7 @@ def update_run_row(row: RunRow, run: Run) -> None:
     row.may_take_focus = run.may_take_focus
     row.target_system = run.target_system
     row.systems = list(run.systems)
+    row.iterations = {key: list(bound) for key, bound in run.iterations.items()}
     row.status = run.status.value
     row.requested_by = run.requested_by.value
     row.authorized_by = run.authorized_by.value if run.authorized_by else None
@@ -278,6 +279,7 @@ def row_to_run(row: RunRow) -> Run:
         may_take_focus=bool(row.may_take_focus),
         target_system=row.target_system or "",
         systems=tuple(row.systems or ()),
+        iterations={key: list(bound) for key, bound in (row.iterations or {}).items()},
         parameters=dict(row.parameters),
         requested_by=PrincipalId(row.requested_by),
         started_at=row.started_at,
@@ -298,6 +300,8 @@ def row_to_run(row: RunRow) -> Run:
 def _step_to_json(step: StepOutcome) -> dict[str, Any]:
     return {
         "index": step.index,
+        "plan_step": step.plan_step,
+        "iteration": step.iteration,
         "medium": step.medium.value,
         "disposition": step.disposition.value,
         "intent": step.intent,
@@ -323,6 +327,8 @@ def _step_to_json(step: StepOutcome) -> dict[str, Any]:
 def _step_from_json(data: dict[str, Any]) -> StepOutcome:
     return StepOutcome(
         index=data["index"],
+        plan_step=data.get("plan_step"),
+        iteration=data.get("iteration", 0),
         medium=Medium(data["medium"]),
         disposition=StepDisposition(data["disposition"]),
         intent=data["intent"],

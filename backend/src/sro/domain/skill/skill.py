@@ -10,6 +10,7 @@ from sro.domain.shared.identifiers import PrincipalId, RecordingId, SkillId, Ten
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.assertion import Assertion
 from sro.domain.skill.earned import earned_stage
+from sro.domain.skill.loop import Loop
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.plan import NetworkPlan, UiPlan
 from sro.domain.skill.promotion import PromotionStage, check_promotion
@@ -111,6 +112,14 @@ class SkillVersion:
     version that touches one system says so with `target_system` alone.
     """
 
+    loops: tuple[Loop, ...] = ()
+    """Blocks of steps the task does once per thing in a list.
+
+    Empty for every skill taught before this existed, and for most after: a loop
+    is only ever recorded where two demonstrations did the same block a
+    different number of times and the system's own answer said how many.
+    """
+
     when_to_use: str = ""
     """When to reach for it.
 
@@ -127,6 +136,7 @@ class SkillVersion:
         self._check_step_indices()
         self._check_parameters_declared()
         self._check_derived_ordering()
+        self._check_loops()
 
     @property
     def inputs(self) -> tuple[Parameter, ...]:
@@ -270,6 +280,39 @@ class SkillVersion:
                     f"step {step.index} references undeclared parameters: "
                     f"{', '.join(sorted(missing))}"
                 )
+
+    def _check_loops(self) -> None:
+        covered: set[int] = set()
+        declared = {parameter.name for parameter in self.parameters}
+        for loop in self.loops:
+            if loop.last_step >= len(self.steps):
+                raise InvariantViolation(
+                    f"a loop covers steps {loop.first_step}-{loop.last_step}, "
+                    f"and this version has {len(self.steps)}"
+                )
+            body = set(loop.body)
+            if body & covered:
+                # Nested and overlapping loops are refused rather than
+                # supported: what they would mean at run time is a decision
+                # nobody has had to make yet, and a version that means two
+                # things is worse than one that refuses to exist.
+                raise InvariantViolation("loops may not overlap")
+            covered |= body
+            unknown = sorted({binding.parameter for binding in loop.binds} - declared)
+            if unknown:
+                raise InvariantViolation(
+                    f"a loop binds undeclared parameters: {', '.join(unknown)}"
+                )
+
+    def loop_at(self, step_index: int) -> Loop | None:
+        """The loop whose body this step belongs to, if any."""
+        return next((loop for loop in self.loops if loop.covers(step_index)), None)
+
+    def loop_from(self, step_index: int) -> Loop | None:
+        """The loop this step's response feeds, if any. Read when the step
+        finishes, because that is the moment the list -- and so the count of
+        iterations -- exists at all."""
+        return next((loop for loop in self.loops if loop.over_step_index == step_index), None)
 
     def _check_derived_ordering(self) -> None:
         for param in self.parameters:

@@ -25,9 +25,12 @@ from sro.application.context import RequestContext
 from sro.application.execution.answer import MAX_ROWS, Answer, merge, read_answer
 from sro.application.execution.headers import client_headers, resolve_headers
 from sro.application.execution.paging import MOST_PAGES, how_it_pages, next_page
+from sro.application.execution.plan import next_step
 from sro.application.execution.self_heal import HealBudget, Healed, SelfHeal
 from sro.application.execution.verify import check, check_on_screen, extract
 from sro.application.execution.vision_step import PerformWithVision
+from sro.application.induction import jsonutil
+from sro.application.induction.sites import parse_json as _parse_json
 from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
@@ -47,12 +50,19 @@ from sro.domain.execution.run import (
     StepDisposition,
     StepOutcome,
 )
-from sro.domain.execution.safety import FAILURE_WINDOW, WRITE_WINDOW, RunFact, assess
+from sro.domain.execution.safety import (
+    FAILURE_WINDOW,
+    MAX_ITEMS_PER_BATCH,
+    WRITE_WINDOW,
+    RunFact,
+    assess,
+)
 from sro.domain.execution.verdict import judge
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.assertion import AssertionKind
+from sro.domain.skill.loop import Loop
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillStep, SkillVersion
@@ -237,6 +247,18 @@ class ExecuteStep:
         self._tokens = tokens
         self._budgets: dict[str, HealBudget] = {}
 
+    async def has_more(self, ctx: RequestContext, *, run_id: RunId) -> bool:
+        """Whether this run has another position to perform.
+
+        For the durable path, which cannot count the steps up front: a loop's
+        body occupies as many positions as the system said there were things,
+        and that number arrives partway through the run.
+        """
+        async with self._uow as uow:
+            run = await uow.runs.get(ctx.tenant_id, run_id)
+            skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
+        return next_step(skill.version(run.skill_version), run) is not None
+
     async def execute(self, ctx: RequestContext, *, run_id: RunId, index: int) -> StepOutcome:
         async with self._uow as uow:
             run = await uow.runs.get(ctx.tenant_id, run_id)
@@ -249,9 +271,23 @@ class ExecuteStep:
         if index < len(run.steps):
             return run.steps[index]  # already done; never send it twice
 
-        step = version.steps[index]
+        # Which step of the plan this position is, and -- inside a loop -- which
+        # thing it is acting on this time round. The two are the same number for
+        # every skill without loops, which is every skill taught before them.
+        nxt = next_step(version, run)
+        if nxt is None:
+            raise NotRunnable(
+                f"run {run.id} has no step at position {index}; "
+                "a loop's list has not arrived, or the run is already finished"
+            )
+        step = version.steps[nxt.step_index]
+        values = nxt.values
+
         if run.medium is Medium.UI:
-            outcome = await self._perform_in_ui(run, step, values=run.values, version=version)
+            outcome = await self._perform_in_ui(run, step, values=values, version=version)
+            outcome = replace(
+                outcome, index=index, plan_step=nxt.step_index, iteration=nxt.iteration
+            )
             run.record(outcome)
             async with self._uow as uow:
                 await uow.runs.save(run)
@@ -263,18 +299,20 @@ class ExecuteStep:
         produces = tuple(
             parameter
             for parameter in version.parameters
-            if parameter.kind is ParameterKind.DERIVED and parameter.source_step_index == index
+            if parameter.kind is ParameterKind.DERIVED
+            and parameter.source_step_index == nxt.step_index
         )
 
-        outcome, derived, failure = await self._perform(
+        outcome, derived, failure, iterated = await self._perform(
             run,
             step,
-            values=run.values,
+            values=values,
             scope=str(ctx.tenant_id),
             objective=skill.objective_key,
             connections=connections,
             produces=produces,
             parameters=tuple(version.parameters),
+            feeds=version.loop_from(nxt.step_index),
         )
 
         # A session that aged out is not a broken skill, and the run should not
@@ -293,10 +331,10 @@ class ExecuteStep:
                 + (f" -- {outcome.detail}" if outcome.detail else ""),
             )
         elif healed is not None and _may_be_retried(step, outcome):
-            outcome, derived, failure = await self._perform(
+            outcome, derived, failure, iterated = await self._perform(
                 run,
                 step,
-                values=run.values,
+                values=values,
                 scope=str(ctx.tenant_id),
                 objective=skill.objective_key,
                 connections=connections,
@@ -319,11 +357,14 @@ class ExecuteStep:
 
         if failure is not None:
             outcome = await self._escalate(
-                run, step, outcome, failure, values=run.values, version=version
+                run, step, outcome, failure, values=values, version=version
             )
+        outcome = replace(outcome, index=index, plan_step=nxt.step_index, iteration=nxt.iteration)
         run.record(outcome)
         for name, value in derived.items():
             run.learn(name, value)
+        if iterated is not None:
+            run.will_iterate(*iterated)
 
         async with self._uow as uow:
             await uow.runs.save(run)
@@ -437,7 +478,7 @@ class ExecuteStep:
                     f"would {plan.action} {plan.locators[0].describe() if plan.locators else ''}"
                 ),
             )
-        ui = self._ui_for(run, version)
+        ui = self._ui_for(run, version, step)
         if ui is None:
             return self._failed(step, None, "no browser is attached", medium=Medium.UI)
 
@@ -523,7 +564,7 @@ class ExecuteStep:
                 outcome,
                 detail=f"{outcome.detail or failure}; {run.stage} does not drive the interface",
             )
-        ui = self._ui_for(run, version)
+        ui = self._ui_for(run, version, step)
         if ui is None or step.ui_plan is None or not step.ui_plan.replayable:
             return replace(
                 outcome,
@@ -605,7 +646,7 @@ class ExecuteStep:
         # holding the deployment's driver would photograph a different screen
         # and click on it -- signed in as somebody else, on a page nobody
         # demonstrated. Falling back is the one thing it must not do.
-        ui = self._ui_for(run, version)
+        ui = self._ui_for(run, version, step)
         if ui is None:
             return replace(
                 outcome,
@@ -656,7 +697,8 @@ class ExecuteStep:
         connections: Sequence[Connection],
         produces: tuple[Parameter, ...] = (),
         parameters: tuple[Parameter, ...] = (),
-    ) -> tuple[StepOutcome, dict[str, str], FailureKind | None]:
+        feeds: Loop | None = None,
+    ) -> tuple[StepOutcome, dict[str, str], FailureKind | None, _Iterations | None]:
         plan = step.network_plan
         if plan is None:
             return (
@@ -669,6 +711,7 @@ class ExecuteStep:
                 ),
                 {},
                 FailureKind.NO_PLAN,
+                None,
             )
         if not plan.replayable:
             return (
@@ -681,6 +724,7 @@ class ExecuteStep:
                 ),
                 {},
                 FailureKind.UNREPLAYABLE,
+                None,
             )
 
         mutating = plan.is_mutation
@@ -734,10 +778,12 @@ class ExecuteStep:
                     ),
                     {},
                     None,
+                    None,
                 )
             return (
                 self._failed(step, key, f"no value for parameter {missing.args[0]!r}"),
                 {},
+                None,
                 None,
             )
 
@@ -795,6 +841,7 @@ class ExecuteStep:
                 ),
                 {},
                 FailureKind.CREDENTIAL_MISSING,
+                None,
             )
 
         if mutating and not run.performs_writes:
@@ -811,6 +858,7 @@ class ExecuteStep:
                 ),
                 {},
                 None,
+                None,
             )
 
         headers = {**client_headers(plan.headers, url), **resolved.headers}
@@ -825,6 +873,7 @@ class ExecuteStep:
                 self._failed(step, key, detail, method=plan.method, url=url),
                 {},
                 FailureKind.UNREACHABLE,
+                None,
             )
 
         # What it found, not only that it answered -- and for a write, what it
@@ -844,6 +893,34 @@ class ExecuteStep:
                 *failures,
                 f"expected status {plan.expected_status}, got {response.status_code}",
             )
+
+        iterated: _Iterations | None = None
+        if feeds is not None and not failures:
+            found = _iterations_of(feeds, response)
+            if isinstance(found, str):
+                # The list this loop is over is not in the answer, or its things
+                # are not the shape the demonstration proved. Nothing is done a
+                # guessed number of times: the step says what it could not read.
+                return (self._failed(step, key, found, method=plan.method, url=url), {}, None, None)
+            if len(found) > MAX_ITEMS_PER_BATCH:
+                # Refused before the first iteration, not after fifty writes.
+                # The same limit a batch of the same size would meet, because it
+                # is the same question: this many writes is a migration, and a
+                # migration is somebody's decision.
+                return (
+                    self._failed(
+                        step,
+                        key,
+                        f"this would act on {len(found)} things, and more than "
+                        f"{MAX_ITEMS_PER_BATCH} in one run is a decision for a person",
+                        method=plan.method,
+                        url=url,
+                    ),
+                    {},
+                    None,
+                    None,
+                )
+            iterated = (feeds.first_step, found)
 
         return (
             StepOutcome(
@@ -870,6 +947,7 @@ class ExecuteStep:
             ),
             _derive(produces, response),
             FailureKind.ASSERTION_FAILED if failures else None,
+            iterated,
         )
 
     async def _rest_of(
@@ -1009,8 +1087,20 @@ class ExecuteSkill:
         run = await self._start.execute(ctx, request)
         async with self._uow as uow:
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
-        for index in range(len(skill.version(run.skill_version).steps)):
-            await self._step.execute(ctx, run_id=run.id, index=index)
+        version = skill.version(run.skill_version)
+
+        # Positions, not steps: a loop's body occupies as many of them as the
+        # system said there were things, and how many that is arrives partway
+        # through. The run itself is the record of where this has got to, so it
+        # is re-read each time rather than counted here.
+        position = 0
+        while True:
+            async with self._uow as uow:
+                current = await uow.runs.get(ctx.tenant_id, run.id)
+            if next_step(version, current) is None:
+                break
+            await self._step.execute(ctx, run_id=run.id, index=position)
+            position += 1
         return await self._finish.execute(ctx, run_id=run.id)
 
 
@@ -1077,6 +1167,14 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
     # them, and this deployment holds one session per system and never two at
     # once. Refused here rather than discovered at step four, halfway through a
     # job, with the first system already written to.
+    if version.loops and request.medium is not Medium.NETWORK:
+        # A loop's list is a response, and the rungs above L1 do not read
+        # responses: they click. Refused rather than performed once, which is
+        # what a body with no list to iterate would silently become.
+        raise NotRunnable(
+            "this skill does part of its work once for each thing a response lists, "
+            f"which only the network rung can read; {request.medium} cannot run it"
+        )
     if version.crosses_systems and request.device_id is None:
         raise NotRunnable(
             "this skill works across "
@@ -1087,6 +1185,43 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
     required = {p.name for p in version.parameters if p.kind is ParameterKind.INPUT}
     if absent := sorted(required - supplied):
         raise NotRunnable("no value supplied for " + ", ".join(absent))
+
+
+_Iterations = tuple[int, list[dict[str, str]]]
+"""Which loop, and what its body is to be run with, one entry per thing."""
+
+
+def _iterations_of(loop: Loop, response: HttpResponse) -> list[dict[str, str]] | str:
+    """The things this loop will act on, read out of the answer that listed them.
+
+    A sentence instead, where the answer does not hold them: a list that is
+    missing, or things that do not carry what the demonstration proved they
+    carry, is a system that has changed under a skill -- which is a step that
+    failed saying so, never a run that does something a guessed number of times.
+    """
+    document = _parse_json(response.text)
+    if document is None:
+        return f"the answer is not JSON, so {loop.over_pointer} could not be read"
+    try:
+        listed = jsonutil.get(document, loop.over_pointer)
+    except (KeyError, IndexError, TypeError):
+        return f"the answer has no {loop.over_pointer} to act on"
+    if not isinstance(listed, list):
+        return f"{loop.over_pointer} is not a list of things"
+
+    bindings: list[dict[str, str]] = []
+    for position, element in enumerate(listed):
+        bound: dict[str, str] = {}
+        for binding in loop.binds:
+            try:
+                bound[binding.parameter] = jsonutil.as_text(jsonutil.get(element, binding.pointer))
+            except (KeyError, IndexError, TypeError):
+                return (
+                    f"thing {position} at {loop.over_pointer} has no {binding.pointer}, "
+                    f"which is where {binding.parameter} comes from"
+                )
+        bindings.append(bound)
+    return bindings
 
 
 def _derive(produces: tuple[Parameter, ...], response: HttpResponse) -> dict[str, str]:

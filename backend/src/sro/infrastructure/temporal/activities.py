@@ -85,6 +85,14 @@ class StepResult:
     """Whether this step changed the target system. The workflow uses it to
     decide that a failure must not be retried."""
 
+    more: bool = False
+    """Whether the run has another position to perform.
+
+    Asked rather than counted, because a skill with a loop does not know how
+    many steps it has until the system says how many things there are -- and a
+    workflow that counted up front would stop after the first line of a
+    twelve-line order."""
+
 
 @dataclass
 class ReapRequest:
@@ -189,14 +197,14 @@ class Activities:
     @activity.defn(name="execute_step")
     async def execute_step(self, request: StepRequest) -> StepResult:
         ctx = _context(request.tenant_id, request.principal_id)
-        outcome = await self._container.execute_step().execute(
-            ctx, run_id=RunId(request.run_id), index=request.index
-        )
+        step = self._container.execute_step()
+        outcome = await step.execute(ctx, run_id=RunId(request.run_id), index=request.index)
         return StepResult(
             index=outcome.index,
             disposition=outcome.disposition.value,
             ok=outcome.ok,
             mutating=outcome.idempotency_key is not None,
+            more=await step.has_more(ctx, run_id=RunId(request.run_id)),
         )
 
     @activity.defn(name="finish_run")

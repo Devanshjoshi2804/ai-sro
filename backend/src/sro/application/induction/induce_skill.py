@@ -9,11 +9,12 @@ from urllib.parse import urlsplit
 from sro.application.capture.identity import systems_touched
 from sro.application.context import RequestContext
 from sro.application.induction import assertions as assertion_extraction
-from sro.application.induction import describe, lookups, narration
+from sro.application.induction import describe, lookups, loops, narration
 from sro.application.induction.companions import ambiguity_in, read_skills
 from sro.application.induction.diff import (
     Choice,
     Parameterisation,
+    Substitution,
     align,
     parameterise,
     typed_values,
@@ -26,6 +27,7 @@ from sro.application.knowledge.open_questions import Ambiguity, AskAbout
 from sro.application.ports.interpretation import Reading, WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
@@ -161,19 +163,27 @@ class InduceSkill:
             run_b = run_a if second is None else await uow.recordings.get(ctx.tenant_id, second)
             objective = _check_pairable(run_a, run_b, paired=second is not None)
 
-            parameterisation = parameterise(run_a.frames, run_b.frames)
+            # Two demonstrations that did the same block a different number of
+            # times are two lengths of one looping task, not two tasks. Read
+            # first, because everything below works on the frames that survive:
+            # the prefix and one iteration, which is what the skill keeps.
+            looped = loops.detect(run_a.frames, run_b.frames) if second is not None else None
+            keep = looped.keep if looped is not None else None
+            frames_a, frames_b = run_a.frames[:keep], run_b.frames[:keep]
+
+            parameterisation = parameterise(frames_a, frames_b)
 
             # An id the operator picked off a screen is not something to ask a
             # human for -- they picked it by reading a name, and the screen that
             # showed them both is in the recording. Where that can be read, the
             # skill carries the lookup; where it cannot, the id is a question.
-            pairs = align(run_a.frames, run_b.frames)
+            pairs = align(frames_a, frames_b)
             planned = lookups.plan(
                 parameterisation.choices,
                 tuple(pair[0] for pair in pairs),
                 tuple(pair[1] for pair in pairs),
                 {parameter.name for parameter in parameterisation.parameters},
-                screens=run_a.frames,
+                screens=frames_a,
                 system=objective.target_system,
                 facility=objective.facility,
             )
@@ -184,9 +194,7 @@ class InduceSkill:
                 tuple(c for c in parameterisation.choices if c.field not in resolvable),
             )
             if asked or resolvable:
-                parameterisation = parameterise(
-                    run_a.frames, run_b.frames, ask_for=asked | resolvable
-                )
+                parameterisation = parameterise(frames_a, frames_b, ask_for=asked | resolvable)
             if second is None:
                 # One demonstration cannot disagree with itself, so nothing it
                 # sent looked like a parameter -- including the values a person
@@ -194,17 +202,19 @@ class InduceSkill:
                 # the clearest evidence in the whole recording that the next run
                 # wants a different answer.
                 typed = typed_values(
-                    run_a.frames,
+                    frames_a,
                     {parameter.name for parameter in parameterisation.parameters},
                 )
                 if typed:
                     parameterisation = parameterise(
-                        run_a.frames,
-                        run_b.frames,
+                        frames_a,
+                        frames_b,
                         ask_for=frozenset(asked | resolvable | {c.field for c in typed}),
                         also=typed,
                     )
-            steps = _build_steps(run_a, run_b, objective, parameterisation)
+            if looped is not None:
+                parameterisation = _with_loop(parameterisation, looped)
+            steps = _build_steps(frames_a, frames_b, run_a, objective, parameterisation)
             parameters = with_options(parameterisation.parameters, planned)
 
             skill = await uow.skills.find_by_objective(ctx.tenant_id, objective)
@@ -247,6 +257,7 @@ class InduceSkill:
                 systems=systems_touched(
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
+                loops=(looped.loop,) if looped is not None else (),
             )
             # Everything else the demonstration proved. Opening the screen to
             # create a transport mode lists the existing ones first, and that
@@ -255,7 +266,7 @@ class InduceSkill:
             # Where two readings of one entity were both observed, the system
             # says so rather than choosing. Asked once, answered once, and read
             # by everything afterwards.
-            if (found := ambiguity_in(run_a.frames, objective)) is not None:
+            if (found := ambiguity_in(frames_a, objective)) is not None:
                 await self._ask.raise_question(ctx, found)
 
             # What somebody already said their words mean, if they have said.
@@ -398,16 +409,61 @@ def _collection(url: str) -> str:
     return path.rsplit("/", 1)[-1] or path
 
 
+def _with_loop(parameterisation: Parameterisation, looped: loops.LoopFound) -> Parameterisation:
+    """The loop's parameters and substitutions, and the diff's where they differ.
+
+    Where both explain one site, the loop wins and the diff's reading of it goes
+    away entirely. They are reading the same fact: the first iteration of run A
+    adjusted line 1 and run B's adjusted line 7, so the ordinary diff sees a
+    value that varies and calls it a question for an operator -- which is
+    exactly the question the loop answers out of the list. Two parameters for
+    one value would be a skill that asks for something it already knows, under
+    a name that collides with the thing that knows it.
+    """
+    bound = {(index, sub.site) for index, subs in looped.substitutions.items() for sub in subs}
+    kept: dict[int, tuple[Substitution, ...]] = {}
+    for index, subs in parameterisation.substitutions.items():
+        surviving = tuple(sub for sub in subs if (index, sub.site) not in bound)
+        if surviving:
+            kept[index] = surviving
+
+    still_named = {sub.parameter for subs in kept.values() for sub in subs}
+    parameters = tuple(
+        parameter
+        for parameter in parameterisation.parameters
+        # A parameter the loop took over every site of has nothing left to
+        # substitute. Choices the operator was asked about keep their place:
+        # they have no sites yet and are not this pass's to drop.
+        if parameter.name in still_named
+        or not any(
+            parameter.name == sub.parameter
+            for subs in parameterisation.substitutions.values()
+            for sub in subs
+        )
+    )
+
+    for index, subs in looped.substitutions.items():
+        kept[index] = (*kept.get(index, ()), *subs)
+    return replace(
+        parameterisation,
+        parameters=(*parameters, *looped.parameters),
+        substitutions=kept,
+    )
+
+
 def _build_steps(
+    run_a_frames: tuple[ActionFrame, ...],
+    run_b_frames: tuple[ActionFrame, ...],
     run_a: Recording,
-    run_b: Recording,
     objective: ObjectiveKey,
     parameterisation: Parameterisation,
 ) -> tuple[SkillStep, ...]:
+    """Frames rather than recordings, because a looping task keeps one iteration
+    of its body: the recording holds all of them, and the skill is the block."""
     # The steps both runs share, in order. What only one operator did -- a field
     # clicked twice, a panel opened to check something -- is not part of the
     # task, and emitting it would make every replay repeat somebody's hesitation.
-    pairs = align(run_a.frames, run_b.frames)
+    pairs = align(run_a_frames, run_b_frames)
     frames_a = [pair[0] for pair in pairs]
     frames_b = [pair[1] for pair in pairs]
     # Run A's narration, because run A's frames are the ones being emitted. Run

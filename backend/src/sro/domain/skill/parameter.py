@@ -17,6 +17,13 @@ class ParameterKind(StrEnum):
     DERIVED = "derived"
     """Produced by an earlier step's response. Never prompted for."""
 
+    ITERATED = "iterated"
+    """A field of the thing a loop is acting on this time round.
+
+    Never prompted for and never read straight out of a response either: the
+    value is whichever element of the list the loop is on, so it exists only
+    inside the loop's body and only once the list has arrived."""
+
 
 class Evidence(StrEnum):
     """How firmly we know this is a parameter rather than a constant."""

@@ -136,7 +136,13 @@ class ExecutionWorkflow:
             index=0,
         )
 
-        for index in range(started.step_count):
+        # Positions rather than a count of steps: a skill whose body runs once
+        # per thing in a list does not know how long it is until the system
+        # answers, so how far to go is asked of each step rather than decided
+        # here. Determinism is unaffected -- what the activity answered is in
+        # the history, and a replay reads the same answers.
+        index = 0
+        while True:
             result: StepResult = await workflow.execute_activity(
                 "execute_step",
                 StepRequest(
@@ -156,6 +162,9 @@ class ExecutionWorkflow:
                 # Later steps depend on this one having worked. Continuing would
                 # send calls built from values the system never returned.
                 break
+            if not result.more:
+                break
+            index += 1
 
         await workflow.execute_activity(
             "finish_run",

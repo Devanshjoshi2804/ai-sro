@@ -19631,6 +19631,48 @@
         ],
         "title": "LiveViewResponse"
       },
+      "LoopModel": {
+        "properties": {
+          "over_step_index": {
+            "type": "integer",
+            "title": "Over Step Index"
+          },
+          "over_pointer": {
+            "type": "string",
+            "title": "Over Pointer"
+          },
+          "first_step": {
+            "type": "integer",
+            "title": "First Step"
+          },
+          "last_step": {
+            "type": "integer",
+            "title": "Last Step"
+          },
+          "binds": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Binds"
+          },
+          "says": {
+            "type": "string",
+            "title": "Says"
+          }
+        },
+        "type": "object",
+        "required": [
+          "over_step_index",
+          "over_pointer",
+          "first_step",
+          "last_step",
+          "binds",
+          "says"
+        ],
+        "title": "LoopModel",
+        "description": "A block of steps done once for each thing an earlier step's answer listed."
+      },
       "MediaModel": {
         "properties": {
           "kind": {
@@ -21381,6 +21423,13 @@
             "type": "array",
             "title": "Parameters"
           },
+          "loops": {
+            "items": {
+              "$ref": "#/components/schemas/LoopModel"
+            },
+            "type": "array",
+            "title": "Loops"
+          },
           "systems": {
             "items": {
               "type": "string"
@@ -21404,6 +21453,7 @@
           "provenance_note",
           "steps",
           "parameters",
+          "loops",
           "systems"
         ],
         "title": "SkillVersionModel"
@@ -21668,6 +21718,16 @@
               }
             ],
             "title": "Detail"
+          },
+          "plan_step": {
+            "type": "integer",
+            "title": "Plan Step",
+            "default": 0
+          },
+          "iteration": {
+            "type": "integer",
+            "title": "Iteration",
+            "default": 0
           },
           "found_rows": {
             "anyOf": [

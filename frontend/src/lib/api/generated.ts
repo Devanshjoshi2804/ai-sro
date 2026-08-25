@@ -1773,6 +1773,26 @@ export interface components {
             /** Live View Url */
             live_view_url: string | null;
         };
+        /**
+         * LoopModel
+         * @description A block of steps done once for each thing an earlier step's answer listed.
+         */
+        LoopModel: {
+            /** Over Step Index */
+            over_step_index: number;
+            /** Over Pointer */
+            over_pointer: string;
+            /** First Step */
+            first_step: number;
+            /** Last Step */
+            last_step: number;
+            /** Binds */
+            binds: {
+                [key: string]: string;
+            };
+            /** Says */
+            says: string;
+        };
         /** MediaModel */
         MediaModel: {
             /** Kind */
@@ -2433,6 +2453,8 @@ export interface components {
             steps: components["schemas"]["StepModel"][];
             /** Parameters */
             parameters: components["schemas"]["ParameterModel"][];
+            /** Loops */
+            loops: components["schemas"]["LoopModel"][];
             /** Systems */
             systems: string[];
         };
@@ -2500,6 +2522,16 @@ export interface components {
             matched_by: string | null;
             /** Detail */
             detail: string | null;
+            /**
+             * Plan Step
+             * @default 0
+             */
+            plan_step: number;
+            /**
+             * Iteration
+             * @default 0
+             */
+            iteration: number;
             /** Found Rows */
             found_rows?: number | null;
             /** Found Total */

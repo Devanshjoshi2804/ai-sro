@@ -171,3 +171,41 @@ describe("SkillDetail", () => {
     expect(await screen.findByText(/client-minted signature/)).toBeInTheDocument();
   });
 });
+
+describe("a skill that does part of its work once per thing", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("says so above the steps it repeats, and only above the first of them", async () => {
+    // A reviewer approving a write has to see that this one is not sent once
+    // but once for each line the previous step found. A step list that looks
+    // like every other step list hides exactly that.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      versions: [
+        {
+          ...version,
+          steps: [
+            { ...version.steps[0], index: 0, intent: "Open the order" },
+            { ...version.steps[0], index: 1, intent: "Adjust the line" },
+            { ...version.steps[0], index: 2, intent: "Close the order" },
+          ],
+          loops: [
+            {
+              over_step_index: 0,
+              over_pointer: "/data/lines",
+              first_step: 1,
+              last_step: 1,
+              binds: { line_id: "/lineId" },
+              says: "once for each lines step 0 found",
+            },
+          ],
+        },
+      ],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    expect(await screen.findByText(/once for each lines step 0 found/)).toBeInTheDocument();
+    expect(screen.getAllByText(/once for each/)).toHaveLength(1);
+  });
+});

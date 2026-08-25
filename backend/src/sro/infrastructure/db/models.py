@@ -140,6 +140,9 @@ class RunRow(Base):
     # without being keyed by. Empty for the ordinary single-system run, which is
     # every run there has ever been.
     systems: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    # What each loop's body is being run with, one entry per thing in the list
+    # the system returned. Empty for a skill without loops, which is most.
+    iterations: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
 
     requested_by: Mapped[str] = mapped_column(String(64), nullable=False)

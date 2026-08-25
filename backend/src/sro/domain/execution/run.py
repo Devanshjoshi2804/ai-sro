@@ -78,6 +78,19 @@ class StepOutcome:
     browser every time is a skill drifting from the system it was taught on."""
 
     escalation_reason: str | None = None
+
+    plan_step: int | None = None
+    """Which step of the version this was, when that is not ``index``.
+
+    ``index`` is the position in the run's log, and for a skill without loops
+    the two are the same number -- which is every skill taught before loops
+    existed. A loop's body runs once per thing in a list, so the same step of
+    the plan appears at several positions, and the run has to be able to say
+    which one it was."""
+
+    iteration: int = 0
+    """Which time round the loop this was. Zero for everything else."""
+
     matched_by: str | None = None
     """Which locator strategy found the control, for a UI step. A step that only
     ever matches on the last fallback is about to break."""
@@ -125,6 +138,11 @@ class StepOutcome:
     def ok(self) -> bool:
         return self.disposition is not StepDisposition.FAILED and not self.assertion_failures
 
+    @property
+    def step_index(self) -> int:
+        """The version step this outcome belongs to."""
+        return self.plan_step if self.plan_step is not None else self.index
+
 
 @dataclass(eq=False)
 class Run:
@@ -164,6 +182,14 @@ class Run:
     their tab, and one a cron or a mail relay started at 3am may not. Default
     no -- a run that has not been told it may take somebody's screen has not
     been given permission to."""
+
+    iterations: dict[str, list[dict[str, str]]] = field(default_factory=dict)
+    """What each loop's body is to be run with, one entry per thing in the list.
+
+    Written the moment the step that produces the list answers, because that is
+    when the count exists at all -- and stored on the run rather than recomputed,
+    so a run that resumes after a restart does the same iterations it started
+    rather than whatever the system says now."""
 
     systems: tuple[str, ...] = ()
     """Every system this run touched, when that is more than one.
@@ -253,6 +279,14 @@ class Run:
                 "is read once, and a second answer means the run is not repeatable"
             )
         self.derived[name] = value
+
+    def will_iterate(self, loop_at: int, bindings: list[dict[str, str]]) -> None:
+        self.iterations[str(loop_at)] = bindings
+
+    def iterations_of(self, loop_at: int) -> list[dict[str, str]] | None:
+        """None where the list has not arrived yet, which is every moment
+        before the step that produces it has answered."""
+        return self.iterations.get(str(loop_at))
 
     def record(self, outcome: StepOutcome) -> None:
         self._require_running()

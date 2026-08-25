@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from sro.domain.execution.run import Run, RunId
+from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
 from sro.domain.observation.candidate import Episode, TaskCandidate
 from sro.domain.observation.device import AgentDevice
@@ -452,6 +452,57 @@ class TestRuns:
         assert [each.id for each in keyed] == [run.id]
         assert [each.id for each in touched] == [run.id]
         assert elsewhere == (), "a system this run never touched must not see its failure"
+
+
+class TestLoopingRuns:
+    async def test_what_a_loop_is_iterating_over_survives_a_restart(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A run that resumes must do the iterations it started with.
+
+        Re-reading the list on the way back up would act on whatever the
+        warehouse says now -- a different task under the same run id, half of it
+        already done.
+        """
+        skill = f.skill()
+        version = skill.versions[0]
+        run = Run(
+            id=RunId("run-loop"),
+            tenant_id=f.TENANT,
+            skill_id=skill.id,
+            skill_version=version.version,
+            stage=version.stage,
+            parameters={},
+            requested_by=f.OPERATOR,
+            started_at=datetime(2026, 8, 26, 9, 0, tzinfo=UTC),
+        )
+        run.will_iterate(1, [{"line_id": "7"}, {"line_id": "8"}])
+        for position, (plan_step, iteration, intent) in enumerate(
+            ((0, 0, "open the order"), (1, 0, "adjust the line"))
+        ):
+            run.record(
+                StepOutcome(
+                    index=position,
+                    plan_step=plan_step,
+                    iteration=iteration,
+                    medium=Medium.NETWORK,
+                    disposition=StepDisposition.PERFORMED,
+                    intent=intent,
+                )
+            )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.skills.add(skill)
+            await uow.runs.add(run)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            loaded = await uow.runs.get(f.TENANT, run.id)
+
+        assert loaded.iterations_of(1) == [{"line_id": "7"}, {"line_id": "8"}]
+        # And which step of the plan each position was, which is what tells a
+        # resumed run that line 7 is already done.
+        assert (loaded.steps[1].step_index, loaded.steps[1].iteration) == (1, 0)
 
 
 class TestCandidates:

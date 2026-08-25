@@ -13,6 +13,7 @@ import {
   type TriggerModel,
 } from "@/features/trigger/api";
 import { listSkills, skillKeys } from "@/features/skill/api";
+import { describe as describeCron, toCron, type Repeat } from "@/features/trigger/cron";
 import { ApiError } from "@/lib/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -194,7 +195,12 @@ function NewTrigger({
   onError: (error: unknown) => void;
 }) {
   const [skillId, setSkillId] = useState("");
-  const [cron, setCron] = useState("0 7 * * 1-5");
+  const [repeat, setRepeat] = useState<Repeat>("weekdays");
+  const [at, setAt] = useState("07:00");
+  const [weekday, setWeekday] = useState(1);
+  const [written, setWritten] = useState("0 7 * * 1-5");
+  const cron = repeat === "custom" ? written : toCron(repeat, at, weekday);
+  const inWords = describeCron(cron);
   const [timezone, setTimezone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   );
@@ -257,10 +263,59 @@ function NewTrigger({
 
         <div className="flex gap-4">
           <div className="flex flex-1 flex-col gap-2">
-            <Label htmlFor="cron">When</Label>
-            <Input id="cron" value={cron} onChange={(event) => setCron(event.target.value)} />
+            <Label htmlFor="repeat">When</Label>
+            <div className="flex gap-2">
+              <select
+                id="repeat"
+                className="border-input h-9 flex-1 rounded-md border px-3 text-sm"
+                value={repeat}
+                onChange={(event) => setRepeat(event.target.value as Repeat)}
+              >
+                <option value="weekdays">Every weekday</option>
+                <option value="daily">Every day</option>
+                <option value="weekly">Every week on</option>
+                <option value="custom">A cron expression</option>
+              </select>
+              {repeat === "weekly" ? (
+                <select
+                  aria-label="Day"
+                  className="border-input h-9 rounded-md border px-3 text-sm"
+                  value={weekday}
+                  onChange={(event) => setWeekday(Number(event.target.value))}
+                >
+                  {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+                    .map((day, index) => (
+                      <option key={day} value={index}>
+                        {day}
+                      </option>
+                    ))}
+                </select>
+              ) : null}
+              {repeat === "custom" ? null : (
+                <Input
+                  aria-label="Time"
+                  type="time"
+                  className="w-32"
+                  value={at}
+                  onChange={(event) => setAt(event.target.value)}
+                />
+              )}
+            </div>
+            {repeat === "custom" ? (
+              <Input
+                aria-label="Cron expression"
+                value={written}
+                onChange={(event) => setWritten(event.target.value)}
+              />
+            ) : null}
+            {/* What is actually about to be saved, in both languages. The
+                expression because somebody will want to copy it, and the words
+                because `0 7 * * 1-5` firing on Sundays is a typo nobody can
+                see. */}
             <p className="text-muted-foreground text-xs">
-              Five fields. <code>0 7 * * 1-5</code> is every weekday at seven.
+              <code>{cron}</code>
+              {" — "}
+              {inWords ?? "the scheduler will read this; I cannot put it in words"}
             </p>
           </div>
           <div className="flex flex-1 flex-col gap-2">

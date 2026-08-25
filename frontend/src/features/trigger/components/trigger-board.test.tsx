@@ -108,6 +108,56 @@ describe("putting a skill on a clock", () => {
   });
 });
 
+describe("choosing when it runs", () => {
+  it("builds the schedule from what was chosen, and shows it in words", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([
+      { id: "skl-1", name: "Adjust an LPN" },
+    ] as never);
+    const created = vi.spyOn(triggerApi, "createTrigger").mockResolvedValue(aTrigger());
+
+    show();
+    const user = userEvent.setup();
+    await screen.findByRole("option", { name: "Adjust an LPN" });
+    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("When"), "weekly");
+    await user.selectOptions(screen.getByLabelText("Day"), "3");
+
+    // Said back in words, because `0 7 * * 3` firing on the wrong day is a typo
+    // nobody can see in the expression itself.
+    expect(screen.getByText(/every Wednesday at 07:00/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Schedule it" }));
+    await waitFor(() => expect(created).toHaveBeenCalled());
+    expect(created.mock.calls[0][0]).toMatchObject({ cron: "0 7 * * 3" });
+  });
+
+  it("still takes an expression somebody wrote, and says so when it cannot read it", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([
+      { id: "skl-1", name: "Adjust an LPN" },
+    ] as never);
+    const created = vi.spyOn(triggerApi, "createTrigger").mockResolvedValue(aTrigger());
+
+    show();
+    const user = userEvent.setup();
+    await screen.findByRole("option", { name: "Adjust an LPN" });
+    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("When"), "custom");
+    const written = screen.getByLabelText("Cron expression");
+    await user.clear(written);
+    await user.type(written, "0 7 1 * *");
+
+    // The scheduler understands more than this screen does. Saying so beats
+    // refusing an expression the backend would have accepted.
+    expect(screen.getByText(/cannot put it in words/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Schedule it" }));
+    await waitFor(() => expect(created).toHaveBeenCalled());
+    expect(created.mock.calls[0][0]).toMatchObject({ cron: "0 7 1 * *" });
+  });
+});
+
 describe("what is already on a clock", () => {
   it("says who stands behind a write and whether it asks first", async () => {
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([

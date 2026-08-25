@@ -40,6 +40,18 @@ export function credential(): string | null {
   return inMemory;
 }
 
+/** Whether a string is shaped like a credential this system issues.
+ *
+ * Three dot-separated segments, which is a JWT and nothing else. Not a
+ * signature check -- the backend does that on every request -- but the cheapest
+ * way to tell a paste of the wrong thing from a token, and now the only copy of
+ * that rule: the gate asked it of what an operator typed, and the panel handoff
+ * has to ask it of what another origin sent.
+ */
+export function looksLikeAToken(value: string): boolean {
+  return value.trim().split(".").length === 3;
+}
+
 export function remember(token: string): void {
   inMemory = token.trim();
   window.localStorage.setItem(KEY, inMemory);

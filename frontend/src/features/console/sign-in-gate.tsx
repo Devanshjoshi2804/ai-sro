@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import {
   forget,
+  looksLikeAToken,
   onCredentialChange,
   remember,
   usableCredential,
@@ -177,7 +178,7 @@ function accept(typed: string, refuse: (why: string | null) => void): void {
   const token = typed.trim();
   // Checked here only so a typo says so immediately; the signature itself is
   // checked by the backend on every single request.
-  if (token.split(".").length !== 3) {
+  if (!looksLikeAToken(token)) {
     refuse("That does not look like a credential this system issued.");
     return;
   }

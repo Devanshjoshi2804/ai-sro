@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { QueryProvider } from "@/lib/query";
 import { SignInGate } from "@/features/console/sign-in-gate";
 import { Toaster } from "@/components/ui/sonner";
+import { EmbeddedCredential } from "@/features/console/embedded-credential";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -26,6 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               screen below reads a tenant's recordings and can authorise a
               write into their warehouse. */}
           <SignInGate>{children}</SignInGate>
+          {/* Only ever does anything inside the extension's side panel, and
+              only for the origins that panel was configured with. */}
+          <EmbeddedCredential />
           <Toaster />
         </QueryProvider>
       </body>

@@ -47,9 +47,15 @@ screen, so nothing drifts.
 **Framed console** — everything else, in an `<iframe>` the panel can navigate to
 `/console`, `/candidates`, `/runs/{id}`.
 
-The options page keeps connect/disconnect/exclusions and **loses teaching
-start/stop to the panel**. It gains one setting: the **console URL**, which is a
-different origin from the backend and cannot be derived from it.
+The options page keeps connect/disconnect/exclusions and **loses the teaching
+button to the panel**, which can name the tab being taught. It gains one
+setting: the **console URL**, a different origin from the backend that cannot be
+derived from it.
+
+The worker's own heuristic for choosing a tab — the last ordinary http page,
+added in A6 because an extension page cannot be the tab you mean — stays as the
+behaviour when `teach-start` arrives without a `tabId`. The panel always sends
+one; the fallback exists for every other caller.
 
 ## Manifest
 
@@ -64,7 +70,10 @@ worker's install handler, so clicking the toolbar action opens the panel. Chrome
 114+; the manifest already floors at 116.
 
 The `key` is not decoration. The console's allowlist (below) names an extension
-origin, and an unpacked extension's id changes on every load without one.
+origin, and an unpacked extension's id changes on every load without one. The
+value is the public half of a key pair — generated once with
+`chrome://extensions` ▸ *Pack extension*, then committed. Public by definition;
+the private half is not in this repository and is not needed to load unpacked.
 
 ## The credential handoff
 

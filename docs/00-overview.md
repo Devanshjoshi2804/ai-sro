@@ -73,5 +73,6 @@ make web       # :3000
 | [13-blue-yonder-knowledge-base.md](13-blue-yonder-knowledge-base.md) | What we recorded about the target WMS, and what it corrects |
 | [14-extension-protocol.md](14-extension-protocol.md) | The frozen contract between the extension and the backend |
 | [15-observation-to-tasks.md](15-observation-to-tasks.md) | A day of tabs to a named task, and what a model may decide about it |
+| [16-what-others-have-solved.md](16-what-others-have-solved.md) | Published work and open source that solves problems this one has, mapped to our files |
 
 Agents read [../AGENTS.md](../AGENTS.md) instead of this file.

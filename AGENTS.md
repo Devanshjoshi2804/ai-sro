@@ -69,6 +69,13 @@ npx vitest run src/features/skill/components/skill-detail.test.tsx
 Temporal activity in the worker process, so an API-only restart silently keeps
 running the old induction. This has already cost debugging time twice.
 
+**A wire type change is not finished until `make types` has run.** It writes
+`frontend/openapi.json` and `frontend/src/lib/api/generated.ts`, and both are
+committed. Four fields once shipped without it and the pipeline's contract step
+was failing for three commits while every local `make check` passed --
+`tests/contract/test_the_committed_schema_is_current.py` now asks the same
+question where the code is, so a stale document fails `make test-contract`.
+
 ## The one rule that is not negotiable
 
 Dependencies point inward:

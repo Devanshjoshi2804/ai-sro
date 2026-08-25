@@ -176,3 +176,69 @@ async def test_binding_a_device_to_a_session_is_the_device_itself() -> None:
     driver = agents.ui(ACME, LAPTOP)
 
     assert driver.for_session("ws://somewhere/else") is driver
+
+
+async def test_every_command_names_the_system_the_skill_was_taught_on() -> None:
+    """An operator's Chrome has a dozen tabs and one of them is the WMS.
+
+    Without being told which, the extension can only drive the frontmost page,
+    and a warehouse gesture performed on somebody's email is a real thing that
+    happened to a real person. So the origin rides on every command that acts
+    on a page, not on the connection: one browser holds one channel and may be
+    asked to act for runs against different systems.
+    """
+    sockets, socket = DeviceSockets(timeout_s=0.05), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+    driver = RemoteAgents(sockets).ui(ACME, LAPTOP, "https://wms.example")
+
+    performing = asyncio.create_task(driver.perform(action=ActionKind.CLICK, locators=CLICK))
+    await _reply(sockets, socket, ok=True, result={"performed": True})
+    await performing
+
+    looking = asyncio.create_task(driver.current_url())
+    await _reply(sockets, socket, ok=True, result={"url": "https://wms.example/orders"})
+    await looking
+
+    assert [command["payload"]["origin"] for command in socket.sent] == [
+        "https://wms.example",
+        "https://wms.example",
+    ], socket.sent
+
+
+async def test_a_skill_with_no_recorded_call_names_no_origin() -> None:
+    """A skill taught entirely through the interface has no host to read off,
+    and a payload carrying `origin: null` would say something false about a
+    browser that should fall back to the page in front of the operator."""
+    sockets, socket = DeviceSockets(timeout_s=0.05), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+    driver = RemoteAgents(sockets).ui(ACME, LAPTOP)
+
+    performing = asyncio.create_task(driver.perform(action=ActionKind.CLICK, locators=CLICK))
+    await _reply(sockets, socket, ok=True, result={"performed": True})
+    await performing
+
+    assert "origin" not in socket.sent[0]["payload"], socket.sent[0]
+
+
+async def test_a_run_that_may_take_the_screen_says_so_and_one_that_may_not_says_nothing() -> None:
+    """`allow_focus` is sent only when it is true.
+
+    A payload carrying `allow_focus: false` says exactly what one that omits it
+    says, and the omission is the safer default to have in a protocol: a
+    browser reading a field it does not understand takes nobody's screen.
+    """
+    sockets, socket = DeviceSockets(timeout_s=0.05), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+
+    allowed = RemoteAgents(sockets).ui(ACME, LAPTOP, "https://wms.example", True)
+    performing = asyncio.create_task(allowed.perform(action=ActionKind.CLICK, locators=CLICK))
+    await _reply(sockets, socket, ok=True, result={"performed": True})
+    await performing
+
+    refused = RemoteAgents(sockets).ui(ACME, LAPTOP, "https://wms.example")
+    performing = asyncio.create_task(refused.perform(action=ActionKind.CLICK, locators=CLICK))
+    await _reply(sockets, socket, ok=True, result={"performed": True})
+    await performing
+
+    assert socket.sent[0]["payload"]["allow_focus"] is True
+    assert "allow_focus" not in socket.sent[1]["payload"], socket.sent[1]

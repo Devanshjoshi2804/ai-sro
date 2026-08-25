@@ -155,6 +155,16 @@ class Run:
     through is the first question about a run that touched the wrong record,
     and a device chosen fresh per step could answer it differently each time."""
 
+    may_take_focus: bool = False
+    """Whether this run is allowed to bring a tab to the front of the
+    operator's browser.
+
+    The trigger's decision, carried on the run because a run outlives the
+    request that started it: a task somebody asked for and is watching may move
+    their tab, and one a cron or a mail relay started at 3am may not. Default
+    no -- a run that has not been told it may take somebody's screen has not
+    been given permission to."""
+
     target_system: str = ""
     """Which system this run wrote to.
 

@@ -316,6 +316,28 @@ and the backend acts immediately.
 { "performed": true, "matched_by": "component", "candidates": 1, "detail": null }
 ```
 
+Every command that acts on a page — `ui.perform`, `ui.perform_at`, `ui.url`,
+`screenshot`, `navigate` — carries `origin` on its payload: the scheme and host
+of the system the skill was taught on, read off the first recorded call that
+names one. The extension acts in a tab on that origin, preferring the visible
+one, and answers `no_tab_for_system` when the browser has none open. An operator
+has a dozen tabs and one of them is the WMS; without being told which, the only
+thing the extension can do is take the frontmost page, and a warehouse gesture
+performed on somebody's email is a real thing that happened to a real person.
+
+`origin` is absent only where the skill has no call to read it from — one taught
+entirely through the interface. Then the extension falls back to the page in
+front of the operator, which is the best a guess can do.
+
+`allow_focus` rides beside it, and is sent **only when true**: it is the run
+saying the operator asked for this and is watching, so the named tab may be
+brought to the front. It comes from the trigger (`may_take_focus`) or from the
+caller of `POST /v1/skills/{id}/runs`, is carried on the run because the process
+that performs a step is not the one that decided it was allowed, and defaults to
+no. A `screenshot` of a tab that is not the visible one needs it — the picture
+would otherwise come from a different page than the coordinates beside it — and
+is refused with `focus_not_permitted` without it.
+
 Locators are tried **in the order given** and the first that resolves is used.
 `matched_by` must name the one that worked — a step that only ever matches on the
 last fallback is a step about to break, and the backend records that.
@@ -390,8 +412,8 @@ Where the driven browser is, for the run's record.
 ```
 
 `navigate` and any command that would take focus are refused unless the run's
-trigger allows it (see the focus decision in the plan). The trigger's decision
-arrives as `allow_focus` on the payload, absent meaning no. The extension
+trigger allows it. The trigger's decision arrives as `allow_focus` on the
+payload, absent meaning no. The extension
 refuses with `error.kind = "focus_not_permitted"` rather than doing it anyway --
 and only where it would actually cost the operator their screen: navigating a
 tab they are not looking at is not taking focus.

@@ -22,8 +22,25 @@ from sro.domain.shared.identifiers import DeviceId, TenantId
 
 
 class AgentDrivers(Protocol):
-    def ui(self, tenant_id: TenantId, device_id: DeviceId) -> UiDriver:
-        """A driver that performs its gestures in that device's browser."""
+    def ui(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        origin: str | None = None,
+        may_take_focus: bool = False,
+    ) -> UiDriver:
+        """A driver that performs its gestures in that device's browser.
+
+        ``origin`` is the system the skill was taught on, so the browser can
+        pick the tab that is on it. Without it the extension is guessing --
+        the frontmost page, whatever that happens to be -- and a run that
+        guesses wrong acts on somebody's email.
+
+        ``may_take_focus`` is the trigger's decision about whether that tab may
+        be brought to the front. It is never the browser's to make: the
+        extension refuses rather than deciding for itself, and this is what
+        tells it the operator asked for this and is watching.
+        """
         ...
 
     def http(self, tenant_id: TenantId, device_id: DeviceId) -> HttpCaller:

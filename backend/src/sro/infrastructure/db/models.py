@@ -129,6 +129,9 @@ class RunRow(Base):
     # Nullable: almost every run is performed in a browser the deployment owns,
     # and this names the operator's own when it is not.
     device_id: Mapped[str | None] = mapped_column(String(64))
+    # False for every run that already exists, which is what they were: nothing
+    # could take an operator's screen before there was a browser to take it in.
+    may_take_focus: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     target_system: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     status: Mapped[str] = mapped_column(String(16), nullable=False)
 

@@ -135,16 +135,24 @@ class FakeDB {
   }
 }
 
-export function fakeIndexedDB() {
+/**
+ * @param {number} startsAt - the version the database is already at, so a test
+ * can be an *upgrade* rather than a first install. That difference is the whole
+ * reason queue.js reads `oldVersion`: a store being created rotates the queue
+ * epoch, and a version bump over live rows must not.
+ */
+export function fakeIndexedDB(startsAt = 0) {
+  let version = startsAt;
+  const held = new FakeDB();
   return {
-    open() {
+    open(_name, wanted = 1) {
       const req = new FakeRequest();
-      const db = new FakeDB();
       microtask(() => {
-        req.result = db;
-        // Always a fresh database here, so the upgrade reports coming from
-        // nothing -- which is what tells queue.js to rotate the epoch.
-        req.onupgradeneeded?.({ oldVersion: 0 });
+        req.result = held;
+        if (wanted > version) {
+          req.onupgradeneeded?.({ oldVersion: version });
+          version = wanted;
+        }
         req.onsuccess?.();
       });
       return req;

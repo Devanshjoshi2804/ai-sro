@@ -42,7 +42,8 @@ function open() {
         if (!db.objectStoreNames.contains(STORE)) {
           db.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
         }
-        if (!db.objectStoreNames.contains(SHOTS)) db.createObjectStore(SHOTS, { keyPath: "id" });
+        if (!db.objectStoreNames.contains(SHOTS))
+          db.createObjectStore(SHOTS, { keyPath: "id" });
       };
       request.onsuccess = () => {
         const db = request.result;
@@ -84,7 +85,9 @@ function open() {
       };
       request.onblocked = () => {
         opening = null;
-        reject(new Error("the observation queue could not be opened; it is blocked"));
+        reject(
+          new Error("the observation queue could not be opened; it is blocked"),
+        );
       };
     });
   }
@@ -97,14 +100,16 @@ function open() {
 function settle(tx, resolve, reject, value) {
   tx.oncomplete = () => resolve(value);
   tx.onerror = () => reject(tx.error);
-  tx.onabort = () => reject(tx.error || new Error("the queue transaction was aborted"));
+  tx.onabort = () =>
+    reject(tx.error || new Error("the queue transaction was aborted"));
 }
 
 /** Bytes, not characters. `String.length` counts UTF-16 units, so every
  * non-ASCII payload -- a warehouse in any non-English locale, or the
  * «redacted» marker itself -- under-reported its own size, and both the batch
  * cap and the heartbeat's `queued_bytes` were wrong by that much. */
-const sizeOf = (event) => new TextEncoder().encode(JSON.stringify(event)).length;
+const sizeOf = (event) =>
+  new TextEncoder().encode(JSON.stringify(event)).length;
 
 /**
  * Add one protocol-shaped event to the tail of the queue, with the screenshot
@@ -121,8 +126,17 @@ export async function enqueue(event, shot = null) {
   const size = sizeOf(event);
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).add({ queuedAt: Date.now(), size, event, shot });
-    settle(tx, resolve, reject);
+    const request = tx.objectStore(STORE).add({ queuedAt: Date.now(), size, event, shot });
+    let id;
+    // The row's own key, answered once the transaction has actually committed:
+    // it is how a picture is fetched back out of the row at flush time without
+    // anything having carried its bytes around in the meantime.
+    request.onsuccess = () => {
+      id = request.result;
+    };
+    tx.oncomplete = () => resolve(id);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("the queue transaction was aborted"));
   });
 }
 
@@ -149,12 +163,19 @@ export async function peek(limit) {
         queuedAt: cursor.value.queuedAt,
         size: cursor.value.size,
         event: cursor.value.event,
-        shot: cursor.value.shot || null,
+        // What the picture is, never the picture. A batch of 500 rows each
+        // carrying a megabyte of PNG is half a gigabyte in a service worker
+        // that only needed 2MB of JSON -- and the bytes are read back a row at
+        // a time by `stageShots` for the handful that are actually staged.
+        shot: cursor.value.shot
+          ? { mime: cursor.value.shot.mime, size: cursor.value.shot.size }
+          : null,
       });
       cursor.continue();
     };
     cursorRequest.onerror = () => reject(cursorRequest.error);
-    tx.onabort = () => reject(tx.error || new Error("the queue transaction was aborted"));
+    tx.onabort = () =>
+      reject(tx.error || new Error("the queue transaction was aborted"));
   });
 }
 
@@ -190,26 +211,39 @@ export async function clear() {
  * Move the pictures of a batch that has just been accepted into the shot
  * store, keyed by the frame each one illustrates.
  *
+ * Named by row id rather than handed the bytes: the caller has never held
+ * them. Each picture is read out of the event row and written to the shot
+ * store inside one transaction, so only the row being moved is in memory.
+ *
  * `put`, not `add`: the key is the batch and the frame, so staging the same
  * batch twice replaces the row rather than doubling it.
  */
-export async function stageShots(batchId, staged) {
-  if (!staged.length) return;
+export async function stageShots(batchId, frames) {
+  if (!frames.length) return;
   const db = await open();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(SHOTS, "readwrite");
-    const store = tx.objectStore(SHOTS);
-    for (const { frameIndex, shot } of staged) {
-      store.put({
-        id: `${batchId}:${frameIndex}`,
-        batchId,
-        frameIndex,
-        stagedAt: Date.now(),
-        attempts: 0,
-        mime: shot.mime,
-        size: shot.size,
-        bytes: shot.bytes,
-      });
+    const tx = db.transaction([STORE, SHOTS], "readwrite");
+    const events = tx.objectStore(STORE);
+    const shots = tx.objectStore(SHOTS);
+    for (const { rowId, frameIndex } of frames) {
+      const request = events.get(rowId);
+      request.onsuccess = () => {
+        const shot = request.result?.shot;
+        // Gone since the batch was sent -- `trim` strips a picture off a row
+        // that is still queued -- and a frame with no picture is simply a
+        // gesture that went unillustrated.
+        if (!shot?.bytes) return;
+        shots.put({
+          id: `${batchId}:${frameIndex}`,
+          batchId,
+          frameIndex,
+          stagedAt: Date.now(),
+          attempts: 0,
+          mime: shot.mime,
+          size: shot.size,
+          bytes: shot.bytes,
+        });
+      };
     }
     settle(tx, resolve, reject);
   });
@@ -232,7 +266,8 @@ export async function peekShots(limit) {
       cursor.continue();
     };
     cursorRequest.onerror = () => reject(cursorRequest.error);
-    tx.onabort = () => reject(tx.error || new Error("the queue transaction was aborted"));
+    tx.onabort = () =>
+      reject(tx.error || new Error("the queue transaction was aborted"));
   });
 }
 
@@ -272,7 +307,10 @@ export async function noteShotAttempt(id) {
 export async function count() {
   const db = await open();
   return new Promise((resolve, reject) => {
-    const request = db.transaction(STORE, "readonly").objectStore(STORE).count();
+    const request = db
+      .transaction(STORE, "readonly")
+      .objectStore(STORE)
+      .count();
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -306,7 +344,8 @@ async function sumOf(store) {
       cursor.continue();
     };
     cursorRequest.onerror = () => reject(cursorRequest.error);
-    tx.onabort = () => reject(tx.error || new Error("the queue transaction was aborted"));
+    tx.onabort = () =>
+      reject(tx.error || new Error("the queue transaction was aborted"));
   });
 }
 
@@ -335,7 +374,13 @@ async function sumOf(store) {
 export async function trim(maxBytes) {
   let total = await totalBytes();
   if (total <= maxBytes) {
-    return { droppedShots: 0, strippedShots: 0, strippedBodies: 0, droppedEvents: 0, bytes: total };
+    return {
+      droppedShots: 0,
+      strippedShots: 0,
+      strippedBodies: 0,
+      droppedEvents: 0,
+      bytes: total,
+    };
   }
 
   const db = await open();
@@ -363,7 +408,8 @@ export async function trim(maxBytes) {
         cursor.continue();
       };
       cursorRequest.onerror = () => reject(cursorRequest.error);
-      tx.onabort = () => reject(tx.error || new Error("the queue transaction was aborted"));
+      tx.onabort = () =>
+        reject(tx.error || new Error("the queue transaction was aborted"));
     });
 
   // First pass: the staged screenshots. In key order, which is batch order --
@@ -395,7 +441,8 @@ export async function trim(maxBytes) {
   if (total > maxBytes) {
     await sweep(
       STORE,
-      (row) => row.event?.kind === "request" && row.event.request?.response_body?.text,
+      (row) =>
+        row.event?.kind === "request" && row.event.request?.response_body?.text,
       (cursor, row) => {
         const event = row.event;
         event.request.response_body = {
@@ -425,5 +472,11 @@ export async function trim(maxBytes) {
     );
   }
 
-  return { droppedShots, strippedShots, strippedBodies, droppedEvents, bytes: total };
+  return {
+    droppedShots,
+    strippedShots,
+    strippedBodies,
+    droppedEvents,
+    bytes: total,
+  };
 }

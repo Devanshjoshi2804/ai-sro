@@ -709,6 +709,14 @@ class RunSkillRequest(BaseModel):
     also means the run cannot outlive the laptop, so it is performed here rather
     than handed to a worker that would retry it into a browser that has gone."""
 
+    may_take_focus: bool = False
+    """Whether this run may bring a tab to the front of that browser.
+
+    False unless the caller says otherwise, because the caller is the only one
+    who knows whether a person is watching. A console starting a run somebody
+    just asked for can say yes; anything firing on a clock says nothing and
+    gets no."""
+
     authorized_by: str | None = None
     """Required above shadow. The human who allowed this run to write."""
 

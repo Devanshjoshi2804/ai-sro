@@ -161,11 +161,15 @@ assert.deepStrictEqual(
 {
   await queue.clear();
   const shot = (n) => ({ mime: "image/png", size: 100 * n, bytes: new Uint8Array(100 * n) });
+  // Staged out of the rows they were captured on, by id: the bytes are read
+  // inside the transaction and nothing hands them around.
+  const first = await queue.enqueue({ kind: "gesture", n: 1 }, shot(1));
+  const second = await queue.enqueue({ kind: "gesture", n: 2 }, shot(2));
   await queue.stageShots("bat_1", [
-    { frameIndex: 0, shot: shot(1) },
-    { frameIndex: 2, shot: shot(2) },
+    { rowId: first, frameIndex: 0 },
+    { rowId: second, frameIndex: 2 },
   ]);
-  await queue.stageShots("bat_1", [{ frameIndex: 0, shot: shot(1) }]);
+  await queue.stageShots("bat_1", [{ rowId: first, frameIndex: 0 }]);
 
   const staged = await queue.peekShots(10);
   assert.strictEqual(staged.length, 2, "a re-staged batch replaced its rows instead of doubling");
@@ -176,6 +180,7 @@ assert.deepStrictEqual(
   );
   assert.strictEqual(staged[0].attempts, 0);
   assert.ok((await queue.totalBytes()) >= 300, "staged pictures are counted in the queue's bytes");
+  assert.strictEqual(staged[1].size, 200, "the picture's bytes came off the row it was captured on");
 
   // Counted per picture, which is what decides when one is given up.
   assert.strictEqual(await queue.noteShotAttempt("bat_1:0"), 1);
@@ -191,9 +196,12 @@ assert.deepStrictEqual(
 // left to lose.
 {
   await queue.clear();
-  await queue.stageShots("bat_1", [
-    { frameIndex: 0, shot: { mime: "image/png", size: 4000, bytes: new Uint8Array(4000) } },
-  ]);
+  const sent = await queue.enqueue(
+    { kind: "gesture", n: 0 },
+    { mime: "image/png", size: 4000, bytes: new Uint8Array(4000) },
+  );
+  await queue.stageShots("bat_1", [{ rowId: sent, frameIndex: 0 }]);
+  await queue.remove([sent]);
   await queue.enqueue(
     { kind: "gesture", n: 1 },
     { mime: "image/png", size: 300, bytes: new Uint8Array(300) },
@@ -210,9 +218,11 @@ assert.deepStrictEqual(
 // must not be uploaded into the next operator's tenant.
 {
   await queue.clear();
-  await queue.stageShots("bat_1", [
-    { frameIndex: 0, shot: { mime: "image/png", size: 10, bytes: new Uint8Array(10) } },
-  ]);
+  const row = await queue.enqueue(
+    { kind: "gesture", n: 1 },
+    { mime: "image/png", size: 10, bytes: new Uint8Array(10) },
+  );
+  await queue.stageShots("bat_1", [{ rowId: row, frameIndex: 0 }]);
   await queue.clear();
   assert.strictEqual((await queue.peekShots(10)).length, 0);
   assert.strictEqual(await queue.totalBytes(), 0);

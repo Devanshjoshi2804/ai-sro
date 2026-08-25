@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -26,6 +27,9 @@ from sro.domain.shared.identifiers import DeviceId, TenantId
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 20.0
+
+_DEFAULT_BUSY = 5.0
+"""What a `busy` with no window of its own asks for."""
 
 MAX_BUSY_WAIT = 0.5
 """How much of a command's own deadline may be spent waiting for the operator
@@ -76,6 +80,10 @@ class DeviceSockets:
         key = _key(tenant_id, device_id)
         if self._sockets.get(key) is socket:
             del self._sockets[key]
+            # A browser that said it was busy and then closed the lid is not
+            # busy any more, and its entry would otherwise sit here for the
+            # life of the process waiting for a send that never comes.
+            self._busy.pop(key, None)
 
     def deliver(
         self, raw: str, tenant_id: TenantId | None = None, device_id: DeviceId | None = None
@@ -101,11 +109,9 @@ class DeviceSockets:
             # closes its laptop must not leave a device nothing can be sent to
             # until the process restarts, so the pause carries its own end
             # rather than waiting for an "idle" that may never come.
-            for_ms = message.get("for_ms")
-            seconds = float(for_ms) / 1000 if isinstance(for_ms, int | float) else 5.0
-            self._busy[_key(tenant_id, device_id)] = asyncio.get_running_loop().time() + min(
-                seconds, 30.0
-            )
+            seconds = _busy_seconds(message.get("for_ms"))
+            if seconds is not None:
+                self._busy[_key(tenant_id, device_id)] = asyncio.get_running_loop().time() + seconds
             return
 
         waiting = self._pending.pop(str(message.get("command_id", "")), None)
@@ -141,8 +147,8 @@ class DeviceSockets:
         run_id: str | None = None,
         timeout_s: float | None = None,
     ) -> Answer:
-        socket = self._sockets.get(_key(tenant_id, device_id))
-        if socket is None:
+        key = _key(tenant_id, device_id)
+        if key not in self._sockets:
             # Keyed by tenant as well as device, so another tenant's id is not
             # a device that exists and refuses -- it is a device that is not
             # there, which is the same answer as one that never existed.
@@ -150,7 +156,16 @@ class DeviceSockets:
 
         command_id = f"cmd_{uuid.uuid4().hex}"
         deadline = timeout_s or self._timeout
-        await self._wait_out_the_operator(_key(tenant_id, device_id), deadline)
+        await self._wait_out_the_operator(key, deadline)
+
+        # Read *after* the wait, not before it. That wait can be seconds long,
+        # and a laptop lid or a wifi hop in the middle of it has the extension
+        # re-dial: `attach` replaces the registry entry, and a command sent
+        # down the socket this call was holding fails as an unreachable device
+        # against a browser that is in fact connected.
+        socket = self._sockets.get(key)
+        if socket is None:
+            raise DeviceUnreachable(f"{device_id} has no channel open")
         waiting: asyncio.Future[Answer] = asyncio.get_running_loop().create_future()
         self._pending[command_id] = waiting
 
@@ -197,6 +212,29 @@ class DeviceSockets:
             self._busy.pop(key, None)
             return
         await asyncio.sleep(min(remaining, deadline * MAX_BUSY_WAIT))
+
+
+def _busy_seconds(for_ms: object) -> float | None:
+    """How long a device is asking to be left alone, or `None` for a message
+    that does not say anything usable.
+
+    Absent is the documented default. Present and not a real number of
+    milliseconds is ignored outright rather than rounded into a default: a
+    browser that sends nonsense has not asked for anything in particular.
+
+    `json.loads` accepts a bare `NaN`, which passes an `isinstance` check and
+    survives `min()` -- and `asyncio.sleep(nan)` raises. Stored, that made every
+    later command to the device raise the same way, so one malformed frame from
+    one browser took that device offline until the process restarted.
+    """
+    if for_ms is None:
+        return _DEFAULT_BUSY
+    if isinstance(for_ms, bool) or not isinstance(for_ms, int | float):
+        return None
+    seconds = float(for_ms) / 1000
+    if not math.isfinite(seconds) or seconds <= 0:
+        return None
+    return min(seconds, 30.0)
 
 
 def _key(tenant_id: TenantId, device_id: DeviceId) -> tuple[str, str]:

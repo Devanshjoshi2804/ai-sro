@@ -248,6 +248,7 @@ def update_run_row(row: RunRow, run: Run) -> None:
     row.stage = run.stage.value
     row.medium = run.medium.value
     row.device_id = run.device_id.value if run.device_id else None
+    row.may_take_focus = run.may_take_focus
     row.target_system = run.target_system
     row.status = run.status.value
     row.requested_by = run.requested_by.value
@@ -269,6 +270,7 @@ def row_to_run(row: RunRow) -> Run:
         stage=PromotionStage(row.stage),
         medium=Medium(row.medium),
         device_id=DeviceId(row.device_id) if row.device_id else None,
+        may_take_focus=bool(row.may_take_focus),
         target_system=row.target_system or "",
         parameters=dict(row.parameters),
         requested_by=PrincipalId(row.requested_by),

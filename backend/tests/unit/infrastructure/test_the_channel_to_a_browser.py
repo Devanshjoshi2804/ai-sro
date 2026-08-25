@@ -184,3 +184,88 @@ async def test_a_browser_cannot_say_it_is_some_other_device() -> None:
     await _answer(sockets, socket, ok=True, result={"url": "https://wms.example/"})
     assert (await sending).ok
     assert asyncio.get_running_loop().time() - started < 0.1, "an unattributed message was believed"
+
+
+@pytest.mark.parametrize("for_ms", [float("nan"), float("inf"), -5000, "soon", True])
+async def test_a_busy_window_that_is_not_a_duration_is_not_believed(for_ms: object) -> None:
+    """`json.loads` accepts a bare `NaN`, and it passes every isinstance check
+    a duration would. Stored, `asyncio.sleep(nan)` raises -- and because the
+    entry was never cleared, every later command to that device raised the same
+    way. One malformed frame from one browser took it offline until the process
+    restarted, so what arrives here is checked for being a real number rather
+    than for having a numeric type.
+    """
+    sockets, socket = DeviceSockets(timeout_s=1.0), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+    sockets.deliver(json.dumps({"kind": "busy", "for_ms": for_ms}), ACME, LAPTOP)
+
+    started = asyncio.get_running_loop().time()
+    sending = asyncio.create_task(
+        sockets.send(ACME, LAPTOP, kind="ui.url", payload={}, timeout_s=1.0)
+    )
+    await _answer(sockets, socket, ok=True, result={"url": "https://wms.example/"})
+    assert (await sending).ok, "the command did not survive a nonsense busy window"
+    assert asyncio.get_running_loop().time() - started < 0.4, (
+        "a browser that sent nonsense was believed anyway"
+    )
+
+
+async def test_a_busy_with_no_window_of_its_own_gets_the_documented_default() -> None:
+    """Absent is not nonsense: the protocol says a `busy` without `for_ms` asks
+    for the default, and the message still means the operator is working."""
+    sockets, socket = DeviceSockets(timeout_s=1.0), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+    sockets.deliver(json.dumps({"kind": "busy"}), ACME, LAPTOP)
+
+    started = asyncio.get_running_loop().time()
+    sending = asyncio.create_task(
+        sockets.send(ACME, LAPTOP, kind="ui.url", payload={}, timeout_s=0.4)
+    )
+    await _answer(sockets, socket, ok=True, result={"url": "https://wms.example/"})
+    assert (await sending).ok
+    assert asyncio.get_running_loop().time() - started >= 0.15, "the default window was not applied"
+
+
+async def test_a_browser_that_reconnects_mid_wait_is_sent_the_command_anyway() -> None:
+    """The socket is resolved after the busy wait, not before it.
+
+    That wait is seconds long, and a lid or a wifi hop inside it has the
+    extension re-dial. Holding the socket from before meant sending down a dead
+    one and failing the run as an unreachable device -- against a browser that
+    was connected the whole time.
+    """
+    sockets = DeviceSockets(timeout_s=1.0)
+    stale, live = FakeSocket(breaks=True), FakeSocket()
+    sockets.attach(ACME, LAPTOP, stale)
+    sockets.deliver(json.dumps({"kind": "busy", "for_ms": 150}), ACME, LAPTOP)
+
+    sending = asyncio.create_task(
+        sockets.send(ACME, LAPTOP, kind="ui.url", payload={}, timeout_s=1.0)
+    )
+    await asyncio.sleep(0.05)
+    sockets.attach(ACME, LAPTOP, live)  # the browser came back while we waited
+
+    await _answer(sockets, live, ok=True, result={"url": "https://wms.example/"})
+    assert (await sending).ok
+    assert not stale.sent, "the command went down the socket that had already gone"
+
+
+async def test_a_browser_that_disconnects_is_not_still_busy() -> None:
+    """Otherwise the entry sits in memory for the life of the process, and a
+    device that closed its laptop mid-sentence is politely waited on."""
+    sockets, socket = DeviceSockets(timeout_s=1.0), FakeSocket()
+    sockets.attach(ACME, LAPTOP, socket)
+    sockets.deliver(json.dumps({"kind": "busy", "for_ms": 30_000}), ACME, LAPTOP)
+    sockets.detach(ACME, LAPTOP, socket)
+
+    back = FakeSocket()
+    sockets.attach(ACME, LAPTOP, back)
+    started = asyncio.get_running_loop().time()
+    sending = asyncio.create_task(
+        sockets.send(ACME, LAPTOP, kind="ui.url", payload={}, timeout_s=1.0)
+    )
+    await _answer(sockets, back, ok=True, result={"url": "https://wms.example/"})
+    assert (await sending).ok
+    assert asyncio.get_running_loop().time() - started < 0.2, (
+        "a browser that had gone away was still being waited on"
+    )

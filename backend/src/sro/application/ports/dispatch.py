@@ -31,8 +31,15 @@ class RunDispatcher(Protocol):
         version: int | None = None,
         authorized_by: bool = False,
         medium: Medium = Medium.NETWORK,
+        may_take_focus: bool = False,
     ) -> RunId:
-        """Ask whoever holds that browser to run this, and answer with the run."""
+        """Ask whoever holds that browser to run this, and answer with the run.
+
+        ``may_take_focus`` travels with it because the process that holds the
+        socket is not the process that read the trigger, and whether an
+        operator's screen may be taken is the trigger's decision rather than
+        either process's.
+        """
         ...
 
 

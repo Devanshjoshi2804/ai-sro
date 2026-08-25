@@ -179,7 +179,11 @@ async function handle(message, sender) {
         // the tenant's policy, its per-minute cap, and the host of the whole
         // document the gesture's frame sits in, which is what a photograph
         // actually shows.
-        const shot = await capture(tab_id, policy);
+        // Never allowed to fail the gesture. `capture` can reject -- a
+        // chrome.storage read, a data URL that will not decode -- and an
+        // exception here would leave the queue untouched, so the one event
+        // this system refuses to drop would be lost to a failed picture of it.
+        const shot = await capture(tab_id, policy).catch(() => null);
         await queue.enqueue(
           {
             kind: "gesture",

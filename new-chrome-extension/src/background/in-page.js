@@ -253,22 +253,42 @@ export function performAtInPage(payload) {
       break;
     case "type": {
       el.dispatchEvent(new MouseEvent("click", where));
-      const target = document.activeElement || el;
-      target.focus?.();
-      for (const character of String(payload.value ?? "")) {
-        target.dispatchEvent(new KeyboardEvent("keydown", { key: character, bubbles: true }));
-        if ("value" in target) target.value += character;
-        target.dispatchEvent(new Event("input", { bubbles: true }));
-        target.dispatchEvent(new KeyboardEvent("keyup", { key: character, bubbles: true }));
+      // Focused explicitly, and typed into the element under the point rather
+      // than into `document.activeElement`. A synthetic click does not move
+      // focus -- only a trusted one does -- so reading activeElement here
+      // found whatever the operator had last focused, or `<body>`: the
+      // keystrokes went into some other field, or nowhere at all, and the
+      // command still answered `performed`.
+      if (typeof el.focus !== "function" || !("value" in el)) {
+        return {
+          ok: false,
+          error: { kind: "not_actionable", detail: "what is at that point cannot be typed into" },
+        };
       }
-      target.dispatchEvent(new Event("change", { bubbles: true }));
+      el.focus();
+      // Through the prototype's own setter, for the same reason `performInPage`
+      // does it: a framework watching the property has to see the change.
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+      const setter = Object.getOwnPropertyDescriptor(proto.prototype, "value")?.set;
+      const put = (next) => (setter ? setter.call(el, next) : (el.value = next));
+      put("");
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      for (const character of String(payload.value ?? "")) {
+        el.dispatchEvent(new KeyboardEvent("keydown", { key: character, bubbles: true }));
+        put(el.value + character);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new KeyboardEvent("keyup", { key: character, bubbles: true }));
+      }
+      el.dispatchEvent(new Event("change", { bubbles: true }));
       break;
     }
     case "press": {
       const key = payload.value || "Enter";
-      const target = document.activeElement || el;
-      target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
-      target.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true }));
+      // The element at the point, focused first: the same trap as `type`, and
+      // an Enter delivered to `<body>` submits nothing.
+      el.focus?.();
+      el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+      el.dispatchEvent(new KeyboardEvent("keyup", { key, bubbles: true }));
       break;
     }
     case "scroll":

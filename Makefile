@@ -118,6 +118,7 @@ test-browser: ## Drive a real Chrome with the extension loaded
 
 test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/queue.test.mjs
+	node new-chrome-extension/src/background/queue.upgrade.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs
 
 check: lint test test-contract test-extension test-browser ## What CI runs

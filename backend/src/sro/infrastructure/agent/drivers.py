@@ -37,8 +37,14 @@ class RemoteAgents(AgentDrivers):
     def __init__(self, sockets: DeviceSockets) -> None:
         self._sockets = sockets
 
-    def ui(self, tenant_id: TenantId, device_id: DeviceId) -> UiDriver:
-        return RemoteUiDriver(self._sockets, tenant_id, device_id)
+    def ui(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        origin: str | None = None,
+        may_take_focus: bool = False,
+    ) -> UiDriver:
+        return RemoteUiDriver(self._sockets, tenant_id, device_id, origin, may_take_focus)
 
     def http(self, tenant_id: TenantId, device_id: DeviceId) -> HttpCaller:
         return RemoteHttpCaller(self._sockets, tenant_id, device_id)
@@ -48,10 +54,19 @@ class RemoteAgents(AgentDrivers):
 
 
 class RemoteUiDriver(UiDriver):
-    def __init__(self, sockets: DeviceSockets, tenant_id: TenantId, device_id: DeviceId) -> None:
+    def __init__(
+        self,
+        sockets: DeviceSockets,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        origin: str | None = None,
+        may_take_focus: bool = False,
+    ) -> None:
         self._sockets = sockets
         self._tenant_id = tenant_id
         self._device_id = device_id
+        self._origin = origin
+        self._may_take_focus = may_take_focus
 
     async def perform(
         self,
@@ -117,6 +132,18 @@ class RemoteUiDriver(UiDriver):
     async def _ask(
         self, kind: str, payload: Mapping[str, object], *, timeout_s: float | None = None
     ) -> Answer:
+        # Named on every command rather than once at connect: a device holds one
+        # channel and may be asked to act for several runs against different
+        # systems, so which page a command belongs to is a fact about the
+        # command.
+        if self._origin:
+            payload = {**payload, "origin": self._origin}
+        # Sent only when it is true. A payload carrying `allow_focus: false`
+        # says the same thing as one that omits it, and the omission is the
+        # safer default to have in a protocol: a browser reading a field it
+        # does not understand takes nobody's screen.
+        if self._may_take_focus:
+            payload = {**payload, "allow_focus": True}
         try:
             return await self._sockets.send(
                 self._tenant_id, self._device_id, kind=kind, payload=payload, timeout_s=timeout_s

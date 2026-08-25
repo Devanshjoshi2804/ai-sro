@@ -134,6 +134,10 @@ class FireTrigger:
             version=version,
             authorized_by=trigger.authorized_by is not None,
             medium=trigger.medium,
+            # Whether this fire may move the operator's tab. A schedule that
+            # runs at 3am has no business taking a screen, and a trigger the
+            # operator set up to watch may.
+            may_take_focus=trigger.may_take_focus,
         )
 
     async def _forget(self, trigger_id: TriggerId) -> None:

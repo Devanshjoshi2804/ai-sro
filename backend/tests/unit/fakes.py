@@ -951,9 +951,19 @@ class FakeAgentDrivers:
         self.caller = http or FakeHttpCaller()
         self.connected = connected
         self.asked_for: list[tuple[str, str]] = []
+        self.told: tuple[str | None, bool] = (None, False)
 
-    def ui(self, tenant_id: TenantId, device_id: DeviceId) -> UiDriver:
+    def ui(
+        self,
+        tenant_id: TenantId,
+        device_id: DeviceId,
+        origin: str | None = None,
+        may_take_focus: bool = False,
+    ) -> UiDriver:
         self.asked_for.append((str(tenant_id), str(device_id)))
+        # What the run said about the page and the screen, so a test can read
+        # back what the browser would have been told.
+        self.told = (origin, may_take_focus)
         if not self.connected:
             raise UiUnavailable(f"{device_id} has no channel open")
         return self.driver
@@ -1028,6 +1038,7 @@ class FakeRunDispatcher:
     def __init__(self, *, reachable: bool = True) -> None:
         self.reachable = reachable
         self.asked: list[tuple[str, str]] = []
+        self.may_take_focus = False
 
     async def start(
         self,
@@ -1039,10 +1050,12 @@ class FakeRunDispatcher:
         version: int | None = None,
         authorized_by: bool = False,
         medium: Medium = Medium.NETWORK,
+        may_take_focus: bool = False,
     ) -> RunId:
         if not self.reachable:
             raise DispatchFailed(f"{device_id} has no channel open anywhere")
         self.asked.append((skill_id.value, device_id.value))
+        self.may_take_focus = may_take_focus
         return RunId(f"run-dispatched-{len(self.asked)}")
 
 

@@ -49,6 +49,7 @@ class ApiRunDispatcher(RunDispatcher):
         version: int | None = None,
         authorized_by: bool = False,
         medium: Medium = Medium.NETWORK,
+        may_take_focus: bool = False,
     ) -> RunId:
         token = self._credentials.issue(
             Caller(tenant_id=ctx.tenant_id, principal_id=ctx.principal_id),
@@ -59,6 +60,7 @@ class ApiRunDispatcher(RunDispatcher):
             "version": version,
             "medium": medium.value,
             "device_id": device_id.value,
+            "may_take_focus": may_take_focus,
             # The API turns this into the principal on the credential above --
             # which is the trigger's authoriser, because that is who the
             # credential was minted for.

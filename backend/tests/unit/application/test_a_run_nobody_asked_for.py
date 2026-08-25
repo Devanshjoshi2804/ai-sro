@@ -430,3 +430,38 @@ async def test_a_non_ascii_token_is_refused_not_a_crash() -> None:
 
     with pytest.raises(InboundRefused):
         await ReceiveInbound(uow, fire).execute(trigger.id, token="caf\xe9")  # noqa: S106
+
+
+async def test_whether_a_fire_may_take_the_operator_s_screen_is_the_trigger_s_answer() -> None:
+    """A schedule firing at 3am has no business moving somebody's tab, and one
+    the operator set up to watch may.
+
+    The decision travels with the dispatch because the process holding that
+    browser's socket is not the process that read the trigger -- and it is the
+    trigger's to make, never the browser's.
+    """
+    for allowed in (True, False):
+        uow, scheduler, dispatcher = FakeUnitOfWork(), FakeScheduler(), FakeRunDispatcher()
+        skill_id = await _skill(uow, writes=False)
+        trigger = await _create(uow, scheduler).execute(
+            CTX,
+            NewTrigger(
+                skill_id=skill_id,
+                cron=EVERY_WEEKDAY,
+                parameters={"shipment_id": "1"},
+                device_id=DeviceId("dev-1"),
+                may_take_focus=allowed,
+            ),
+        )
+
+        await FireTrigger(
+            uow,
+            FakeClock(),
+            FakeDurableExecution(),
+            ids=FakeIdFactory(),
+            dispatcher=dispatcher,
+        ).execute(trigger.id)
+
+        assert dispatcher.may_take_focus is allowed, (
+            f"a trigger with may_take_focus={allowed} dispatched {dispatcher.may_take_focus}"
+        )

@@ -78,6 +78,17 @@ down it: `ui.perform` and `ui.perform_at`, `ui.url`, `screenshot`, `navigate`,
 error — a command left unanswered reads to the backend as a device that went
 away, which fails the run by blaming the browser rather than the page.
 
+A run that may take the screen says so. `allow_focus` on the payload is the
+trigger's decision, never this browser's: with it, a tab on the run's origin is
+brought forward so it can be photographed and driven; without it, a command that
+would move the operator's screen is refused as `focus_not_permitted`.
+
+The run names the page. Every command that acts on one carries `origin`, and the
+extension drives a tab on that origin rather than whatever is frontmost — a
+browser has a dozen tabs and only one of them is the system a skill was taught
+on. No tab on it is `no_tab_for_system`, which the backend counts as a device
+problem rather than a skill that has drifted.
+
 Three things are worth knowing before changing any of it:
 
 - **`ui.perform` runs in the page's realm**, because the component locator is a

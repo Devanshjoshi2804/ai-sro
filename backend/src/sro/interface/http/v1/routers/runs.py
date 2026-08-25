@@ -48,6 +48,7 @@ async def run_skill(
         authorized_by=authorising(body.authorized_by, ctx),
         medium=Medium(body.medium),
         device_id=DeviceId(body.device_id) if body.device_id else None,
+        may_take_focus=body.may_take_focus,
     )
 
     if request.device_id is not None:

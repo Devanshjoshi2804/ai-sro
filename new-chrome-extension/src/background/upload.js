@@ -171,8 +171,9 @@ async function sendBatch(deviceId) {
 }
 
 /**
- * The screenshots this batch carried, each with the frame it illustrates: the
- * index of its gesture in this batch, counting gestures from zero.
+ * Which rows of this batch carry a picture, and which frame each one
+ * illustrates: the index of its gesture in this batch, counting gestures from
+ * zero.
  *
  * The counter walks every gesture, not only the photographed ones, so a
  * gesture that went without a picture -- over the per-minute cap, a background
@@ -187,7 +188,9 @@ function framesOf(kept) {
   for (const row of kept) {
     if (row.event?.kind !== "gesture") continue;
     frameIndex += 1;
-    if (row.shot?.bytes) staged.push({ frameIndex, shot: row.shot });
+    // `row.shot` is the picture's description, not its bytes: the queue hands
+    // those to nobody, and `stageShots` reads them a row at a time.
+    if (row.shot) staged.push({ rowId: row.id, frameIndex });
   }
   return staged;
 }

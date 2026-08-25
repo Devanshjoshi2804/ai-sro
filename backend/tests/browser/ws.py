@@ -18,6 +18,8 @@ import json
 import queue
 import struct
 import threading
+import time
+from collections.abc import Callable
 from io import BufferedIOBase
 from typing import Any
 
@@ -92,22 +94,34 @@ class Channel:
 
     def answer(self, command_id: str, timeout: float = 20.0) -> dict[str, Any]:
         """The answer to one command, ignoring everything else on the wire."""
-        deadline = timeout
-        while deadline > 0:
-            step = min(deadline, 5.0)
-            message = self.messages.get(timeout=step)
-            deadline -= step
-            if message.get("command_id") == command_id:
-                return message
-        raise AssertionError(f"no answer to {command_id} within {timeout}s")
+        return self._await(
+            lambda m: m.get("command_id") == command_id, f"answer to {command_id}", timeout
+        )
 
     def saw(self, kind: str, timeout: float = 10.0) -> dict[str, Any]:
         """The next unsolicited message of this kind."""
-        deadline = timeout
-        while deadline > 0:
-            step = min(deadline, 5.0)
-            message = self.messages.get(timeout=step)
-            deadline -= step
-            if message.get("kind") == kind:
+        return self._await(lambda m: m.get("kind") == kind, kind, timeout)
+
+    def _await(
+        self, wanted: Callable[[dict[str, Any]], bool], what: str, timeout: float
+    ) -> dict[str, Any]:
+        """Wait on real elapsed time, and fail with a sentence rather than a
+        `queue.Empty` from three frames down.
+
+        Both mattered. Charging each message a fixed share of the budget meant
+        two stray frames -- the `hello` and one keepalive, which cost no real
+        time at all -- used up a ten-second wait; and the timeout escaping as
+        `Empty` made every one of these look like a broken test helper rather
+        than a browser that did not answer.
+        """
+        until = time.monotonic() + timeout
+        while True:
+            remaining = until - time.monotonic()
+            if remaining <= 0:
+                raise AssertionError(f"no {what} within {timeout}s")
+            try:
+                message = self.messages.get(timeout=remaining)
+            except queue.Empty:
+                raise AssertionError(f"no {what} within {timeout}s") from None
+            if wanted(message):
                 return message
-        raise AssertionError(f"the extension never sent {kind} within {timeout}s")

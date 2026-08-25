@@ -975,3 +975,231 @@ def test_the_browser_says_when_its_operator_is_working(
     assert 0 < busy["for_ms"] <= 30_000, (
         f"a busy window of {busy['for_ms']}ms is not something the backend can bound"
     )
+
+
+def test_typing_at_a_point_puts_the_value_in_the_field_under_it(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """The vision rung types where it looked, not where focus happened to be.
+
+    A synthetic click does not move focus -- only a trusted one does -- so
+    reading `document.activeElement` after dispatching one found whatever the
+    operator had last focused, or `<body>`. The keystrokes went into the wrong
+    field or nowhere at all, and the command still answered `performed: true`,
+    which the run then verified against a form nobody had filled.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+    # Focus somewhere else first, so "wherever focus already was" and "under
+    # the point" are different answers and the test can tell them apart.
+    page.click("#pw")
+    box = page.evaluate(
+        """() => {
+             const r = document.getElementById('client').getBoundingClientRect();
+             return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)];
+           }"""
+    )
+
+    open_channel.command(
+        "cmd_type_at",
+        "ui.perform_at",
+        {"action": "type", "x": box[0], "y": box[1], "value": CLIENT_CODE},
+    )
+    answer = open_channel.answer("cmd_type_at")
+    assert answer["ok"] is True, answer
+
+    typed = page.input_value("#client")
+    other = page.input_value("#pw")
+    page.close()
+
+    assert typed == CLIENT_CODE, f"the field under the point holds {typed!r}"
+    assert other == "", "the value went into the field that happened to have focus"
+
+
+def test_a_screen_is_refused_rather_than_stitched_from_two_pages(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """`captureVisibleTab` photographs whatever is active in the window, not
+    the tab it is handed.
+
+    So when the page to be driven is not the visible one, the picture and the
+    `width`/`height`/`text_digest` beside it would come from different
+    documents -- and the coordinates a model answers with are fed back as
+    `ui.perform_at`, which acts on the second.
+
+    This is the guessing path: no origin, so the driven page is whatever http
+    tab was last touched. Refused with `focus_not_permitted`, which says the
+    truth -- the browser could photograph that page, but not without taking the
+    operator's screen, and this run was not given permission to.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+    # A blank tab in front, so the driven page is the newest *http* tab while
+    # not being the one on screen.
+    blank = browser.new_page()
+    blank.goto("about:blank")
+
+    open_channel.command("cmd_split", "screenshot", {"inline": True}, deadline_ms=20_000)
+    answer = open_channel.answer("cmd_split")
+    blank.close()
+    page.close()
+
+    assert answer["ok"] is False, "a screen was answered from two different pages"
+    # The kind matters: `focus_not_permitted` and `no_tab_for_system` are both
+    # "no browser to act in" as far as the promotion ladder is concerned, but
+    # only one of them tells the operator that permission is the missing piece.
+    assert answer["error"]["kind"] == "focus_not_permitted", answer
+    # And the detail, because Chrome refuses to photograph a blank tab on its
+    # own -- asserting a kind alone would pass against an extension with no
+    # such check in it at all.
+    assert "not the visible one" in answer["error"]["detail"], (
+        "the refusal came from Chrome declining the capture, not from the check under test"
+    )
+
+
+def test_a_screenshot_that_fails_does_not_take_the_gesture_with_it(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """A gesture is the one event this system never drops.
+
+    Capturing the picture that illustrates it reads and writes
+    `chrome.storage`, and either can reject. Unguarded, that exception left
+    `queue.enqueue` unreached and the gesture gone -- a failed photograph
+    deleting the thing it was a photograph of.
+    """
+    _, batches = stub
+    worker = _service_worker(browser)
+    _dial(browser, stub, channel)
+    page = browser.new_page()
+    page.goto(stub[0])
+    page.reload()
+
+    # Break the write the per-minute count goes through, in the worker itself.
+    worker.evaluate(
+        """() => {
+             globalThis.__realSet = chrome.storage.local.set;
+             chrome.storage.local.set = () => Promise.reject(new Error("storage is full"));
+           }"""
+    )
+    page.click("h1")
+    page.wait_for_timeout(500)
+    worker.evaluate("""() => { chrome.storage.local.set = globalThis.__realSet; }""")
+
+    _flush(browser, worker)
+    page.close()
+
+    gestures = [e for b in batches for e in b["events"] if e["kind"] == "gesture"]
+    assert gestures, "the gesture was lost because its screenshot could not be taken"
+
+
+def test_the_run_names_the_page_rather_than_taking_whatever_is_in_front(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """The tab is chosen by the system the skill was taught on.
+
+    Two pages are open and the wrong one is in front. A command that guesses
+    acts on the page the operator happens to be looking at, which in a real
+    browser is as likely to be their inbox as the WMS -- so the origin the run
+    carries decides, and the visible page is left alone.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+    api_url, _ = stub
+
+    # The page that is *not* the system, and it is the one in front: the same
+    # stub answers on `localhost` as on `127.0.0.1`, and those are two origins
+    # as far as a browser is concerned -- a real second system, with no DNS and
+    # no second server.
+    elsewhere = browser.new_page()
+    elsewhere.goto(api_url.replace("127.0.0.1", "localhost"))
+
+    open_channel.command(
+        "cmd_named",
+        "ui.perform",
+        {
+            "action": "type",
+            "value": CLIENT_CODE,
+            "origin": api_url,
+            "locators": [
+                {"strategy": "css_path", "query": "#client", "within": None, "visible_only": True}
+            ],
+        },
+    )
+    answer = open_channel.answer("cmd_named")
+    assert answer["ok"] is True, answer
+
+    driven = page.input_value("#client")
+    untouched = elsewhere.input_value("#client")
+    elsewhere.close()
+    page.close()
+
+    assert driven == CLIENT_CODE, "the page the run named was not the one driven"
+    assert untouched == "", "the run typed into the page that happened to be in front"
+
+
+def test_a_run_whose_system_is_not_open_is_told_so(browser: Any, stub: Any, channel: Any) -> None:
+    """`no_tab_for_system`, which the backend counts as a device that could not
+    be driven rather than a skill whose control moved. A browser with no tab on
+    the system is somebody who closed it, not a page that changed."""
+    open_channel, page = _dial(browser, stub, channel)
+
+    open_channel.command(
+        "cmd_absent",
+        "ui.url",
+        {"origin": "https://wms.nowhere.example"},
+    )
+    answer = open_channel.answer("cmd_absent")
+    page.close()
+
+    assert answer["ok"] is False
+    assert answer["error"]["kind"] == "no_tab_for_system", answer
+    assert "wms.nowhere.example" in answer["error"]["detail"], answer
+
+
+def test_a_run_that_may_not_take_the_screen_is_refused_rather_than_taking_it(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """The page to be photographed is behind the one the operator is working
+    in. Somebody typing at 3pm while a schedule fires behind them must not have
+    their tab change under their hands, so the command is refused."""
+    open_channel, page = _dial(browser, stub, channel)
+    api_url, _ = stub
+    inbox = browser.new_page()
+    inbox.goto(api_url.replace("127.0.0.1", "localhost"))
+
+    open_channel.command("cmd_hidden", "screenshot", {"inline": True, "origin": api_url})
+    answer = open_channel.answer("cmd_hidden", timeout=30.0)
+    inbox.close()
+    page.close()
+
+    assert answer["ok"] is False
+    assert answer["error"]["kind"] == "focus_not_permitted", answer
+
+
+def test_a_run_the_operator_is_watching_brings_its_page_forward(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """The other side of the same decision.
+
+    With `allow_focus`, the tab on the run's origin is brought to the front and
+    photographed -- which is the only way the rung that looks can work at all
+    when the operator has since clicked somewhere else. The picture and the
+    coordinates beside it come from that page, not from whatever was in front.
+    """
+    open_channel, page = _dial(browser, stub, channel)
+    api_url, _ = stub
+    inbox = browser.new_page()
+    inbox.goto(api_url.replace("127.0.0.1", "localhost"))
+
+    open_channel.command(
+        "cmd_forward",
+        "screenshot",
+        {"inline": True, "origin": api_url, "allow_focus": True},
+        deadline_ms=30_000,
+    )
+    answer = open_channel.answer("cmd_forward", timeout=40.0)
+    inbox.close()
+    page.close()
+
+    assert answer["ok"] is True, answer
+    assert base64.b64decode(answer["result"]["image_base64"]).startswith(PNG_MAGIC)
+    assert "Client Code" in answer["result"]["text_digest"], (
+        "the digest came from a page other than the one brought forward"
+    )

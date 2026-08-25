@@ -113,6 +113,14 @@ class ExecutionRequest:
     the screen state the earlier steps would have produced, so the task is the
     unit that changes rung, and today a human picks it."""
 
+    may_take_focus: bool = False
+    """Whether this run may bring a tab to the front of the operator's browser.
+
+    Somebody watching a run they asked for is not interrupted by their tab
+    changing; somebody typing at 3pm while a schedule fires behind them is.
+    Default no, so a caller that has not thought about it does not take
+    anybody's screen."""
+
 
 class Refused(DomainError):
     """A safety limit stopped this before anything was sent.
@@ -179,6 +187,7 @@ class StartRun:
                 authorized_by=_principal(request.authorized_by),
                 medium=request.medium,
                 device_id=request.device_id,
+                may_take_focus=request.may_take_focus,
                 target_system=system,
                 may_change_the_system=version.changes_the_system,
             )
@@ -227,7 +236,7 @@ class ExecuteStep:
 
         step = version.steps[index]
         if run.medium is Medium.UI:
-            outcome = await self._perform_in_ui(run, step, values=run.values)
+            outcome = await self._perform_in_ui(run, step, values=run.values, version=version)
             run.record(outcome)
             async with self._uow as uow:
                 await uow.runs.save(run)
@@ -293,7 +302,9 @@ class ExecuteStep:
             )
 
         if failure is not None:
-            outcome = await self._escalate(run, step, outcome, failure, values=run.values)
+            outcome = await self._escalate(
+                run, step, outcome, failure, values=run.values, version=version
+            )
         run.record(outcome)
         for name, value in derived.items():
             run.learn(name, value)
@@ -350,16 +361,25 @@ class ExecuteStep:
             logger.info("no access token for %s: %s", system, refusal)
             return None
 
-    def _ui_for(self, run: Run) -> UiDriver | None:
-        """The browser this run is performed in.
+    def _ui_for(self, run: Run, version: SkillVersion | None = None) -> UiDriver | None:
+        """The browser this run is performed in, and the page in it.
 
         A run bound to a device never falls back to the deployment's own
         browser. That one is signed in as somebody else, on a screen nobody
         demonstrated, and quietly using it would be worse than not running.
+
+        The origin goes with it. An operator's Chrome has a dozen tabs and only
+        one of them is the system this skill was taught on; without being told
+        which, the extension can only take the frontmost page, and a run that
+        guesses wrong performs a warehouse task on somebody's email.
         """
         if run.device_id is None:
             return self._ui
-        return None if self._agents is None else self._agents.ui(run.tenant_id, run.device_id)
+        if self._agents is None:
+            return None
+        return self._agents.ui(
+            run.tenant_id, run.device_id, _origin_of(version), run.may_take_focus
+        )
 
     def _caller_for(self, run: Run) -> HttpCaller:
         """Whose session the call goes out under. Same rule as the browser."""
@@ -370,7 +390,7 @@ class ExecuteStep:
         return self._agents.http(run.tenant_id, run.device_id)
 
     async def _perform_in_ui(
-        self, run: Run, step: SkillStep, *, values: dict[str, str]
+        self, run: Run, step: SkillStep, *, values: dict[str, str], version: SkillVersion
     ) -> StepOutcome:
         """Perform one step of a task that is being run in the browser.
 
@@ -399,7 +419,7 @@ class ExecuteStep:
                     f"would {plan.action} {plan.locators[0].describe() if plan.locators else ''}"
                 ),
             )
-        ui = self._ui_for(run)
+        ui = self._ui_for(run, version)
         if ui is None:
             return self._failed(step, None, "no browser is attached", medium=Medium.UI)
 
@@ -444,6 +464,7 @@ class ExecuteStep:
         failure: FailureKind,
         *,
         values: dict[str, str],
+        version: SkillVersion,
     ) -> StepOutcome:
         """Try the next rung, if the policy allows one and the run may act.
 
@@ -459,7 +480,7 @@ class ExecuteStep:
                 outcome,
                 detail=f"{outcome.detail or failure}; {run.stage} does not drive the interface",
             )
-        ui = self._ui_for(run)
+        ui = self._ui_for(run, version)
         if ui is None or step.ui_plan is None or not step.ui_plan.replayable:
             return replace(
                 outcome,
@@ -867,6 +888,27 @@ class ExecuteSkill:
         for index in range(len(skill.version(run.skill_version).steps)):
             await self._step.execute(ctx, run_id=run.id, index=index)
         return await self._finish.execute(ctx, run_id=run.id)
+
+
+def _origin_of(version: SkillVersion | None) -> str | None:
+    """The system a skill was taught on, as a bare scheme and host.
+
+    Read off the first step whose recorded call names one. A parameterised host
+    is no answer at all -- the placeholder is not filled in until a step runs,
+    and a tab cannot be chosen by a template -- so those are passed over rather
+    than guessed at, and a skill made only of UI steps simply has no origin to
+    give.
+    """
+    if version is None:
+        return None
+    for step in version.steps:
+        if step.network_plan is None:
+            continue
+        raw = step.network_plan.url.raw
+        parts = urlsplit(raw)
+        if parts.scheme in ("http", "https") and parts.netloc and "$" not in parts.netloc:
+            return f"{parts.scheme}://{parts.netloc}"
+    return None
 
 
 def _version_of(skill: Skill, requested: int | None) -> SkillVersion:

@@ -48,21 +48,47 @@ function hold(tabId, ms = SETTLE_MS) {
 
 const failure = (kind, detail) => ({ ok: false, error: { kind, detail } });
 
+/** Which of the two is missing, because they are different problems: a browser
+ * with nothing open at all, and one where the system this run is for is not
+ * among what is open. */
+const noPage = (origin) =>
+  origin
+    ? `no tab is open on ${origin}, which is the system this run is for`
+    : "this browser has no ordinary page open";
+
 /**
- * The tab a command without an origin of its own acts in: the one in front of
- * the operator.
+ * The tab a command acts in.
  *
- * `no_tab_for_system` when there is none -- a browser showing only its own
- * settings pages is a browser with nothing to drive, and that is a device
- * problem rather than a page that changed.
+ * Named by the run where the run knows: `origin` is the system the skill was
+ * taught on, and an operator's Chrome has a dozen tabs of which exactly one is
+ * that system. Guessing there is not a smaller version of choosing -- the
+ * frontmost page is as likely to be somebody's email, and a warehouse gesture
+ * performed on it is a real thing that happened to a real person.
+ *
+ * Only where the run has no origin to give -- a skill taught entirely through
+ * the interface, with no call recorded to name the host -- does this fall back
+ * to the page in front of the operator, which is the best a guess can do.
+ *
+ * `no_tab_for_system` when there is none. A browser showing only its own
+ * settings pages, or none on the system this run is for, is a device problem
+ * rather than a page that changed, and the two are counted differently.
  */
-async function drivenTab() {
-  const inFront = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+async function drivenTab(origin) {
   const usable = (tab) => tab?.url && /^https?:/.test(tab.url);
+
+  if (origin) {
+    const onIt = (await chrome.tabs.query({ url: `${origin}/*` })).filter(usable);
+    if (!onIt.length) return null;
+    // The visible one first: a run drives what the operator can see going on,
+    // and a background tab cannot be photographed for the rung that looks.
+    return onIt.find((tab) => tab.active) || onIt[0];
+  }
+
+  const inFront = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   if (usable(inFront[0])) return inFront[0];
 
-  // Any ordinary tab will do rather than none at all: the operator may be
-  // looking at a settings page while the run's system sits in the next tab.
+  // Any ordinary tab rather than none at all: the operator may be looking at a
+  // settings page while the system sits in the next tab.
   const all = await chrome.tabs.query({ windowType: "normal" });
   return all.filter(usable).sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0] || null;
 }
@@ -108,8 +134,8 @@ function bytesOf(dataUrl) {
 }
 
 async function uiPerform(payload) {
-  const tab = await drivenTab();
-  if (!tab) return failure("no_tab_for_system", "this browser has no ordinary page open");
+  const tab = await drivenTab(payload.origin);
+  if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
   const answer = await inPage(tab.id, performInPage, [payload]);
   hold(tab.id);
@@ -117,17 +143,17 @@ async function uiPerform(payload) {
 }
 
 async function uiPerformAt(payload) {
-  const tab = await drivenTab();
-  if (!tab) return failure("no_tab_for_system", "this browser has no ordinary page open");
+  const tab = await drivenTab(payload.origin);
+  if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
   const answer = await inPage(tab.id, performAtInPage, [payload]);
   hold(tab.id);
   return answer || failure("not_actionable", "the page did not answer");
 }
 
-async function uiUrl() {
-  const tab = await drivenTab();
-  if (!tab) return failure("no_tab_for_system", "this browser has no ordinary page open");
+async function uiUrl(payload) {
+  const tab = await drivenTab(payload.origin);
+  if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   return { ok: true, result: { url: tab.url } };
 }
 
@@ -141,18 +167,37 @@ async function uiUrl() {
  * stored form of this command -- a run keeps no screens, so there would be
  * nothing to read a stored one back with.
  */
-async function screenshot() {
-  const tab = await drivenTab();
-  if (!tab) return failure("no_tab_for_system", "this browser has no ordinary page open");
+async function screenshot(payload) {
+  const tab = await drivenTab(payload.origin);
+  if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
+  // `captureVisibleTab` photographs whatever is active in the window, not the
+  // tab it is handed. For a tab that is not the active one, the picture and
+  // the coordinate space beside it would come from two different pages -- and
+  // the model's answer, fed back as `ui.perform_at`, would land on the second.
+  //
+  // So the page has to be brought forward, and whether it may is the run's
+  // decision rather than this browser's: `allow_focus` says the operator asked
+  // for this and is watching. Without it the command is refused, because
+  // taking somebody's screen while they are working in it is worse than a run
+  // that did not finish.
+  const visible = tab.active ? tab : await bringForward(tab, payload.allow_focus);
+  if (!visible) {
+    return failure(
+      "focus_not_permitted",
+      "the page to be driven is not the visible one, and this run may not bring it forward",
+    );
+  }
 
   // The names come from the DOM rather than from the picture: a control's own
   // name beats one inferred from pixels, and the redaction the backend runs
-  // before anything reaches a model can only reason about text.
-  const seen = (await inPage(tab.id, viewportInPage, [], "ISOLATED")) || {};
+  // before anything reaches a model can only reason about text. Read from the
+  // tab that was photographed, so the picture and the coordinates beside it
+  // are the same page.
+  const seen = (await inPage(visible.id, viewportInPage, [], "ISOLATED")) || {};
 
   let dataUrl;
   try {
-    dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+    dataUrl = await chrome.tabs.captureVisibleTab(visible.windowId, { format: "png" });
   } catch (error) {
     // A tab that is not the visible one cannot be photographed, and Chrome
     // refuses on its own pages. Both mean there is no screen to look at.
@@ -185,10 +230,29 @@ async function screenshot() {
  * not. Refused rather than done anyway, and refused with the kind that tells
  * the backend no browser was available rather than that the page had changed.
  */
+/**
+ * Bring a tab to the front, if this run is allowed to.
+ *
+ * Answers the tab as it now is, or `null` when it may not be moved. Both the
+ * tab and its window: a tab activated in a window that is behind another one
+ * is still not what the operator is looking at, and `captureVisibleTab` would
+ * photograph whatever is in front of it.
+ */
+async function bringForward(tab, allowFocus) {
+  if (!allowFocus) return null;
+  try {
+    await chrome.windows.update(tab.windowId, { focused: true });
+    return await chrome.tabs.update(tab.id, { active: true });
+  } catch {
+    // The window closed while we were asking. There is no screen to take.
+    return null;
+  }
+}
+
 async function navigate(payload) {
   if (!payload?.url) return failure("not_actionable", "navigate with no url");
-  const tab = await drivenTab();
-  if (!tab) return failure("no_tab_for_system", "this browser has no ordinary page open");
+  const tab = await drivenTab(payload.origin);
+  if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
 
   const [inFront] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   if (!payload.allow_focus && inFront?.id === tab.id) {
@@ -230,9 +294,9 @@ export async function perform(command) {
       case "ui.perform_at":
         return await uiPerformAt(command.payload || {});
       case "ui.url":
-        return await uiUrl();
+        return await uiUrl(command.payload || {});
       case "screenshot":
-        return await screenshot();
+        return await screenshot(command.payload || {});
       case "navigate":
         return await navigate(command.payload || {});
       case "http.send":

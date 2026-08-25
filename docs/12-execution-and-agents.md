@@ -354,6 +354,17 @@ recorded is `reproduced`, never `round_trip`: the call was made and checked,
 which is not the same as creating, reading back, changing and deleting. Claiming
 the higher level is exactly the inflation the base's audit was about.
 
+**And a run in the interface writes back where the controls are.** A skill
+carries several ways to find each control, strongest first, and the driver takes
+the first that resolves — so a step whose taught locator has rotted keeps passing
+on its last-resort CSS path, and a control no locator finds at all is reached by
+a model looking at the screen. Both look exactly like a step that works. Which
+locator won was on every run and read by nobody; it is now a claim keyed by the
+control (`control button#closeWave`, not the skill that clicked it), saying what
+found it and whether that is what it was taught with. The skill itself is never
+rewritten: a locator is evidence from a demonstration, and the healer's rule is
+that evidence is changed by demonstrating again.
+
 **Retrieval is structured first, similar second.** System, kind and evidence
 narrow with `WHERE`; the vector only orders what survives. A nearest neighbour
 over the whole store answers with another system's endpoint, confidently. Both

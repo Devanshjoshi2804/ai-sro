@@ -14,8 +14,12 @@ from sro.domain.execution.run import (
     StepOutcome,
 )
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
+from sro.domain.recording.events import ActionKind
 from sro.domain.shared.identifiers import SkillId
+from sro.domain.skill.locator import ControlLocator, LocatorStrategy
+from sro.domain.skill.plan import Template, UiPlan
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.skill import SkillVersion
 from tests import factories as f
 from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
 
@@ -117,3 +121,114 @@ async def test_the_url_is_recorded_without_its_parameters() -> None:
     entry = next(iter(uow.knowledge.rows.values()))
     assert "?" not in entry.key
     assert entry.body["path"] == "/data/WM/wm/inventory/adjust"
+
+
+def _ui_version(*, taught: LocatorStrategy = LocatorStrategy.COMPONENT) -> SkillVersion:
+    return f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                network_plan=None,
+                ui_plan=UiPlan(
+                    action=ActionKind.CLICK,
+                    target=f.fingerprint(accessible_name="Close wave"),
+                    locators=(
+                        ControlLocator(strategy=taught, query=Template("button#closeWave")),
+                        ControlLocator(
+                            strategy=LocatorStrategy.CSS_PATH, query=Template("div > button")
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        parameters=(),
+    )
+
+
+async def _learn_with(run: Run, uow: FakeUnitOfWork, version: SkillVersion) -> None:
+    record = RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder())
+    await LearnFromRun(record).execute(CTX, run=run, system="blue_yonder", version=version)
+
+
+async def test_a_control_that_has_drifted_to_its_fallback_is_written_down() -> None:
+    """It works, and it is one screen change from not working.
+
+    The driver takes the first locator that resolves, so a step whose taught
+    locator has rotted keeps passing on its last-resort CSS path and looks
+    exactly like a step that is fine. Which one won was on every run and read by
+    nobody.
+    """
+    uow = FakeUnitOfWork()
+    run = _run(
+        _outcome(
+            medium=Medium.UI,
+            method=None,
+            url=None,
+            status_code=None,
+            matched_by=LocatorStrategy.CSS_PATH.value,
+        )
+    )
+
+    await _learn_with(run, uow, _ui_version())
+
+    entry = next(e for e in uow.knowledge.rows.values() if e.kind is EntryKind.SCREEN)
+    assert entry.body["drifted"] is True
+    assert entry.body["taught_as"] == LocatorStrategy.COMPONENT.value
+    assert entry.body["found_by"] == LocatorStrategy.CSS_PATH.value
+    assert "not by the component it was taught with" in entry.title
+
+
+async def test_a_control_only_a_model_could_find_is_the_loudest_of_these() -> None:
+    """No locator resolved at all: the step was finished by looking at the
+    screen. That is the rung of last resort doing the work of the first."""
+    uow = FakeUnitOfWork()
+    run = _run(
+        _outcome(medium=Medium.VISION, method=None, url=None, status_code=None, matched_by="vision")
+    )
+
+    await _learn_with(run, uow, _ui_version())
+
+    entry = next(e for e in uow.knowledge.rows.values() if e.kind is EntryKind.SCREEN)
+    assert entry.body["found_by"] == "vision"
+    assert entry.body["drifted"] is True
+
+
+async def test_a_control_found_where_it_was_taught_is_recorded_as_that() -> None:
+    uow = FakeUnitOfWork()
+    run = _run(
+        _outcome(
+            medium=Medium.UI,
+            method=None,
+            url=None,
+            status_code=None,
+            matched_by=LocatorStrategy.COMPONENT.value,
+        )
+    )
+
+    await _learn_with(run, uow, _ui_version())
+
+    entry = next(e for e in uow.knowledge.rows.values() if e.kind is EntryKind.SCREEN)
+    assert entry.body["drifted"] is False
+
+
+async def test_a_run_whose_screen_check_failed_teaches_nothing_about_the_control() -> None:
+    """Same rule as everywhere else here, and now it has teeth at the interface
+    rung: a step that clicked something and did not produce what the
+    demonstration produced makes the run fail, and a failed run proves nothing
+    about the system -- including nothing about where its controls are."""
+    uow = FakeUnitOfWork()
+    run = _run(
+        _outcome(
+            medium=Medium.UI,
+            method=None,
+            url=None,
+            status_code=None,
+            matched_by=LocatorStrategy.CSS_PATH.value,
+            assertion_failures=("the screen does not show 'Wave closed'",),
+        )
+    )
+    assert run.status is RunStatus.FAILED
+
+    await _learn_with(run, uow, _ui_version())
+
+    assert not uow.knowledge.rows

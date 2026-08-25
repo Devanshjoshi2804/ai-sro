@@ -969,7 +969,15 @@ class FinishRun:
         if self._learn is not None:
             # After the commit: what the run did is the record, and a failure to
             # write down what was learned must not undo it.
-            await self._learn.execute(ctx, run=run, system=skill.objective_key.target_system)
+            await self._learn.execute(
+                ctx,
+                run=run,
+                system=skill.objective_key.target_system,
+                # For the steps performed in the interface: which locator found
+                # the control is only meaningful beside the one it was taught
+                # with, and that lives on the version.
+                version=version,
+            )
         return run
 
 

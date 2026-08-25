@@ -22,6 +22,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="bg-background text-foreground flex min-h-full flex-col">
+        {/* Before hydration, so a 400px panel never paints a top bar and a
+            772px column and then collapses them. Framed *is* embedded: the
+            frame-ancestors header means only the extension can be the frame.
+            Comparing `top` cross-origin returns an opaque handle and never
+            throws. If a `script-src` is ever added, this needs a nonce. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'if(self!==top||location.search.includes("embedded=1"))' +
+              'document.documentElement.dataset.embedded=""',
+          }}
+        />
         <QueryProvider>
           {/* Nothing renders until this browser holds a credential: every
               screen below reads a tenant's recordings and can authorise a

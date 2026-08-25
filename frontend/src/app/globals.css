@@ -140,3 +140,30 @@
     transform: scale(0.82);
   }
 }
+
+/* Inside the extension's side panel.
+ *
+ * Set on <html> before hydration by a script in the root layout, and true
+ * exactly when this console is framed -- which the frame-ancestors header
+ * guarantees means the panel and nothing else.
+ *
+ * `!important` where it is overriding an inline `style` prop, which no
+ * selector can outrank: the console's own widths are inline pixel values, and
+ * the alternative is a second copy of that component. The page rule needs none
+ * -- an unlayered rule already beats Tailwind's layered utilities. */
+html[data-embedded] [data-chrome="bar"] {
+  display: none !important;
+}
+
+html[data-embedded] [data-console="rail"] {
+  display: none !important;
+}
+
+html[data-embedded] [data-console="column"] {
+  max-width: none !important;
+}
+
+html[data-embedded] [data-chrome="page"] {
+  max-width: none;
+  padding: 12px;
+}

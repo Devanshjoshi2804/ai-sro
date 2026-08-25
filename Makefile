@@ -119,9 +119,12 @@ test-browser: ## Drive a real Chrome with the extension loaded
 fixtures: ## Recapture the extension's golden payloads from a real session
 	$(BACKEND) uv run python -m tests.browser.capture_fixtures
 
+test-frontend: ## The console's own tests
+	$(FRONTEND) npm test
+
 test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/queue.test.mjs
 	node new-chrome-extension/src/background/queue.upgrade.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs
 
-check: lint test test-contract test-extension test-browser ## What CI runs
+check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

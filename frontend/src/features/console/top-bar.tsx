@@ -21,6 +21,7 @@ export function TopBar({ children, tenant }: { children?: ReactNode; tenant?: st
   const signedInAs = tenant ?? whoAmI()?.tenant ?? "—";
   return (
     <nav
+      data-chrome="bar"
       style={{
         display: "flex",
         alignItems: "stretch",

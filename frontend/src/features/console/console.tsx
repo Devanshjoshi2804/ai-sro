@@ -319,6 +319,9 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
       ) : (
         <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
           <aside
+            // Hidden in the panel by globals.css: 236px of thread list out of
+            // 400 leaves no room for the conversation it is a list of.
+            data-console="rail"
             style={{
               width: 236,
               flex: "0 0 236px",
@@ -452,6 +455,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
           >
             <div style={{ flex: 1, overflow: "auto", padding: "34px 0 20px" }}>
               <div
+                data-console="column"
                 style={{
                   maxWidth: 772,
                   margin: "0 auto",
@@ -614,7 +618,10 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
             </div>
 
             <div style={{ flex: "0 0 auto", padding: "0 28px 24px" }}>
-              <div style={{ maxWidth: 772, margin: "0 auto", position: "relative" }}>
+              <div
+                data-console="column"
+                style={{ maxWidth: 772, margin: "0 auto", position: "relative" }}
+              >
                 {/* One question, about what this conversation is on, directly
                     above where the operator is already looking. Rendered per
                     skill card it appeared under every card in the transcript --

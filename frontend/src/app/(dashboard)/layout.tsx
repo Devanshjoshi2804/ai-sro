@@ -14,6 +14,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <BarLink href="/recordings">Recordings</BarLink>
         <BarLink href="/skills">Skills</BarLink>
         <BarLink href="/runs">Runs</BarLink>
+        <BarLink href="/triggers">Triggers</BarLink>
         <BarLink href="/knowledge">What we know</BarLink>
       </TopBar>
       <main data-chrome="page" className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">

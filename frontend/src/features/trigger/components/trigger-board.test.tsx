@@ -1,0 +1,147 @@
+/**
+ * The screen where somebody decides what runs while nobody is watching.
+ *
+ * Written because the endpoints existed for weeks with no screen at all, so a
+ * trigger could only be created with curl — and `may_take_focus`, which is
+ * plumbed from the trigger through the run to the browser, had no way to be
+ * turned on by a person at all.
+ *
+ * What these check is not that the form renders. It is that the three
+ * permissions stay three separate decisions, and that none of them is on by
+ * default: each is a different thing to regret at three in the morning, and a
+ * single "enable automation" switch would grant all of them at once.
+ */
+
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { TriggerBoard } from "@/features/trigger/components/trigger-board";
+import * as triggerApi from "@/features/trigger/api";
+import * as skillApi from "@/features/skill/api";
+
+function show() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <TriggerBoard />
+    </QueryClientProvider>,
+  );
+}
+
+function aTrigger(over: Partial<triggerApi.TriggerModel> = {}): triggerApi.TriggerModel {
+  return {
+    id: "trg-1",
+    skill_id: "skl-1",
+    kind: "schedule",
+    cron: "0 7 * * 1-5",
+    timezone: "Asia/Kolkata",
+    parameters: {},
+    device_id: null,
+    medium: "network",
+    enabled: true,
+    writes: true,
+    authorized_by: "devansh",
+    requires_confirmation: true,
+    may_take_focus: false,
+    created_by: "devansh",
+    created_at: "2026-08-25T09:00:00Z",
+    last_fired_at: null,
+    last_run_id: null,
+    disabled_reason: null,
+    inbound_token: null,
+    ...over,
+  } as triggerApi.TriggerModel;
+}
+
+afterEach(() => vi.restoreAllMocks());
+
+describe("putting a skill on a clock", () => {
+  it("asks for the three permissions separately, and none is on to begin with", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([
+      { id: "skl-1", name: "Adjust an LPN" },
+    ] as never);
+    const created = vi.spyOn(triggerApi, "createTrigger").mockResolvedValue(aTrigger());
+
+    show();
+    const user = userEvent.setup();
+    // Waits for the skill list to arrive: a select with no options yet is a
+    // select nobody can choose from, which is also true of the real screen.
+    await screen.findByRole("option", { name: "Adjust an LPN" });
+    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.click(screen.getByRole("button", { name: "Schedule it" }));
+
+    await waitFor(() => expect(created).toHaveBeenCalled());
+    // Off unless somebody said so, every one of them.
+    expect(created.mock.calls[0][0]).toMatchObject({
+      authorized_by: false,
+      auto_approve: false,
+      may_take_focus: false,
+    });
+  });
+
+  it("sends may_take_focus only when it was asked for, and nothing else with it", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([
+      { id: "skl-1", name: "Adjust an LPN" },
+    ] as never);
+    const created = vi.spyOn(triggerApi, "createTrigger").mockResolvedValue(aTrigger());
+
+    show();
+    const user = userEvent.setup();
+    // Waits for the skill list to arrive: a select with no options yet is a
+    // select nobody can choose from, which is also true of the real screen.
+    await screen.findByRole("option", { name: "Adjust an LPN" });
+    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.click(screen.getByLabelText("May bring a tab to the front"));
+    await user.click(screen.getByRole("button", { name: "Schedule it" }));
+
+    await waitFor(() => expect(created).toHaveBeenCalled());
+    // The whole point of three checkboxes: taking somebody's screen is not the
+    // same permission as writing to their warehouse unattended.
+    expect(created.mock.calls[0][0]).toMatchObject({
+      may_take_focus: true,
+      authorized_by: false,
+      auto_approve: false,
+    });
+  });
+});
+
+describe("what is already on a clock", () => {
+  it("says who stands behind a write and whether it asks first", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([
+      aTrigger({ requires_confirmation: false, authorized_by: "devansh" }),
+    ]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
+
+    show();
+
+    // A write that goes out unattended must never be a row that looks like
+    // every other row.
+    expect(await screen.findByText("sends without asking")).toBeInTheDocument();
+    expect(screen.getByText(/devansh stands behind it/)).toBeInTheDocument();
+  });
+
+  it("says when a trigger may take the operator's screen", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([aTrigger({ may_take_focus: true })]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
+
+    show();
+
+    expect(await screen.findByText("may take the screen")).toBeInTheDocument();
+  });
+
+  it("pauses by removing the schedule rather than by letting it fire into a check", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([aTrigger()]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
+    const paused = vi
+      .spyOn(triggerApi, "setTriggerEnabled")
+      .mockResolvedValue(aTrigger({ enabled: false }));
+
+    show();
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Pause" }));
+
+    await waitFor(() => expect(paused).toHaveBeenCalledWith("trg-1", false, expect.any(String)));
+  });
+});

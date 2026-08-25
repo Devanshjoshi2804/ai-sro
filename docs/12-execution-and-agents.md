@@ -615,6 +615,17 @@ that must resolve to an objective key we already know and parameters the skill
 already declares. An utterance that resolves to nothing is a question back to
 the operator, not an improvised call.
 
+### Where a trigger comes from
+
+The console's **Triggers** screen. Three permissions, three checkboxes,
+deliberately not one switch: standing behind the runs a schedule will start,
+sending its writes without asking, and bringing a tab to the front are three
+different things to regret at three in the morning. All three are off unless
+somebody says otherwise, and the name on the first comes from the credential
+rather than from a field anybody can type into.
+
+Pausing removes the schedule rather than letting it fire into a check.
+
 ## Generated workflows
 
 A skill induced from two demonstrations cites them: which recordings, who

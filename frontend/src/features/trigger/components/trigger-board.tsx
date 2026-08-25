@@ -200,7 +200,7 @@ function NewTrigger({
   onCreated,
   onError,
 }: {
-  skills: { id: string; name: string }[];
+  skills: { id: string; name: string; systems?: string[] }[];
   devices: DeviceModel[];
   onCreated: () => void;
   onError: (error: unknown) => void;
@@ -216,6 +216,10 @@ function NewTrigger({
     Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   );
   const [deviceId, setDeviceId] = useState("");
+  // A skill that touches two systems runs only in a browser signed in to both,
+  // so a schedule with no browser named would refuse at every fire -- and a
+  // schedule that never runs is worse than one that was never made.
+  const crosses = (skills.find((skill) => skill.id === skillId)?.systems ?? []).length > 1;
   const [authorized, setAuthorized] = useState(false);
   const [autoApprove, setAutoApprove] = useState(false);
   const [mayTakeFocus, setMayTakeFocus] = useState(false);
@@ -251,7 +255,11 @@ function NewTrigger({
             // A run in somebody's browser drives the interface; one on the
             // server replays the calls. Naming a device and asking for network
             // replay would be asking a laptop to do what needs no laptop.
-            medium: deviceId ? "ui" : "network",
+            // A run in somebody's browser drives the interface; one on the
+            // server replays the calls. A workflow is the exception on
+            // purpose: its steps are calls, and what the browser is there for
+            // is the session each system's tab already holds.
+            medium: deviceId && !crosses ? "ui" : "network",
             device_id: deviceId || null,
             cron,
             timezone,
@@ -369,7 +377,9 @@ function NewTrigger({
               if (!event.target.value) setMayTakeFocus(false);
             }}
           >
-            <option value="">on the server, as calls</option>
+            <option value="" disabled={crosses}>
+              on the server, as calls
+            </option>
             {devices.map((device) => (
               <option key={device.id} value={device.id}>
                 in {device.label}&apos;s browser
@@ -377,9 +387,9 @@ function NewTrigger({
             ))}
           </select>
           <p className="text-muted-foreground text-xs">
-            A run in somebody&apos;s own browser carries their session, and
-            happens only while that browser is connected — a property of a
-            laptop rather than a fault.
+            {crosses
+              ? "This skill works across two systems, so it runs in a browser signed in to both — the server holds credentials for one of them at most."
+              : "A run in somebody's own browser carries their session, and happens only while that browser is connected — a property of a laptop rather than a fault."}
           </p>
         </div>
 
@@ -414,7 +424,10 @@ function NewTrigger({
         />
 
         <div>
-          <Button type="submit" disabled={!skillId || !cron || create.isPending}>
+          <Button
+            type="submit"
+            disabled={!skillId || !cron || create.isPending || (crosses && !deviceId)}
+          >
             Schedule it
           </Button>
         </div>

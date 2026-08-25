@@ -254,7 +254,35 @@ function suggestion(candidate, join) {
     : `${what} — ${join.because}`;
   holder.append(said);
 
-  if (join.answered) return holder;
+  if (join.answered) {
+    // The only answer anything can act on. `same` about a workflow means the
+    // two are one job done in two systems -- which no single candidate can
+    // represent, so until this button existed the answer changed nothing.
+    if (join.kind === "workflow" && join.answered === "same") {
+      const merge = document.createElement("button");
+      merge.type = "button";
+      merge.textContent = "Teach as one";
+      merge.addEventListener("click", async () => {
+        merge.disabled = true;
+        try {
+          const answer = await ask({
+            kind: "teach-together",
+            id: candidate.id,
+            otherId: join.other_id,
+          });
+          said.textContent = answer.needs_demonstration
+            ? answer.because || "the evidence for the two halves was too thin"
+            : "learned as one skill";
+          await here();
+        } catch (error) {
+          said.textContent = error.message;
+          merge.disabled = false;
+        }
+      });
+      holder.append(merge);
+    }
+    return holder;
+  }
 
   const actions = document.createElement("div");
   actions.className = "row";

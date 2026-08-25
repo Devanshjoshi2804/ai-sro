@@ -28,6 +28,7 @@ from sro.application.ports.interpretation import Judgement, Reading, TaskName
 from sro.domain.observation.candidate import (
     CandidateStatus,
     Episode,
+    Join,
     JoinAnswer,
     JoinKind,
     TaskCandidate,
@@ -176,7 +177,7 @@ async def test_a_candidate_nobody_would_be_offered_is_not_named() -> None:
     assert interpreter.named == []
 
 
-async def test_no_interpreter_means_no_proposals_and_no_failure() -> None:
+async def test_no_interpreter_means_no_titles_and_no_failure() -> None:
     """A deployment that may not call a hosted model still mines, still offers
     candidates, still teaches. It gets duller titles."""
     uow = await _world(_candidate("cnd-1", at=_thrice()))
@@ -186,6 +187,57 @@ async def test_no_interpreter_means_no_proposals_and_no_failure() -> None:
 
     assert proposed == type(proposed)()
     assert interpreter.named == []
+
+
+async def test_a_deployment_with_no_model_still_gets_the_suggestion() -> None:
+    """Which two candidates go together is decided by adjacency in the
+    evidence. Only the sentence about it was ever the model's -- and a
+    suggestion nobody can have without paying for a model is a feature that
+    exists for some deployments and not others.
+    """
+    uow = await _world(
+        _candidate("cnd-wms", signature=ADJUST, at=_thrice()),
+        _candidate(
+            "cnd-erp",
+            signature=RECEIVE,
+            host="erp.acme.test",
+            title="Create receipts on erp.acme.test",
+            at=tuple(when + timedelta(minutes=3) for when in _thrice()),
+        ),
+    )
+    interpreter = FakeInterpreter(available=False)
+
+    proposed = await ProposeAboutCandidates(uow, interpreter).execute(CTX)
+
+    assert proposed.joined == 1
+    assert proposed.asked == 0, "nothing was asked of a model that is not there"
+    stored = (await uow.candidates.get(f.TENANT, CandidateId("cnd-wms"))).joins[0]
+    assert stored.kind is JoinKind.WORKFLOW
+    # Said in the plainest words there are, and marked as nobody's opinion: a
+    # reason a person cannot weigh is a question they will not answer.
+    assert stored.by_model is False
+    assert "done one after the other 3 times" in stored.because
+    assert "wms.acme.test, then erp.acme.test" in stored.because
+
+
+async def test_without_a_model_a_pair_a_person_settled_is_still_left_alone() -> None:
+    first = _candidate("cnd-wms", signature=ADJUST, at=_thrice())
+    second = _candidate(
+        "cnd-erp",
+        signature=RECEIVE,
+        host="erp.acme.test",
+        title="Create receipts on erp.acme.test",
+        at=tuple(when + timedelta(minutes=3) for when in _thrice()),
+    )
+    first.suggest(Join(other_id=second.id, kind=JoinKind.WORKFLOW, because="they go together"))
+    first.answer(second.id, JoinKind.WORKFLOW, JoinAnswer.DIFFERENT, f.OPERATOR)
+    uow = await _world(first, second)
+
+    proposed = await ProposeAboutCandidates(uow, FakeInterpreter(available=False)).execute(CTX)
+
+    assert proposed.joined == 0
+    stored = (await uow.candidates.get(f.TENANT, CandidateId("cnd-wms"))).joins[0]
+    assert stored.answered is JoinAnswer.DIFFERENT
 
 
 async def test_the_model_is_shown_the_shape_of_the_task_and_no_payloads() -> None:

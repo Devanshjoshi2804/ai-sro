@@ -20,13 +20,22 @@ export const getRun = (id: string) => api.get<RunModel>(`/v1/runs/${id}`);
 export const startRun = (
   skillId: string,
   parameters: Record<string, string>,
-  options: { authorizedBy?: string; medium?: "network" | "ui" | "vision"; version?: number } = {},
+  options: {
+    authorizedBy?: string;
+    medium?: "network" | "ui" | "vision";
+    version?: number;
+    /** Whose browser it goes out of. A skill that touches two systems has no
+     * other way to run: the deployment holds one system's credentials at most,
+     * and the operator's own Chrome is signed in to both. */
+    deviceId?: string | null;
+  } = {},
 ) =>
   api.post<RunModel>(`/v1/skills/${skillId}/runs`, {
     parameters,
     authorized_by: options.authorizedBy ?? null,
     medium: options.medium ?? "network",
     version: options.version ?? null,
+    device_id: options.deviceId ?? null,
   });
 
 export type BatchResult = Schemas["BatchResultModel"];

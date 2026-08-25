@@ -417,6 +417,12 @@ class SkillSummary(BaseModel):
     """What the latest version does. Carried on the list because this is what a
     request is matched against, and a list that hides it hides the skill."""
 
+    systems: list[str]
+    """Every system the latest version touches. More than one means it runs only
+    in a browser signed in to all of them, which a screen offering to put it on
+    a clock has to know before it offers."""
+
+
     @classmethod
     def of(cls, skill: Skill) -> SkillSummary:
         latest = skill.versions[-1] if skill.versions else None
@@ -434,6 +440,7 @@ class SkillSummary(BaseModel):
             latest_version=latest.version if latest else 0,
             latest_stage=latest.stage.value if latest else "recorded",
             summary=latest.summary if latest else "",
+            systems=list(latest.systems) if latest else [],
         )
 
 
@@ -517,6 +524,14 @@ class SkillVersionModel(BaseModel):
     steps: list[StepModel]
     parameters: list[ParameterModel]
 
+    systems: list[str]
+    """Every system this version touches.
+
+    More than one means a workflow: it runs in a browser signed in to all of
+    them, so a caller that cannot name a device cannot run it at all. Said here
+    because otherwise no screen can tell one from an ordinary skill until the
+    backend refuses the run."""
+
     @classmethod
     def of(cls, version: SkillVersion) -> SkillVersionModel:
         return cls(
@@ -539,6 +554,7 @@ class SkillVersionModel(BaseModel):
             induced_by=version.provenance.induced_by.value,
             recording_ids=[r.value for r in version.provenance.recording_ids],
             provenance_note=version.provenance.note,
+            systems=list(version.systems),
             steps=[
                 StepModel(
                     index=step.index,
@@ -1421,6 +1437,23 @@ class TaughtModel(BaseModel):
     tree and only the response bodies the page could see, so some tasks cannot
     be induced from it -- and being told which, and why, is better than a skill
     nobody can trust."""
+
+
+class TeachTogetherRequest(BaseModel):
+    """The other half of a job a person has said is one job."""
+
+    other_id: str
+
+
+class TaughtTogetherModel(BaseModel):
+    """One skill out of two candidates. Both ids, because both were spent."""
+
+    first_id: str
+    second_id: str
+    recording_ids: list[str]
+    skill_id: str | None
+    needs_demonstration: bool
+    because: str | None
 
 
 class MinedModel(BaseModel):

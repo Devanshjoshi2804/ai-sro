@@ -1589,6 +1589,42 @@ def test_a_suggestion_the_panel_shows_is_one_a_person_can_answer(
     assert "said so" in after, f"the row is still asking a question somebody answered: {after!r}"
 
 
+def test_an_answered_workflow_is_something_the_panel_can_act_on(
+    browser: Any, stub: Any, merged: list[dict[str, Any]]
+) -> None:
+    """The half `docs/15` deliberately left out.
+
+    A model notices that two candidates are two halves of one job, a person
+    says yes -- and until this button, that answer changed nothing: an episode
+    breaks on a host change, so nothing in the miner can ever produce the pair
+    as one candidate.
+    """
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    system = browser.new_page()
+    system.goto(api_url)
+    panel = _panel(browser, worker)
+
+    row = panel.locator("#candidates li").first
+    row.wait_for(timeout=15_000)
+    assert "one job with another task" in row.text_content(), (
+        "the answered workflow is not shown at all"
+    )
+
+    row.get_by_role("button", name="Teach as one").click()
+    panel.wait_for_timeout(1500)
+    panel.close()
+    system.close()
+
+    assert merged, "the panel offered the button and asked nothing"
+    # This candidate and the one the person said it goes with -- never the
+    # unanswered variant suggestion sitting on the same row.
+    assert "cnd-here" in merged[0]["path"]
+    assert merged[0]["other_id"] == "cnd-elsewhere"
+
+
 def test_a_demonstration_bigger_than_one_batch_is_uploaded_whole(
     browser: Any, stub: Any, demonstrations: tuple[list[str], list[str]]
 ) -> None:

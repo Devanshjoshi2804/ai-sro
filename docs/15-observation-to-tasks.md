@@ -109,6 +109,15 @@ nothing. This is the one place the system can see a workflow that no single
 system's traffic contains, and it is the one place a model is genuinely better
 than a rule.
 
+**The suggestion does not depend on the model.** Which two candidates go
+together is adjacency in the evidence; only the sentence about it was ever the
+model's. A deployment with no interpreter still gets the pair, with the reason
+said plainly — *"done one after the other 3 times — wms.acme.test, then
+erp.acme.test"* — and `by_model` false on it. Without that, a person in a
+deployment that may not call a hosted model could never be asked the question,
+and so could never teach a workflow at all: the feature would exist only for
+whoever pays for a model.
+
 ---
 
 ## Why not let one large reasoning model do all of it
@@ -170,13 +179,15 @@ merges on it. Once they have, it is a fact with their name on it.
 | Answer | Kind | What happens |
 |---|---|---|
 | `same` | variant | The other candidate is **dismissed as a duplicate**, naming this one. Kept rather than deleted, like every dismissal, so the miner does not offer it again next week as though it were new. |
-| `same` | workflow | Recorded, and nothing else. Two candidates in two systems being one job is a shape nothing here can represent yet, and a fact recorded honestly beats a merge that would have to be undone. |
+| `same` | workflow | Recorded, and it unlocks **Teach as one** on both surfaces: `POST /v1/candidates/{id}/teach-together` builds one skill out of the pair. Each time the operator did both halves in a row is one demonstration of the whole job, and two of those are what the two-run diff compares -- never the two candidates against each other, which would call the difference between a WMS call and an ERP call a parameter. See `docs/superpowers/specs/2026-08-25-cross-system-workflow-design.md`. |
 | `different` | either | Recorded. Both candidates carry on exactly as they were. |
 
 **A model never overrules an answer.** `suggest()` leaves an answered pair
 alone, and the sweep skips it before spending a call — so a question somebody
 took off their screen does not come back next week wearing a new sentence.
 
-Merging is still not a thing this does. Two signatures do not merge into a third
-that neither was: the duplicate is dismissed, which is a decision about a
-candidate rather than an edit to what a candidate is.
+Candidates still do not merge into each other. Two signatures do not become a
+third that neither was: a duplicate is dismissed, and a workflow's two halves
+are spent on one *skill* while both candidates stay exactly what they were and
+are marked `taught` with its id. Both are decisions about candidates rather than
+edits to what a candidate is.

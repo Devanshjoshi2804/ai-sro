@@ -343,6 +343,8 @@ async function handle(message, sender) {
       return api.candidates(message.host);
     case "teach-candidate":
       return api.teachCandidate(message.id);
+    case "teach-together":
+      return api.teachTogether(message.id, message.otherId);
     case "answer-join":
       return api.answerJoin(message.id, message.otherId, message.joinKind, message.answer);
     case "dismiss-candidate":

@@ -16,6 +16,8 @@ from sro.interface.http.schemas import (
     MinedModel,
     TaskCandidateModel,
     TaughtModel,
+    TaughtTogetherModel,
+    TeachTogetherRequest,
 )
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
@@ -91,6 +93,35 @@ async def teach_candidate(
     return TaughtModel(
         candidate_id=taught.candidate_id.value,
         recording_id=taught.recording_id.value if taught.recording_id else None,
+        skill_id=taught.skill_id.value if taught.skill_id else None,
+        needs_demonstration=taught.needs_demonstration,
+        because=taught.because,
+    )
+
+
+@router.post("/{candidate_id}/teach-together", status_code=status.HTTP_202_ACCEPTED)
+async def teach_together(
+    candidate_id: str,
+    body: TeachTogetherRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+) -> TaughtTogetherModel:
+    """One skill from the two candidates a person has said are one job.
+
+    Each time the operator did both halves in a row is one demonstration of the
+    whole thing, and two of those are what the induction diffs -- never the two
+    candidates against each other, which would compare the WMS half with the ERP
+    half and call the difference a parameter.
+    """
+    taught = await container.teach_workflow().execute(
+        ctx,
+        first_id=CandidateId(candidate_id),
+        second_id=CandidateId(body.other_id),
+    )
+    return TaughtTogetherModel(
+        first_id=taught.first_id.value,
+        second_id=taught.second_id.value,
+        recording_ids=[recording.value for recording in taught.recording_ids],
         skill_id=taught.skill_id.value if taught.skill_id else None,
         needs_demonstration=taught.needs_demonstration,
         because=taught.because,

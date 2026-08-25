@@ -73,7 +73,12 @@ from sro.application.observation.register import (
     RegisterDevice,
 )
 from sro.application.observation.retain import SweepRetention
-from sro.application.observation.teach import DismissCandidate, ReadCandidates, TeachCandidate
+from sro.application.observation.teach import (
+    DismissCandidate,
+    ReadCandidates,
+    TeachCandidate,
+    TeachWorkflow,
+)
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.auth import Credentials
 from sro.application.ports.blob import BlobStore
@@ -222,6 +227,19 @@ class Container:
     def teach_candidate(self) -> TeachCandidate:
         return TeachCandidate(
             self.unit_of_work(), self.blobs, self.clock, self.ids, self.understand_recording()
+        )
+
+    def teach_workflow(self) -> TeachWorkflow:
+        """Two candidates as one skill. The pair diffed is two occurrences of
+        the whole job, so this goes through the two-run induction rather than
+        the single-demonstration reading a lone candidate gets."""
+        return TeachWorkflow(
+            self.unit_of_work(),
+            self.blobs,
+            self.clock,
+            self.ids,
+            self.induce_skill(),
+            self.interpreter,
         )
 
     def dismiss_candidate(self) -> DismissCandidate:

@@ -26,6 +26,7 @@ from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.observation.candidate import (
     CandidateStatus,
+    Episode,
     Join,
     JoinAnswer,
     JoinKind,
@@ -69,18 +70,18 @@ class ProposeAboutCandidates:
         self._interpreter = interpreter
 
     async def execute(self, ctx: RequestContext) -> Proposed:
-        if not self._interpreter.available:
-            # A deployment that may not call a hosted model still mines, still
-            # offers candidates, still teaches. It gets duller titles.
-            return Proposed()
-
         async with self._uow as uow:
             candidates = await uow.candidates.list_for_tenant(
                 ctx.tenant_id, status=CandidateStatus.NEW
             )
 
         worth = [candidate for candidate in candidates if candidate.worth_offering]
-        named, asked = await self._name(worth)
+        # A deployment that may not call a hosted model still mines, still
+        # offers candidates, still teaches. It gets duller titles -- and duller
+        # reasons, but it still gets the suggestions: which two candidates go
+        # together is decided by adjacency in the evidence, and only the
+        # sentence about it was ever the model's.
+        named, asked = await self._name(worth) if self._interpreter.available else (0, 0)
         joined, asked_again = await self._join(worth)
         return Proposed(named=named, joined=joined, asked=asked + asked_again)
 
@@ -125,16 +126,26 @@ class ProposeAboutCandidates:
 
         joined = asked = 0
         for kind, first, second in pairs:
-            asked += 1
-            judgement = await self._interpreter.judge_join(
-                kind.value, _describe(first), _describe(second)
-            )
-            if not judgement.joined or not judgement.because.strip():
-                continue
+            if self._interpreter.available:
+                asked += 1
+                judgement = await self._interpreter.judge_join(
+                    kind.value, _describe(first), _describe(second)
+                )
+                if not judgement.joined or not judgement.because.strip():
+                    continue
+                because, by_model = judgement.because, True
+            else:
+                # What the evidence says, in the plainest words there are. The
+                # model reads a pair better than a rule does and is why this
+                # asks it where it can -- but a suggestion nobody can make
+                # without one is a feature that exists only for deployments
+                # that pay for a model, and the pairing was never the model's
+                # decision to make.
+                because, by_model = _plainly(kind, first, second), False
             # On both, because a suggestion visible from only one of two
             # candidates is a suggestion half the people who look will miss.
-            first.suggest(Join(other_id=second.id, kind=kind, because=judgement.because))
-            second.suggest(Join(other_id=first.id, kind=kind, because=judgement.because))
+            first.suggest(Join(other_id=second.id, kind=kind, because=because, by_model=by_model))
+            second.suggest(Join(other_id=first.id, kind=kind, because=because, by_model=by_model))
             async with self._uow as uow:
                 await uow.candidates.save(first)
                 await uow.candidates.save(second)
@@ -246,14 +257,43 @@ def _settled(first: TaskCandidate, second: TaskCandidate, kind: JoinKind) -> boo
 _UNANSWERED = Join(other_id=CandidateId("none"), kind=JoinKind.VARIANT, because="not asked")
 
 
-def _followed(first: TaskCandidate, second: TaskCandidate) -> int:
-    """How often an episode of `second` began just as one of `first` ended."""
-    return sum(
-        1
+def occurrences(first: TaskCandidate, second: TaskCandidate) -> list[tuple[Episode, Episode]]:
+    """Each time an episode of `second` began just as one of `first` ended.
+
+    The pairs themselves, because teaching the two candidates as one skill needs
+    the halves that actually belong together: two doings a fortnight apart are
+    two doings, and reading one window across both would sweep up whatever the
+    operator did in between.
+
+    Oldest first, which is how episodes are stored; the caller takes from the
+    end when it wants the freshest.
+    """
+    return [
+        (earlier, later)
         for earlier in first.episodes
         for later in second.episodes
         if timedelta(0) <= later.started_at - earlier.ended_at <= TOGETHER_WITHIN
-    )
+    ]
+
+
+def _followed(first: TaskCandidate, second: TaskCandidate) -> int:
+    """How often an episode of `second` began just as one of `first` ended."""
+    return len(occurrences(first, second))
+
+
+def _plainly(kind: JoinKind, first: TaskCandidate, second: TaskCandidate) -> str:
+    """The reason, when nothing was asked to write one.
+
+    Says what was counted, so a person can weigh it: a suggestion whose reason
+    is "the system thinks so" is one nobody can answer.
+    """
+    if kind is JoinKind.WORKFLOW:
+        forwards, backwards = occurrences(first, second), occurrences(second, first)
+        times = max(len(forwards), len(backwards))
+        order = (first, second) if len(forwards) >= len(backwards) else (second, first)
+        return f"done one after the other {times} times -- {order[0].host}, then {order[1].host}"
+    steps = len(set(first.signature.split(" → ")) & set(second.signature.split(" → ")))
+    return f"{steps} of their steps are the same call"
 
 
 def _overlap(first: str, second: str) -> float:

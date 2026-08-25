@@ -81,6 +81,14 @@ export const api = {
   teachCandidate: (id) =>
     call(`/v1/candidates/${encodeURIComponent(id)}/teach`, { method: "POST", body: {} }),
 
+  /** Two candidates a person has said are one job, taught as one skill. Each
+   * time the operator did both halves in a row is one demonstration of it. */
+  teachTogether: (id, otherId) =>
+    call(`/v1/candidates/${encodeURIComponent(id)}/teach-together`, {
+      method: "POST",
+      body: { other_id: otherId },
+    }),
+
   /** What a person says two candidates are to each other. The model may only
    * ever have suggested it. */
   answerJoin: (id, otherId, kind, answer) =>

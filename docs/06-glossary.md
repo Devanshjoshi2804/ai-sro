@@ -181,6 +181,22 @@ evidence. Teaching a candidate materialises a recording from its best episode an
 hands it to induction. A candidate is a proposal to an operator, never something
 the system acts on by itself.
 
+## Cross-system workflow
+
+`application/observation/teach.py`, `domain/skill/skill.py`
+
+One skill whose steps call more than one system — "check the WMS, then record the
+receipt in the ERP". It is never one task candidate, because an episode breaks on
+a host change; it exists only where a person answered `same` to a `workflow`
+join, and teaching it builds one demonstration per *occurrence* of the two halves
+done in a row. `SkillVersion.systems` names every system it touches, which is
+what makes both breakers apply to it and what binds it to a browser: the
+deployment holds credentials for one of those systems at most.
+
+Not to be confused with a **Temporal workflow**, which is a durable execution and
+has nothing to do with this. Where both could be meant, say "a workflow across
+systems" or "the durable workflow".
+
 ## Device
 
 `domain/observation/device.py`

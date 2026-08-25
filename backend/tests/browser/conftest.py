@@ -147,7 +147,17 @@ _CANDIDATES = [
                 "by_model": True,
                 "answered": None,
                 "answered_by": None,
-            }
+            },
+            {
+                # Already answered, and by a person: the one state anything is
+                # allowed to act on.
+                "other_id": "cnd-elsewhere",
+                "kind": "workflow",
+                "because": "the receipt is always written straight after",
+                "by_model": True,
+                "answered": "same",
+                "answered_by": "you",
+            },
         ],
         "episodes": [],
     },
@@ -202,6 +212,7 @@ class _Stub(BaseHTTPRequestHandler):
     purges: ClassVar[list[str]] = []
     candidate_queries: ClassVar[list[str]] = []
     answered_joins: ClassVar[list[dict[str, Any]]] = []
+    merged: ClassVar[list[dict[str, Any]]] = []
     recordings: ClassVar[list[str]] = []
     sealed: ClassVar[list[str]] = []
     """Answer this many artifact uploads with a 503 before taking any. A lost
@@ -369,6 +380,23 @@ class _Stub(BaseHTTPRequestHandler):
                 ).encode(),
             )
             return
+        if self.path.endswith("/teach-together"):
+            asked = json.loads(raw)
+            _Stub.merged.append({"path": self.path, **asked})
+            self._send(
+                202,
+                json.dumps(
+                    {
+                        "first_id": self.path.split("/")[3],
+                        "second_id": asked["other_id"],
+                        "recording_ids": ["rec-1", "rec-2"],
+                        "skill_id": "skl-merged",
+                        "needs_demonstration": False,
+                        "because": None,
+                    }
+                ).encode(),
+            )
+            return
         if self.path.endswith("/joins"):
             asked = json.loads(raw)
             _Stub.answered_joins.append({"path": self.path, **asked})
@@ -446,6 +474,7 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.purges = []
     _Stub.candidate_queries = []
     _Stub.answered_joins = []
+    _Stub.merged = []
     _CANDIDATES[0]["joins"][0].update(answered=None, answered_by=None)
     _Stub.recordings = []
     _Stub.sealed = []
@@ -482,6 +511,12 @@ def demonstrations(stub: tuple[str, list[dict[str, Any]]]) -> tuple[list[str], l
 def candidate_queries(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
     """The `/v1/candidates` requests the panel made, as sent."""
     return _Stub.candidate_queries
+
+
+@pytest.fixture
+def merged(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """The pairs the panel asked to have taught as one skill."""
+    return _Stub.merged
 
 
 @pytest.fixture

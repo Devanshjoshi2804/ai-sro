@@ -79,8 +79,11 @@ as `teach.py` does today — which would name whichever half happened first.
 intersected with the words on the controls the operator clicked; that call's
 host is `target_system`, and every distinct host becomes `systems`.
 
-**The name is derived**: both candidate titles joined — *"Adjust an LPN
-quantity, then record the receipt"*. No model call.
+**The name comes from the model**, over both halves' shapes — the one thing
+`docs/15` says a model is unambiguously better at, and neither half's title
+describes the job. Nothing about identity rests on it: the objective key is
+decided from the evidence before the question is asked, and an empty answer
+falls back to the two titles joined.
 
 **Thin evidence degrades, it does not fail.** One usable occurrence means
 single-demonstration induction with the reading marked as a model's, exactly as
@@ -104,10 +107,35 @@ credential references that name a system — `blue_yonder/SG/cookie` — and
 reference names that system. In a workflow, a step calling the ERP with a header
 resolved from the WMS's stored cookie would send one system's live session to
 another: silent, credential-shaped, and exactly the kind of thing that is
-discovered by somebody else. **A resolved header is attached only when the
-credential it references names the host the call is going to**; anything else is
-dropped with a reason recorded on the step. In a device run the browser supplies
-the real session, so this costs nothing.
+discovered by somebody else.
+
+*Corrected during implementation.* The rule as written — attach a resolved
+header only when its credential names the host being called — was both
+unimplementable where it was placed and too narrow. `resolve_headers` has no URL
+and no system-to-host map, so it cannot judge that; and the reference on a
+header plan is only one of four credential-shaped things keyed to the version's
+system. The bearer, the minted CSRF token and the live referer are all looked up
+under `session_scope`, which was `<target_system>/<facility>` for every step of
+the run. Dropping headers would also leave the second half unauthenticated
+rather than merely un-leaked.
+
+**So `session_scope` is decided per call, from the system the call is going to.**
+`system_of(connections, url)` after the URL is rendered, falling back to the
+skill's own system where nobody has connected that host — `None` means fall
+back, never drop, because a device run against a system this deployment holds no
+credentials for is the whole point of naming a device. That one move fixes the
+bearer, the token and the referer together, and it is the only version in which
+the second half can authenticate at all. The header plan's own reference obeys
+it too: where the reference names a different system from the calling one, the
+calling system's key is used and there is no fall back to the reference — that
+would leak the same cookie by the other door. A credential the deployment does
+not hold then stops the step with `no live value for …` — except on a device
+run, which is every workflow: the browser is the session there, `Cookie` is a
+forbidden header for `fetch`, and the resolved value is dropped on the way out
+(proved in Chrome). Requiring it refused the one case naming a device exists
+for. What still travels from a browser is the bearer, and that is why an
+unconnected host in a workflow resolves under its own name instead of falling
+back to the skill's.
 
 | Situation | What happens |
 |---|---|
@@ -115,6 +143,18 @@ the real session, so this costs nothing.
 | No tab on one system | `no_tab_for_origin` → `TargetUnreachable` — a browser that could not be reached, never a skill that drifted |
 | Either breaker open | Refused before the first call |
 | First half lands, second fails | The steps that ran are recorded and the run is failed — the same as any step-3-of-5 failure |
+
+**A cross-system skill never takes the durable path.** It follows from
+device-binding and was unstated: `StartRunRequest` carries no `device_id`, so a
+run started by a schedule or a mail relay has no browser, and a version whose
+`systems` has two entries is refused before it starts.
+
+**The breaker is written to as well as read from.** `finished_since` filters on
+`RunRow.target_system`, so a workflow failing in its ERP half is stored as
+`blue_yonder` and would never trip the ERP's breaker — asking every breaker
+while answering only one is half a breaker. The run therefore records every
+system it touches (`Run.systems`, a JSONB column, migration `0020`), and
+`finished_since` matches `target_system == system OR systems @> [system]`.
 
 **There is no rollback.** A workflow that adjusts the WMS and fails to record
 the receipt has changed one system and not the other. The run says so. Anything
@@ -127,7 +167,7 @@ else would be inventing a transaction across two systems that neither offers.
 | A device-less run of a cross-system version is refused | Server-side it would find the second system unauthenticated halfway through a job |
 | Two occurrences whose hosts differ slightly still pair | `systems` lives on the version, not in the key that pairing compares |
 | An open breaker on *either* system refuses it | The reason `systems` exists |
-| A header whose credential names another system is dropped, with a reason | The credential hazard — the first test to write and the last to lose |
+| Each half of a run resolves its own system's session, and a system this deployment holds no credentials for stops the step rather than borrowing another's | The credential hazard — the first test to write and the last to lose |
 | Each step acts in a tab on its own origin | With a per-run origin the ERP half is attempted in the WMS's tab |
 | Two occurrences become two recordings, diffed as a pair | That parameters are proven rather than read |
 | The two halves are never diffed against each other | The failure that looks like success |
@@ -137,13 +177,40 @@ else would be inventing a transaction across two systems that neither offers.
 Plus one browser test: two systems open, a run that acts in both, and each call
 asserted to have gone from the right tab.
 
+**Two things found while implementing this, not caused by it.** A system nobody
+has connected is named from its host — `sap.acme.com` derives `acme`, which is
+also what somebody is likely to have called their WMS connection. Merged, the
+two systems arrive as one name: not a workflow, so no browser required and no
+second breaker, and every credential keyed to the first resolved and sent to the
+second. `systems_touched` now keeps the host as the name where a derived one
+would collide with a connected one. Two hosts of *one* system still merge — a
+portal and its API are not two systems, and splitting them would refuse every
+ordinary skill for want of a browser.
+
+The second: `ProposeAboutCandidates` returned immediately with no interpreter,
+so a deployment without a model got no joins — and therefore no answered
+workflow, and therefore no way to reach any of this. The pairing is adjacency in
+the evidence and never needed a model; only the sentence did. It now stores the
+suggestion either way, with a reason said plainly and `by_model` false.
+
+**What the wire had to say out loud.** `SkillVersionModel.systems` and
+`SkillSummary.systems`, because otherwise no screen can tell a workflow from an
+ordinary skill until the backend refuses the run: the console's card asks which
+browser before offering the button, and the trigger board refuses to make a
+schedule that would be refused at every fire.
+
 ## Deliberately not here
 
 - **Rollback or compensation** — see above.
 - **More than two systems.** `systems` is a tuple and the code would not care,
   but join detection only ever pairs two candidates. A three-system job is two
   joins and nothing can teach it yet.
-- **Unattended cross-system runs** — follows from device-binding.
+- **Cross-system runs with no browser at all** — follows from device-binding.
+  A schedule *may* point a workflow at a connected browser (the trigger board
+  requires one, and sends `medium: network`, because the steps are calls and
+  what the browser is for is the session each system's tab already holds). What
+  cannot happen is the durable path: `StartRunRequest` carries no `device_id`,
+  so a workflow fired with nothing named is refused before it starts.
 - **Reordering or editing merged steps.** The frames come out in the order they
   happened; a screen for rearranging a taught workflow is a bigger feature than
   this one.

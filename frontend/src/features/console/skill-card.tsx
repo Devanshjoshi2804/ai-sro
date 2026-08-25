@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { describeSkill, getSkill, skillKeys, type SkillVersionModel } from "@/features/skill/api";
 import { getRun, runKeys, startRun, type RunModel } from "@/features/run/api";
 import { runInThread, threadKeys } from "@/features/console/chat-api";
+import { listDevices } from "@/features/trigger/api";
 import { useRunStream } from "@/features/run/stream";
 import { ApiError } from "@/lib/api/client";
 import { whoAmI } from "@/lib/api/credential";
@@ -428,6 +429,19 @@ function RunButton({
   const [finished, setFinished] = useState<RunModel | null>(null);
   const [watching, setWatching] = useState<string | null>(null);
   const [given, setGiven] = useState<Record<string, string>>({});
+  // A skill that touches two systems runs in a browser signed in to both. The
+  // deployment holds credentials for one of them at most, so without a device
+  // named here the backend refuses the run -- and a button that is only ever
+  // refused is worse than one that asks first.
+  const crosses = (version.systems ?? []).length > 1;
+  const [device, setDevice] = useState<string>("");
+  const browsers = useQuery({
+    queryKey: ["devices"],
+    queryFn: listDevices,
+    enabled: crosses,
+  });
+  const usable = (browsers.data ?? []).filter((each) => !each.paused);
+  const named = device || (usable.length === 1 ? usable[0].id : "");
   // A run in progress, step by step. The card shows what has happened so far
   // rather than a spinner over what might be happening.
   //
@@ -472,7 +486,7 @@ function RunButton({
       return startRun(
         skillId,
         { ...parameters, ...given },
-        { authorizedBy: "confirmed", version: version.version },
+        { authorizedBy: "confirmed", version: version.version, deviceId: named || null },
       );
     },
     onSuccess: (started) => {
@@ -531,7 +545,8 @@ function RunButton({
     .map((parameter) => parameter.name)
     .filter((name) => !supplied[name]?.trim());
 
-  const blocked = stillMissing.length > 0 || version.stage === "recorded";
+  const blocked =
+    stillMissing.length > 0 || version.stage === "recorded" || (crosses && !named);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
       {missing.length > 0 && (
@@ -578,6 +593,33 @@ function RunButton({
         </div>
       )}
 
+      {crosses && (
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: ink.textMuted }}>
+            Where it runs
+          </span>
+          <select
+            aria-label="Where it runs"
+            value={named}
+            onChange={(event) => setDevice(event.target.value)}
+            style={{ ...inputStyle, fontSize: 12 }}
+          >
+            <option value="">Choose a browser…</option>
+            {usable.map((each) => (
+              <option key={each.id} value={each.id}>
+                {each.label}
+              </option>
+            ))}
+          </select>
+          <span style={{ fontSize: 10.5, color: ink.textMuted }}>
+            {usable.length === 0
+              ? `This works across ${version.systems.join(" and ")}, so it needs a browser ` +
+                "signed in to both — connect one from the extension."
+              : `Goes out of that browser's own session, in ${version.systems.join(" and ")}.`}
+          </span>
+        </label>
+      )}
+
       {/* What will actually be sent, before it is sent. An operator approving
           a write should be approving the request, not a sentence about it. */}
       {!blocked && plan && (
@@ -607,7 +649,9 @@ function RunButton({
             ? `Still needs ${stillMissing.join(", ")}`
             : version.stage === "recorded"
               ? "Nobody has reviewed this yet"
-              : `Runs as ${whoAmI()?.principal ?? "whoever this token belongs to"}`
+              : crosses && !named
+                ? "Name the browser this runs in"
+                : `Runs as ${whoAmI()?.principal ?? "whoever this token belongs to"}`
         }
         style={{
           padding: "6px 12px",

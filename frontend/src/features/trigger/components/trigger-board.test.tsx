@@ -261,3 +261,49 @@ describe("a permission that could not reach anything", () => {
     });
   });
 });
+
+
+describe("a skill that touches two systems", () => {
+  it("cannot be put on a clock with nowhere to run", async () => {
+    // The server holds one system's credentials at most, so this schedule would
+    // be refused at every fire. A trigger that never runs is worse than one
+    // that was never made.
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([
+      { id: "skl-1", name: "Close waves, then record the receipt", systems: ["blue_yonder", "sap"] },
+    ] as never);
+
+    show();
+    const user = userEvent.setup();
+    await screen.findByRole("option", { name: "Close waves, then record the receipt" });
+    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+
+    expect(screen.getByRole("option", { name: "on the server, as calls" })).toBeDisabled();
+    expect(screen.getByText(/signed in to both/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Schedule it" })).toBeDisabled();
+  });
+
+  it("replays its calls out of that browser rather than driving the screen", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([
+      { id: "skl-1", name: "Close waves, then record the receipt", systems: ["blue_yonder", "sap"] },
+    ] as never);
+    const created = vi.spyOn(triggerApi, "createTrigger").mockResolvedValue(aTrigger());
+
+    show();
+    const user = userEvent.setup();
+    await screen.findByRole("option", { name: "Close waves, then record the receipt" });
+    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("Where it runs"), "dev-1");
+    await user.click(screen.getByRole("button", { name: "Schedule it" }));
+
+    await waitFor(() => expect(created).toHaveBeenCalled());
+    // Naming a browser usually means "drive the interface". Here it means the
+    // opposite: the steps are calls, and the browser is there for the session
+    // each system's own tab holds.
+    expect(created.mock.calls[0][0]).toMatchObject({ device_id: "dev-1", medium: "network" });
+  });
+});
+

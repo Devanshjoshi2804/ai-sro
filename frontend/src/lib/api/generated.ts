@@ -254,6 +254,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/candidates/{candidate_id}/teach-together": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Teach Together
+         * @description One skill from the two candidates a person has said are one job.
+         *
+         *     Each time the operator did both halves in a row is one demonstration of the
+         *     whole thing, and two of those are what the induction diffs -- never the two
+         *     candidates against each other, which would compare the WMS half with the ERP
+         *     half and call the difference a parameter.
+         */
+        post: operations["teach_together_v1_candidates__candidate_id__teach_together_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/candidates/{candidate_id}/joins": {
         parameters: {
             query?: never;
@@ -2352,6 +2377,8 @@ export interface components {
             latest_stage: string;
             /** Summary */
             summary: string;
+            /** Systems */
+            systems: string[];
             /** Versions */
             versions: components["schemas"]["SkillVersionModel"][];
         };
@@ -2373,6 +2400,8 @@ export interface components {
             latest_stage: string;
             /** Summary */
             summary: string;
+            /** Systems */
+            systems: string[];
         };
         /** SkillVersionModel */
         SkillVersionModel: {
@@ -2404,6 +2433,8 @@ export interface components {
             steps: components["schemas"]["StepModel"][];
             /** Parameters */
             parameters: components["schemas"]["ParameterModel"][];
+            /** Systems */
+            systems: string[];
         };
         /** StartRecordingRequest */
         StartRecordingRequest: {
@@ -2613,6 +2644,32 @@ export interface components {
             clean_streak: number;
             /** Proposed Parameters */
             proposed_parameters: number;
+        };
+        /**
+         * TaughtTogetherModel
+         * @description One skill out of two candidates. Both ids, because both were spent.
+         */
+        TaughtTogetherModel: {
+            /** First Id */
+            first_id: string;
+            /** Second Id */
+            second_id: string;
+            /** Recording Ids */
+            recording_ids: string[];
+            /** Skill Id */
+            skill_id: string | null;
+            /** Needs Demonstration */
+            needs_demonstration: boolean;
+            /** Because */
+            because: string | null;
+        };
+        /**
+         * TeachTogetherRequest
+         * @description The other half of a job a person has said is one job.
+         */
+        TeachTogetherRequest: {
+            /** Other Id */
+            other_id: string;
         };
         /** ThreadDetail */
         ThreadDetail: {
@@ -3952,6 +4009,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaughtModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    teach_together_v1_candidates__candidate_id__teach_together_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeachTogetherRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaughtTogetherModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

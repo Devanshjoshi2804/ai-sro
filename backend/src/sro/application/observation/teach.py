@@ -28,11 +28,20 @@ from sro.application.capture.events import CaptureEvent, InputEvent, RequestEven
 from sro.application.capture.identity import derive_objective_key
 from sro.application.context import RequestContext
 from sro.application.induction.errors import InductionFailed
+from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.understand import UnderstandRecording
+from sro.application.observation.propose import occurrences
 from sro.application.ports.blob import BlobStore
+from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.domain.observation.candidate import CandidateStatus, Episode, TaskCandidate
+from sro.domain.observation.candidate import (
+    CandidateStatus,
+    Episode,
+    JoinAnswer,
+    JoinKind,
+    TaskCandidate,
+)
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import CandidateId, RecordingId, SkillId
@@ -167,6 +176,222 @@ class TeachCandidate:
                     continue
                 events.extend(_within(payload, episode))
         return iter(events)
+
+
+@dataclass(frozen=True, slots=True)
+class TaughtTogether:
+    """One skill from two candidates. Both ids, because both were spent."""
+
+    first_id: CandidateId
+    second_id: CandidateId
+    recording_ids: tuple[RecordingId, ...] = ()
+    skill_id: SkillId | None = None
+    needs_demonstration: bool = False
+    because: str | None = None
+
+
+class TeachWorkflow:
+    """Two candidates a person has said are one job, taught as one skill.
+
+    An episode breaks on a host change, so "check the WMS, then record it in the
+    ERP" is two candidates and always will be. What makes it teachable is that
+    the operator did both halves together more than once: each of those
+    occurrences is one demonstration of the whole job, and two of them are the
+    pair induction wants. The two candidates are never diffed against each
+    other -- that would compare the WMS half with the ERP half and call the
+    difference a parameter.
+    """
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        blobs: BlobStore,
+        clock: Clock,
+        ids: IdFactory,
+        induce: InduceSkill,
+        interpreter: WorkflowInterpreter | None = None,
+    ) -> None:
+        self._uow = uow
+        self._blobs = blobs
+        self._clock = clock
+        self._ids = ids
+        self._induce = induce
+        self._interpreter = interpreter
+
+    async def execute(
+        self, ctx: RequestContext, *, first_id: CandidateId, second_id: CandidateId
+    ) -> TaughtTogether:
+        async with self._uow as uow:
+            first = await uow.candidates.get(ctx.tenant_id, first_id)
+            second = await uow.candidates.get(ctx.tenant_id, second_id)
+
+        for candidate in (first, second):
+            if candidate.status is CandidateStatus.TAUGHT:
+                # Named, because "already taught" with no skill to go and look
+                # at reads as a bug, and the person is one click from what they
+                # were trying to make.
+                raise NothingToTeach(f"{candidate.title} is already a skill ({candidate.skill_id})")
+            if candidate.status is not CandidateStatus.NEW:
+                raise NothingToTeach(f"this candidate is already {candidate.status}")
+
+        if _said_different(first, second) or _said_different(second, first):
+            raise NothingToTeach("somebody has already said these two are different work")
+
+        # Direction is part of the job: recording a receipt and then checking
+        # stock is a different task from checking stock and then recording it,
+        # and the miner counts both ways before it decides the pair is worth
+        # suggesting at all.
+        pairs = occurrences(first, second)
+        other = occurrences(second, first)
+        if len(other) > len(pairs):
+            pairs = other
+
+        # Freshest first: the screens move, and the most recent doing is the one
+        # most likely to still find its controls.
+        #
+        # No episode twice. One doing of the WMS half followed by two doings of
+        # the ERP half is two adjacent pairs and one occurrence: handing both to
+        # induction would diff a recording against itself on one side, so every
+        # value the operator typed in the WMS half would be proved constant by
+        # evidence that is literally the same bytes.
+        recordings: list[Recording] = []
+        spent: set[Episode] = set()
+        for earlier, later in reversed(pairs):
+            if earlier in spent or later in spent:
+                continue
+            spent.update((earlier, later))
+            recording = await self._demonstration(ctx, first, second, earlier, later)
+            if recording is not None:
+                recordings.append(recording)
+            if len(recordings) == 2:
+                break
+
+        if not recordings:
+            return TaughtTogether(
+                first_id=first_id,
+                second_id=second_id,
+                needs_demonstration=True,
+                because="the evidence for the two halves together has aged out "
+                "or was never enough to replay",
+            )
+
+        async with self._uow as uow:
+            for recording in recordings:
+                await uow.recordings.add(recording)
+            await uow.commit()
+
+        name = await self._name(first, second)
+        try:
+            induced = await self._induce.execute(
+                ctx,
+                first=recordings[0].id,
+                second=recordings[1].id if len(recordings) > 1 else None,
+                name=name,
+            )
+        except InductionFailed as thin:
+            # Kept, as a single teach keeps its recording: two halves that will
+            # not induce are still the evidence a deliberate demonstration gets
+            # diffed against.
+            return TaughtTogether(
+                first_id=first_id,
+                second_id=second_id,
+                recording_ids=tuple(recording.id for recording in recordings),
+                needs_demonstration=True,
+                because=str(thin),
+            )
+
+        async with self._uow as uow:
+            for candidate_id in (first_id, second_id):
+                candidate = await uow.candidates.get(ctx.tenant_id, candidate_id)
+                candidate.taught(induced.skill_id)
+                await uow.candidates.save(candidate)
+            await uow.commit()
+
+        return TaughtTogether(
+            first_id=first_id,
+            second_id=second_id,
+            recording_ids=tuple(recording.id for recording in recordings),
+            skill_id=induced.skill_id,
+        )
+
+    async def _demonstration(
+        self,
+        ctx: RequestContext,
+        first: TaskCandidate,
+        second: TaskCandidate,
+        earlier: Episode,
+        later: Episode,
+    ) -> Recording | None:
+        """One occurrence of the whole job, as one recording.
+
+        Each episode read on its own and the events concatenated, never one
+        window across both: the gap between the halves is where the operator
+        answered an email.
+        """
+        events = list(await self._evidence(ctx, earlier))
+        events.extend(await self._evidence(ctx, later))
+        assembled = assemble_frames(events)
+        if not assembled.frames:
+            return None
+
+        recording = Recording(
+            id=self._ids.new_recording_id(),
+            tenant_id=ctx.tenant_id,
+            demonstrator=first.principal_id,
+            started_at=earlier.started_at,
+            label=f"{first.title} and then {second.title}",
+        )
+        for frame in assembled.frames:
+            recording.append_frame(frame)
+
+        # No `system=`: the candidate's host would name whichever half happened
+        # to come first, and the key is what pairs the two occurrences with each
+        # other. Derived from the frames, both occurrences answer the same.
+        objective = derive_objective_key(recording.frames)
+        if objective is None:
+            return None
+        recording.name_objective(objective)
+        recording.seal(self._clock.now())
+        return recording
+
+    async def _name(self, first: TaskCandidate, second: TaskCandidate) -> str:
+        """What to call the merged skill.
+
+        The model's, because neither half's title describes the job: "Update
+        adjust on wms" and "Create receipts on erp" are two sentences about one
+        piece of work. Nothing about identity rests on it -- the objective key
+        is already decided by then.
+        """
+        plain = f"{first.title} and then {second.title}"
+        if self._interpreter is None or not self._interpreter.available:
+            return plain
+        answer = await self._interpreter.name_task(
+            f"one job done across two systems, in this order:\n"
+            f"first, on {first.host}: {first.title}\n"
+            f"  steps: {first.signature}\n"
+            f"then, on {second.host}: {second.title}\n"
+            f"  steps: {second.signature}"
+        )
+        return answer.title.strip() or plain
+
+    async def _evidence(self, ctx: RequestContext, episode: Episode) -> Sequence[CaptureEvent]:
+        events: list[CaptureEvent] = []
+        async with self._uow as uow:
+            for batch_id in episode.batch_ids:
+                batch = await uow.observations.get(ctx.tenant_id, batch_id)
+                if batch is None:
+                    continue
+                try:
+                    payload = await self._blobs.read(batch.uri)
+                except (KeyError, OSError):
+                    continue
+                events.extend(_within(payload, episode))
+        return events
+
+
+def _said_different(candidate: TaskCandidate, other: TaskCandidate) -> bool:
+    join = candidate.join_with(other.id, JoinKind.WORKFLOW)
+    return join is not None and join.answered is JoinAnswer.DIFFERENT
 
 
 class DismissCandidate:

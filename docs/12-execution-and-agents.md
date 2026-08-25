@@ -111,6 +111,23 @@ every step, not only the writing ones — whether a step writes is knowable only
 after it has been built, and a read losing a retry costs less than a write
 gaining one.
 
+**Every rung is verified against the evidence it can see.** At L1 the
+demonstration's post-conditions are checked against what the system answered. At
+L2 and L3 they were checked against nothing at all: the driver answers
+"performed" when it finds a control and clicks it, and that was the whole of the
+verification -- a click on the wrong Save, or the right Save on a form the
+application refused, was a step that succeeded and earned the version its way up
+the ladder. The evidence was already there: `UI_TEXT_VISIBLE` assertions,
+extracted at induction from the text that appeared on screen in *both*
+demonstrations, and a screen digest the drivers already return.
+
+So a step performed in the interface is now checked against the screen after the
+gesture, and so is a step a model finished by looking -- the rung whose own
+docstring promised it. Three rules keep it honest: a step with nothing visible to
+check costs no screenshot, a post-condition this rung cannot see -- a response
+body -- is *said* rather than counted as satisfied, and a screen that cannot be
+read is not a failed task.
+
 **A derived value may have been reformatted.** A parameter carries the pointer
 of the response that produces it and, where two demonstrations agreed on one, a
 small rewriting to apply on the way: trimmed, recased, zero-padded, a constant

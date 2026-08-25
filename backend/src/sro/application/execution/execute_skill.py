@@ -26,7 +26,7 @@ from sro.application.execution.answer import MAX_ROWS, Answer, merge, read_answe
 from sro.application.execution.headers import client_headers, resolve_headers
 from sro.application.execution.paging import MOST_PAGES, how_it_pages, next_page
 from sro.application.execution.self_heal import HealBudget, Healed, SelfHeal
-from sro.application.execution.verify import check, extract
+from sro.application.execution.verify import check, check_on_screen, extract
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.ports.agent import AgentDrivers
@@ -36,6 +36,7 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.token import TokenRefused, TokenSource
 from sro.application.ports.ui import ResolvedLocator, UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
+from sro.application.ports.vision import VisionUnavailable
 from sro.domain.connection.connection import Connection
 from sro.domain.execution.escalation import FailureKind, next_medium
 from sro.domain.execution.run import (
@@ -51,6 +52,7 @@ from sro.domain.execution.verdict import judge
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
+from sro.domain.skill.assertion import AssertionKind
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillStep, SkillVersion
@@ -462,6 +464,11 @@ class ExecuteStep:
 
         if not result.performed:
             return self._failed(step, None, result.detail or "control not found", medium=Medium.UI)
+
+        said = [f"{result.candidates} candidates"] if result.candidates > 1 else []
+        failures, unchecked = await self._check_on_screen(ui, step, values)
+        if unchecked:
+            said.append("not checkable from the interface: " + ", ".join(unchecked))
         return StepOutcome(
             index=step.index,
             medium=Medium.UI,
@@ -469,8 +476,28 @@ class ExecuteStep:
             intent=step.intent,
             idempotency_key=f"{run.id}:{step.index}",
             matched_by=result.matched_by.value if result.matched_by else None,
-            detail=(f"{result.candidates} candidates" if result.candidates > 1 else None),
+            assertion_failures=failures,
+            detail="; ".join(said) or None,
         )
+
+    async def _check_on_screen(
+        self, ui: UiDriver, step: SkillStep, values: dict[str, str]
+    ) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        """What the screen says, after the gesture that was supposed to change it.
+
+        Only where the demonstration proved something visible, so a step whose
+        evidence is a response body costs no screenshot. A screen that cannot be
+        read is not a failed step -- the gesture landed, and calling the task
+        wrong because a capture failed would be worse than saying what happened.
+        """
+        wanted = tuple(a for a in step.assertions if a.kind is AssertionKind.UI_TEXT_VISIBLE)
+        if not wanted:
+            return (), ()
+        try:
+            screen = await ui.capture()
+        except (UiUnavailable, VisionUnavailable) as blind:
+            return (), (f"the screen could not be read ({blind})",)
+        return check_on_screen(step.assertions, screen.text_digest, values=values)
 
     async def _escalate(
         self,
@@ -537,6 +564,7 @@ class ExecuteStep:
                 ),
                 version,
             )
+        failures, unchecked = await self._check_on_screen(ui, step, values)
         return StepOutcome(
             index=step.index,
             medium=Medium.UI,
@@ -546,9 +574,15 @@ class ExecuteStep:
             escalated_from=Medium.NETWORK,
             escalation_reason=rule.because,
             matched_by=result.matched_by.value if result.matched_by else None,
+            assertion_failures=failures,
             detail=(
                 f"{outcome.detail or failure} at L1; performed in the interface"
                 + (f" ({result.candidates} candidates)" if result.candidates > 1 else "")
+                + (
+                    "; not checkable from the interface: " + ", ".join(unchecked)
+                    if unchecked
+                    else ""
+                )
             ),
         )
 
@@ -587,13 +621,27 @@ class ExecuteStep:
                 await uow.commit()
 
         performed = result.outcome.disposition is StepDisposition.PERFORMED
+        # The rung's own docstring says the model may claim a step is done and
+        # the demonstration's assertions decide. Nothing decided: a click a
+        # model chose by looking at a screenshot was recorded as a step that
+        # succeeded, and counted towards the version's promotion. Here is where
+        # they decide.
+        failures, unchecked = (
+            await self._check_on_screen(ui, step, run.values) if performed else ((), ())
+        )
         return replace(
             result.outcome,
             escalation_reason=rule.because,
+            assertion_failures=failures,
             detail=(
                 f"{outcome.detail or 'the control was not found'}; {result.outcome.detail}"
                 if not performed
-                else result.outcome.detail
+                else (result.outcome.detail or "")
+                + (
+                    "; not checkable from the interface: " + ", ".join(unchecked)
+                    if unchecked
+                    else ""
+                )
             ),
         )
 

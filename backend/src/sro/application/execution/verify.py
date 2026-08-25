@@ -55,6 +55,39 @@ def check(
     return tuple(failures)
 
 
+def check_on_screen(
+    assertions: tuple[Assertion, ...], text_digest: str, *, values: dict[str, str]
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """The same post-conditions, against a screen instead of a response.
+
+    A gesture landing is not a task being done. The driver answers "performed"
+    when it found a control and clicked it, and for a run in the interface that
+    was the whole of the verification: a click on the wrong Save, or the right
+    Save on a form the application refused, was recorded as a step that
+    succeeded and counted towards the version's promotion. Verification is
+    supposed to be the control that stands between a model and a warehouse.
+
+    Returns failures and, separately, what could not be checked at this rung --
+    a response body is not visible from here, and the honest thing is to say so
+    rather than to count it as satisfied or to fail a run over it. The
+    demonstration's own evidence is what is checked: the text that appeared on
+    screen in both runs after this gesture.
+    """
+    failures: list[str] = []
+    unchecked: list[str] = []
+    shown = text_digest.lower()
+
+    for assertion in assertions:
+        expected = assertion.expected.render(values)
+        if assertion.kind is AssertionKind.UI_TEXT_VISIBLE:
+            if expected.lower() not in shown:
+                failures.append(f"the screen does not show {expected!r}")
+            continue
+        unchecked.append(str(assertion.kind.value))
+
+    return tuple(failures), tuple(dict.fromkeys(unchecked))
+
+
 def extract(response: HttpResponse, pointer: str) -> str | None:
     """A derived parameter's value from this response, or ``None`` if absent."""
     document = _parse(response.text)

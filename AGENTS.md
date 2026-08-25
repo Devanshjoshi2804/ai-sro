@@ -69,6 +69,15 @@ npx vitest run src/features/skill/components/skill-detail.test.tsx
 Temporal activity in the worker process, so an API-only restart silently keeps
 running the old induction. This has already cost debugging time twice.
 
+**A double must not implement the thing under test.** The extension's panel
+hands the console a credential and waits for the console to announce itself.
+The browser test passed for weeks against a stub console that announced
+itself — while the real console never did, so the feature had never once
+worked. A test whose double supplies the missing half proves the double. When
+a test stands in for the other side of a contract, assert the real side
+somewhere too: `frontend/src/features/console/embedded-credential.test.tsx`
+exists for exactly that reason.
+
 **A wire type change is not finished until `make types` has run.** It writes
 `frontend/openapi.json` and `frontend/src/lib/api/generated.ts`, and both are
 committed. Four fields once shipped without it and the pipeline's contract step

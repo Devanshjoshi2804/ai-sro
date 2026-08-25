@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from sro.domain.execution.run import Run, RunId
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
 from sro.domain.observation.candidate import Episode, TaskCandidate
 from sro.domain.observation.device import AgentDevice
@@ -404,6 +405,53 @@ def _trigger() -> Trigger:
         authorized_by=PrincipalId("devansh"),
         requires_confirmation=False,
     )
+
+
+class TestRuns:
+    async def test_a_workflow_s_failure_is_found_by_either_system_s_breaker(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The read the circuit breaker does, against real JSONB.
+
+        A run that checked the WMS and wrote to the ERP is stored under the
+        system it is keyed by. Asked about the other one, a breaker that matched
+        only on that key would answer "nothing has failed here lately" about the
+        system the failure actually landed in.
+        """
+        skill = f.skill()
+        version = skill.versions[0]
+        run = Run(
+            id=RunId("run-cross"),
+            tenant_id=f.TENANT,
+            skill_id=skill.id,
+            skill_version=version.version,
+            stage=version.stage,
+            parameters={},
+            requested_by=f.OPERATOR,
+            started_at=datetime(2026, 8, 25, 9, 0, tzinfo=UTC),
+            target_system="blue_yonder",
+            systems=("blue_yonder", "sap"),
+        )
+        run.fail(datetime(2026, 8, 25, 9, 5, tzinfo=UTC), "the ERP refused the receipt")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.skills.add(skill)
+            await uow.runs.add(run)
+            await uow.commit()
+
+        since = datetime(2026, 8, 25, 8, 0, tzinfo=UTC)
+        async with SqlUnitOfWork(session_factory) as uow:
+            loaded = await uow.runs.get(f.TENANT, run.id)
+            keyed = await uow.runs.finished_since(
+                f.TENANT, target_system="blue_yonder", since=since
+            )
+            touched = await uow.runs.finished_since(f.TENANT, target_system="sap", since=since)
+            elsewhere = await uow.runs.finished_since(f.TENANT, target_system="oracle", since=since)
+
+        assert loaded.systems == ("blue_yonder", "sap")
+        assert [each.id for each in keyed] == [run.id]
+        assert [each.id for each in touched] == [run.id]
+        assert elsewhere == (), "a system this run never touched must not see its failure"
 
 
 class TestCandidates:

@@ -18,7 +18,11 @@ import json
 from dataclasses import dataclass
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from sro.application.capture.identity import derive_objective_key, system_of
+from sro.application.capture.identity import (
+    derive_objective_key,
+    system_of,
+    systems_touched,
+)
 from sro.application.context import RequestContext
 from sro.application.induction import narration as narration_alignment
 from sro.application.induction.assertions import StepEvidence
@@ -160,6 +164,13 @@ class UnderstandRecording:
                 summary=reading.summary
                 or f"{objective.objective_type} on {objective.target_system}",
                 when_to_use=reading.when_to_use,
+                # Read here as well as on the two-run path: a workflow taught
+                # from a single occurrence is still a workflow, and a version
+                # that does not say so is one no breaker guards and no rule
+                # binds to a browser.
+                systems=systems_touched(
+                    await uow.connections.list_for_tenant(ctx.tenant_id), recording
+                ),
             )
             skill.add_version(version)
             # Straight to rehearsing, once it is attached: a version is added at

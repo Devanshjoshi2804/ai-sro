@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from urllib.parse import urlsplit
 
 from sro.application.induction.naming import singular, snake_case
@@ -19,6 +19,7 @@ from sro.domain.connection.connection import Connection
 from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.network import CapturedRequest
+from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
 
 _ROUTING_SEGMENTS = frozenset(
@@ -100,6 +101,52 @@ def system_named(connections: Iterable[Connection], url: str | None) -> str:
     not exist.
     """
     return system_of(connections, url) or _system_from(url or "", None)
+
+
+def systems_touched(connections: Sequence[Connection], *recordings: Recording) -> tuple[str, ...]:
+    """Every system these demonstrations touched, in the vocabulary the breaker
+    speaks.
+
+    Connection labels rather than hostnames, because `target_system` is a label
+    and the breaker compares those strings -- a list of hosts beside a key of
+    labels would refuse a run for a system nobody has ever heard of, or worse,
+    fail to.
+
+    A host nobody has connected still counts: it is a system this version
+    touches whether or not this deployment holds a credential for it, which is
+    exactly the case a run in somebody's own browser exists for.
+
+    Two systems are never merged into one name. A derived name is the host's
+    last meaningful label, so an unconnected `sap.acme.com` derives `acme` --
+    which is also what somebody called their Blue Yonder connection. Merging
+    them makes the version look like a single-system skill: no second breaker,
+    no browser required, and every credential keyed to the first system
+    resolved and sent to the second. Where that would happen the derived name
+    keeps its host instead, which names nothing else and matches nothing else,
+    and is the truth about a system nobody has connected.
+    """
+    found: list[tuple[str, str | None, str]] = []
+    for recording in recordings:
+        for frame in recording.frames:
+            for request in frame.requests:
+                host = host_of(request.url)
+                if not host or any(host == known for known, _, _ in found):
+                    continue
+                found.append(
+                    (host, system_of(connections, request.url), _system_from(request.url, None))
+                )
+
+    connected = {label for _, label, _ in found if label}
+    names: list[str] = []
+    for host, label, derived in found:
+        # Two hosts deriving one name is ordinary -- a portal and its API are
+        # one system -- and they merge. Colliding with a name somebody actually
+        # connected is not: those are two systems, and the derived one takes
+        # its host rather than the other's identity.
+        chosen = label or (host if derived in connected else derived)
+        if chosen and chosen not in names:
+            names.append(chosen)
+    return tuple(names)
 
 
 def system_of(connections: Iterable[Connection], *urls: str | None) -> str | None:

@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
-from sro.application.capture.identity import system_named
+from sro.application.capture.identity import systems_touched
 from sro.application.context import RequestContext
 from sro.application.induction import assertions as assertion_extraction
 from sro.application.induction import describe, lookups, narration
@@ -27,7 +26,6 @@ from sro.application.knowledge.open_questions import Ambiguity, AskAbout
 from sro.application.ports.interpretation import Reading, WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.domain.connection.connection import Connection
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
@@ -246,7 +244,7 @@ class InduceSkill:
                 ),
                 summary=described.summary,
                 when_to_use=described.when_to_use,
-                systems=_systems_touched(
+                systems=systems_touched(
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
             )
@@ -324,29 +322,6 @@ class InduceSkill:
             input_parameter_count=len(version.inputs),
             derived_parameter_count=len(version.parameters) - len(version.inputs),
         )
-
-
-def _systems_touched(connections: Sequence[Connection], *recordings: Recording) -> tuple[str, ...]:
-    """Every system these demonstrations touched, in the vocabulary the breaker
-    speaks.
-
-    Connection labels rather than hostnames, because `target_system` is a label
-    and the breaker compares those strings -- a list of hosts beside a key of
-    labels would refuse a run for a system nobody has ever heard of, or worse,
-    fail to.
-
-    A host nobody has connected still counts: it is a system this version
-    touches whether or not this deployment holds a credential for it, which is
-    exactly the case a run in somebody's own browser exists for.
-    """
-    seen: list[str] = []
-    for recording in recordings:
-        for frame in recording.frames:
-            for request in frame.requests:
-                named = system_named(connections, request.url)
-                if named and named not in seen:
-                    seen.append(named)
-    return tuple(seen)
 
 
 def _check_pairable(run_a: Recording, run_b: Recording, *, paired: bool = True) -> ObjectiveKey:

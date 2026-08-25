@@ -1,0 +1,121 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #f6f6f4;
+  color: #1c1c1a;
+}
+
+#strip,
+#here,
+footer {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e1dc;
+}
+
+#headline {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+#headline[data-on="true"]::before {
+  content: "● ";
+  color: #b91c1c;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #1c1c1a;
+  border-radius: 6px;
+  background: #1c1c1a;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.quiet {
+  background: transparent;
+  color: #1c1c1a;
+  border-color: #c9c8c2;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.note {
+  margin: 6px 0 0;
+  color: #6b6a64;
+  line-height: 1.35;
+}
+
+#here {
+  flex: 0 0 auto;
+  max-height: 34vh;
+  overflow: auto;
+}
+
+#here h2 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b6a64;
+}
+
+#candidates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#candidates li {
+  border: 1px solid #e2e1dc;
+  border-radius: 6px;
+  padding: 8px;
+  background: #fff;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.by-model {
+  font-weight: 400;
+  color: #6b6a64;
+}
+
+/* The console fills whatever is left, and it is the only thing that scrolls
+   with the operator's own content in it. */
+#console {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+#frame {
+  flex: 1;
+  border: 0;
+  width: 100%;
+}
+
+footer {
+  border-bottom: 0;
+}

@@ -24,6 +24,7 @@ from collections.abc import Callable, Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, ClassVar
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -106,6 +107,61 @@ PAGE = """<!doctype html>
 """
 
 
+CONSOLE = """<!doctype html>
+<html><body><h1>Console</h1>
+<script>
+  // What the real console does: says it is listening, then takes a credential
+  // from the origin that framed it and confirms.
+  window.__handed = null;
+  addEventListener("message", (event) => {
+    if (event.data && event.data.kind === "sro.credential") {
+      window.__handed = event.data.token;
+      event.source.postMessage({kind: "sro.credential.ok"}, event.origin);
+    }
+  });
+  parent.postMessage({kind: "sro.ready"}, "*");
+</script>
+</body></html>
+"""
+
+_CANDIDATES = [
+    {
+        "id": "cnd-here",
+        "title": "Adjust an LPN quantity",
+        "host": "127.0.0.1",
+        "signature": "PUT wm/inventory/adjust",
+        "status": "new",
+        "times_seen": 4,
+        "median_duration_ms": 32000,
+        "minutes_so_far": 2.1,
+        "first_seen": None,
+        "last_seen": None,
+        "skill_id": None,
+        "dismissed_reason": None,
+        "named_by_model": True,
+        "joins": [],
+        "episodes": [],
+    },
+    {
+        "id": "cnd-elsewhere",
+        "title": "Something on another system",
+        "host": "erp.example",
+        "signature": "POST erp/receipts",
+        "status": "new",
+        "times_seen": 9,
+        "median_duration_ms": 12000,
+        "minutes_so_far": 1.8,
+        "first_seen": None,
+        "last_seen": None,
+        "skill_id": None,
+        "dismissed_reason": None,
+        "named_by_model": False,
+        "joins": [],
+        "episodes": [],
+    },
+]
+
+
 class _Stub(BaseHTTPRequestHandler):
     """The frozen contract, answered with canned replies. See docs/14."""
 
@@ -118,6 +174,7 @@ class _Stub(BaseHTTPRequestHandler):
     fumble_artifacts: ClassVar[int] = 0
     channels: ClassVar[queue.Queue[Channel]] = queue.Queue()
     purges: ClassVar[list[str]] = []
+    candidate_queries: ClassVar[list[str]] = []
     recordings: ClassVar[list[str]] = []
     sealed: ClassVar[list[str]] = []
     """Answer this many artifact uploads with a 503 before taking any. A lost
@@ -141,6 +198,19 @@ class _Stub(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if "websocket" in self.headers.get("Upgrade", "").lower():
             return self._upgrade()
+        if self.path.startswith("/v1/candidates"):
+            _Stub.candidate_queries.append(self.path)
+            # Filtered here the way the real endpoint filters: the panel's whole
+            # question is "on this system", and a test that filtered client-side
+            # would prove the wrong half.
+            wanted = parse_qs(urlsplit(self.path).query).get("host", [""])[0]
+            self._send(200, json.dumps([c for c in _CANDIDATES if c["host"] == wanted]).encode())
+            return
+        if self.path.startswith("/console"):
+            # A console, as far as the panel is concerned: it announces itself
+            # and writes down whatever it is handed.
+            self._send(200, CONSOLE.encode(), "text/html; charset=utf-8")
+            return
         if self.path == "/api/stream":
             # Deliberately never finished: an endless body is the case that
             # hung the page, and it must not hang this test either.
@@ -316,6 +386,7 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.fumble_artifacts = 0
     _Stub.channels = queue.Queue()
     _Stub.purges = []
+    _Stub.candidate_queries = []
     _Stub.recordings = []
     _Stub.sealed = []
     # Threading, because the command channel holds its connection open for the
@@ -345,6 +416,12 @@ def artifacts(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
 def demonstrations(stub: tuple[str, list[dict[str, Any]]]) -> tuple[list[str], list[str]]:
     """The recordings this browser started, and the ones it sealed."""
     return _Stub.recordings, _Stub.sealed
+
+
+@pytest.fixture
+def candidate_queries(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
+    """The `/v1/candidates` requests the panel made, as sent."""
+    return _Stub.candidate_queries
 
 
 @pytest.fixture

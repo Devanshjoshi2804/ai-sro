@@ -50,16 +50,9 @@ function render(status) {
   );
 
   $("api-url").value = status.apiUrl || "";
+  $("console-url").value = status.consoleUrl || "";
   $("purge").disabled = !status.deviceId;
 
-  // Said plainly, because a demonstration is a thing the operator started and
-  // has to be able to see is still running -- the banner is Chrome's, and this
-  // is ours.
-  $("teach").textContent = status.teaching ? "Stop and save" : "Start teaching";
-  $("teach").disabled = !status.capturing;
-  $("teaching-state").textContent = status.teaching
-    ? `teaching since ${new Date(status.teaching.startedAt).toLocaleTimeString()} — do the task, then stop`
-    : "";
 }
 
 function trouble(error) {
@@ -73,6 +66,7 @@ $("sign-in").addEventListener("submit", async (event) => {
       await ask({
         kind: "sign-in",
         apiUrl: $("api-url").value.trim(),
+        consoleUrl: $("console-url").value.trim(),
         token: $("token").value.trim(),
       }),
     );
@@ -134,25 +128,6 @@ $("purge").addEventListener("click", async () => {
     $("purged").textContent = `nothing was deleted: ${error.message}`;
   } finally {
     $("purge").disabled = false;
-  }
-});
-
-$("teach").addEventListener("click", async () => {
-  $("teach").disabled = true;
-  const teaching = (await ask({ kind: "status" }).catch(() => ({}))).teaching;
-  try {
-    if (teaching) {
-      const stopped = await ask({ kind: "teach-stop" });
-      $("teaching-state").textContent = stopped.summary
-        ? `saved as ${stopped.summary.id} — ${stopped.summary.frame_count ?? 0} steps`
-        : "stopped";
-    } else {
-      await ask({ kind: "teach-start" });
-    }
-    render(await ask({ kind: "status" }));
-  } catch (error) {
-    $("teaching-state").textContent = error.message;
-    render(await ask({ kind: "status" }).catch(() => ({ capturing: false, because: "unknown" })));
   }
 });
 

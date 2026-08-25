@@ -70,6 +70,27 @@ So an upload that fails is retried without re-sending the batch, and staging the
 same batch twice replaces the row rather than queueing a second copy. Three
 failed attempts and the picture is dropped, loudly — the options page says so.
 
+## The side panel
+
+Clicking the toolbar button opens a panel docked beside the tab. It is not a
+second console: it renders natively only what needs `chrome.*` or the current
+tab -- the REC state, pause, teaching start/stop for *this* tab, a run
+performing in this browser with a way to stop it, purge, and "tasks you keep
+doing here" narrowed to the tab's host -- and frames the console for everything
+else, so no review screen exists twice.
+
+The console keeps its credential in `localStorage` and Chrome partitions
+storage for framed contexts, so the framed console cannot see the token from
+its own tab. The panel hands it across: the console announces itself with
+`sro.ready` once its listener exists, the panel answers with the credential
+addressed to that one origin, and the console confirms. Silence means refused,
+and the panel says so with the extension's own id, because a cross-origin frame
+never reports its own failures to the page that framed it.
+
+Set the console's address in Settings; leave it empty and the panel still does
+everything only it can do. The console must name this extension in
+`NEXT_PUBLIC_EXTENSION_ORIGINS` or it accepts nothing and refuses to be framed.
+
 ## Teaching a task
 
 Passive capture is cheap and invisible on purpose. The teaching tier is the
@@ -82,8 +103,9 @@ today, and what induction needs to build a locator that survives a re-render.
 Chrome banners the tab for as long as it is attached, which is right: this is
 deliberate, it is short, and the operator should be able to see it stop.
 
-The tab taught in is the last ordinary page they were on, not the options page
-they pressed the button in. Start flushes everything captured so far as passive
+The tab taught in is the one the panel is docked beside, which it names exactly.
+Started from anywhere that cannot name a tab -- the options page -- it falls back
+to the last ordinary page the operator was on. Start flushes everything captured so far as passive
 work, stop uploads the demonstration's own evidence and only then seals the
 recording — a batch never straddles the moment teaching began or ended, because
 the backend refuses teaching evidence that names no demonstration and passive

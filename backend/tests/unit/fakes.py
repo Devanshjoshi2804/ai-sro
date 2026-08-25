@@ -929,6 +929,7 @@ class FakeCandidateRepository:
         status: CandidateStatus | None = None,
         principal_id: PrincipalId | None = None,
         seen_at_least: int = 0,
+        host: str | None = None,
     ) -> tuple[TaskCandidate, ...]:
         found = [
             candidate
@@ -936,6 +937,7 @@ class FakeCandidateRepository:
             if candidate.tenant_id == tenant_id
             and (status is None or candidate.status is status)
             and (principal_id is None or candidate.principal_id == principal_id)
+            and (host is None or candidate.host == host.lower())
             and candidate.times_seen >= seen_at_least
         ]
         return tuple(sorted(found, key=lambda one: one.times_seen, reverse=True))

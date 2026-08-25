@@ -174,6 +174,11 @@ export interface paths {
          *     The default floor is three: twice is a coincidence and the operator knows
          *     it, and being asked about coincidences is how a recommendation surface
          *     starts getting ignored.
+         *
+         *     `host` narrows to one system, which is what the extension's side panel asks
+         *     of the tab it is docked beside: "tasks you keep doing *here*" is a different
+         *     question, and one that cannot be answered by filtering a page of results
+         *     that was already cut off somewhere else.
          */
         get: operations["list_candidates_v1_candidates_get"];
         put?: never;
@@ -1533,6 +1538,11 @@ export interface components {
             batches: number;
             /** Events */
             events: number;
+            /**
+             * Artifacts
+             * @default 0
+             */
+            artifacts: number;
         };
         /**
          * FrameSummary
@@ -1614,6 +1624,24 @@ export interface components {
             input_parameter_count: number;
             /** Derived Parameter Count */
             derived_parameter_count: number;
+        };
+        /**
+         * JoinModel
+         * @description A suggestion that this candidate and another are one piece of work.
+         *
+         *     `variant` is the same task done two ways; `workflow` is two halves of one
+         *     task in two systems. Suggestions, with the reason attached: nothing merges
+         *     on them, and `by_model` says who is doing the suggesting.
+         */
+        JoinModel: {
+            /** Other Id */
+            other_id: string;
+            /** Kind */
+            kind: string;
+            /** Because */
+            because: string;
+            /** By Model */
+            by_model: boolean;
         };
         /** KnowledgeEntryModel */
         KnowledgeEntryModel: {
@@ -1845,6 +1873,8 @@ export interface components {
             ended_at: string;
             /** @default passive */
             mode: components["schemas"]["CaptureMode"];
+            /** Recording Id */
+            recording_id?: string | null;
             /** Events */
             events: {
                 [key: string]: unknown;
@@ -2201,6 +2231,11 @@ export interface components {
             medium: string;
             /** Device Id */
             device_id?: string | null;
+            /**
+             * May Take Focus
+             * @default false
+             */
+            may_take_focus: boolean;
             /** Authorized By */
             authorized_by?: string | null;
         };
@@ -2329,6 +2364,8 @@ export interface components {
             label?: string | null;
             /** Attach To */
             attach_to?: string | null;
+            /** Device Id */
+            device_id?: string | null;
         };
         /** StartRecordingResponse */
         StartRecordingResponse: {
@@ -2463,6 +2500,8 @@ export interface components {
             dismissed_reason: string | null;
             /** Named By Model */
             named_by_model: boolean;
+            /** Joins */
+            joins: components["schemas"]["JoinModel"][];
             /** Episodes */
             episodes: components["schemas"]["EpisodeModel"][];
         };
@@ -3474,6 +3513,7 @@ export interface operations {
             query?: {
                 seen_at_least?: number;
                 mine_only?: boolean;
+                host?: string | null;
             };
             header?: {
                 authorization?: string | null;

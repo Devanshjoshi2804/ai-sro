@@ -457,9 +457,36 @@ class TestCandidates:
 
         assert [one.id.value for one in offered] == ["cnd-1"]
 
+    async def test_one_system_at_a_time_for_the_panel_docked_beside_it(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """ "Tasks you keep doing *here*" is a different question from "tasks you
+        keep doing", and it is the one the extension's side panel asks of the
+        tab it is open next to. Filtering after the fact would let a busy
+        morning elsewhere push the answer off the list."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.candidates.add(_candidate())
+            await uow.candidates.add(
+                _candidate(candidate_id="cnd-erp", signature="POST erp/receipts", host="erp.test")
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            here = await uow.candidates.list_for_tenant(TenantId("acme"), host="wms.acme.test")
+            # Hosts are stored lowercased by the segmenter, so how the caller
+            # happens to spell one must not decide whether their tasks come back.
+            shouting = await uow.candidates.list_for_tenant(TenantId("acme"), host="WMS.ACME.TEST")
+
+        assert [one.id.value for one in here] == ["cnd-1"]
+        assert [one.id.value for one in shouting] == ["cnd-1"]
+
 
 def _candidate(
-    *, candidate_id: str = "cnd-1", signature: str = "POST api/suppliers", episodes: int = 2
+    *,
+    candidate_id: str = "cnd-1",
+    signature: str = "POST api/suppliers",
+    episodes: int = 2,
+    host: str = "wms.acme.test",
 ) -> TaskCandidate:
     at = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
     return TaskCandidate(
@@ -467,7 +494,7 @@ def _candidate(
         tenant_id=TenantId("acme"),
         principal_id=PrincipalId("devansh"),
         signature=signature,
-        host="wms.acme.test",
+        host=host,
         title="Create suppliers on wms.acme.test",
         episodes=tuple(
             Episode(

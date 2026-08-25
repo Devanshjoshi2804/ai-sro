@@ -192,13 +192,19 @@ class ReadCandidates:
         self._uow = uow
 
     async def execute(
-        self, ctx: RequestContext, *, seen_at_least: int = 0, mine_only: bool = False
+        self,
+        ctx: RequestContext,
+        *,
+        seen_at_least: int = 0,
+        mine_only: bool = False,
+        host: str | None = None,
     ) -> tuple[TaskCandidate, ...]:
         async with self._uow as uow:
             return await uow.candidates.list_for_tenant(
                 ctx.tenant_id,
                 seen_at_least=seen_at_least,
                 principal_id=ctx.principal_id if mine_only else None,
+                host=host,
             )
 
     async def one(self, ctx: RequestContext, *, candidate_id: CandidateId) -> TaskCandidate:

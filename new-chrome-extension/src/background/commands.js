@@ -33,6 +33,46 @@ const driving = new Map();
 
 const SETTLE_MS = 2000;
 
+/** The run this browser is performing, and when it was last asked to do
+ * something for it.
+ *
+ * The envelope has always carried `run_id` and only `abort` ever read it. A
+ * panel docked beside the page has to be able to say "a run is doing this" and
+ * offer to stop it, and neither is answerable from the tab alone: one run
+ * drives several tabs, and a tab is driven by at most one run at a time. */
+let latest = null;
+
+/** How long after the last command a run is still considered to be happening.
+ * Longer than a step, shorter than an operator's patience -- a finished run
+ * that goes on claiming the panel is worse than one that stops claiming it a
+ * little early. */
+const RUN_QUIET_MS = 30_000;
+
+/** What this browser is performing right now, or null. */
+export function performing() {
+  if (!latest) return null;
+  if (Date.now() - latest.at > RUN_QUIET_MS) {
+    latest = null;
+    return null;
+  }
+  return { runId: latest.runId, kind: latest.kind, since: latest.since };
+}
+
+/** Stop a run from here.
+ *
+ * The same set the backend's own `abort` command fills, so this is not a second
+ * mechanism: every later command for that run answers `aborted`, which
+ * `drivers.py` sorts as "there was no browser to act in" rather than as a skill
+ * that has drifted. What is already inside the page finishes -- nothing can
+ * recall it -- so this stops the next step, which is what the button says.
+ */
+export function abort(runId) {
+  if (!runId) return false;
+  aborted.add(runId);
+  if (latest?.runId === runId) latest = null;
+  return true;
+}
+
 export function isDriving(tabId) {
   const until = driving.get(tabId);
   if (until === undefined) return false;
@@ -285,6 +325,14 @@ async function httpSend(payload) {
 export async function perform(command) {
   if (command.run_id && aborted.has(command.run_id)) {
     return failure("aborted", "this run was aborted");
+  }
+
+  if (command.run_id) {
+    const now = Date.now();
+    latest =
+      latest?.runId === command.run_id
+        ? { ...latest, kind: command.kind, at: now }
+        : { runId: command.run_id, kind: command.kind, since: now, at: now };
   }
 
   try {

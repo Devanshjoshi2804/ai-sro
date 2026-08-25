@@ -34,14 +34,15 @@ def _service_worker(context: Any) -> Any:
     )
 
 
-def _sign_in(context: Any, worker: Any, api_url: str) -> dict[str, Any]:
+def _sign_in(context: Any, worker: Any, api_url: str, console_url: str = "") -> dict[str, Any]:
     """Through the extension's own message API, not by writing storage."""
     page = context.new_page()
     page.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
     status: dict[str, Any] = page.evaluate(
-        """async ([apiUrl]) => await chrome.runtime.sendMessage(
-             {kind: "sign-in", apiUrl, token: "test-token", label: "browser-test"})""",
-        [api_url],
+        """async ([apiUrl, consoleUrl]) => await chrome.runtime.sendMessage(
+             {kind: "sign-in", apiUrl, consoleUrl, token: "test.token.here",
+              label: "browser-test"})""",
+        [api_url, console_url],
     )
     page.close()
     return status
@@ -1316,3 +1317,145 @@ def test_a_task_demonstrated_in_the_operator_s_own_browser(
     assert any(node.get("role", {}).get("value") == "button" for node in nodes), (
         f"the tree carries no roles, so it says no more than the DOM did: {nodes[:2]}"
     )
+
+
+def _panel(context: Any, worker: Any) -> Any:
+    """The side panel, opened as a page. Chrome docks it beside a tab in real
+    use; a test cannot dock it, and the panel is written to find the ordinary
+    page in its window either way."""
+    page = context.new_page()
+    page.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/panel/panel.html")
+    return page
+
+
+def test_the_panel_hands_the_console_the_credential_it_cannot_see(browser: Any, stub: Any) -> None:
+    """The console keeps its token in localStorage and Chrome partitions storage
+    for framed contexts, so a console inside the panel cannot see the one from
+    its own tab. It has to be handed across, addressed to one origin, and the
+    console's reply is the only health check available — a cross-origin frame
+    does not report its own failures to the page that framed it.
+    """
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url, console_url=api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+
+    system = browser.new_page()
+    system.goto(api_url)
+
+    panel = _panel(browser, worker)
+    frame = panel.frame_locator("#frame")
+    frame.locator("h1").wait_for(timeout=15_000)
+
+    handed = panel.frames[1].evaluate("() => window.__handed")
+    note = panel.text_content("#console-note")
+    panel.close()
+    system.close()
+
+    assert handed is not None, "the console was framed but never handed a credential"
+    assert handed.count(".") == 2, f"what arrived is not a token: {handed!r}"
+    assert note == "", f"the panel did not see the console accept it: {note!r}"
+
+
+def test_the_panel_teaches_the_tab_it_is_beside(browser: Any, stub: Any) -> None:
+    """The reason teaching moved here from the options page: a settings screen
+    cannot be the tab you mean, and the panel can name it exactly.
+
+    Two ordinary pages are open and the *older* one is named. The fallback the
+    options page relies on would take the newer, so this fails if `tabId` is
+    ignored rather than obeyed.
+    """
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    older = browser.new_page()
+    older.goto(f"{api_url}/older")
+    newer = browser.new_page()
+    newer.goto(f"{api_url}/newer")
+    panel = _panel(browser, worker)
+
+    began = panel.evaluate(
+        """async () => {
+             const open_ = await chrome.tabs.query({url: "http://127.0.0.1/*"});
+             const oldest = open_.sort((a, b) => a.id - b.id)[0];
+             const answer = await chrome.runtime.sendMessage(
+               {kind: "teach-start", tabId: oldest.id, label: "beside me"});
+             return {answer, asked: oldest.id, newest: open_[open_.length - 1].id};
+           }"""
+    )
+    assert began["answer"].get("ok"), f"the demonstration did not start: {began}"
+
+    taught = panel.evaluate("""async () => await chrome.runtime.sendMessage({kind: "status"})""")
+    panel.evaluate("""async () => await chrome.runtime.sendMessage({kind: "teach-stop"})""")
+    panel.close()
+    newer.close()
+    older.close()
+
+    assert taught["teaching"]["tabId"] == began["asked"], (
+        "the demonstration attached to a tab other than the one it was told to"
+    )
+    assert began["asked"] != began["newest"], "the fixture did not set up two tabs"
+
+
+def test_the_panel_can_stop_a_run_that_is_driving_this_browser(
+    browser: Any, stub: Any, channel: Any
+) -> None:
+    """A run performing in somebody's own browser has to be stoppable while it
+    happens. What is already inside the page finishes — nothing can recall it —
+    so this stops the next step, which is what the button says."""
+    open_channel, page = _dial(browser, stub, channel)
+    panel = _panel(browser, worker := _service_worker(browser))
+    assert worker is not None
+
+    open_channel.command("cmd_first", "ui.url", {}, run_id="run_stoppable")
+    assert open_channel.answer("cmd_first")["ok"] is True
+
+    performing = panel.evaluate(
+        """async () => (await chrome.runtime.sendMessage({kind: "status"})).performing"""
+    )
+    assert performing and performing["runId"] == "run_stoppable", (
+        f"the panel could not see the run it is supposed to stop: {performing}"
+    )
+
+    panel.evaluate(
+        """async () => await chrome.runtime.sendMessage(
+             {kind: "abort-run", runId: "run_stoppable"})"""
+    )
+
+    open_channel.command("cmd_after", "ui.url", {}, run_id="run_stoppable")
+    answer = open_channel.answer("cmd_after")
+    panel.close()
+    page.close()
+
+    assert answer["ok"] is False
+    assert answer["error"]["kind"] == "aborted", answer
+
+
+def test_the_panel_shows_only_the_tasks_of_the_system_in_front_of_it(
+    browser: Any, stub: Any, candidate_queries: list[str]
+) -> None:
+    """'Tasks you keep doing *here*' is a different question from 'tasks you keep
+    doing', and it is the only one the console cannot ask. Narrowed by the
+    endpoint rather than after the fact: a busy morning elsewhere would
+    otherwise push the answer off a page of results."""
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    system = browser.new_page()
+    system.goto(api_url)
+    panel = _panel(browser, worker)
+
+    panel.locator("#candidates li").first.wait_for(timeout=15_000)
+    shown = panel.locator("#candidates li").all_text_contents()
+    panel.close()
+    system.close()
+
+    assert any("host=127.0.0.1" in query for query in candidate_queries), (
+        f"the panel asked for every candidate rather than this system's: {candidate_queries}"
+    )
+    assert len(shown) == 1, f"a task from another system was offered here: {shown}"
+    assert "Adjust an LPN quantity" in shown[0]
+    # A sentence a model wrote is never presented as a fact about the task.
+    assert "named by a model" in shown[0]

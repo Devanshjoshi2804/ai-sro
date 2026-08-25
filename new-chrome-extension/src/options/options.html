@@ -29,19 +29,6 @@
       </section>
 
       <section class="card">
-        <h2>Teach a task</h2>
-        <p class="note">
-          Open the system in a tab, start, do the task once, stop. While it runs
-          Chrome shows a debugging banner across that tab — that is this
-          extension reading the page's structure, and it stops when you do.
-        </p>
-        <div class="row">
-          <button type="button" id="teach">Start teaching</button>
-        </div>
-        <p class="note" id="teaching-state"></p>
-      </section>
-
-      <section class="card">
         <h2>Your evidence</h2>
         <p class="note">
           Everything this browser recorded in the last hour — gestures, calls,
@@ -70,6 +57,15 @@
             Backend
             <input id="api-url" type="url" placeholder="http://localhost:8000" required />
           </label>
+          <label>
+            Console
+            <input id="console-url" type="url" placeholder="http://localhost:3000" />
+          </label>
+          <p class="note">
+            Where the review screens live, for the side panel to show. A
+            different address from the backend. Leave it empty and the panel
+            still does everything only it can do.
+          </p>
           <label>
             Credential
             <input id="token" type="password" placeholder="paste the token" required />

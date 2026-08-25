@@ -26,15 +26,21 @@ async def list_candidates(
     ctx: ContextDep,
     seen_at_least: Annotated[int, Query(ge=0, le=100)] = WORTH_OFFERING,
     mine_only: Annotated[bool, Query()] = False,
+    host: Annotated[str | None, Query(max_length=200)] = None,
 ) -> list[TaskCandidateModel]:
     """Most often done first.
 
     The default floor is three: twice is a coincidence and the operator knows
     it, and being asked about coincidences is how a recommendation surface
     starts getting ignored.
+
+    `host` narrows to one system, which is what the extension's side panel asks
+    of the tab it is docked beside: "tasks you keep doing *here*" is a different
+    question, and one that cannot be answered by filtering a page of results
+    that was already cut off somewhere else.
     """
     candidates = await container.read_candidates().execute(
-        ctx, seen_at_least=seen_at_least, mine_only=mine_only
+        ctx, seen_at_least=seen_at_least, mine_only=mine_only, host=host
     )
     return [TaskCandidateModel.of(candidate) for candidate in candidates]
 

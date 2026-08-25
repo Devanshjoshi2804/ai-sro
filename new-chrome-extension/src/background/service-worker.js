@@ -5,7 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import * as channel from "./channel.js";
-import { isDriving } from "./commands.js";
+import { abort, isDriving, performing } from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
 import { allowsHost, applyPolicy, unregister } from "./scripts.js";
@@ -19,6 +19,11 @@ const FLUSH = "sro-flush";
 const EVERY_MINUTES = 1;
 
 const VERSION = chrome.runtime.getManifest().version;
+
+// The toolbar button opens the panel rather than a popup: everything this
+// extension has to say is about the tab you are looking at, and a popup closes
+// the moment you look at it.
+void chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(BEAT, { periodInMinutes: EVERY_MINUTES });
@@ -244,6 +249,7 @@ async function handle(message, sender) {
       await state.setDeviceId("");
       await state.setPolicy(null);
       await state.setApiUrl(message.apiUrl);
+      await state.setConsoleUrl(message.consoleUrl || "");
       await state.setToken(message.token);
       // Capture is off until the registration lands, and the badge says so.
       await badge();
@@ -277,15 +283,16 @@ async function handle(message, sender) {
       // demonstration starts, so no batch straddles the moment it began.
       await flushQueue();
       const deviceId = await state.deviceId();
-      // The last ordinary page the operator was on -- not the tab that asked.
-      // This is started from the extension's own options page, so "the active
-      // tab" is that page; the system being taught is the one they were
-      // looking at before they came here, and the one Chrome will banner.
-      const open_ = await chrome.tabs.query({ windowType: "normal" });
-      const tab = open_
-        .filter((each) => /^https?:/.test(each.url || ""))
-        .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
-      if (!tab?.id) {
+      // Named by the caller where the caller knows: the side panel is docked
+      // beside the tab being taught and can say which it is. Where nobody says
+      // -- the options page, which cannot be the tab you mean -- fall back to
+      // the last ordinary page the operator was on.
+      const tab = message.tabId
+        ? await chrome.tabs.get(message.tabId).catch(() => null)
+        : (await chrome.tabs.query({ windowType: "normal" }))
+            .filter((each) => /^https?:/.test(each.url || ""))
+            .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+      if (!tab?.id || !/^https?:/.test(tab.url || "")) {
         return { error: "open the system you want to teach in a tab first" };
       }
       const started = await api.startRecording(deviceId, message.label || tab.title || null);
@@ -305,6 +312,26 @@ async function handle(message, sender) {
       const summary = await api.finishRecording(was.recordingId);
       return { ok: true, was, summary };
     }
+    case "candidates":
+      // Read here rather than in the panel so the credential stays in the
+      // worker: an extension page holding a token is one more place it can be
+      // read from, and the panel has no need of it.
+      return api.candidates(message.host);
+    case "teach-candidate":
+      return api.teachCandidate(message.id);
+    case "dismiss-candidate":
+      return api.dismissCandidate(message.id, message.reason);
+    case "panel-console":
+      // The one place the token deliberately leaves the worker: the console
+      // this browser frames cannot see the credential in its own tab, because
+      // Chrome partitions storage for framed contexts, so the panel has to hand
+      // it across. It goes to the configured origin and nowhere else.
+      return { consoleUrl: await state.consoleUrl(), token: await state.token() };
+    case "abort-run":
+      // Answered even when there was nothing to stop: the panel asking twice,
+      // or asking about a run that has just finished, is not an error worth
+      // showing anybody.
+      return { ok: true, aborted: abort(message.runId) };
     case "purge": {
       // The device's own queue first, and unconditionally. What is still
       // sitting here has not reached the server, so deleting it there and
@@ -424,12 +451,23 @@ async function badge() {
 }
 
 async function status() {
-  const [allowed, deviceId, policy, apiUrl, paused, serverPaused, lastBeat, lastError] =
+  const [
+    allowed,
+    deviceId,
+    policy,
+    apiUrl,
+    consoleUrl,
+    paused,
+    serverPaused,
+    lastBeat,
+    lastError,
+  ] =
     await Promise.all([
       capturing(),
       state.deviceId(),
       state.policy(),
       state.apiUrl(),
+      state.consoleUrl(),
       state.paused(),
       state.serverPaused(),
       state.lastBeat(),
@@ -440,9 +478,11 @@ async function status() {
     because: allowed.because,
     channel: channel.status(),
     teaching: await state.teaching(),
+    performing: performing(),
     deviceId,
     policy,
     apiUrl,
+    consoleUrl,
     paused,
     serverPaused,
     lastBeat,

@@ -1751,7 +1751,7 @@
           "candidates"
         ],
         "summary": "List Candidates",
-        "description": "Most often done first.\n\nThe default floor is three: twice is a coincidence and the operator knows\nit, and being asked about coincidences is how a recommendation surface\nstarts getting ignored.",
+        "description": "Most often done first.\n\nThe default floor is three: twice is a coincidence and the operator knows\nit, and being asked about coincidences is how a recommendation surface\nstarts getting ignored.\n\n`host` narrows to one system, which is what the extension's side panel asks\nof the tab it is docked beside: \"tasks you keep doing *here*\" is a different\nquestion, and one that cannot be answered by filtering a page of results\nthat was already cut off somewhere else.",
         "operationId": "list_candidates_v1_candidates_get",
         "parameters": [
           {
@@ -1774,6 +1774,23 @@
               "type": "boolean",
               "default": false,
               "title": "Mine Only"
+            }
+          },
+          {
+            "name": "host",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Host"
             }
           },
           {
@@ -18576,6 +18593,11 @@
           "events": {
             "type": "integer",
             "title": "Events"
+          },
+          "artifacts": {
+            "type": "integer",
+            "title": "Artifacts",
+            "default": 0
           }
         },
         "type": "object",
@@ -18805,6 +18827,35 @@
           "derived_parameter_count"
         ],
         "title": "InductionResponse"
+      },
+      "JoinModel": {
+        "properties": {
+          "other_id": {
+            "type": "string",
+            "title": "Other Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "because": {
+            "type": "string",
+            "title": "Because"
+          },
+          "by_model": {
+            "type": "boolean",
+            "title": "By Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "other_id",
+          "kind",
+          "because",
+          "by_model"
+        ],
+        "title": "JoinModel",
+        "description": "A suggestion that this candidate and another are one piece of work.\n\n`variant` is the same task done two ways; `workflow` is two halves of one\ntask in two systems. Suggestions, with the reason attached: nothing merges\non them, and `by_model` says who is doing the suggesting."
       },
       "KnowledgeEntryModel": {
         "properties": {
@@ -19361,6 +19412,18 @@
           "mode": {
             "$ref": "#/components/schemas/CaptureMode",
             "default": "passive"
+          },
+          "recording_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording Id"
           },
           "events": {
             "items": {
@@ -20338,6 +20401,11 @@
             ],
             "title": "Device Id"
           },
+          "may_take_focus": {
+            "type": "boolean",
+            "title": "May Take Focus",
+            "default": false
+          },
           "authorized_by": {
             "anyOf": [
               {
@@ -20712,6 +20780,17 @@
               }
             ],
             "title": "Attach To"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
           }
         },
         "type": "object",
@@ -21121,6 +21200,13 @@
             "type": "boolean",
             "title": "Named By Model"
           },
+          "joins": {
+            "items": {
+              "$ref": "#/components/schemas/JoinModel"
+            },
+            "type": "array",
+            "title": "Joins"
+          },
           "episodes": {
             "items": {
               "$ref": "#/components/schemas/EpisodeModel"
@@ -21144,6 +21230,7 @@
           "skill_id",
           "dismissed_reason",
           "named_by_model",
+          "joins",
           "episodes"
         ],
         "title": "TaskCandidateModel",

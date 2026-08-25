@@ -9,6 +9,7 @@ const KEYS = {
   token: "sro.token",
   deviceId: "sro.deviceId",
   apiUrl: "sro.apiUrl",
+  consoleUrl: "sro.consoleUrl",
   policy: "sro.policy",
   paused: "sro.paused",
   serverPaused: "sro.serverPaused",
@@ -40,6 +41,13 @@ export const state = {
 
   apiUrl: () => read(KEYS.apiUrl, DEFAULT_API_URL),
   setApiUrl: (url) => write(KEYS.apiUrl, url.replace(/\/+$/, "")),
+
+  /** Where the console is, for the panel to frame. A different origin from the
+   * backend and not derivable from it -- one is an API, the other is a site,
+   * and a deployment may put them anywhere. Empty means the panel shows only
+   * what it can do itself, which is most of why it exists. */
+  consoleUrl: () => read(KEYS.consoleUrl, ""),
+  setConsoleUrl: (url) => write(KEYS.consoleUrl, url.replace(/\/+$/, "")),
 
   policy: () => read(KEYS.policy, null),
   setPolicy: (policy) => write(KEYS.policy, policy),

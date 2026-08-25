@@ -342,10 +342,16 @@ class CandidateRepository(Protocol):
         status: CandidateStatus | None = None,
         principal_id: PrincipalId | None = None,
         seen_at_least: int = 0,
+        host: str | None = None,
     ) -> tuple[TaskCandidate, ...]:
         """Most often seen first. The miner reads them all, including dismissed
         ones -- a task somebody said no to must not be offered again next week
         as if it were new.
+
+        `host` is one system, which is what the extension's panel asks: "tasks
+        you keep doing *here*" is a different question from "tasks you keep
+        doing", and filtering after a limit would let twenty from elsewhere push
+        the answer off the list.
         """
         ...
 

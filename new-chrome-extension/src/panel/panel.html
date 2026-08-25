@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AI-SRO</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <!-- What only this surface can say: it is docked beside the tab it is
+         talking about. Everything below the frame line is the console. -->
+    <header id="strip">
+      <p id="headline" data-on="false">…</p>
+
+      <div class="row">
+        <button type="button" id="teach">Start teaching</button>
+        <button type="button" id="pause" class="quiet">Pause</button>
+      </div>
+      <p class="note" id="teaching-state"></p>
+
+      <div id="run" hidden>
+        <p class="note" id="run-state"></p>
+        <button type="button" id="abort" class="quiet">Stop this run</button>
+      </div>
+
+      <p class="note" id="trouble"></p>
+    </header>
+
+    <section id="here">
+      <h2>Tasks you keep doing here</h2>
+      <ul id="candidates"></ul>
+      <p class="note" id="candidates-note"></p>
+    </section>
+
+    <section id="console">
+      <p class="note" id="console-note"></p>
+      <iframe id="frame" title="AI-SRO console" hidden></iframe>
+    </section>
+
+    <footer>
+      <button type="button" id="purge" class="quiet">Delete the last hour</button>
+      <a id="options" href="#">Settings</a>
+      <p class="note" id="purged"></p>
+    </footer>
+
+    <script type="module" src="panel.js"></script>
+  </body>
+</html>

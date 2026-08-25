@@ -695,6 +695,7 @@ class SqlCandidateRepository(CandidateRepository):
         status: CandidateStatus | None = None,
         principal_id: PrincipalId | None = None,
         seen_at_least: int = 0,
+        host: str | None = None,
     ) -> tuple[TaskCandidate, ...]:
         query = select(TaskCandidateRow).where(TaskCandidateRow.tenant_id == tenant_id.value)
         if status is not None:
@@ -703,6 +704,10 @@ class SqlCandidateRepository(CandidateRepository):
             query = query.where(TaskCandidateRow.principal_id == principal_id.value)
         if seen_at_least:
             query = query.where(TaskCandidateRow.times_seen >= seen_at_least)
+        if host:
+            # Stored lowercased by the segmenter, so the caller's spelling of a
+            # hostname does not decide whether their own tasks come back.
+            query = query.where(TaskCandidateRow.host == host.lower())
         query = query.order_by(TaskCandidateRow.times_seen.desc())
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_candidate(row) for row in rows)

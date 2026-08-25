@@ -73,6 +73,20 @@ export const api = {
       body: {},
     }),
 
+  /** Tasks this operator keeps doing on one system. The panel asks about the
+   * tab it is docked beside; the host is what makes it that question. */
+  candidates: (host) =>
+    call(`/v1/candidates?seen_at_least=3&host=${encodeURIComponent(host)}`),
+
+  teachCandidate: (id) =>
+    call(`/v1/candidates/${encodeURIComponent(id)}/teach`, { method: "POST", body: {} }),
+
+  dismissCandidate: (id, reason) =>
+    call(`/v1/candidates/${encodeURIComponent(id)}/dismiss`, {
+      method: "POST",
+      body: { reason },
+    }),
+
   /** The operator deleting their own evidence, from their own devices, for the
    * tenant on their credential. Answers with what went. */
   forget: (since) =>

@@ -6,10 +6,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   createTrigger,
+  deviceKeys,
   fireTrigger,
+  listDevices,
   listTriggers,
   setTriggerEnabled,
   triggerKeys,
+  type DeviceModel,
   type TriggerModel,
 } from "@/features/trigger/api";
 import { listSkills, skillKeys } from "@/features/skill/api";
@@ -41,6 +44,7 @@ export function TriggerBoard() {
   const queryClient = useQueryClient();
   const triggers = useQuery({ queryKey: triggerKeys.all, queryFn: listTriggers });
   const skills = useQuery({ queryKey: skillKeys.all, queryFn: listSkills });
+  const devices = useQuery({ queryKey: deviceKeys.all, queryFn: listDevices });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: triggerKeys.all });
   const complain = (error: unknown) =>
@@ -109,7 +113,12 @@ export function TriggerBoard() {
         )}
       </section>
 
-      <NewTrigger skills={skills.data ?? []} onCreated={invalidate} onError={complain} />
+      <NewTrigger
+        skills={skills.data ?? []}
+        devices={devices.data ?? []}
+        onCreated={invalidate}
+        onError={complain}
+      />
     </div>
   );
 }
@@ -187,10 +196,12 @@ function Row({
 
 function NewTrigger({
   skills,
+  devices,
   onCreated,
   onError,
 }: {
   skills: { id: string; name: string }[];
+  devices: DeviceModel[];
   onCreated: () => void;
   onError: (error: unknown) => void;
 }) {
@@ -204,6 +215,7 @@ function NewTrigger({
   const [timezone, setTimezone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   );
+  const [deviceId, setDeviceId] = useState("");
   const [authorized, setAuthorized] = useState(false);
   const [autoApprove, setAutoApprove] = useState(false);
   const [mayTakeFocus, setMayTakeFocus] = useState(false);
@@ -213,6 +225,7 @@ function NewTrigger({
     onSuccess: () => {
       toast.success("scheduled");
       setSkillId("");
+      setDeviceId("");
       setAuthorized(false);
       setAutoApprove(false);
       setMayTakeFocus(false);
@@ -234,7 +247,11 @@ function NewTrigger({
             // Named rather than defaulted: the generated type has no defaults,
             // and a schedule that ran as a manual trigger would never fire.
             kind: "schedule",
-            medium: "network",
+            // A run in somebody's browser drives the interface; one on the
+            // server replays the calls. Naming a device and asking for network
+            // replay would be asking a laptop to do what needs no laptop.
+            medium: deviceId ? "ui" : "network",
+            device_id: deviceId || null,
             cron,
             timezone,
             authorized_by: authorized,
@@ -332,6 +349,33 @@ function NewTrigger({
           </div>
         </div>
 
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="device">Where it runs</Label>
+          <select
+            id="device"
+            className="border-input h-9 rounded-md border px-3 text-sm"
+            value={deviceId}
+            onChange={(event) => {
+              setDeviceId(event.target.value);
+              // A schedule with no browser has no screen to take, and leaving
+              // the box ticked would show a permission that reaches nothing.
+              if (!event.target.value) setMayTakeFocus(false);
+            }}
+          >
+            <option value="">on the server, as calls</option>
+            {devices.map((device) => (
+              <option key={device.id} value={device.id}>
+                in {device.label}&apos;s browser
+              </option>
+            ))}
+          </select>
+          <p className="text-muted-foreground text-xs">
+            A run in somebody&apos;s own browser carries their session, and
+            happens only while that browser is connected — a property of a
+            laptop rather than a fault.
+          </p>
+        </div>
+
         {/* Three separate permissions, deliberately three checkboxes. Each one
             is a different thing to regret at three in the morning, and a single
             "enable automation" switch would grant all three. */}
@@ -353,8 +397,13 @@ function NewTrigger({
           id="may-take-focus"
           checked={mayTakeFocus}
           onChange={setMayTakeFocus}
+          disabled={!deviceId}
           label="May bring a tab to the front"
-          note="Only for a run in an operator's own browser, and only where somebody asked for it and is watching. A schedule that fires at three in the morning has no screen to take; one that fires at three in the afternoon takes the one somebody is typing into."
+          note={
+            deviceId
+              ? "The operator asked for this and is watching. Without it the extension refuses a command that would move their tab, which is what you want for anything that fires while nobody is there."
+              : "Only for a run in somebody's own browser — choose one above. A schedule that runs on the server has no screen to take."
+          }
         />
 
         <div>
@@ -373,20 +422,23 @@ function Permission({
   onChange,
   label,
   note,
+  disabled = false,
 }: {
   id: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
   note: string;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex gap-3">
+    <div className={`flex gap-3 ${disabled ? "opacity-60" : ""}`}>
       <input
         id={id}
         type="checkbox"
         className="mt-1"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
       />
       <div>

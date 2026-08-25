@@ -94,6 +94,34 @@ describe("a console inside the extension's panel", () => {
   });
 });
 
+describe("the half that starts the handshake", () => {
+  it("announces itself to the panel once it is listening", () => {
+    // The whole handshake hangs on this. The iframe's `load` fires when the
+    // document is parsed and this listener is registered after hydration, so a
+    // panel that posted on load would speak before anyone could hear it -- and
+    // the console would sit on its sign-in screen forever while the panel
+    // blamed the allowlist.
+    framed(true);
+    const parent = { postMessage: vi.fn() };
+    vi.spyOn(window, "parent", "get").mockReturnValue(parent as unknown as Window);
+
+    render(<EmbeddedCredential />);
+
+    expect(parent.postMessage).toHaveBeenCalledWith({ kind: "sro.ready" }, PANEL);
+  });
+
+  it("says nothing to a page that is not an allowed extension", () => {
+    origins = "";
+    framed(true);
+    const parent = { postMessage: vi.fn() };
+    vi.spyOn(window, "parent", "get").mockReturnValue(parent as unknown as Window);
+
+    render(<EmbeddedCredential />);
+
+    expect(parent.postMessage).not.toHaveBeenCalled();
+  });
+});
+
 describe("a console open in an ordinary tab", () => {
   it("cannot be handed a credential at all", () => {
     framed(false);

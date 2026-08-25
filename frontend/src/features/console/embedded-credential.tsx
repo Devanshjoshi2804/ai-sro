@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { credential, looksLikeAToken, remember } from "@/lib/api/credential";
+import { extensionOrigins } from "@/lib/frame-ancestors";
 import { env } from "@/lib/env";
 
 /**
@@ -32,7 +33,7 @@ export function EmbeddedCredential() {
   useEffect(() => {
     if (window.self === window.top) return;
 
-    const allowed = extensionOrigins();
+    const allowed = extensionOrigins(env.NEXT_PUBLIC_EXTENSION_ORIGINS);
     if (!allowed.length) return;
 
     function receive(event: MessageEvent) {
@@ -53,19 +54,16 @@ export function EmbeddedCredential() {
     }
 
     window.addEventListener("message", receive);
+
+    // Said once the listener exists, and this is the half that makes the
+    // handshake work at all. The iframe's `load` fires when the document is
+    // parsed, while this effect runs after hydration -- so a credential posted
+    // on load arrives before anyone is listening and is never replayed. The
+    // panel waits to hear this rather than guessing when to speak.
+    for (const origin of allowed) window.parent.postMessage({ kind: "sro.ready" }, origin);
+
     return () => window.removeEventListener("message", receive);
   }, []);
 
   return null;
-}
-
-/** The extension origins this deployment accepts a credential from.
- *
- * Empty unless somebody configured it, which is what makes "no panel here"
- * the default rather than something to remember to switch off.
- */
-function extensionOrigins(): string[] {
-  return env.NEXT_PUBLIC_EXTENSION_ORIGINS.split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
 }

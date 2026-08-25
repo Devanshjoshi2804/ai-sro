@@ -273,11 +273,10 @@ async function handle(message, sender) {
       await state.setPaused(Boolean(message.paused));
       return settle();
     case "flush":
-      // Upload now rather than on the next tick. The options page offers this
-      // so an operator who is about to close the laptop can see the queue go,
-      // and it is how a test drives a whole capture through without waiting
-      // out an alarm.
-      return flushQueue();
+      // Upload now rather than on the next tick, and all of it: the options
+      // page offers this so an operator about to close the laptop can watch the
+      // queue go, and "it went" has to mean the queue is empty.
+      return drain();
     case "teach-start": {
       // Everything captured so far goes up as ordinary work before the
       // demonstration starts, so no batch straddles the moment it began.
@@ -302,10 +301,14 @@ async function handle(message, sender) {
     case "teach-stop": {
       const was = await teaching.stop();
       if (!was) return { ok: true, was: null };
-      // The demonstration's own evidence goes up before anything is sealed:
-      // the backend assembles the recording's frames out of what it has, so an
-      // upload still sitting here is a step the skill will never have.
-      const sent = await flushQueue();
+      // *All* of the demonstration's evidence goes up before anything is
+      // sealed. One flush is one batch -- 500 events or 2MB -- and a teaching
+      // batch carries an accessibility tree per gesture, so a demonstration of
+      // any length is several. Sealing after the first one left the rest in
+      // the queue, and the next tick met a sealed recording: the backend
+      // refuses that permanently, and a permanent refusal deletes the rows.
+      // The back half of the demonstration disappeared without a word.
+      const sent = await drain();
       if (sent.error) {
         return { error: `not sealed, because the last of it did not upload: ${sent.error}` };
       }
@@ -356,6 +359,27 @@ async function handle(message, sender) {
     default:
       return { error: `no such message: ${message?.kind}` };
   }
+}
+
+/** How many batches one drain will send before giving the alarm its turn back.
+ * A demonstration is minutes of work, not hours; a queue that still is not
+ * empty after this many is a queue with a problem, and the alarm will carry on
+ * with it. */
+const MOST_BATCHES = 50;
+
+/** Upload until there is nothing left, rather than one batch's worth.
+ *
+ * Only the paths that need emptiness use this -- sealing a demonstration, and
+ * the operator asking to flush before closing the laptop. The alarm stays one
+ * batch a tick, which is what paces a busy day.
+ */
+async function drain() {
+  let last = { uploaded: 0 };
+  for (let batch = 0; batch < MOST_BATCHES; batch += 1) {
+    last = await flushQueue();
+    if (last.error || !last.uploaded || !last.remaining) return last;
+  }
+  return last;
 }
 
 async function flushQueue() {

@@ -20,6 +20,19 @@ import { TriggerBoard } from "@/features/trigger/components/trigger-board";
 import * as triggerApi from "@/features/trigger/api";
 import * as skillApi from "@/features/skill/api";
 
+const DEVICE = {
+  id: "dev-1",
+  principal_id: "devansh",
+  label: "devansh",
+  extension_version: "0.1.0",
+  registered_at: "2026-08-25T08:00:00Z",
+  last_seen_at: "2026-08-25T09:00:00Z",
+  paused: false,
+  queued_events: 0,
+  queued_bytes: 0,
+  uploads: 3,
+} as triggerApi.DeviceModel;
+
 function show() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(
@@ -83,6 +96,7 @@ describe("putting a skill on a clock", () => {
 
   it("sends may_take_focus only when it was asked for, and nothing else with it", async () => {
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
     vi.spyOn(skillApi, "listSkills").mockResolvedValue([
       { id: "skl-1", name: "Adjust an LPN" },
     ] as never);
@@ -90,10 +104,11 @@ describe("putting a skill on a clock", () => {
 
     show();
     const user = userEvent.setup();
-    // Waits for the skill list to arrive: a select with no options yet is a
-    // select nobody can choose from, which is also true of the real screen.
     await screen.findByRole("option", { name: "Adjust an LPN" });
     await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    // A browser first. A schedule that runs on the server has no screen to
+    // take, so the permission is not offered until one is named.
+    await user.selectOptions(screen.getByLabelText("Where it runs"), "dev-1");
     await user.click(screen.getByLabelText("May bring a tab to the front"));
     await user.click(screen.getByRole("button", { name: "Schedule it" }));
 
@@ -102,6 +117,8 @@ describe("putting a skill on a clock", () => {
     // same permission as writing to their warehouse unattended.
     expect(created.mock.calls[0][0]).toMatchObject({
       may_take_focus: true,
+      device_id: "dev-1",
+      medium: "ui",
       authorized_by: false,
       auto_approve: false,
     });
@@ -111,6 +128,7 @@ describe("putting a skill on a clock", () => {
 describe("choosing when it runs", () => {
   it("builds the schedule from what was chosen, and shows it in words", async () => {
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([]);
     vi.spyOn(skillApi, "listSkills").mockResolvedValue([
       { id: "skl-1", name: "Adjust an LPN" },
     ] as never);
@@ -134,6 +152,7 @@ describe("choosing when it runs", () => {
 
   it("still takes an expression somebody wrote, and says so when it cannot read it", async () => {
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([]);
     vi.spyOn(skillApi, "listSkills").mockResolvedValue([
       { id: "skl-1", name: "Adjust an LPN" },
     ] as never);
@@ -160,6 +179,7 @@ describe("choosing when it runs", () => {
 
 describe("what is already on a clock", () => {
   it("says who stands behind a write and whether it asks first", async () => {
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([]);
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([
       aTrigger({ requires_confirmation: false, authorized_by: "devansh" }),
     ]);
@@ -174,6 +194,7 @@ describe("what is already on a clock", () => {
   });
 
   it("says when a trigger may take the operator's screen", async () => {
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([]);
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([aTrigger({ may_take_focus: true })]);
     vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
 
@@ -183,6 +204,7 @@ describe("what is already on a clock", () => {
   });
 
   it("pauses by removing the schedule rather than by letting it fire into a check", async () => {
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([]);
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([aTrigger()]);
     vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
     const paused = vi
@@ -193,5 +215,49 @@ describe("what is already on a clock", () => {
     await userEvent.setup().click(await screen.findByRole("button", { name: "Pause" }));
 
     await waitFor(() => expect(paused).toHaveBeenCalledWith("trg-1", false, expect.any(String)));
+  });
+});
+
+
+describe("a permission that could not reach anything", () => {
+  it("cannot be given to a schedule that runs on the server", async () => {
+    // It was ticked, stored and displayed, and never reached a run: a trigger
+    // with no device takes the durable path, which has no browser and passes no
+    // focus decision. A checkbox that lies is worse than one that is missing.
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([
+      { id: "skl-1", name: "Adjust an LPN" },
+    ] as never);
+
+    show();
+    await screen.findByRole("option", { name: "Adjust an LPN" });
+
+    expect(screen.getByLabelText("May bring a tab to the front")).toBeDisabled();
+    expect(screen.getByText(/choose one above/)).toBeInTheDocument();
+  });
+
+  it("is dropped again if the browser is taken away after ticking it", async () => {
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([
+      { id: "skl-1", name: "Adjust an LPN" },
+    ] as never);
+    const created = vi.spyOn(triggerApi, "createTrigger").mockResolvedValue(aTrigger());
+
+    show();
+    const user = userEvent.setup();
+    await screen.findByRole("option", { name: "Adjust an LPN" });
+    await user.selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    await user.selectOptions(screen.getByLabelText("Where it runs"), "dev-1");
+    await user.click(screen.getByLabelText("May bring a tab to the front"));
+    await user.selectOptions(screen.getByLabelText("Where it runs"), "");
+    await user.click(screen.getByRole("button", { name: "Schedule it" }));
+
+    await waitFor(() => expect(created).toHaveBeenCalled());
+    expect(created.mock.calls[0][0]).toMatchObject({
+      device_id: null,
+      may_take_focus: false,
+    });
   });
 });

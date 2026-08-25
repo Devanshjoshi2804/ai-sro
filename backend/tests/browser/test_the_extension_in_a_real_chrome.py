@@ -1455,8 +1455,13 @@ def test_the_panel_shows_only_the_tasks_of_the_system_in_front_of_it(
     assert any("host=127.0.0.1" in query for query in candidate_queries), (
         f"the panel asked for every candidate rather than this system's: {candidate_queries}"
     )
-    assert len(shown) == 1, f"a task from another system was offered here: {shown}"
+    assert len(shown) == 1, (
+        f"something already decided, or from another system, was offered here: {shown}"
+    )
     assert "Adjust an LPN quantity" in shown[0]
+    # A candidate somebody already said no to is not a question any more, and
+    # offering Teach on it would be offering a button the backend refuses.
+    assert all("already said no to" not in row for row in shown)
     # A sentence a model wrote is never presented as a fact about the task.
     assert "named by a model" in shown[0]
 
@@ -1501,3 +1506,60 @@ def test_a_suggestion_the_panel_shows_is_one_a_person_can_answer(
     # And it stops asking: the row states what was decided and by whom, rather
     # than offering the same question again.
     assert "said so" in after, f"the row is still asking a question somebody answered: {after!r}"
+
+
+def test_a_demonstration_bigger_than_one_batch_is_uploaded_whole(
+    browser: Any, stub: Any, demonstrations: tuple[list[str], list[str]]
+) -> None:
+    """Sealing is the end of the road for the evidence behind it.
+
+    One flush is one batch — 500 events or 2MB — and a teaching batch carries an
+    accessibility tree per gesture, so any real demonstration is several. Sealing
+    after the first left the rest queued, and the next tick met a recording that
+    was already sealed: the backend refuses that permanently, and a permanent
+    refusal deletes the rows. The back half went missing without a word.
+    """
+    api_url, batches = stub
+    started, sealed = demonstrations
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+
+    page = browser.new_page()
+    page.goto(f"{api_url}/wide")
+    page.reload()
+
+    options = browser.new_page()
+    options.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
+    began = options.evaluate(
+        """async () => await chrome.runtime.sendMessage({kind: "teach-start"})"""
+    )
+    assert began.get("ok"), f"the demonstration did not start: {began}"
+
+    # Enough gestures that their trees cannot fit in one 2MB batch.
+    for _ in range(12):
+        page.click("#client")
+        page.click("h1")
+    page.wait_for_timeout(1000)
+
+    ended = options.evaluate(
+        """async () => await chrome.runtime.sendMessage({kind: "teach-stop"})"""
+    )
+    assert ended.get("ok"), f"the demonstration did not stop cleanly: {ended}"
+
+    left = options.evaluate("""async () => (await chrome.runtime.sendMessage({kind: "status"}))""")
+    options.close()
+    page.close()
+
+    assert sealed == started, "the demonstration was never sealed"
+    teaching = [batch for batch in batches if batch["mode"] == "teaching"]
+    assert len(teaching) > 1, (
+        "the fixture did not produce more than one batch, so this proves nothing"
+    )
+    # Nothing of it was still on the device when it was sealed, which is the
+    # only moment at which the backend will still accept it.
+    assert not left["lastError"], f"the tail of the demonstration did not go: {left['lastError']}"
+    gestures = sum(
+        1 for batch in teaching for event in batch["events"] if event["kind"] == "gesture"
+    )
+    assert gestures >= 12, f"only {gestures} of the demonstration's gestures arrived"

@@ -152,6 +152,23 @@ _CANDIDATES = [
         "episodes": [],
     },
     {
+        "id": "cnd-dismissed",
+        "title": "Something already said no to",
+        "host": "127.0.0.1",
+        "signature": "GET wm/labels/*",
+        "status": "dismissed",
+        "times_seen": 7,
+        "median_duration_ms": 9000,
+        "minutes_so_far": 1.0,
+        "first_seen": None,
+        "last_seen": None,
+        "skill_id": None,
+        "dismissed_reason": "not worth automating",
+        "named_by_model": False,
+        "joins": [],
+        "episodes": [],
+    },
+    {
         "id": "cnd-elsewhere",
         "title": "Something on another system",
         "host": "erp.example",
@@ -215,6 +232,18 @@ class _Stub(BaseHTTPRequestHandler):
             # would prove the wrong half.
             wanted = parse_qs(urlsplit(self.path).query).get("host", [""])[0]
             self._send(200, json.dumps([c for c in _CANDIDATES if c["host"] == wanted]).encode())
+            return
+        if self.path.startswith("/wide"):
+            # A page whose accessibility tree is the size a real WMS screen
+            # produces. One teaching batch holds 2MB, and a demonstration on a
+            # page like this needs several -- which is the case that used to
+            # lose everything after the first.
+            crowd = "".join(
+                f'<button id="b{index}">Control {index}</button>' for index in range(1200)
+            )
+            self._send(
+                200, PAGE.replace("</form>", f"</form>{crowd}").encode(), "text/html; charset=utf-8"
+            )
             return
         if self.path.startswith("/console"):
             # A console, as far as the panel is concerned: it announces itself

@@ -8,6 +8,15 @@ export const triggerKeys = {
   all: ["triggers"] as const,
 };
 
+export type DeviceModel = Schemas["DeviceModel"];
+
+export const deviceKeys = { all: ["devices"] as const };
+
+/** The browsers this tenant has registered. A trigger that may take somebody's
+ * screen has to name one: without a device the run happens server-side, where
+ * there is no screen to take. */
+export const listDevices = () => api.get<DeviceModel[]>("/v1/agents");
+
 export const listTriggers = () => api.get<TriggerModel[]>("/v1/triggers");
 
 export const createTrigger = (body: NewTriggerRequest) =>

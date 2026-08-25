@@ -23,6 +23,17 @@ describe("frame-ancestors", () => {
     );
   });
 
+  it("drops anything that is not a bare origin", () => {
+    // Two teeth. `event.origin` never has a trailing slash, so a pasted URL in
+    // the allowlist matches nothing and presents as a handshake refused
+    // forever. And this string goes into a header: a `;` would append whatever
+    // directives it liked to every response the console serves.
+    expect(frameAncestors(`${PANEL}/`)).toBe("'self'");
+    expect(frameAncestors("https://x.test/panel")).toBe("'self'");
+    expect(frameAncestors("https://x.test; script-src 'unsafe-inline'")).toBe("'self'");
+    expect(frameAncestors(`${PANEL}, https://x.test/nope`)).toBe(`'self' ${PANEL}`);
+  });
+
   it("allows nobody but this site when nothing is configured", () => {
     // The default a deployment gets without knowing this exists, and the reason
     // the header is worth adding even where the panel is never used.

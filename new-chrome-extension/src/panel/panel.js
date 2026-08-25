@@ -165,10 +165,16 @@ async function here() {
     return;
   }
 
-  $("candidates-note").textContent = candidates.length
+  // Only what is still a question. The endpoint answers with every status --
+  // dismissed and taught included, because the miner reads them all so it does
+  // not re-offer what somebody said no to -- and a panel that offered "Teach"
+  // on a dismissed one would be offering a button the backend refuses.
+  const offerable = candidates.filter((candidate) => candidate.status === "new");
+
+  $("candidates-note").textContent = offerable.length
     ? ""
     : `nothing noticed on ${host} yet — it takes a few doings of the same task`;
-  $("candidates").replaceChildren(...candidates.map(row));
+  $("candidates").replaceChildren(...offerable.map(row));
 }
 
 function row(candidate) {
@@ -209,8 +215,15 @@ function row(candidate) {
   dismiss.className = "quiet";
   dismiss.textContent = "Not worth it";
   dismiss.addEventListener("click", async () => {
-    await ask({ kind: "dismiss-candidate", id: candidate.id, reason: "not worth automating" });
-    await here();
+    try {
+      await ask({ kind: "dismiss-candidate", id: candidate.id, reason: "not worth automating" });
+      await here();
+    } catch (error) {
+      // Said on the row rather than thrown into nothing: a click that does
+      // nothing and explains nothing is how somebody decides the panel is
+      // broken.
+      facts.textContent = error.message;
+    }
   });
 
   actions.append(teach, dismiss);

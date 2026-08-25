@@ -70,6 +70,36 @@ So an upload that fails is retried without re-sending the batch, and staging the
 same batch twice replaces the row rather than queueing a second copy. Three
 failed attempts and the picture is dropped, loudly — the options page says so.
 
+## Teaching a task
+
+Passive capture is cheap and invisible on purpose. The teaching tier is the
+opposite: the operator opens the system, presses **Start teaching** on the
+options page, does the task once, and presses stop. While it runs, the extension
+attaches `chrome.debugger` to that tab and takes an accessibility tree at every
+gesture — the one view that says what a control *is* rather than where it sits
+today, and what induction needs to build a locator that survives a re-render.
+
+Chrome banners the tab for as long as it is attached, which is right: this is
+deliberate, it is short, and the operator should be able to see it stop.
+
+The tab taught in is the last ordinary page they were on, not the options page
+they pressed the button in. Start flushes everything captured so far as passive
+work, stop uploads the demonstration's own evidence and only then seals the
+recording — a batch never straddles the moment teaching began or ended, because
+the backend refuses teaching evidence that names no demonstration and passive
+evidence that names one.
+
+## Deleting your own evidence
+
+The options page has a "Delete the last hour" button, and it does both halves:
+`DELETE /v1/observations?since=…` on the server, and the queue on this device,
+which has not reached the server yet. Deleting one and not the other would
+upload the hour the operator just asked to be rid of, on the next tick.
+
+It asks twice before doing it, in the page rather than in a modal — a dialog
+raised from an extension page blocks the very service worker being asked to do
+the deleting — and forgets it was asked after five seconds.
+
 ## The command channel
 
 The extension dials `WS /v1/agents/{device_id}/commands` and answers what comes
@@ -134,5 +164,6 @@ The credential lives in `chrome.storage.local`, not `session`: `session` is
 cleared when Chrome restarts, and an operator who has to paste a token every
 morning is an operator who turns the extension off.
 
-Regenerate a fixture by capturing the real thing, not by hand-editing the JSON —
-a hand-written fixture proves the fixture, not the extension.
+Regenerate them with `make fixtures`, which drives a real Chrome with this
+extension loaded and writes what it actually emitted. Never by hand-editing the
+JSON — a hand-written fixture proves the fixture, not the extension.

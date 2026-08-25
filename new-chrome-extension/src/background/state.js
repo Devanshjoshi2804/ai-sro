@@ -17,6 +17,7 @@ const KEYS = {
   queueEpoch: "sro.queueEpoch",
   pendingBatch: "sro.pendingBatch",
   shotTimes: "sro.shotTimes",
+  teaching: "sro.teaching",
 };
 
 export const DEFAULT_API_URL = "http://localhost:8000";
@@ -90,6 +91,13 @@ export const state = {
    * which, at a human's pace, is most pairs of clicks. */
   shotTimes: () => read(KEYS.shotTimes, []),
   setShotTimes: (times) => write(KEYS.shotTimes, times),
+
+  /** The demonstration this browser is in the middle of: which recording, in
+   * which tab. In storage rather than a module variable because the worker is
+   * evicted between two of the operator's clicks, and a demonstration that
+   * forgot itself halfway through would upload the rest as ordinary work. */
+  teaching: () => read(KEYS.teaching, null),
+  setTeaching: (teaching) => write(KEYS.teaching, teaching),
 
   async forget() {
     await chrome.storage.local.remove(Object.values(KEYS));

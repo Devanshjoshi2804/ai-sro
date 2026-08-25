@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, Query, UploadFile, status
 
 from sro.domain.recording.artifact import ArtifactKind
-from sro.domain.shared.identifiers import BatchId, DeviceId
+from sro.domain.shared.identifiers import BatchId, DeviceId, RecordingId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     ForgottenResponse,
@@ -40,6 +40,7 @@ async def ingest_observations(
         ended_at=body.ended_at,
         mode=body.mode,
         events=body.events,
+        recording_id=RecordingId(body.recording_id) if body.recording_id else None,
     )
     return ObservationAcceptedResponse(
         batch_id=ingested.batch_id.value,
@@ -90,4 +91,6 @@ async def forget_observations(
     erase another's day.
     """
     forgotten = await container.forget_observations().execute(ctx, since=since)
-    return ForgottenResponse(batches=forgotten.batches, events=forgotten.events)
+    return ForgottenResponse(
+        batches=forgotten.batches, events=forgotten.events, artifacts=forgotten.artifacts
+    )

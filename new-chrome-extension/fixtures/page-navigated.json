@@ -1,8 +1,8 @@
 {
   "kind": "page",
-  "at": "2026-08-24T09:15:10.500Z",
+  "at": "2026-08-25T08:31:40.722Z",
   "page_kind": "navigated",
-  "url": "https://wms.example.test/orders",
+  "url": "http://127.0.0.1:49986/",
   "detail": null,
-  "tab_id": 8
+  "tab_id": 927171230
 }

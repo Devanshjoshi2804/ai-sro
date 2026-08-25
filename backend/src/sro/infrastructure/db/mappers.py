@@ -49,6 +49,7 @@ from sro.infrastructure.db.codec import (
     dump_artifacts,
     dump_episodes,
     dump_frames,
+    dump_joins,
     dump_messages,
     dump_narration,
     dump_policy,
@@ -57,6 +58,7 @@ from sro.infrastructure.db.codec import (
     load_artifacts,
     load_episodes,
     load_frames,
+    load_joins,
     load_messages,
     load_narration,
     load_policy,
@@ -134,6 +136,7 @@ def update_recording_row(row: RecordingRow, recording: Recording) -> None:
     row.browser_session_id = (
         recording.browser_session_id.value if recording.browser_session_id else None
     )
+    row.device_id = recording.device_id.value if recording.device_id else None
     row.started_at = recording.started_at
     row.ended_at = recording.ended_at
     row.abandon_reason = recording.abandon_reason
@@ -149,6 +152,7 @@ def row_to_recording(row: RecordingRow) -> Recording:
         objective_key=_objective_or_none(row),
         demonstrator=PrincipalId(row.demonstrator),
         started_at=row.started_at,
+        device_id=DeviceId(row.device_id) if row.device_id else None,
         browser_session_id=(
             BrowserSessionId(row.browser_session_id) if row.browser_session_id else None
         ),
@@ -485,6 +489,7 @@ def batch_to_row(batch: ObservationBatch) -> ObservationBatchRow:
         device_id=batch.device_id.value,
         principal_id=batch.principal_id.value,
         mode=batch.mode.value,
+        recording_id=batch.recording_id.value if batch.recording_id else None,
         started_at=batch.started_at,
         ended_at=batch.ended_at,
         received_at=batch.received_at,
@@ -502,6 +507,7 @@ def row_to_batch(row: ObservationBatchRow) -> ObservationBatch:
         device_id=DeviceId(row.device_id),
         principal_id=PrincipalId(row.principal_id),
         mode=CaptureMode(row.mode),
+        recording_id=RecordingId(row.recording_id) if row.recording_id else None,
         started_at=row.started_at,
         ended_at=row.ended_at,
         received_at=row.received_at,
@@ -592,6 +598,7 @@ def update_candidate_row(row: TaskCandidateRow, candidate: TaskCandidate) -> Non
     row.skill_id = candidate.skill_id.value if candidate.skill_id else None
     row.dismissed_reason = candidate.dismissed_reason
     row.episodes = dump_episodes(candidate.episodes)
+    row.joins = dump_joins(candidate.joins)
     # Lifted out of the document so "offer me what happened most often" is an
     # index rather than a scan of every candidate's episodes.
     row.times_seen = candidate.times_seen
@@ -611,5 +618,6 @@ def row_to_candidate(row: TaskCandidateRow) -> TaskCandidate:
         episodes=load_episodes(row.episodes),
         skill_id=SkillId(row.skill_id) if row.skill_id else None,
         dismissed_reason=row.dismissed_reason,
+        joins=load_joins(row.joins),
         named_by_model=row.named_by_model,
     )

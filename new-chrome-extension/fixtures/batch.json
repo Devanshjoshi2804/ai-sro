@@ -1,43 +1,42 @@
 {
-  "batch_id": "bat_devsmoke_1",
-  "device_id": "dev_b1bb5fbd7d8f4e7bbbab44d52321f576",
-  "started_at": "2026-08-24T10:00:00.000Z",
-  "ended_at": "2026-08-24T10:00:05.500Z",
+  "batch_id": "bat_browsertest_8fae45b6_1",
+  "device_id": "dev_browsertest",
+  "started_at": "2026-08-25T08:31:40.727Z",
+  "ended_at": "2026-08-25T08:31:40.991Z",
   "mode": "passive",
   "recording_id": null,
   "events": [
     {
-      "kind": "gesture",
-      "gesture": {
-        "kind": "click",
-        "target": {
-          "tag": "button",
-          "role": null,
-          "name": "Save",
-          "secret": false,
-          "text": "Save",
-          "testId": null,
-          "cssPath": "div.x-panel > button:nth-of-type(1)",
-          "xpath": "/html[1]/body[1]/div[3]/button[1]",
-          "bounds": {
-            "x": 10,
-            "y": 20,
-            "width": 80,
-            "height": 24
-          },
-          "attributes": {
-            "type": "button"
-          },
-          "component": null
-        },
-        "value": null,
-        "secret": false,
-        "modifiers": [],
-        "at": 1787654321.901,
-        "url": "https://example.test/orders"
-      },
-      "tab_id": 8,
-      "frame_url": "https://example.test/orders"
+      "kind": "page",
+      "at": "2026-08-25T08:31:40.722Z",
+      "page_kind": "navigated",
+      "url": "http://127.0.0.1:49986/",
+      "detail": null,
+      "tab_id": 927171230
+    },
+    {
+      "kind": "page",
+      "at": "2026-08-25T08:31:40.735Z",
+      "page_kind": "loaded",
+      "url": "http://127.0.0.1:49986/",
+      "detail": null,
+      "tab_id": 927171230
+    },
+    {
+      "kind": "page",
+      "at": "2026-08-25T08:31:40.792Z",
+      "page_kind": "navigated",
+      "url": "http://127.0.0.1:49986/",
+      "detail": null,
+      "tab_id": 927171230
+    },
+    {
+      "kind": "page",
+      "at": "2026-08-25T08:31:40.794Z",
+      "page_kind": "loaded",
+      "url": "http://127.0.0.1:49986/",
+      "detail": null,
+      "tab_id": 927171230
     },
     {
       "kind": "gesture",
@@ -50,70 +49,453 @@
           "secret": false,
           "text": null,
           "testId": null,
-          "cssPath": "div.x-panel > input:nth-of-type(2)",
-          "xpath": "/html[1]/body[1]/div[3]/input[2]",
+          "cssPath": "input#client",
+          "xpath": "/html/body[1]/form[1]/input[1]",
           "bounds": {
-            "x": 0,
-            "y": 0,
-            "width": 120,
-            "height": 24
+            "x": 88.890625,
+            "y": 79.875,
+            "width": 153,
+            "height": 21
           },
           "attributes": {
+            "id": "client",
+            "name": "clientCode",
             "type": "text"
+          },
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "clientCode",
+            "name": "clientCode",
+            "fieldLabel": "Client Code",
+            "text": null,
+            "query": "panel#clients textfield#clientCode",
+            "chain": [
+              "panel#clients",
+              "textfield#clientCode"
+            ]
+          }
+        },
+        "value": "ACME-4471",
+        "secret": false,
+        "modifiers": [],
+        "at": 1787646700.837,
+        "url": "http://127.0.0.1:49986/"
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
+    },
+    {
+      "kind": "gesture",
+      "gesture": {
+        "kind": "select",
+        "target": {
+          "tag": "select",
+          "role": null,
+          "name": "Dock",
+          "secret": false,
+          "text": "choose\nDock 3",
+          "testId": null,
+          "cssPath": "select#dock",
+          "xpath": "/html/body[1]/form[1]/select[1]",
+          "bounds": {
+            "x": 506.890625,
+            "y": 80.875,
+            "width": 65,
+            "height": 19
+          },
+          "attributes": {
+            "id": "dock",
+            "name": "dock"
           },
           "component": null
         },
-        "value": "ACME",
+        "value": "D3",
         "secret": false,
         "modifiers": [],
-        "at": 1787654322.5,
-        "url": "https://example.test/orders"
+        "at": 1787646700.883,
+        "url": "http://127.0.0.1:49986/"
       },
-      "tab_id": 8,
-      "frame_url": "https://example.test/orders"
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
+    },
+    {
+      "kind": "gesture",
+      "gesture": {
+        "kind": "upload",
+        "target": {
+          "tag": "input",
+          "role": null,
+          "name": "Manifest",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "cssPath": "input#manifest",
+          "xpath": "/html/body[1]/form[1]/input[3]",
+          "bounds": {
+            "x": 636.765625,
+            "y": 79.875,
+            "width": 253,
+            "height": 21
+          },
+          "attributes": {
+            "id": "manifest",
+            "name": "manifest",
+            "type": "file"
+          },
+          "component": null
+        },
+        "value": "manifest.csv",
+        "modifiers": [],
+        "at": 1787646700.89,
+        "url": "http://127.0.0.1:49986/"
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
+    },
+    {
+      "kind": "gesture",
+      "gesture": {
+        "kind": "type",
+        "target": {
+          "tag": "input",
+          "role": null,
+          "name": null,
+          "secret": true,
+          "text": null,
+          "testId": null,
+          "cssPath": "input#pw",
+          "xpath": "/html/body[1]/form[1]/input[2]",
+          "bounds": {
+            "x": 311.234375,
+            "y": 79.875,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "pw",
+            "name": "password",
+            "type": "password"
+          },
+          "component": null
+        },
+        "value": null,
+        "secret": true,
+        "modifiers": [],
+        "at": 1787646700.928,
+        "url": "http://127.0.0.1:49986/"
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
+    },
+    {
+      "kind": "gesture",
+      "gesture": {
+        "kind": "click",
+        "target": {
+          "tag": "input",
+          "role": null,
+          "name": "Client Code",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "cssPath": "input#client",
+          "xpath": "/html/body[1]/form[1]/input[1]",
+          "bounds": {
+            "x": 88.890625,
+            "y": 79.875,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "client",
+            "name": "clientCode",
+            "type": "text"
+          },
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "clientCode",
+            "name": "clientCode",
+            "fieldLabel": "Client Code",
+            "text": null,
+            "query": "panel#clients textfield#clientCode",
+            "chain": [
+              "panel#clients",
+              "textfield#clientCode"
+            ]
+          }
+        },
+        "modifiers": [],
+        "at": 1787646700.929,
+        "url": "http://127.0.0.1:49986/"
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
+    },
+    {
+      "kind": "gesture",
+      "gesture": {
+        "kind": "press",
+        "target": {
+          "tag": "input",
+          "role": null,
+          "name": "Client Code",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "cssPath": "input#client",
+          "xpath": "/html/body[1]/form[1]/input[1]",
+          "bounds": {
+            "x": 88.890625,
+            "y": 79.875,
+            "width": 153,
+            "height": 21
+          },
+          "attributes": {
+            "id": "client",
+            "name": "clientCode",
+            "type": "text"
+          },
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "clientCode",
+            "name": "clientCode",
+            "fieldLabel": "Client Code",
+            "text": null,
+            "query": "panel#clients textfield#clientCode",
+            "chain": [
+              "panel#clients",
+              "textfield#clientCode"
+            ]
+          }
+        },
+        "value": "Enter",
+        "modifiers": [],
+        "at": 1787646700.939,
+        "url": "http://127.0.0.1:49986/"
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
+    },
+    {
+      "kind": "gesture",
+      "gesture": {
+        "kind": "click",
+        "target": {
+          "tag": "button",
+          "role": null,
+          "name": "Save",
+          "secret": false,
+          "text": "Save",
+          "testId": null,
+          "cssPath": "button#save",
+          "xpath": "/html/body[1]/form[1]/button[1]",
+          "bounds": {
+            "x": 893.765625,
+            "y": 79.875,
+            "width": 46.390625,
+            "height": 21
+          },
+          "attributes": {
+            "id": "save",
+            "type": "button"
+          },
+          "component": {
+            "framework": "extjs",
+            "xtype": "button",
+            "itemId": "saveButton",
+            "name": null,
+            "fieldLabel": null,
+            "text": "Save",
+            "query": "panel#clients button#saveButton",
+            "chain": [
+              "panel#clients",
+              "button#saveButton"
+            ]
+          }
+        },
+        "modifiers": [],
+        "at": 1787646700.968,
+        "url": "http://127.0.0.1:49986/"
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
     },
     {
       "kind": "request",
       "request": {
-        "request_id": "req_1787654322900_1",
-        "method": "POST",
-        "url": "https://example.test/api/orders",
+        "request_id": "req_429d5907_0",
+        "method": "GET",
+        "url": "http://127.0.0.1:49986/api/orders?facility=DC1",
         "resource_type": "fetch",
-        "started_at": "2026-08-24T09:15:11.004Z",
-        "request_headers": { "content-type": "application/json" },
-        "request_body": {
-          "text": "{\"code\":\"ACME\"}",
-          "size_bytes": 16,
-          "mime_type": "application/json",
-          "encoding": null,
-          "redacted_fields": []
+        "started_at": "2026-08-25T08:31:40.968Z",
+        "request_headers": {},
+        "request_body": null,
+        "status": 200,
+        "status_text": "OK",
+        "response_headers": {
+          "access-control-allow-headers": "*",
+          "access-control-allow-origin": "*",
+          "content-length": "29",
+          "content-type": "application/json",
+          "date": "Tue, 25 Aug 2026 08:31:40 GMT",
+          "server": "BaseHTTP/0.6 Python/3.14.7"
         },
-        "status": 201,
-        "status_text": "Created",
-        "response_headers": { "content-type": "application/json" },
         "response_body": {
-          "text": "{\"id\":812}",
-          "size_bytes": 10,
+          "text": "{\"orders\": [{\"id\": \"ORD-1\"}]}",
+          "size_bytes": 29,
           "mime_type": "application/json",
           "encoding": null,
           "redacted_fields": []
         },
         "redirect_chain": [],
-        "duration_ms": 210,
+        "duration_ms": 14,
         "from_cache": false,
         "failure_reason": null,
         "blocked_reason": null
       },
-      "tab_id": 8,
-      "frame_url": "https://example.test/orders"
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
     },
     {
-      "kind": "page",
-      "at": "2026-08-24T09:15:11.400Z",
-      "page_kind": "loaded",
-      "url": "https://example.test/orders",
-      "detail": null,
-      "tab_id": 8
+      "kind": "request",
+      "request": {
+        "request_id": "req_429d5907_1",
+        "method": "POST",
+        "url": "http://127.0.0.1:49986/api/orders",
+        "resource_type": "fetch",
+        "started_at": "2026-08-25T08:31:40.984Z",
+        "request_headers": {
+          "content-type": "application/json"
+        },
+        "request_body": {
+          "text": "{\"clientCode\":\"ACME-4471\",\"dock\":\"D3\"}",
+          "size_bytes": 38,
+          "mime_type": "application/json",
+          "encoding": null,
+          "redacted_fields": []
+        },
+        "status": 200,
+        "status_text": "OK",
+        "response_headers": {
+          "access-control-allow-headers": "*",
+          "access-control-allow-origin": "*",
+          "content-length": "12",
+          "content-type": "application/json",
+          "date": "Tue, 25 Aug 2026 08:31:40 GMT",
+          "server": "BaseHTTP/0.6 Python/3.14.7"
+        },
+        "response_body": {
+          "text": "{\"ok\": true}",
+          "size_bytes": 12,
+          "mime_type": "application/json",
+          "encoding": null,
+          "redacted_fields": []
+        },
+        "redirect_chain": [],
+        "duration_ms": 2,
+        "from_cache": false,
+        "failure_reason": null,
+        "blocked_reason": null
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
+    },
+    {
+      "kind": "request",
+      "request": {
+        "request_id": "req_429d5907_2",
+        "method": "GET",
+        "url": "http://127.0.0.1:1/never",
+        "resource_type": "fetch",
+        "started_at": "2026-08-25T08:31:40.986Z",
+        "request_headers": {},
+        "request_body": null,
+        "status": null,
+        "status_text": null,
+        "response_headers": {},
+        "response_body": null,
+        "redirect_chain": [],
+        "duration_ms": 1,
+        "from_cache": false,
+        "failure_reason": "Failed to fetch",
+        "blocked_reason": null
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
+    },
+    {
+      "kind": "request",
+      "request": {
+        "request_id": "req_429d5907_3",
+        "method": "POST",
+        "url": "http://127.0.0.1:49986/api/legacy",
+        "resource_type": "xhr",
+        "started_at": "2026-08-25T08:31:40.987Z",
+        "request_headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "request_body": {
+          "text": "clientCode=ACME-4471&dock=D3",
+          "size_bytes": 28,
+          "mime_type": "application/x-www-form-urlencoded",
+          "encoding": null,
+          "redacted_fields": []
+        },
+        "status": 200,
+        "status_text": "OK",
+        "response_headers": {
+          "access-control-allow-headers": "*",
+          "access-control-allow-origin": "*",
+          "content-length": "12",
+          "content-type": "application/json",
+          "date": "Tue, 25 Aug 2026 08:31:40 GMT",
+          "server": "BaseHTTP/0.6 Python/3.14.7"
+        },
+        "response_body": {
+          "text": "{\"ok\": true}",
+          "size_bytes": 12,
+          "mime_type": "application/json",
+          "encoding": null,
+          "redacted_fields": []
+        },
+        "redirect_chain": [],
+        "duration_ms": 1,
+        "from_cache": false,
+        "failure_reason": null,
+        "blocked_reason": null
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
+    },
+    {
+      "kind": "request",
+      "request": {
+        "request_id": "req_429d5907_4",
+        "method": "GET",
+        "url": "http://127.0.0.1:49986/api/stream",
+        "resource_type": "fetch",
+        "started_at": "2026-08-25T08:31:40.989Z",
+        "request_headers": {},
+        "request_body": null,
+        "status": 200,
+        "status_text": "OK",
+        "response_headers": {
+          "content-type": "text/event-stream",
+          "date": "Tue, 25 Aug 2026 08:31:40 GMT",
+          "server": "BaseHTTP/0.6 Python/3.14.7"
+        },
+        "response_body": null,
+        "redirect_chain": [],
+        "duration_ms": 1,
+        "from_cache": false,
+        "failure_reason": null,
+        "blocked_reason": null
+      },
+      "tab_id": 927171230,
+      "frame_url": "http://127.0.0.1:49986/"
     }
   ]
 }

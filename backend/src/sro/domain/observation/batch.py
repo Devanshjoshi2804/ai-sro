@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
+from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, RecordingId, TenantId
 
 
 class CaptureMode(StrEnum):
@@ -55,6 +55,14 @@ class ObservationBatch:
     byte_count: int
     rejected: tuple[RejectedEvent, ...] = ()
 
+    recording_id: RecordingId | None = None
+    """The demonstration this batch is part of, for teaching capture.
+
+    A teaching batch without one is evidence nobody can attribute: the operator
+    was asked to show the system a task, and what came back cannot be told from
+    an ordinary morning's browsing. A passive batch with one would be the
+    opposite mistake -- ordinary work filed as a deliberate demonstration."""
+
     def __post_init__(self) -> None:
         for name, at in (
             ("started_at", self.started_at),
@@ -67,6 +75,12 @@ class ObservationBatch:
             raise InvariantViolation("a batch cannot end before it started")
         if not self.uri.strip():
             raise InvariantViolation("a batch whose evidence has no address is not evidence")
+        if self.mode is CaptureMode.TEACHING and self.recording_id is None:
+            raise InvariantViolation("a teaching batch must name the demonstration it belongs to")
+        if self.mode is not CaptureMode.TEACHING and self.recording_id is not None:
+            raise InvariantViolation(
+                "a passive batch is ordinary work and cannot name a demonstration"
+            )
         for name, count in (
             ("event_count", self.event_count),
             ("byte_count", self.byte_count),

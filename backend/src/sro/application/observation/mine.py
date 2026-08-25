@@ -12,11 +12,13 @@ run over evidence that is already stored.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
 from sro.application.context import RequestContext
+from sro.application.observation.propose import ProposeAboutCandidates
 from sro.application.observation.segment import Observed, Segment, read, segment
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.repositories import UnitOfWork
@@ -26,6 +28,8 @@ from sro.domain.observation.candidate import TaskCandidate
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 
 _VERBS = {"POST": "Create", "PUT": "Update", "PATCH": "Update", "DELETE": "Remove"}
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,9 +141,15 @@ class MineEverything:
     tenants have evidence and then mines each one inside its own context.
     """
 
-    def __init__(self, uow: UnitOfWork, mine: MineObservations) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        mine: MineObservations,
+        propose: ProposeAboutCandidates | None = None,
+    ) -> None:
         self._uow = uow
         self._mine = mine
+        self._propose = propose
 
     async def execute(self, *, since: datetime, until: datetime | None = None) -> dict[str, Mined]:
         async with self._uow as uow:
@@ -149,4 +159,16 @@ class MineEverything:
         for tenant_id in tenants:
             ctx = RequestContext(tenant_id=tenant_id, principal_id=PrincipalId("miner"))
             mined[tenant_id.value] = await self._mine.execute(ctx, since=since, until=until)
+            if self._propose is not None:
+                # After the counting, never instead of it. What the miner
+                # decided stands whatever a model says next, and a model that
+                # is unreachable costs this sweep its sentences and nothing
+                # else -- so its failure is logged here rather than raised
+                # into a sweep that has already done its real work.
+                try:
+                    await self._propose.execute(ctx)
+                except Exception:
+                    logger.exception(
+                        "%s: nothing could be proposed about the candidates", tenant_id
+                    )
         return mined

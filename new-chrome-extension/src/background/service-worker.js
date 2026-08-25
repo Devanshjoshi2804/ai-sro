@@ -11,6 +11,7 @@ import { redactUrl } from "../content/sensitivity.module.js";
 import { allowsHost, applyPolicy, unregister } from "./scripts.js";
 import { capture } from "./shots.js";
 import { capturing, state } from "./state.js";
+import * as teaching from "./teaching.js";
 import { flush } from "./upload.js";
 
 const BEAT = "sro-heartbeat";
@@ -171,6 +172,10 @@ async function handle(message, sender) {
       // Same rule as page events, at the same one point: a gesture carries the
       // page's own `location.href` and every event carries the frame it
       // happened in, and either can be the callback URL with the token in it.
+      const demonstrating = await teaching.current();
+      const recordingId =
+        demonstrating && demonstrating.tabId === tab_id ? demonstrating.recordingId : null;
+
       if (message.kind === "gesture") {
         // Taken before the row is written so the picture and the gesture are
         // one row: nothing to key together afterwards, and nothing left
@@ -192,18 +197,31 @@ async function handle(message, sender) {
             frame_url: redactUrl(frameUrl),
           },
           shot,
+          recordingId,
         );
+
+        // After the gesture, in that order: the assembler attaches a snapshot
+        // to the frame the gesture before it opened, which is the state the
+        // operator was looking at when they decided to act.
+        if (recordingId) {
+          const tree = await teaching.snapshot(tab_id, redactUrl(frameUrl)).catch(() => null);
+          if (tree) await queue.enqueue(tree, null, recordingId);
+        }
         return { ok: true, screenshot: Boolean(shot) };
       }
-      await queue.enqueue({
-        kind: "request",
-        request: {
-          ...underPolicy(message.request, policy),
-          url: redactUrl(message.request?.url),
+      await queue.enqueue(
+        {
+          kind: "request",
+          request: {
+            ...underPolicy(message.request, policy),
+            url: redactUrl(message.request?.url),
+          },
+          tab_id,
+          frame_url: redactUrl(frameUrl),
         },
-        tab_id,
-        frame_url: redactUrl(frameUrl),
-      });
+        null,
+        recordingId,
+      );
       return { ok: true };
     }
     case "sign-in":
@@ -231,6 +249,7 @@ async function handle(message, sender) {
       await badge();
       return register(message.label);
     case "sign-out":
+      await teaching.stop();
       await unregister();
       // Before the credential goes: a socket authenticated as the operator
       // who is leaving must not still be open for the next one.
@@ -253,6 +272,56 @@ async function handle(message, sender) {
       // and it is how a test drives a whole capture through without waiting
       // out an alarm.
       return flushQueue();
+    case "teach-start": {
+      // Everything captured so far goes up as ordinary work before the
+      // demonstration starts, so no batch straddles the moment it began.
+      await flushQueue();
+      const deviceId = await state.deviceId();
+      // The last ordinary page the operator was on -- not the tab that asked.
+      // This is started from the extension's own options page, so "the active
+      // tab" is that page; the system being taught is the one they were
+      // looking at before they came here, and the one Chrome will banner.
+      const open_ = await chrome.tabs.query({ windowType: "normal" });
+      const tab = open_
+        .filter((each) => /^https?:/.test(each.url || ""))
+        .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+      if (!tab?.id) {
+        return { error: "open the system you want to teach in a tab first" };
+      }
+      const started = await api.startRecording(deviceId, message.label || tab.title || null);
+      await teaching.start(started.recording_id, tab.id);
+      return { ok: true, teaching: await teaching.current() };
+    }
+    case "teach-stop": {
+      const was = await teaching.stop();
+      if (!was) return { ok: true, was: null };
+      // The demonstration's own evidence goes up before anything is sealed:
+      // the backend assembles the recording's frames out of what it has, so an
+      // upload still sitting here is a step the skill will never have.
+      const sent = await flushQueue();
+      if (sent.error) {
+        return { error: `not sealed, because the last of it did not upload: ${sent.error}` };
+      }
+      const summary = await api.finishRecording(was.recordingId);
+      return { ok: true, was, summary };
+    }
+    case "purge": {
+      // The device's own queue first, and unconditionally. What is still
+      // sitting here has not reached the server, so deleting it there and
+      // leaving it here would have the next flush upload the hour the operator
+      // just asked to be rid of.
+      const hours = Number(message.hours) || 1;
+      const since = new Date(Date.now() - hours * 3600_000).toISOString();
+      await queue.clear();
+      await state.newQueueEpoch();
+      // A batch already sent once is named by the epoch that has just been
+      // rotated; without clearing it the next flush would retry rows that no
+      // longer exist under an id from before the purge.
+      await state.setPendingBatch(null);
+      const gone = await api.forget(since);
+      await state.setLastError("");
+      return gone;
+    }
     case "status":
       return status();
     default:
@@ -370,6 +439,7 @@ async function status() {
     capturing: allowed.on,
     because: allowed.because,
     channel: channel.status(),
+    teaching: await state.teaching(),
     deviceId,
     policy,
     apiUrl,

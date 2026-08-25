@@ -1,0 +1,34 @@
+{
+  "kind": "gesture",
+  "gesture": {
+    "kind": "select",
+    "target": {
+      "tag": "select",
+      "role": null,
+      "name": "Dock",
+      "secret": false,
+      "text": "choose\nDock 3",
+      "testId": null,
+      "cssPath": "select#dock",
+      "xpath": "/html/body[1]/form[1]/select[1]",
+      "bounds": {
+        "x": 506.890625,
+        "y": 80.875,
+        "width": 65,
+        "height": 19
+      },
+      "attributes": {
+        "id": "dock",
+        "name": "dock"
+      },
+      "component": null
+    },
+    "value": "D3",
+    "secret": false,
+    "modifiers": [],
+    "at": 1787646700.883,
+    "url": "http://127.0.0.1:49986/"
+  },
+  "tab_id": 927171230,
+  "frame_url": "http://127.0.0.1:49986/"
+}

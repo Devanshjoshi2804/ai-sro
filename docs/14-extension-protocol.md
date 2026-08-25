@@ -123,6 +123,20 @@ operator may add to the list locally; they may not remove a server entry.
 
 `Content-Type: application/json`. One batch per request.
 
+A batch is one demonstration's evidence or none at all. A teaching batch that
+names no recording is refused, and so is a passive one that names one: the first
+cannot be told from an ordinary morning's browsing, and the second would teach a
+skill from work nobody meant to show. The extension therefore never lets a batch
+straddle the moment teaching started or stopped.
+
+The teaching flow is three calls: `POST /v1/recordings` with `device_id` opens a
+recording this browser fills (nothing is opened server-side, and there is no
+live view — the operator is already looking at the only screen involved), the
+batches upload naming it, and `POST /v1/recordings/{id}/finish` seals it. The
+frames are assembled at that seal from every batch at once rather than per
+upload: a click and the call it caused routinely land in different uploads, and
+a frame split across that seam is a step that lost its evidence.
+
 ```jsonc
 {
   "batch_id": "bat_…",
@@ -130,7 +144,7 @@ operator may add to the list locally; they may not remove a server entry.
   "started_at": "2026-08-23T09:14:02.113+05:30",
   "ended_at":   "2026-08-23T09:19:02.550+05:30",
   "mode": "passive",            // "passive" | "teaching"
-  "recording_id": null,         // set only when mode == "teaching"
+  "recording_id": null,         // set when, and only when, mode == "teaching"
   "events": [ /* Event, below */ ]
 }
 // 202
@@ -221,7 +235,13 @@ A body larger than `max_body_bytes` is uploaded as an artifact and referenced by
 
 **`snapshot`** — an accessibility tree, teaching tier only. The payload is CDP's
 `Accessibility.getFullAXTree` result plus `url` and `taken_at`; the backend
-parses it with `capture.decode.to_ax_graph`.
+parses it with `capture.decode.to_ax_graph`. One per gesture, taken after it:
+the assembler attaches it to the frame that gesture opened, which is the state
+the operator was looking at when they decided to act.
+
+Reading it needs `chrome.debugger`, so Chrome banners the tab for as long as the
+demonstration runs. That is the tier's whole shape: deliberate, visible, and
+short. Passive capture never attaches it — ADR 008.
 
 **`page`** — navigation and lifecycle.
 
@@ -484,10 +504,19 @@ The extension commits golden payloads to `new-chrome-extension/fixtures/`:
 | `gesture-click.json` · `gesture-type.json` · `gesture-select.json` · `gesture-press.json` · `gesture-upload.json` | one `gesture` event each |
 | `gesture-secret.json` | a password field — `value` null, `secret` true, no `value` attribute |
 | `request-get.json` · `request-post.json` · `request-failed.json` | one `request` event each |
+| `request-with-body.json` | an XHR carrying a body each way — the other transport |
+| `request-uninspectable-body.json` | a response nothing read: an event stream has no "the body" to wait for |
 | `page-navigated.json` | one `page` event |
-| `snapshot.json` | one `snapshot` event (teaching tier) |
 | `batch.json` | a complete `POST /v1/observations` body |
 | `command-ui-perform-reply.json` · `command-http-send-reply.json` | extension → server replies |
+
+| `snapshot.json` | one `snapshot` event — an accessibility tree, teaching tier |
+| `batch-teaching.json` | a teaching batch: `mode: "teaching"` and the demonstration it names |
+
+Regenerated with `make fixtures`, which drives a real Chrome with the extension
+loaded and writes whatever it actually emitted. It exits non-zero naming
+anything it could not capture, because a fixture silently not regenerated is a
+stale file that keeps passing against a shape nothing produces any more.
 
 `backend/tests/contract/test_observation_payloads.py` loads those exact files and
 asserts each parses into the domain object it claims to be and satisfies every

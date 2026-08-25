@@ -60,10 +60,12 @@ from sro.application.knowledge.read_knowledge import ReadKnowledge
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
 from sro.application.observation.artifacts import StoreObservationArtifact
+from sro.application.observation.demonstrate import AssembleDemonstration
 from sro.application.observation.forget import ForgetObservations
 from sro.application.observation.ingest import IngestObservation
 from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
+from sro.application.observation.propose import ProposeAboutCandidates
 from sro.application.observation.register import (
     ReadDevice,
     ReadDevices,
@@ -202,7 +204,14 @@ class Container:
         return MineObservations(self.unit_of_work(), self.blobs, self.ids)
 
     def mine_everything(self) -> MineEverything:
-        return MineEverything(self.unit_of_work(), self.mine_observations())
+        return MineEverything(
+            self.unit_of_work(), self.mine_observations(), self.propose_about_candidates()
+        )
+
+    def propose_about_candidates(self) -> ProposeAboutCandidates:
+        """The three model slots over what the miner found. Does nothing at all
+        when no interpreter is configured."""
+        return ProposeAboutCandidates(self.unit_of_work(), self.interpreter)
 
     def read_candidates(self) -> ReadCandidates:
         return ReadCandidates(self.unit_of_work())
@@ -290,6 +299,9 @@ class Container:
 
     def store_observation_artifact(self) -> StoreObservationArtifact:
         return StoreObservationArtifact(self.unit_of_work(), self.blobs, self.clock)
+
+    def assemble_demonstration(self) -> AssembleDemonstration:
+        return AssembleDemonstration(self.unit_of_work(), self.blobs)
 
     def forget_observations(self) -> ForgetObservations:
         return ForgetObservations(self.unit_of_work(), self.blobs, self.clock)

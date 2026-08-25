@@ -79,7 +79,7 @@ class MinioBlobStore(BlobStore):
             self._client.delete_object, Bucket=self._bucket, Key=uri[len(prefix) :]
         )
 
-    async def forget_prefix(self, prefix: str) -> None:
+    async def forget_prefix(self, prefix: str) -> int:
         keys = await asyncio.to_thread(self._list_keys, prefix)
         # S3's batch delete takes at most 1000 keys per call.
         for start in range(0, len(keys), 1000):
@@ -89,6 +89,7 @@ class MinioBlobStore(BlobStore):
                 Bucket=self._bucket,
                 Delete={"Objects": [{"Key": key} for key in chunk]},
             )
+        return len(keys)
 
     def _list_keys(self, prefix: str) -> list[str]:
         paginator = self._client.get_paginator("list_objects_v2")

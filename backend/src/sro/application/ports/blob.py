@@ -39,9 +39,13 @@ class BlobStore(Protocol):
         """
         ...
 
-    async def forget_prefix(self, prefix: str) -> None:
-        """Delete everything stored under a key prefix. Idempotent, like
-        ``forget``.
+    async def forget_prefix(self, prefix: str) -> int:
+        """Delete everything stored under a key prefix, and say how much went.
+        Idempotent, like ``forget``.
+
+        The count is the operator's receipt. "Your evidence is deleted" is a
+        promise, and a promise about pictures of somebody's screen is worth
+        stating as a number they can check.
 
         A batch's screenshots have no row of their own to hold a URI --
         `StoreObservationArtifact` keys them by tenant/principal/day/batch

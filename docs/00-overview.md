@@ -71,5 +71,7 @@ make web       # :3000
 | [11-capture-completeness.md](11-capture-completeness.md) | What is captured, and why nothing is dropped |
 | [12-execution-and-agents.md](12-execution-and-agents.md) | The medium ladder, verification, and the execution agents |
 | [13-blue-yonder-knowledge-base.md](13-blue-yonder-knowledge-base.md) | What we recorded about the target WMS, and what it corrects |
+| [14-extension-protocol.md](14-extension-protocol.md) | The frozen contract between the extension and the backend |
+| [15-observation-to-tasks.md](15-observation-to-tasks.md) | A day of tabs to a named task, and what a model may decide about it |
 
 Agents read [../AGENTS.md](../AGENTS.md) instead of this file.

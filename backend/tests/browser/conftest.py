@@ -117,6 +117,9 @@ class _Stub(BaseHTTPRequestHandler):
     artifacts: ClassVar[list[dict[str, Any]]] = []
     fumble_artifacts: ClassVar[int] = 0
     channels: ClassVar[queue.Queue[Channel]] = queue.Queue()
+    purges: ClassVar[list[str]] = []
+    recordings: ClassVar[list[str]] = []
+    sealed: ClassVar[list[str]] = []
     """Answer this many artifact uploads with a 503 before taking any. A lost
     reply from the blob store is the ordinary way one of these fails."""
 
@@ -179,6 +182,10 @@ class _Stub(BaseHTTPRequestHandler):
             except json.JSONDecodeError:
                 continue
 
+    def do_DELETE(self) -> None:
+        _Stub.purges.append(self.path)
+        self._send(200, json.dumps({"batches": 2, "events": 34, "artifacts": 5}).encode())
+
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length)
@@ -215,6 +222,33 @@ class _Stub(BaseHTTPRequestHandler):
             return
         if self.path.endswith("/heartbeat"):
             self._send(200, json.dumps({"pause": False, "policy": None}).encode())
+            return
+        if self.path == "/v1/recordings":
+            recording_id = f"rec_browsertest{len(_Stub.recordings)}"
+            _Stub.recordings.append(recording_id)
+            self._send(
+                201,
+                json.dumps({"recording_id": recording_id, "live_view_url": ""}).encode(),
+            )
+            return
+        if self.path.startswith("/v1/recordings/") and self.path.endswith("/finish"):
+            _Stub.sealed.append(self.path.split("/")[3])
+            self._send(
+                200,
+                json.dumps(
+                    {
+                        "id": self.path.split("/")[3],
+                        "objective_key": None,
+                        "label": None,
+                        "status": "sealed",
+                        "demonstrator": "browser-test",
+                        "started_at": "2026-08-25T09:00:00+00:00",
+                        "ended_at": "2026-08-25T09:05:00+00:00",
+                        "frame_count": 2,
+                        "has_narration": False,
+                    }
+                ).encode(),
+            )
             return
         if self.path == "/api/echo":
             # Says back what reached it, so the test can prove the call carried
@@ -281,6 +315,9 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.artifacts = []
     _Stub.fumble_artifacts = 0
     _Stub.channels = queue.Queue()
+    _Stub.purges = []
+    _Stub.recordings = []
+    _Stub.sealed = []
     # Threading, because the command channel holds its connection open for the
     # length of the test: on a single-threaded server that one socket is the
     # whole server, and every upload behind it waits forever.
@@ -302,6 +339,18 @@ def artifacts(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     screenshots keep unpacking two things.
     """
     return _Stub.artifacts
+
+
+@pytest.fixture
+def demonstrations(stub: tuple[str, list[dict[str, Any]]]) -> tuple[list[str], list[str]]:
+    """The recordings this browser started, and the ones it sealed."""
+    return _Stub.recordings, _Stub.sealed
+
+
+@pytest.fixture
+def purges(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
+    """The `DELETE /v1/observations` calls the extension made, as sent."""
+    return _Stub.purges
 
 
 @pytest.fixture

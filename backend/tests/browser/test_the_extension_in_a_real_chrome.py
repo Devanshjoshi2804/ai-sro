@@ -1203,3 +1203,116 @@ def test_a_run_the_operator_is_watching_brings_its_page_forward(
     assert "Client Code" in answer["result"]["text_digest"], (
         "the digest came from a page other than the one brought forward"
     )
+
+
+def test_the_operator_can_delete_the_last_hour_from_their_own_screen(
+    browser: Any, stub: Any, purges: list[str]
+) -> None:
+    """The control `docs/10` and ADR 008 promise, on the screen it was promised
+    on, doing both halves of what it says.
+
+    Both halves matter. The server forgets the hour, and the queue on this
+    device is emptied -- what is sitting here has not reached the server yet, so
+    deleting it there and leaving it here would upload the deleted hour on the
+    next tick.
+    """
+    api_url, batches = stub
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+
+    page = _drive(browser, api_url)
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+
+    options = browser.new_page()
+    options.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
+    # Twice, because deleting an hour of somebody's work is not one stray click.
+    options.click("#purge")
+    assert "Really" in options.text_content("#purge"), "the button deleted without asking"
+    options.click("#purge")
+    options.wait_for_function(
+        """() => document.getElementById('purged').textContent.includes('deleted')""",
+        timeout=15_000,
+    )
+
+    said = options.text_content("#purged")
+    options.close()
+
+    assert purges, "the button said it deleted and asked the backend for nothing"
+    assert "since=" in purges[0], f"a purge with no window would delete everything: {purges[0]}"
+    assert "34 events" in said and "5 screenshots" in said, (
+        f"the operator was not told what went: {said!r}"
+    )
+
+    # The hour it deleted does not arrive a minute later.
+    _flush(browser, worker)
+    page.close()
+    assert not batches, "the queue survived the purge and uploaded the deleted hour"
+
+
+def test_a_task_demonstrated_in_the_operator_s_own_browser(
+    browser: Any, stub: Any, demonstrations: tuple[list[str], list[str]]
+) -> None:
+    """The teaching tier, end to end and in a real Chrome.
+
+    What passive capture cannot give induction is what a control *is*: the DOM
+    ids on this WMS are assigned in render order, so a locator built from them
+    is wrong after a reload. The accessibility tree is the view that survives,
+    and only `chrome.debugger` can read it — which is why this tier is
+    deliberate, visible (Chrome banners the tab), and short.
+
+    The batch is the other half. Teaching evidence names the demonstration it
+    belongs to and ordinary browsing does not, and the backend refuses either
+    one wearing the other's clothes.
+    """
+    api_url, batches = stub
+    started, sealed = demonstrations
+    worker = _service_worker(browser)
+    status = _sign_in(browser, worker, api_url)
+    assert status["capturing"] is True, f"the extension did not start capturing: {status}"
+
+    page = browser.new_page()
+    page.goto(api_url)
+    page.reload()
+    page.bring_to_front()
+
+    # Started from the extension's own page, because an ordinary page cannot
+    # talk to it -- which is also why the worker picks the system's tab rather
+    # than the tab that asked for the demonstration.
+    options = browser.new_page()
+    options.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
+    began = options.evaluate(
+        """async () => await chrome.runtime.sendMessage({kind: "teach-start"})"""
+    )
+    assert began.get("ok"), f"the demonstration did not start: {began}"
+    assert started, "no recording was opened for the demonstration"
+
+    # The task itself.
+    page.fill("#client", CLIENT_CODE)
+    page.click("#save")
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+
+    ended = options.evaluate(
+        """async () => await chrome.runtime.sendMessage({kind: "teach-stop"})"""
+    )
+    options.close()
+    page.close()
+
+    assert ended.get("ok"), f"the demonstration did not stop cleanly: {ended}"
+    assert sealed == started, "the demonstration was never sealed"
+
+    teaching = [batch for batch in batches if batch["mode"] == "teaching"]
+    assert teaching, "the demonstration uploaded nothing as teaching evidence"
+    assert all(batch["recording_id"] == started[0] for batch in teaching), (
+        "teaching evidence arrived unattributable"
+    )
+    assert all(batch["recording_id"] is None for batch in batches if batch["mode"] == "passive"), (
+        "ordinary browsing was filed as a demonstration"
+    )
+
+    snapshots = [e for b in teaching for e in b["events"] if e["kind"] == "snapshot"]
+    assert snapshots, "no accessibility tree was captured, which is the whole point of this tier"
+    nodes = snapshots[0]["snapshot"]["nodes"]
+    assert any(node.get("role", {}).get("value") == "button" for node in nodes), (
+        f"the tree carries no roles, so it says no more than the DOM did: {nodes[:2]}"
+    )

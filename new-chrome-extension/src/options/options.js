@@ -50,6 +50,16 @@ function render(status) {
   );
 
   $("api-url").value = status.apiUrl || "";
+  $("purge").disabled = !status.deviceId;
+
+  // Said plainly, because a demonstration is a thing the operator started and
+  // has to be able to see is still running -- the banner is Chrome's, and this
+  // is ours.
+  $("teach").textContent = status.teaching ? "Stop and save" : "Start teaching";
+  $("teach").disabled = !status.capturing;
+  $("teaching-state").textContent = status.teaching
+    ? `teaching since ${new Date(status.teaching.startedAt).toLocaleTimeString()} — do the task, then stop`
+    : "";
 }
 
 function trouble(error) {
@@ -86,6 +96,63 @@ $("paused").addEventListener("change", async (event) => {
     render(await ask({ kind: "set-paused", paused: event.target.checked }));
   } catch (error) {
     trouble(error);
+  }
+});
+
+// Deleting an hour of somebody's work cannot be one stray click, and it cannot
+// be a modal either: a dialog raised from an extension page blocks everything
+// else this browser is doing, including the worker being asked to do the
+// deleting. So the button asks in place, and forgets it was asked after a few
+// seconds -- a page left open on "Really?" must not delete an hour tomorrow
+// morning when somebody brushes the trackpad.
+let armed = null;
+
+$("purge").addEventListener("click", async () => {
+  if (!armed) {
+    $("purge").textContent = "Really delete the last hour?";
+    armed = setTimeout(() => {
+      armed = null;
+      $("purge").textContent = "Delete the last hour";
+    }, 5000);
+    return;
+  }
+
+  clearTimeout(armed);
+  armed = null;
+  $("purge").textContent = "Delete the last hour";
+  $("purge").disabled = true;
+  $("purged").textContent = "deleting…";
+  try {
+    const gone = await ask({ kind: "purge", hours: 1 });
+    // Counted, because "your evidence is deleted" is a promise and a number is
+    // what makes it checkable.
+    $("purged").textContent =
+      `deleted ${gone.events} events in ${gone.batches} batches, ` +
+      `and ${gone.artifacts ?? 0} screenshots`;
+    render(await ask({ kind: "status" }));
+  } catch (error) {
+    $("purged").textContent = `nothing was deleted: ${error.message}`;
+  } finally {
+    $("purge").disabled = false;
+  }
+});
+
+$("teach").addEventListener("click", async () => {
+  $("teach").disabled = true;
+  const teaching = (await ask({ kind: "status" }).catch(() => ({}))).teaching;
+  try {
+    if (teaching) {
+      const stopped = await ask({ kind: "teach-stop" });
+      $("teaching-state").textContent = stopped.summary
+        ? `saved as ${stopped.summary.id} — ${stopped.summary.frame_count ?? 0} steps`
+        : "stopped";
+    } else {
+      await ask({ kind: "teach-start" });
+    }
+    render(await ask({ kind: "status" }));
+  } catch (error) {
+    $("teaching-state").textContent = error.message;
+    render(await ask({ kind: "status" }).catch(() => ({ capturing: false, because: "unknown" })));
   }
 });
 

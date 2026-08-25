@@ -256,9 +256,11 @@ class FakeBlobStore:
         if uri.startswith(prefix):
             self.objects.pop(uri[len(prefix) :], None)
 
-    async def forget_prefix(self, prefix: str) -> None:
-        for key in [key for key in self.objects if key.startswith(prefix)]:
+    async def forget_prefix(self, prefix: str) -> int:
+        doomed = [key for key in self.objects if key.startswith(prefix)]
+        for key in doomed:
             del self.objects[key]
+        return len(doomed)
 
 
 class FakeTranscriber:
@@ -879,6 +881,20 @@ class FakeObservationRepository:
             and (principal_id is None or batch.principal_id == principal_id)
         ]
         return tuple(sorted(found, key=lambda batch: batch.started_at))
+
+    async def for_recording(
+        self, tenant_id: TenantId, recording_id: RecordingId
+    ) -> tuple[ObservationBatch, ...]:
+        return tuple(
+            sorted(
+                (
+                    batch
+                    for batch in self.rows.values()
+                    if batch.tenant_id == tenant_id and batch.recording_id == recording_id
+                ),
+                key=lambda batch: batch.started_at,
+            )
+        )
 
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
         return tuple({batch.tenant_id for batch in self.rows.values() if batch.ended_at >= since})

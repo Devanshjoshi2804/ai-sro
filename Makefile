@@ -116,6 +116,9 @@ test-contract: ## Fuzz the API against its own OpenAPI schema
 test-browser: ## Drive a real Chrome with the extension loaded
 	$(BACKEND) uv run pytest tests/browser -q
 
+fixtures: ## Recapture the extension's golden payloads from a real session
+	$(BACKEND) uv run python -m tests.browser.capture_fixtures
+
 test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/queue.test.mjs
 	node new-chrome-extension/src/background/queue.upgrade.test.mjs

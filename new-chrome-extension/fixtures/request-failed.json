@@ -1,0 +1,23 @@
+{
+  "kind": "request",
+  "request": {
+    "request_id": "req_429d5907_2",
+    "method": "GET",
+    "url": "http://127.0.0.1:1/never",
+    "resource_type": "fetch",
+    "started_at": "2026-08-25T08:31:40.986Z",
+    "request_headers": {},
+    "request_body": null,
+    "status": null,
+    "status_text": null,
+    "response_headers": {},
+    "response_body": null,
+    "redirect_chain": [],
+    "duration_ms": 1,
+    "from_cache": false,
+    "failure_reason": "Failed to fetch",
+    "blocked_reason": null
+  },
+  "tab_id": 927171230,
+  "frame_url": "http://127.0.0.1:49986/"
+}

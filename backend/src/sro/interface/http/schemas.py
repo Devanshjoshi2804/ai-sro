@@ -20,7 +20,7 @@ from sro.application.intent.resolve import Resolution
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.observation.batch import CaptureMode, RejectedEvent
-from sro.domain.observation.candidate import Episode, TaskCandidate
+from sro.domain.observation.candidate import Episode, Join, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
@@ -73,6 +73,15 @@ class StartRecordingRequest(BaseModel):
 
     When set, no hosted session is created and capture attaches to that browser
     instead — the operator demonstrates in their own window."""
+
+    device_id: str | None = None
+    """Demonstrated through the extension, in the operator's own Chrome.
+
+    Different from `attach_to` in the direction the evidence flows: an attached
+    browser is driven by this deployment over CDP, and a device uploads what it
+    saw afterwards, as teaching-mode observation batches. Nothing is opened,
+    nothing is signed in, and there is no live view — the operator is already
+    looking at the only screen involved."""
 
 
 class StartRecordingResponse(BaseModel):
@@ -1158,6 +1167,11 @@ class ObservationBatchRequest(BaseModel):
     started_at: datetime
     ended_at: datetime
     mode: CaptureMode = CaptureMode.PASSIVE
+
+    recording_id: str | None = Field(default=None, max_length=64)
+    """The demonstration this batch belongs to. Set when, and only when, the
+    mode is `teaching`."""
+
     events: list[dict[str, Any]]
     """Screened, not parsed, and stored verbatim. The shapes are in
     docs/14-extension-protocol.md; what the domain refuses comes back in
@@ -1190,6 +1204,7 @@ class ObservationArtifactResponse(BaseModel):
 class ForgottenResponse(BaseModel):
     batches: int
     events: int
+    artifacts: int = 0
 
 
 class NewTriggerRequest(BaseModel):
@@ -1300,6 +1315,29 @@ class EpisodeModel(BaseModel):
         )
 
 
+class JoinModel(BaseModel):
+    """A suggestion that this candidate and another are one piece of work.
+
+    `variant` is the same task done two ways; `workflow` is two halves of one
+    task in two systems. Suggestions, with the reason attached: nothing merges
+    on them, and `by_model` says who is doing the suggesting.
+    """
+
+    other_id: str
+    kind: str
+    because: str
+    by_model: bool
+
+    @classmethod
+    def of(cls, join: Join) -> JoinModel:
+        return cls(
+            other_id=join.other_id.value,
+            kind=join.kind.value,
+            because=join.because,
+            by_model=join.by_model,
+        )
+
+
 class TaskCandidateModel(BaseModel):
     """A task somebody keeps doing, offered rather than acted on."""
 
@@ -1320,6 +1358,10 @@ class TaskCandidateModel(BaseModel):
     skill_id: str | None
     dismissed_reason: str | None
     named_by_model: bool
+    """Whether the title is a model's sentence rather than one derived from the
+    calls. On the wire so a screen can say so: a name is not a fact."""
+
+    joins: list[JoinModel]
     episodes: list[EpisodeModel]
 
     @classmethod
@@ -1338,6 +1380,7 @@ class TaskCandidateModel(BaseModel):
             skill_id=candidate.skill_id.value if candidate.skill_id else None,
             dismissed_reason=candidate.dismissed_reason,
             named_by_model=candidate.named_by_model,
+            joins=[JoinModel.of(join) for join in candidate.joins],
             episodes=[EpisodeModel.of(episode) for episode in candidate.episodes],
         )
 

@@ -1,7 +1,7 @@
 {
   "kind": "gesture",
   "gesture": {
-    "kind": "type",
+    "kind": "press",
     "target": {
       "tag": "input",
       "role": null,
@@ -36,10 +36,9 @@
         ]
       }
     },
-    "value": "ACME-4471",
-    "secret": false,
+    "value": "Enter",
     "modifiers": [],
-    "at": 1787646700.837,
+    "at": 1787646700.939,
     "url": "http://127.0.0.1:49986/"
   },
   "tab_id": 927171230,

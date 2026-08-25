@@ -1,0 +1,17 @@
+{
+  "command_id": "cmd_fixture_http",
+  "ok": true,
+  "result": {
+    "body": "{\"ok\": true}",
+    "duration_ms": 1,
+    "headers": {
+      "access-control-allow-headers": "*",
+      "access-control-allow-origin": "*",
+      "content-length": "12",
+      "content-type": "application/json",
+      "date": "Tue, 25 Aug 2026 08:31:41 GMT",
+      "server": "BaseHTTP/0.6 Python/3.14.7"
+    },
+    "status": 200
+  }
+}

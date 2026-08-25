@@ -36,6 +36,9 @@ class RecordingRow(Base):
     label: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     browser_session_id: Mapped[str | None] = mapped_column(String(128))
+    # The operator's own browser, when the demonstration happened there. A
+    # recording has one or the other, never both.
+    device_id: Mapped[str | None] = mapped_column(String(64))
 
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -300,6 +303,9 @@ class ObservationBatchRow(Base):
     device_id: Mapped[str] = mapped_column(String(64), nullable=False)
     principal_id: Mapped[str] = mapped_column(String(64), nullable=False)
     mode: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Null for passive capture, which is all of it until somebody is asked to
+    # demonstrate something.
+    recording_id: Mapped[str | None] = mapped_column(String(64), index=True)
 
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -394,6 +400,9 @@ class TaskCandidateRow(Base):
     dismissed_reason: Mapped[str | None] = mapped_column(Text)
 
     episodes: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    # Suggestions about this candidate -- read whole beside it, never queried,
+    # and never acted on by anything but a person.
+    joins: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     first_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

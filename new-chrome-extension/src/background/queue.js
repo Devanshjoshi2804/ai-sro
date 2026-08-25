@@ -120,13 +120,21 @@ const sizeOf = (event) =>
  * beside its gesture is what lets `flush` name the frame it belongs to without
  * a second store to keep in step. `size` stays the size of the event alone --
  * it is what bounds a batch's JSON, which the picture is not part of.
+ *
+ * `recordingId` marks a row as part of a demonstration rather than ordinary
+ * work. A batch is one or the other and never both: the backend refuses a
+ * teaching batch that names no demonstration and a passive one that names one,
+ * and it is right to -- evidence nobody can attribute is indistinguishable
+ * from a morning's browsing.
  */
-export async function enqueue(event, shot = null) {
+export async function enqueue(event, shot = null, recordingId = null) {
   const db = await open();
   const size = sizeOf(event);
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
-    const request = tx.objectStore(STORE).add({ queuedAt: Date.now(), size, event, shot });
+    const request = tx
+      .objectStore(STORE)
+      .add({ queuedAt: Date.now(), size, event, shot, recordingId });
     let id;
     // The row's own key, answered once the transaction has actually committed:
     // it is how a picture is fetched back out of the row at flush time without
@@ -163,6 +171,7 @@ export async function peek(limit) {
         queuedAt: cursor.value.queuedAt,
         size: cursor.value.size,
         event: cursor.value.event,
+        recordingId: cursor.value.recordingId || null,
         // What the picture is, never the picture. A batch of 500 rows each
         // carrying a megabyte of PNG is half a gigabyte in a service worker
         // that only needed 2MB of JSON -- and the bytes are read back a row at

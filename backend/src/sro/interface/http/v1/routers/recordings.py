@@ -9,7 +9,7 @@ from fastapi import APIRouter, File, Form, Query, UploadFile, status
 
 from sro.application.recording.start_recording import NoSessionForSystem
 from sro.domain.recording.artifact import ArtifactKind
-from sro.domain.shared.identifiers import RecordingId
+from sro.domain.shared.identifiers import DeviceId, RecordingId
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -31,6 +31,22 @@ async def start_recording(
     body: StartRecordingRequest, container: ContainerDep, ctx: ContextDep
 ) -> StartRecordingResponse:
     objective = body.objective_key.to_domain() if body.objective_key else None
+
+    if body.device_id:
+        # Nothing to open, nothing to sign in, nothing to capture from here:
+        # the operator is in front of the system already and their extension
+        # uploads what it sees. The whole of the rest of this function is about
+        # a browser this deployment owns.
+        started = await container.start_recording().execute(
+            ctx,
+            objective_key=objective,
+            label=body.label,
+            device_id=DeviceId(body.device_id),
+        )
+        return StartRecordingResponse(
+            recording_id=started.recording_id.value, live_view_url=started.live_view_url
+        )
+
     # Before the browser opens, not after: a system whose session has expired
     # signs itself back in here, so the operator types a URL and gets a
     # demonstration rather than a login page. Silent when the session is fine,
@@ -202,15 +218,29 @@ async def finish_recording(
     container: ContainerDep,
     ctx: ContextDep,
 ) -> RecordingSummary:
-    # The browser is signed in right now and about to be thrown away. Taking its
-    # cookies first is what keeps "connect it once" true a month later.
-    await container.refresh_session().execute(
-        ctx, cookies=await container.capture.snapshot_cookies(RecordingId(recording_id))
+    demonstration = await container.get_recording().execute(
+        ctx, recording_id=RecordingId(recording_id)
     )
 
-    # Drain and detach before sealing: a sealed recording rejects appends, so
-    # anything still buffered would be lost with no error to show for it.
-    await container.capture.stop(ctx, recording_id=RecordingId(recording_id))
+    if demonstration.device_id is not None:
+        # Demonstrated in the operator's own browser. There is no session to
+        # take cookies from and no CDP stream to drain -- the evidence arrived
+        # as teaching batches, and this is where it becomes frames. Before the
+        # seal, because a sealed recording rejects appends.
+        if not body.abandon_reason:
+            await container.assemble_demonstration().execute(
+                ctx, recording_id=RecordingId(recording_id)
+            )
+    else:
+        # The browser is signed in right now and about to be thrown away. Taking
+        # its cookies first is what keeps "connect it once" true a month later.
+        await container.refresh_session().execute(
+            ctx, cookies=await container.capture.snapshot_cookies(RecordingId(recording_id))
+        )
+
+        # Drain and detach before sealing: a sealed recording rejects appends, so
+        # anything still buffered would be lost with no error to show for it.
+        await container.capture.stop(ctx, recording_id=RecordingId(recording_id))
 
     await container.durable.recording_finished(ctx, recording_id=RecordingId(recording_id))
 

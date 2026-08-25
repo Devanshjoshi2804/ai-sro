@@ -28,6 +28,32 @@
         </p>
       </section>
 
+      <section class="card">
+        <h2>Teach a task</h2>
+        <p class="note">
+          Open the system in a tab, start, do the task once, stop. While it runs
+          Chrome shows a debugging banner across that tab — that is this
+          extension reading the page's structure, and it stops when you do.
+        </p>
+        <div class="row">
+          <button type="button" id="teach">Start teaching</button>
+        </div>
+        <p class="note" id="teaching-state"></p>
+      </section>
+
+      <section class="card">
+        <h2>Your evidence</h2>
+        <p class="note">
+          Everything this browser recorded in the last hour — gestures, calls,
+          screenshots — deleted from the server and from this device. Yours,
+          from your devices, on your credential: nobody else's day is touched.
+        </p>
+        <div class="row">
+          <button type="button" id="purge" class="quiet">Delete the last hour</button>
+        </div>
+        <p class="note" id="purged"></p>
+      </section>
+
       <section id="excluded" class="card">
         <h2>Never observed</h2>
         <p class="note">

@@ -13,6 +13,7 @@ from sro.domain.recording.network import CapturedRequest
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import (
     BrowserSessionId,
+    DeviceId,
     PrincipalId,
     RecordingId,
     TenantId,
@@ -44,6 +45,15 @@ class Recording:
     starts one by naming a URL, and the evidence names the task at seal."""
 
     browser_session_id: BrowserSessionId | None = None
+    device_id: DeviceId | None = None
+    """Set when the demonstration happened in the operator's own browser rather
+    than one this deployment opened.
+
+    The two are exclusive in practice and the difference decides everything
+    about how the recording is filled: a server-side one is driven through CDP
+    while it happens, and this one arrives afterwards as teaching-mode
+    observation batches. It is also the answer to why a recording has no
+    browser session, which otherwise reads as a bug."""
     label: str | None = None
     status: RecordingStatus = RecordingStatus.CAPTURING
     ended_at: datetime | None = None

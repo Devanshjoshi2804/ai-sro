@@ -1,0 +1,10 @@
+{
+  "command_id": "cmd_fixture_perform",
+  "ok": true,
+  "result": {
+    "candidates": 1,
+    "detail": null,
+    "matched_by": "component",
+    "performed": true
+  }
+}

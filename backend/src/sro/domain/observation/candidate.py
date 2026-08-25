@@ -57,6 +57,36 @@ class Episode:
         return int((self.ended_at - self.started_at).total_seconds() * 1000)
 
 
+class JoinKind(StrEnum):
+    VARIANT = "variant"
+    """The same piece of work done two ways -- an extra page, a different
+    order. Two candidates because the signature is compared for equality, which
+    is the property that keeps identity stable."""
+
+    WORKFLOW = "workflow"
+    """Two halves of one piece of work, in two systems. An episode breaks on a
+    host change, so this is a shape no single candidate can ever have."""
+
+
+@dataclass(frozen=True, slots=True)
+class Join:
+    """A suggestion that this candidate and another are one thing.
+
+    A suggestion, and it stays one. Nothing downstream reads it and nothing
+    merges on it: acting is a person's decision, because a suggestion the system
+    acted on is a task identity a model decided after all.
+    """
+
+    other_id: CandidateId
+    kind: JoinKind
+    because: str
+    by_model: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.because.strip():
+            raise InvariantViolation("a join nobody can explain will not be believed")
+
+
 @dataclass(eq=False)
 class TaskCandidate:
     """An episode class, and what it would be worth automating.
@@ -76,6 +106,9 @@ class TaskCandidate:
     episodes: tuple[Episode, ...] = ()
     skill_id: SkillId | None = None
     dismissed_reason: str | None = None
+    joins: tuple[Join, ...] = ()
+    """What this candidate might be part of. See `Join`."""
+
     named_by_model: bool = False
     """Whether the title is a model's reading of the evidence. It is the only
     part of a candidate anything generated, and it is marked so nobody mistakes
@@ -133,6 +166,28 @@ class TaskCandidate:
             raise InvariantViolation("a candidate nobody can read is a candidate nobody acts on")
         self.title = title
         self.named_by_model = by_model
+
+    def suggest(self, join: Join) -> bool:
+        """Record a suggestion about this candidate. Answers whether it was new.
+
+        Replaces an earlier suggestion about the same pair rather than
+        accumulating: the question was asked again because the evidence grew,
+        and two answers to one question on a screen is a screen nobody trusts.
+        """
+        if join.other_id == self.id:
+            raise InvariantViolation("a candidate cannot be a variant of itself")
+        already = next(
+            (
+                known
+                for known in self.joins
+                if known.other_id == join.other_id and known.kind is join.kind
+            ),
+            None,
+        )
+        if already == join:
+            return False
+        self.joins = (*(known for known in self.joins if known is not already), join)
+        return True
 
     def dismiss(self, reason: str) -> None:
         """Not worth automating, said by a person. Kept rather than deleted, so

@@ -301,6 +301,18 @@ class ObservationRepository(Protocol):
         what a purge counts."""
         ...
 
+    async def for_recording(
+        self, tenant_id: TenantId, recording_id: RecordingId
+    ) -> tuple[ObservationBatch, ...]:
+        """Every teaching batch of one demonstration, oldest first.
+
+        Asked once, when the demonstration is sealed: the frames are assembled
+        from all of it at once rather than per upload, because a click and the
+        call it caused routinely land in different batches and a frame split
+        across that seam is a step that lost its evidence.
+        """
+        ...
+
     async def tenants_since(self, since: datetime) -> tuple[TenantId, ...]:
         """Every tenant with evidence in the window.
 

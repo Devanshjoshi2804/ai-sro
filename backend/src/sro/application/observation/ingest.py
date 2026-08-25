@@ -20,7 +20,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.domain.observation.batch import CaptureMode, ObservationBatch, RejectedEvent
 from sro.domain.shared.errors import DomainError
-from sro.domain.shared.identifiers import BatchId, DeviceId
+from sro.domain.shared.identifiers import BatchId, DeviceId, RecordingId
 
 CONTENT_TYPE = "application/x-ndjson"
 
@@ -71,8 +71,18 @@ class IngestObservation:
         ended_at: datetime,
         mode: CaptureMode,
         events: Sequence[Event],
+        recording_id: RecordingId | None = None,
     ) -> Ingested:
         now = self._clock.now()
+
+        if (mode is CaptureMode.TEACHING) != (recording_id is not None):
+            # Both directions are refusals. Teaching evidence with no
+            # demonstration named cannot be told from an ordinary morning, and
+            # ordinary browsing filed against a demonstration would be taught
+            # as though somebody had meant to show it.
+            raise ObservationRefused(
+                "a teaching batch names its demonstration and a passive one does not"
+            )
 
         async with self._uow as uow:
             device = await uow.devices.get(ctx.tenant_id, device_id)
@@ -84,6 +94,19 @@ class IngestObservation:
             policy = await current_policy(uow, ctx)
             if not policy.capture_enabled:
                 raise ObservationRefused("observation is not switched on for this tenant")
+
+            if recording_id is not None:
+                # Read, not trusted: the demonstration has to exist, be this
+                # tenant's, be the one this browser was asked to perform, and
+                # still be open. A sealed recording that could still be added
+                # to is a skill whose provenance changes after it was reviewed.
+                recording = await uow.recordings.get(ctx.tenant_id, recording_id)
+                if recording.device_id != device_id:
+                    raise ObservationRefused(
+                        "this demonstration is being performed in a different browser"
+                    )
+                if not recording.is_open:
+                    raise ObservationRefused("this demonstration has already been sealed")
 
             seen = await uow.observations.get(ctx.tenant_id, batch_id)
             if seen is not None:
@@ -118,6 +141,7 @@ class IngestObservation:
                 device_id=device_id,
                 principal_id=ctx.principal_id,
                 mode=mode,
+                recording_id=recording_id,
                 started_at=started_at,
                 ended_at=ended_at,
                 received_at=now,

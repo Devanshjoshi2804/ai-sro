@@ -18,7 +18,7 @@ from pydantic import TypeAdapter
 
 from sro.domain.chat.thread import Message
 from sro.domain.observation.batch import RejectedEvent
-from sro.domain.observation.candidate import Episode
+from sro.domain.observation.candidate import Episode, Join
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.artifact import MediaArtifact
 from sro.domain.recording.events import ActionFrame
@@ -33,6 +33,7 @@ _VERSIONS = TypeAdapter(tuple[SkillVersion, ...])
 _REJECTED = TypeAdapter(tuple[RejectedEvent, ...])
 _POLICY = TypeAdapter(ObservationPolicy)
 _EPISODES = TypeAdapter(tuple[Episode, ...])
+_JOINS = TypeAdapter(tuple[Join, ...])
 
 
 def _dump[T](adapter: TypeAdapter[T], value: T) -> Any:
@@ -104,3 +105,11 @@ def dump_episodes(episodes: tuple[Episode, ...]) -> Any:
 
 def load_episodes(raw: Any) -> tuple[Episode, ...]:
     return _EPISODES.validate_python(raw or [])
+
+
+def dump_joins(joins: tuple[Join, ...]) -> Any:
+    return _dump(_JOINS, joins)
+
+
+def load_joins(raw: Any) -> tuple[Join, ...]:
+    return _JOINS.validate_python(raw or [])

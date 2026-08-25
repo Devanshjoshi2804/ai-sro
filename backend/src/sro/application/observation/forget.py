@@ -21,6 +21,9 @@ from sro.application.ports.system import Clock
 class Forgotten:
     batches: int
     events: int
+    artifacts: int = 0
+    """Screenshots and oversized bodies, which are most of what an operator
+    means when they ask for their evidence to be deleted."""
 
 
 class ForgetObservations:
@@ -43,12 +46,17 @@ class ForgetObservations:
                 ctx.tenant_id, since=since, principal_id=ctx.principal_id
             )
             if not doomed:
-                return Forgotten(batches=0, events=0)
+                return Forgotten(batches=0, events=0, artifacts=0)
             await uow.observations.forget(ctx.tenant_id, tuple(batch.id for batch in doomed))
             await uow.commit()
 
+        artifacts = 0
         for batch in doomed:
             await self._blobs.forget(batch.uri)
             for prefix in artifact_prefixes(batch):
-                await self._blobs.forget_prefix(prefix)
-        return Forgotten(batches=len(doomed), events=sum(batch.event_count for batch in doomed))
+                artifacts += await self._blobs.forget_prefix(prefix)
+        return Forgotten(
+            batches=len(doomed),
+            events=sum(batch.event_count for batch in doomed),
+            artifacts=artifacts,
+        )

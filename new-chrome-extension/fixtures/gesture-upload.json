@@ -1,33 +1,32 @@
 {
   "kind": "gesture",
   "gesture": {
-    "kind": "type",
+    "kind": "upload",
     "target": {
       "tag": "input",
       "role": null,
-      "name": null,
-      "secret": true,
+      "name": "Manifest",
+      "secret": false,
       "text": null,
       "testId": null,
-      "cssPath": "input#pw",
-      "xpath": "/html/body[1]/form[1]/input[2]",
+      "cssPath": "input#manifest",
+      "xpath": "/html/body[1]/form[1]/input[3]",
       "bounds": {
-        "x": 311.234375,
+        "x": 636.765625,
         "y": 79.875,
-        "width": 153,
+        "width": 253,
         "height": 21
       },
       "attributes": {
-        "id": "pw",
-        "name": "password",
-        "type": "password"
+        "id": "manifest",
+        "name": "manifest",
+        "type": "file"
       },
       "component": null
     },
-    "value": null,
-    "secret": true,
+    "value": "manifest.csv",
     "modifiers": [],
-    "at": 1787646700.928,
+    "at": 1787646700.89,
     "url": "http://127.0.0.1:49986/"
   },
   "tab_id": 927171230,

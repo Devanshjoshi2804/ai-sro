@@ -59,4 +59,22 @@ export const api = {
   artifact: (form) => call("/v1/observations/artifacts", { method: "POST", form }),
 
   policy: () => call("/v1/agents/policy"),
+
+  /** Start a demonstration this browser will fill. Nothing is opened on the
+   * server: the operator is already in front of the system. */
+  startRecording: (deviceId, label) =>
+    call("/v1/recordings", { method: "POST", body: { device_id: deviceId, label } }),
+
+  /** Seal it. The backend assembles the frames from what this browser
+   * uploaded, so everything must have gone up before this is called. */
+  finishRecording: (recordingId) =>
+    call(`/v1/recordings/${encodeURIComponent(recordingId)}/finish`, {
+      method: "POST",
+      body: {},
+    }),
+
+  /** The operator deleting their own evidence, from their own devices, for the
+   * tenant on their credential. Answers with what went. */
+  forget: (since) =>
+    call(`/v1/observations?since=${encodeURIComponent(since)}`, { method: "DELETE" }),
 };

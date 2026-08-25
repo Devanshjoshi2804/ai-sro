@@ -233,6 +233,16 @@ class _Stub(BaseHTTPRequestHandler):
             wanted = parse_qs(urlsplit(self.path).query).get("host", [""])[0]
             self._send(200, json.dumps([c for c in _CANDIDATES if c["host"] == wanted]).encode())
             return
+        if self.path.startswith("/elsewhere"):
+            # A different page, with a control the first one does not have, so a
+            # tree taken from the wrong side of a navigation is obvious.
+            self._send(
+                200,
+                b"<!doctype html><html><body><h1>Elsewhere</h1>"
+                b"<button id='only-here'>Only here</button></body></html>",
+                "text/html; charset=utf-8",
+            )
+            return
         if self.path.startswith("/wide"):
             # A page whose accessibility tree is the size a real WMS screen
             # produces. One teaching batch holds 2MB, and a demonstration on a

@@ -272,3 +272,64 @@ async def test_vision_is_not_reached_when_the_deployment_has_no_rung_for_it() ->
 
     assert run.steps[0].medium is Medium.NETWORK
     assert "no control matched" in (run.steps[0].detail or "")
+
+
+async def test_vision_looks_at_the_browser_the_run_is_being_performed_in() -> None:
+    """A run bound to a device is performed in somebody's own Chrome.
+
+    Escalating held the deployment's driver, so the rung that looks photographed
+    a different browser -- signed in as somebody else, on a page nobody
+    demonstrated -- and clicked on what it saw there. `_ui_for` documents the
+    rule that a device-bound run never falls back to the deployment's browser;
+    this is the path that ignored it.
+    """
+    from sro.application.execution.vision_step import PerformWithVision
+    from sro.application.ports.vision import ProposedGesture
+    from sro.domain.recording.events import ActionKind as Kind
+    from sro.domain.shared.identifiers import DeviceId
+    from tests.unit.fakes import FakeAgentDrivers, FakeVisionDriver
+
+    uow, vault = FakeUnitOfWork(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    http = FakeHttpCaller()
+    http.answer(status_code=404, text="{}")
+
+    ours, theirs = FakeUiDriver(), FakeUiDriver()
+    ours.will_not_find()
+    theirs.will_not_find()
+    # A run bound to a device sends its calls from that browser too, so the
+    # failure that starts the climb has to be queued there.
+    their_calls = FakeHttpCaller()
+    their_calls.answer(status_code=404, text="{}")
+    agents = FakeAgentDrivers(ui=theirs, http=their_calls)
+
+    model = FakeVisionDriver(
+        ProposedGesture(action=Kind.CLICK, x=120, y=340, reasoning="the button moved")
+    )
+    vision = PerformWithVision(ours, model, FakeClock(), egress_enabled=True, model="fake-vision")
+
+    version = f.skill_version(steps=(_step(),))
+    skill = f.skill(versions=0)
+    skill.add_version(version)
+    for stage in (PromotionStage.SHADOW, PromotionStage.ASSISTED):
+        version.promote(stage, f.at(700), f.OPERATOR)
+    await uow.skills.add(skill)
+
+    await ExecuteSkill(
+        uow, http, vault, FakeClock(), FakeIdFactory(), ours, None, vision, agents=agents
+    ).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            authorized_by="supervisor",
+            # The network rung, which is what escalates: a run asked for as
+            # `ui` performs there and stops, and only L1 climbs the ladder.
+            device_id=DeviceId("dev-1"),
+        ),
+    )
+
+    assert theirs.captures, "vision never looked at the browser the run was performed in"
+    assert ours.captures == 0, (
+        "vision photographed the deployment's own browser for a run bound to a device"
+    )

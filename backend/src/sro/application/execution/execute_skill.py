@@ -519,6 +519,7 @@ class ExecuteStep:
                     escalation_reason=rule.because,
                     detail=result.detail,
                 ),
+                version,
             )
         return StepOutcome(
             index=step.index,
@@ -536,7 +537,7 @@ class ExecuteStep:
         )
 
     async def _escalate_to_vision(
-        self, run: Run, step: SkillStep, outcome: StepOutcome
+        self, run: Run, step: SkillStep, outcome: StepOutcome, version: SkillVersion
     ) -> StepOutcome:
         """The last rung, if the policy allows it and it is configured.
 
@@ -549,7 +550,20 @@ class ExecuteStep:
         if rule is None or rule.then is not Medium.VISION or self._vision is None:
             return outcome
 
-        result = await self._vision.execute(run, step)
+        # The same browser the rungs below it were driving. A run bound to a
+        # device is performed in somebody's own Chrome, and a vision rung
+        # holding the deployment's driver would photograph a different screen
+        # and click on it -- signed in as somebody else, on a page nobody
+        # demonstrated. Falling back is the one thing it must not do.
+        ui = self._ui_for(run, version)
+        if ui is None:
+            return replace(
+                outcome,
+                detail=f"{outcome.detail or 'the control was not found'}; "
+                "the browser this run is performed in cannot be reached",
+            )
+
+        result = await self._vision.execute(run, step, ui)
         if result.calls:
             async with self._uow as uow:
                 for call in result.calls:

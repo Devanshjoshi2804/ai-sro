@@ -65,8 +65,13 @@ class PerformWithVision:
         self._destination = destination
         self._model = model
 
-    async def execute(self, run: Run, step: SkillStep) -> VisionResult:
-        if self._ui is None or self._vision is None:
+    async def execute(self, run: Run, step: SkillStep, ui: UiDriver | None = None) -> VisionResult:
+        """`ui` is the browser this run is performed in, when that is not the
+        deployment's own -- a run bound to a device is performed in somebody's
+        Chrome, and the rung that looks has to look at the same screen the rungs
+        below it were driving."""
+        driver = ui if ui is not None else self._ui
+        if driver is None or self._vision is None:
             return self._stopped(run, step, "no vision rung is configured for this deployment")
         if not run.performs_writes:
             return self._stopped(
@@ -81,7 +86,7 @@ class PerformWithVision:
 
         for attempt in range(GESTURE_BUDGET):
             try:
-                screen = await self._ui.capture()
+                screen = await driver.capture()
             except UiUnavailable as error:
                 return self._stopped(run, step, str(error), calls)
 
@@ -160,7 +165,7 @@ class PerformWithVision:
                 history.append(f"{gesture.action} with no coordinates — ignored")
                 continue
 
-            result = await self._ui.perform_at(
+            result = await driver.perform_at(
                 action=gesture.action, x=gesture.x, y=gesture.y, value=gesture.value
             )
             history.append(

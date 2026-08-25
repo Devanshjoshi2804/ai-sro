@@ -255,3 +255,31 @@ async def test_an_upload_that_cannot_be_read_does_not_lose_the_rest() -> None:
     )
 
     assert assembled.frames == 1, "the readable half of the demonstration was lost with the other"
+
+
+async def test_assembling_twice_does_not_teach_every_step_twice() -> None:
+    """Sealing is two calls: assemble, then finish. A retry of the second after
+    the first succeeded -- a lost reply, a 503, somebody's second click -- used
+    to append every frame again, and the skill induced from it had each step
+    twice."""
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    await _device(uow)
+    await _recording(uow)
+    await _ingest(uow, blobs).execute(
+        CTX,
+        device_id=LAPTOP,
+        batch_id=BatchId("bat-1"),
+        started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
+        ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
+        mode=CaptureMode.TEACHING,
+        events=[_gesture()],
+        recording_id=RecordingId("rec-1"),
+    )
+    assemble = AssembleDemonstration(uow, blobs)
+
+    once = await assemble.execute(CTX, recording_id=RecordingId("rec-1"))
+    again = await assemble.execute(CTX, recording_id=RecordingId("rec-1"))
+
+    assert once.frames == again.frames == 1
+    recording = await uow.recordings.get(f.TENANT, RecordingId("rec-1"))
+    assert len(recording.frames) == 1, "the demonstration was assembled into itself twice"

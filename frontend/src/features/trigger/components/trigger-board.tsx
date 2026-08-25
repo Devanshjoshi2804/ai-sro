@@ -211,7 +211,7 @@ function NewTrigger({
   const [weekday, setWeekday] = useState(1);
   const [written, setWritten] = useState("0 7 * * 1-5");
   const cron = repeat === "custom" ? written : toCron(repeat, at, weekday);
-  const inWords = describeCron(cron);
+  const inWords = cron ? describeCron(cron) : null;
   const [timezone, setTimezone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
   );
@@ -242,6 +242,7 @@ function NewTrigger({
         className="flex flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();
+          if (!cron) return;
           create.mutate({
             skill_id: skillId,
             // Named rather than defaulted: the generated type has no defaults,
@@ -330,9 +331,15 @@ function NewTrigger({
                 because `0 7 * * 1-5` firing on Sundays is a typo nobody can
                 see. */}
             <p className="text-muted-foreground text-xs">
-              <code>{cron}</code>
-              {" — "}
-              {inWords ?? "the scheduler will read this; I cannot put it in words"}
+              {cron ? (
+                <>
+                  <code>{cron}</code>
+                  {" — "}
+                  {inWords ?? "the scheduler will read this; I cannot put it in words"}
+                </>
+              ) : (
+                "give it a time to run at"
+              )}
             </p>
           </div>
           <div className="flex flex-1 flex-col gap-2">
@@ -407,7 +414,7 @@ function NewTrigger({
         />
 
         <div>
-          <Button type="submit" disabled={!skillId || create.isPending}>
+          <Button type="submit" disabled={!skillId || !cron || create.isPending}>
             Schedule it
           </Button>
         </div>

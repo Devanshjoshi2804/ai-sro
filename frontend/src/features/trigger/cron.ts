@@ -15,9 +15,24 @@ export type Repeat = "weekdays" | "daily" | "weekly" | "custom";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/** A cron expression for one of the shapes the screen offers. */
-export function toCron(repeat: Exclude<Repeat, "custom">, at: string, weekday: number): string {
+/**
+ * A cron expression for one of the shapes the screen offers, or `null` when the
+ * time is not one.
+ *
+ * A cleared time input gives `""`, which produced `NaN 0 * * 1-5` -- and since
+ * `describe` cannot phrase that either, the screen said the same reassuring
+ * "the scheduler will read this" it says about a valid hand-written
+ * expression. The operator found out from a 422 with nothing pointing at the
+ * field.
+ */
+export function toCron(
+  repeat: Exclude<Repeat, "custom">,
+  at: string,
+  weekday: number,
+): string | null {
   const [hour, minute] = at.split(":");
+  if (!/^\d{1,2}$/.test(hour ?? "") || !/^\d{1,2}$/.test(minute ?? "")) return null;
+  if (Number(hour) > 23 || Number(minute) > 59) return null;
   const when = `${Number(minute)} ${Number(hour)}`;
   if (repeat === "weekdays") return `${when} * * 1-5`;
   if (repeat === "weekly") return `${when} * * ${weekday}`;

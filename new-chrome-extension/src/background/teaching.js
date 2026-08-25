@@ -39,6 +39,7 @@ export async function start(recordingId, tabId) {
 /** Stop, whether or not anything was attached. Safe to call twice. */
 export async function stop() {
   const teaching = await state.teaching();
+  pending = null;
   await state.setTeaching(null);
   if (!teaching) return null;
   try {
@@ -55,13 +56,35 @@ export async function current() {
   return state.teaching();
 }
 
-/**
- * The accessibility tree of the tab being demonstrated in, as a `snapshot`
- * event -- or null when this tab is not the one, or the tree cannot be had.
+/** The tree taken before the gesture that has not happened yet.
  *
- * Taken per gesture rather than per page: it is the state the operator was
- * looking at when they decided to act, which is what the assembler attaches to
- * the frame that gesture opens.
+ * A module variable, so an eviction between two gestures costs one tree rather
+ * than the demonstration. The frame it would have illustrated simply has none,
+ * which induction already handles -- it is what every passive frame looks
+ * like. */
+let pending = null;
+
+/**
+ * The tree taken *before* the gesture now being recorded, if there is one.
+ *
+ * This is the whole point of the ordering. The assembler attaches a snapshot to
+ * the frame of the gesture before it, and that frame's locator is built from
+ * the tree -- so the tree has to be the screen the operator was looking at when
+ * they decided to act. Taken after the click, a step that navigates would carry
+ * the *destination* page, and induction would build that step's locator from a
+ * page where the control it clicked does not exist.
+ */
+export function takeSnapshot() {
+  const taken = pending;
+  pending = null;
+  return taken;
+}
+
+/**
+ * Photograph the tree now, for whatever the operator does next.
+ *
+ * Called once when teaching starts and again after every gesture, so there is
+ * always a "before" waiting for the next one.
  */
 export async function snapshot(tabId, url) {
   const teaching = await state.teaching();
@@ -79,7 +102,7 @@ export async function snapshot(tabId, url) {
   const nodes = tree?.nodes;
   if (!Array.isArray(nodes) || !nodes.length) return null;
 
-  return {
+  pending = {
     kind: "snapshot",
     // CDP's own shape, unreshaped: `capture.decode.to_ax_graph` parses exactly
     // this on the other side, and it is the same parser the server-side
@@ -89,4 +112,5 @@ export async function snapshot(tabId, url) {
     taken_at: new Date().toISOString(),
     tab_id: tabId,
   };
+  return pending;
 }

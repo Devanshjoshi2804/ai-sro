@@ -21,6 +21,16 @@ group("building a schedule from what somebody chose", () => {
     expect(toCron("weekly", "09:00", 3)).toBe("0 9 * * 3");
   });
 
+  it("says nothing at all rather than a schedule with NaN in it", () => {
+    // A cleared time input gives "", which used to become `NaN 0 * * 1-5` --
+    // and since `describe` cannot phrase that either, the screen showed the
+    // same reassuring line it shows for a valid hand-written expression.
+    expect(toCron("daily", "", 1)).toBeNull();
+    expect(toCron("weekdays", "not-a-time", 1)).toBeNull();
+    expect(toCron("daily", "25:00", 1)).toBeNull();
+    expect(toCron("daily", "07:61", 1)).toBeNull();
+  });
+
   it("drops the leading zero a time input gives it", () => {
     // `08:05` is what `<input type="time">` produces, and `08 05 * * *` is not
     // a schedule every scheduler reads the same way.

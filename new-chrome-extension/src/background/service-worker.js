@@ -205,12 +205,17 @@ async function handle(message, sender) {
           recordingId,
         );
 
-        // After the gesture, in that order: the assembler attaches a snapshot
-        // to the frame the gesture before it opened, which is the state the
-        // operator was looking at when they decided to act.
         if (recordingId) {
-          const tree = await teaching.snapshot(tab_id, redactUrl(frameUrl)).catch(() => null);
-          if (tree) await queue.enqueue(tree, null, recordingId);
+          // The tree taken *before* this gesture, enqueued after it: the
+          // assembler attaches a snapshot to the frame of the gesture before
+          // it, and that frame's locator is built from the tree. A tree taken
+          // after the click describes the page the click produced -- for a
+          // step that navigates, a page where the control it clicked does not
+          // exist at all.
+          const before = teaching.takeSnapshot();
+          if (before) await queue.enqueue(before, null, recordingId);
+          // And one for whatever they do next.
+          void teaching.snapshot(tab_id, redactUrl(frameUrl)).catch(() => null);
         }
         return { ok: true, screenshot: Boolean(shot) };
       }
@@ -295,7 +300,23 @@ async function handle(message, sender) {
         return { error: "open the system you want to teach in a tab first" };
       }
       const started = await api.startRecording(deviceId, message.label || tab.title || null);
-      await teaching.start(started.recording_id, tab.id);
+      try {
+        await teaching.start(started.recording_id, tab.id);
+        // The first "before": the screen as it was when the operator pressed
+        // start, which is what the first gesture will be judged against.
+        await teaching.snapshot(tab.id, tab.url).catch(() => null);
+      } catch (error) {
+        // Chrome refuses a second debugger on a tab, so DevTools being open is
+        // enough to land here. Without this the recording stays open on the
+        // server with nothing on this device that could ever seal it -- an
+        // empty demonstration nobody can finish or find.
+        await api.finishRecording(started.recording_id).catch(() => {});
+        return {
+          error:
+            `${error}. If DevTools is open on that tab, close it: Chrome allows ` +
+            "one debugger at a time.",
+        };
+      }
       return { ok: true, teaching: await teaching.current() };
     }
     case "teach-stop": {

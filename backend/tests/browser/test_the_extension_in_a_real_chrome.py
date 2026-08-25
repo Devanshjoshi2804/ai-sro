@@ -1563,3 +1563,55 @@ def test_a_demonstration_bigger_than_one_batch_is_uploaded_whole(
         1 for batch in teaching for event in batch["events"] if event["kind"] == "gesture"
     )
     assert gestures >= 12, f"only {gestures} of the demonstration's gestures arrived"
+
+
+def test_the_tree_a_step_carries_is_the_page_the_operator_acted_on(browser: Any, stub: Any) -> None:
+    """A snapshot is attached to the frame of the gesture before it, and that
+    frame's locator is built from the tree — so the tree has to be the screen
+    the operator was looking at when they decided to act.
+
+    Taken after the click, a step that navigates carries the *destination*
+    page, and induction builds that step's locator from a page where the
+    control it clicked does not exist.
+    """
+    api_url, batches = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    page = browser.new_page()
+    page.goto(api_url)
+    page.reload()
+    page.evaluate(
+        """([url]) => {
+             const link = document.createElement('a');
+             link.id = 'go';
+             link.href = url;
+             link.textContent = 'Go elsewhere';
+             document.body.append(link);
+           }""",
+        [f"{api_url}/elsewhere"],
+    )
+
+    options = browser.new_page()
+    options.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
+    began = options.evaluate(
+        """async () => await chrome.runtime.sendMessage({kind: "teach-start"})"""
+    )
+    assert began.get("ok"), f"the demonstration did not start: {began}"
+
+    page.click("#go")
+    page.wait_for_url(f"{api_url}/elsewhere", timeout=15_000)
+    page.wait_for_timeout(600)
+    options.evaluate("""async () => await chrome.runtime.sendMessage({kind: "teach-stop"})""")
+    options.close()
+    page.close()
+
+    events = [event for batch in batches for event in batch["events"]]
+    snapshots = [event for event in events if event["kind"] == "snapshot"]
+    assert snapshots, "the demonstration carried no accessibility tree at all"
+
+    names = [node.get("name", {}).get("value", "") for node in snapshots[0]["snapshot"]["nodes"]]
+    assert any("Go elsewhere" in name for name in names), (
+        "the tree is the page the click produced, not the one the operator clicked on"
+    )
+    assert not any("Only here" in name for name in names)

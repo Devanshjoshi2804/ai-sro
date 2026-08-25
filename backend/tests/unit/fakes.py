@@ -588,6 +588,7 @@ class FakeUiDriver:
         self.digest = digest
         self.asked: list[dict[str, object]] = []
         self.outcomes: list[UiOutcome] = []
+        self.captures = 0
 
     def will_find(self, strategy: LocatorStrategy, candidates: int = 1) -> None:
         self.outcomes.append(UiOutcome(performed=True, matched_by=strategy, candidates=candidates))
@@ -613,6 +614,9 @@ class FakeUiDriver:
     async def capture(self) -> Screen:
         if not self.available:
             raise UiUnavailable("no browser is attached")
+        # Counted, because "which browser did the rung that looks photograph"
+        # is the whole question when a run is performed in somebody else's.
+        self.captures += 1
         return Screen(
             image=b"\x89PNG-not-really",
             mime_type="image/png",

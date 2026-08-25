@@ -52,6 +52,14 @@ class AssembleDemonstration:
     async def execute(self, ctx: RequestContext, *, recording_id: RecordingId) -> Assembled:
         async with self._uow as uow:
             recording = await uow.recordings.get(ctx.tenant_id, recording_id)
+            if recording.frames:
+                # Already assembled. Sealing is two calls -- assemble, then
+                # finish -- and anything that retries the second after the first
+                # succeeded would append every frame a second time, giving the
+                # skill each step twice. `append_frame` does not dedupe and
+                # should not: a demonstration really can do the same thing
+                # twice, and only this knows the difference.
+                return Assembled(recording_id=recording_id, frames=len(recording.frames), batches=0)
             batches = await uow.observations.for_recording(ctx.tenant_id, recording_id)
 
         events: list[CaptureEvent] = []

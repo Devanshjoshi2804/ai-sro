@@ -67,6 +67,16 @@ async def _run(args: argparse.Namespace) -> int:
             indent=2,
         )
     )
+    if changed.capture_enabled and not changed.include_hosts:
+        # Said every time, because the deny-list is the shape that fails
+        # quietly: it protects the hosts somebody thought of, and a browser has
+        # every host in it. Naming the systems is a minute's work and it is the
+        # difference between observing a warehouse and observing a person.
+        print(
+            "\nnote: every site in the browser is observed except the excluded ones.\n"
+            "      Name the systems instead:\n"
+            f"      python -m sro.cli.observe {args.tenant} --only wms.example.com erp.example.com",
+        )
     return 0
 
 

@@ -16,16 +16,31 @@ from sro.domain.shared.hosts import domain_matches
 DEFAULT_EXCLUSIONS: tuple[str, ...] = (
     "mail.google.com",
     "outlook.live.com",
+    "outlook.office.com",
+    "outlook.office365.com",
+    "outlook.cloud.microsoft",
     "mail.yahoo.com",
     "accounts.google.com",
     "login.microsoftonline.com",
 )
-"""Personal webmail and the identity providers in front of it.
+"""Webmail and the identity providers in front of it.
 
 Deliberately short. Finance, health and HR are the categories that matter most
 and they are named differently at every customer, so they are supplied by the
 tenant when observation is switched on. A guessed list would read as coverage
 and provide none.
+
+The Microsoft 365 mailbox hosts are here because the consumer ones were and
+they were not, which is the wrong way round: `outlook.office.com` is corporate
+mail, `outlook.live.com` is somebody's holiday photos. `domain_matches` is a
+host-or-subdomain test, so excluding `login.microsoftonline.com` protected the
+sign-in page and not the mailbox behind it -- and a tenant that switched
+observation on with the defaults was recording message bodies, recipients and a
+screenshot of the open message every gesture, for thirty days.
+
+This list is still the wrong shape for anything nobody predicted, and no list of
+hosts is ever complete. `only()` turns the policy into an allow-list, which is
+the form that survives a mail client this file has never heard of.
 """
 
 

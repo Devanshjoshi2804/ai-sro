@@ -58,6 +58,14 @@ worker: ## Run the Temporal worker
 
 # --- frontend ---------------------------------------------------------------
 
+panel-shot: ## A picture of the side panel as it looks now: make panel-shot [beside=https://…]
+	@token=$$($(BACKEND) uv run python -m sro.cli.mint $(or $(tenant),acme) $(or $(principal),operator) --days 30); \
+	  cd backend && SRO_TOKEN=$$token SRO_BESIDE=$(beside) uv run python -u scripts/panel_shot.py
+
+dev-browser: ## A Chromium with the extension loaded and signed in: make dev-browser [tenant=acme principal=you]
+	@token=$$($(BACKEND) uv run python -m sro.cli.mint $(or $(tenant),acme) $(or $(principal),operator) --days 30); \
+	  cd backend && SRO_TOKEN=$$token uv run python -u scripts/dev_browser.py
+
 web: ## Run the Next.js dev server on :3000
 	$(FRONTEND) npm run dev
 

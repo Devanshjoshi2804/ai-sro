@@ -329,6 +329,15 @@ async function handle(message, sender) {
       // the queue, and the next tick met a sealed recording: the backend
       // refuses that permanently, and a permanent refusal deletes the rows.
       // The back half of the demonstration disappeared without a word.
+      if (message.discard) {
+        // Nothing more is uploaded: what is queued belongs to a demonstration
+        // the operator has just said they did not mean. The recording is
+        // abandoned rather than deleted, because it is still evidence of what
+        // happened in this browser -- it is simply never induced from.
+        await queue.clear();
+        await api.finishRecording(was.recordingId, "the operator discarded it");
+        return { ok: true, was, summary: null, discarded: true };
+      }
       const sent = await drain();
       if (sent.error) {
         return { error: `not sealed, because the last of it did not upload: ${sent.error}` };
@@ -336,6 +345,12 @@ async function handle(message, sender) {
       const summary = await api.finishRecording(was.recordingId);
       return { ok: true, was, summary };
     }
+    case "run":
+      // The panel says what a run driving this browser is doing. The worker
+      // holds the credential, so it does the asking.
+      return api.run(message.runId);
+    case "skill":
+      return api.skill(message.skillId);
     case "candidates":
       // Read here rather than in the panel so the credential stays in the
       // worker: an extension page holding a token is one more place it can be
@@ -526,6 +541,10 @@ async function status() {
     capturing: allowed.on,
     because: allowed.because,
     channel: channel.status(),
+    // What has been seen but not yet sent. The panel shows it while teaching,
+    // because a demonstration that is recording nothing looks exactly like one
+    // that is recording everything, and the operator finds out at the end.
+    queued: await queue.count(),
     teaching: await state.teaching(),
     performing: performing(),
     deviceId,

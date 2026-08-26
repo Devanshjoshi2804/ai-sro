@@ -67,11 +67,22 @@ export const api = {
 
   /** Seal it. The backend assembles the frames from what this browser
    * uploaded, so everything must have gone up before this is called. */
-  finishRecording: (recordingId) =>
+  finishRecording: (recordingId, abandonReason = null) =>
     call(`/v1/recordings/${encodeURIComponent(recordingId)}/finish`, {
       method: "POST",
-      body: {},
+      // A reason means abandon rather than seal. The evidence is kept either
+      // way -- what changes is that nothing will be induced from it.
+      body: abandonReason ? { abandon_reason: abandonReason } : {},
     }),
+
+  /** One run, for the panel to say what is happening in this browser.
+   *
+   * The worker knows a run is driving a tab and knows its id; what it is called,
+   * which rung it is on and how far through it is are the run's own record. */
+  run: (runId) => call(`/v1/runs/${encodeURIComponent(runId)}`),
+
+  /** One skill, for the name and the shape of the version being run. */
+  skill: (skillId) => call(`/v1/skills/${encodeURIComponent(skillId)}`),
 
   /** Tasks this operator keeps doing on one system. The panel asks about the
    * tab it is docked beside; the host is what makes it that question. */

@@ -14,6 +14,7 @@ import {
   type StartRecordingRequest,
 } from "@/features/recording/api";
 import { induceSkill, listSkills, skillKeys } from "@/features/skill/api";
+import { listDevices } from "@/features/trigger/api";
 import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
 import { BatchCard } from "@/features/console/batch-card";
@@ -81,6 +82,9 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
   const [inFlight, setInFlight] = useState<string | null>(null);
 
   const connections = useQuery({ queryKey: connectionKeys.all, queryFn: listConnections });
+  // Whether this tenant has a browser of its own. It decides which way of
+  // teaching is offered first, and the answer is different for every operator.
+  const devices = useQuery({ queryKey: ["devices"], queryFn: listDevices });
   // Asked of the systems themselves, and asked again while the console is open:
   // a session dies on the system's schedule, not on ours, and the whole point is
   // to say so before a demonstration walks into a login page.
@@ -612,6 +616,11 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
                       name: connection.name,
                       base_url: connection.base_url,
                     }))}
+                    // A browser of the operator's own changes which offer is
+                    // the right one: it already holds the session, the second
+                    // factor and the screens, and a browser opened on the
+                    // server holds none of them.
+                    devices={(devices.data ?? []).length}
                   />
                 )}
               </div>
@@ -744,10 +753,13 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
 
 function TeachForm({
   onStart,
+  devices = 0,
   pending,
   systems,
 }: {
   onStart: (startUrl: string) => void;
+  /** How many browsers this tenant has connected through the extension. */
+  devices?: number;
   pending: boolean;
   /** The systems already connected, with the address each was connected at. */
   systems: { name: string; base_url: string }[];
@@ -770,7 +782,9 @@ function TeachForm({
           gap: 12,
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 700 }}>Where does this task start?</div>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>
+          {devices > 0 ? "Teach it in your own browser" : "Where does this task start?"}
+        </div>
         <div style={{ fontSize: 12.5, color: ink.textSoft, lineHeight: 1.6 }}>
           {systems.length > 0
             ? "The system you connected already said where it lives. Start there and navigate to the screen yourself — capture begins with the browser."
@@ -783,7 +797,39 @@ function TeachForm({
             is asking the operator to fetch something the system has. The same
             button in Connect a system opens that address, and this is the same
             act with a recorder attached. */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {/* Inside the extension's side panel this offer is the wrong one: it
+            opens a browser somewhere else, while the operator is sitting in
+            the browser the task would be taught in, with a button for it at
+            the top of the same panel. Two ways to start one thing, one of
+            which quietly means a different thing, is how somebody ends up
+            demonstrating into a window they cannot see. */}
+        <div data-teach="in-panel" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+          You are already in a browser. Use <strong>Start teaching</strong> at the top of this
+          panel — it records the tab beside it, with your own session, and nothing opens
+          anywhere else.
+        </div>
+
+        {/* Not embedded, but a browser of this operator's own is connected. It
+            holds the session, the second factor and the screens as they really
+            are; a browser opened on the server holds none of that and has to be
+            signed into again before anything can be demonstrated. */}
+        {devices > 0 && (
+          <div data-teach="own-browser" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+            Open the system in the browser you have connected, then press{" "}
+            <strong>Start teaching</strong> in the AI-SRO side panel. It records what you do in
+            your own session — the screens as you actually see them.
+          </div>
+        )}
+
+        {/* Laid out in the stylesheet rather than here: an inline `display`
+            wins over the rule that hides this inside the panel. */}
+        {devices > 0 && (
+          <div style={{ fontSize: 11.5, color: ink.textMuted }}>
+            Or teach it in a browser on the server, which has to be signed in separately:
+          </div>
+        )}
+
+        <div data-teach="hosted">
           {systems.map((system) => (
             <button
               key={system.base_url}

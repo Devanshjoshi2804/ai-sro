@@ -1,121 +1,363 @@
+/* The panel is a tall narrow column beside a dense 2009 web application. It
+   competes with none of it: one ground, white cards, one accent, and numbers in
+   a monospace so a count that changes while you watch is legible as a count. */
+
 :root {
   color-scheme: light;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 13px;
+
+  --ground: #f7f7f5;
+  --card: #fff;
+  --line: #e6e4df;
+  --line-soft: #efeee9;
+  --ink: #1c1c1a;
+  --ink-soft: #5f5e58;
+  --ink-mute: #8b8a82;
+  --accent: #e8621f;
+  --good: #16a34a;
+  --warn: #b45309;
+  --warn-wash: #fffaf0;
+  --warn-line: #f0d9a8;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 body {
   margin: 0;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background: #f6f6f4;
-  color: #1c1c1a;
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--ink);
 }
 
-#strip,
-#here,
-footer {
-  padding: 10px 12px;
-  border-bottom: 1px solid #e2e1dc;
+/* -- the strip ------------------------------------------------------------ */
+
+#strip {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
 }
 
-#headline {
-  margin: 0 0 8px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.name {
+  font-size: 13px;
   font-weight: 600;
 }
 
-#headline[data-on="true"]::before {
-  content: "● ";
-  color: #b91c1c;
-}
-
-.row {
-  display: flex;
-  gap: 8px;
-}
-
-button {
-  flex: 1;
-  padding: 6px 10px;
-  border: 1px solid #1c1c1a;
-  border-radius: 6px;
-  background: #1c1c1a;
-  color: #fff;
+.link {
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-mute);
   font: inherit;
+  font-size: 11.5px;
   cursor: pointer;
 }
 
-button.quiet {
-  background: transparent;
-  color: #1c1c1a;
-  border-color: #c9c8c2;
+.link:hover {
+  color: var(--ink);
+}
+
+/* The host, with a dot that says what is happening to it. A panel that does not
+   name the tab it is docked beside leaves the operator to assume, and the tab
+   they are looking at is not always the tab this is beside. */
+.where {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.where::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--ink-mute);
+}
+
+.where[data-state="observing"]::before {
+  background: var(--good);
+}
+
+.where[data-state="recording"]::before {
+  background: var(--accent);
+  animation: beat 1.4s ease-in-out infinite;
+}
+
+.where[data-state="trouble"]::before {
+  background: var(--warn);
+}
+
+@keyframes beat {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* -- cards ---------------------------------------------------------------- */
+
+#cards:not(:empty) {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.card {
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.card[data-tone="attention"] {
+  border-color: var(--warn-line);
+  border-left: 3px solid var(--warn);
+  background: var(--warn-wash);
+}
+
+.card[data-tone="live"] {
+  border-left: 3px solid var(--accent);
+}
+
+.card h3 {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.card p {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.card p:last-child {
+  margin-bottom: 0;
+}
+
+/* Elapsed, actions, requests: the proof that a recording is recording. */
+.metrics {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-mute);
+}
+
+.stage {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+/* Steps done, steps left. Only ever drawn for a run that says how many. */
+.progress {
+  display: flex;
+  gap: 3px;
+  margin: 2px 0 10px;
+}
+
+.progress span {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.progress span[data-done="true"] {
+  background: var(--accent);
+}
+
+/* -- buttons -------------------------------------------------------------- */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+button {
+  padding: 7px 13px;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 button:disabled {
-  opacity: 0.45;
-  cursor: default;
+  border-color: var(--line);
+  background: var(--line-soft);
+  color: var(--ink-mute);
+  cursor: not-allowed;
 }
 
-.note {
-  margin: 6px 0 0;
-  color: #6b6a64;
-  line-height: 1.35;
+button.quiet {
+  border-color: var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 500;
 }
+
+button.quiet:hover:not(:disabled) {
+  border-color: var(--ink-mute);
+}
+
+button.danger:hover:not(:disabled) {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.fix {
+  display: block;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f2f1ec;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  word-break: break-all;
+  user-select: all;
+}
+
+/* -- what was noticed here ------------------------------------------------ */
 
 #here {
-  flex: 0 0 auto;
-  max-height: 34vh;
-  overflow: auto;
+  padding: 4px 14px 14px;
 }
 
 #here h2 {
-  margin: 0 0 6px;
-  font-size: 12px;
+  margin: 8px 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6b6a64;
+  color: var(--ink-mute);
 }
 
 #candidates {
-  list-style: none;
   margin: 0;
   padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 #candidates li {
-  border: 1px solid #e2e1dc;
-  border-radius: 6px;
-  padding: 8px;
-  background: #fff;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
 }
 
 .title {
+  margin: 0 0 4px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 
 .by-model {
   font-weight: 400;
-  color: #6b6a64;
+  color: var(--ink-mute);
 }
 
-/* The console fills whatever is left, and it is the only thing that scrolls
-   with the operator's own content in it. */
+.note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-mute);
+}
+
+/* A suggestion about this candidate and another, and the two words a person can
+   answer it with. */
+.joined {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* -- the console, when it is asked for ------------------------------------ */
+
 #console {
-  flex: 1;
-  min-height: 0;
   display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 320px;
+  border-top: 1px solid var(--line);
+  background: var(--card);
+}
+
+#console-note {
+  margin: 10px 14px;
+}
+
+#console-refused {
+  margin: 12px 14px;
+  border-left: 3px solid var(--warn);
 }
 
 #frame {
   flex: 1;
-  border: 0;
   width: 100%;
+  border: 0;
 }
 
+/* -- footer --------------------------------------------------------------- */
+
 footer {
-  border-bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--card);
+}
+
+footer button {
+  font-size: 11.5px;
+  padding: 6px 11px;
+}
+
+footer a {
+  margin-left: auto;
+  color: var(--ink-mute);
+  font-size: 11.5px;
+}
+
+#purged {
+  flex-basis: 100%;
 }

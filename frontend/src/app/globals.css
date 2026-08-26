@@ -151,6 +151,27 @@
  * selector can outrank: the console's own widths are inline pixel values, and
  * the alternative is a second copy of that component. The page rule needs none
  * -- an unlayered rule already beats Tailwind's layered utilities. */
+/* Teaching is offered twice otherwise: the panel records the tab beside it,
+   and this card opens a browser somewhere else. Inside the panel only the
+   first is right, so the card says which button to press instead. */
+[data-teach="hosted"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+[data-teach="in-panel"] {
+  display: none;
+}
+
+html[data-embedded] [data-teach="hosted"] {
+  display: none;
+}
+
+html[data-embedded] [data-teach="in-panel"] {
+  display: block;
+}
+
 html[data-embedded] [data-chrome="bar"] {
   display: none !important;
 }

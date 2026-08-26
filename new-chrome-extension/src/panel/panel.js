@@ -1,15 +1,15 @@
 // The surface docked beside the system the operator is working in.
 //
-// Two halves. The strip and the task list are native, because everything on
-// them needs `chrome.*` or needs to know which tab this is: teaching is a
-// control you want beside the page being taught, a run driving this browser has
-// to be stoppable while it happens, and "tasks you keep doing *here*" is a
-// question a page that does not know the host cannot ask.
+// Everything above the console frame is native, because everything on it needs
+// `chrome.*` or needs to know which tab this is: teaching is a control you want
+// beside the page being taught, a run driving this browser has to be stoppable
+// while it happens, and "tasks you keep doing *here*" is a question a page that
+// does not know the host cannot ask.
 //
-// The rest is the console in a frame. One implementation of each review screen,
-// so nothing drifts -- and the credential it needs is handed to it, because
-// Chrome partitions storage for framed contexts and the console cannot see the
-// token from its own tab.
+// What is drawn is one card per thing that is true, in the order somebody
+// should deal with it. Not connected outranks not observing, which outranks a
+// closed channel; a demonstration in progress outranks all of them, because
+// while one is running the panel is about that and nothing else.
 
 const $ = (id) => document.getElementById(id);
 
@@ -46,74 +46,314 @@ function hostOf(url) {
   }
 }
 
-// -- the strip ---------------------------------------------------------------
+function clock(since) {
+  const seconds = Math.max(0, Math.round((Date.now() - since) / 1000));
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
 
-function render(status) {
-  $("headline").dataset.on = String(status.capturing);
-  $("headline").textContent = status.capturing
-    ? "Observing this browser."
-    : `Not observing — ${status.because}.`;
+// -- building a card ---------------------------------------------------------
 
-  $("pause").textContent = status.paused ? "Resume" : "Pause";
-  $("pause").disabled = Boolean(status.serverPaused);
+/** One thing that is true, and what can be done about it.
+ *
+ * A panel that reports a problem without a way out is a panel people stop
+ * reading, so a card that has an action carries it; one that does not says why
+ * in a sentence somebody can act on elsewhere.
+ */
+function card({ title, says, metrics, stage, progress, tone, actions = [] }) {
+  const holder = document.createElement("section");
+  holder.className = "card";
+  if (tone) holder.dataset.tone = tone;
 
-  $("teach").textContent = status.teaching ? "Stop and save" : "Start teaching";
-  $("teach").disabled = !status.capturing;
-  $("teaching-state").textContent = status.teaching
-    ? "teaching — do the task, then stop"
-    : "";
-
-  const run = status.performing;
-  $("run").hidden = !run;
-  if (run) {
-    const seconds = Math.round((Date.now() - run.since) / 1000);
-    $("run-state").textContent = `a run is performing here — ${run.kind}, ${seconds}s`;
+  if (title) {
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    holder.append(heading);
+  }
+  if (says) {
+    const line = document.createElement("p");
+    line.textContent = says;
+    holder.append(line);
+  }
+  if (metrics) {
+    const line = document.createElement("p");
+    line.className = "metrics";
+    line.textContent = metrics;
+    holder.append(line);
+  }
+  if (progress) {
+    const bar = document.createElement("div");
+    bar.className = "progress";
+    for (let step = 0; step < progress.of; step += 1) {
+      const segment = document.createElement("span");
+      segment.dataset.done = String(step < progress.done);
+      bar.append(segment);
+    }
+    holder.append(bar);
+  }
+  if (stage) {
+    const line = document.createElement("p");
+    line.className = "stage";
+    line.textContent = stage;
+    holder.append(line);
   }
 
-  $("trouble").textContent = status.lastError || "";
+  const row = document.createElement("div");
+  row.className = "row";
+  for (const action of actions) {
+    if (!action) continue;
+    const button = document.createElement("button");
+    button.type = "button";
+    if (!action.primary) button.className = "quiet";
+    button.textContent = action.label;
+    button.disabled = Boolean(action.disabled);
+    button.addEventListener("click", () => action.act(button));
+    row.append(button);
+  }
+  if (row.childElementCount) holder.append(row);
+  return holder;
+}
+
+// -- the states --------------------------------------------------------------
+
+function render(status) {
+  const cards = [];
+
+  if (!status.deviceId) {
+    cards.push(
+      card({
+        title: "Not connected",
+        says:
+          "This browser has no credential. Nothing is recorded and no task can be "
+          + "taught until it is connected to your deployment.",
+        tone: "attention",
+        actions: [{ label: "Connect", primary: true, act: () => chrome.runtime.openOptionsPage() }],
+      }),
+    );
+  } else if (status.teaching) {
+    cards.push(recording(status));
+  } else {
+    cards.push(watching(status));
+  }
+
+  if (status.performing) cards.push(performing(status));
+  for (const trouble of troubles(status)) cards.push(trouble);
+
+  $("cards").replaceChildren(...cards);
+  $("where").dataset.state = status.teaching
+    ? "recording"
+    : status.capturing
+      ? "observing"
+      : status.deviceId
+        ? "trouble"
+        : "unknown";
+
+  // While a demonstration is being recorded the panel is about that and
+  // nothing else, and none of it applies to a browser that is not connected.
+  $("here").hidden = Boolean(status.teaching) || !status.deviceId;
+  $("ask").disabled = !status.deviceId;
   $("purge").disabled = !status.deviceId;
   return status;
 }
 
-async function refresh() {
-  return render(await ask({ kind: "status" }));
+/** A demonstration, while it is being recorded.
+ *
+ * It counts out loud. A recording that is capturing nothing looks exactly like
+ * one that is capturing everything until it is stopped, and finding out then
+ * means doing the task again.
+ */
+function recording(status) {
+  const since = Date.parse(status.teaching.startedAt || "") || Date.now();
+  const seen = status.queued ?? 0;
+  return card({
+    title: "Recording your demonstration",
+    says: "Do the task normally. Gestures, network calls and the page structure are being captured.",
+    metrics: `${clock(since)} · ${seen} thing${seen === 1 ? "" : "s"} seen`,
+    tone: "live",
+    actions: [
+      { label: "Stop and save", primary: true, act: (button) => stopTeaching(button) },
+      { label: "Discard", act: (button) => stopTeaching(button, { discard: true }) },
+    ],
+  });
 }
 
-$("pause").addEventListener("click", async () => {
-  const status = await ask({ kind: "status" });
-  render(await ask({ kind: "set-paused", paused: !status.paused }));
-});
+function watching(status) {
+  const paused = status.paused || status.serverPaused;
+  return card({
+    title: paused ? "Paused" : "Observing this browser",
+    says: paused
+      ? status.serverPaused
+        ? "Observation is paused for everyone on this deployment."
+        : "Nothing is being recorded until you resume."
+      : "What you repeat here becomes a task worth offering. Teach one deliberately at any time.",
+    actions: [
+      {
+        label: "Start teaching",
+        primary: true,
+        disabled: !status.capturing,
+        act: (button) => startTeaching(button),
+      },
+      {
+        label: status.paused ? "Resume" : "Pause",
+        disabled: Boolean(status.serverPaused),
+        act: async () => {
+          const now = await ask({ kind: "status" });
+          render(await ask({ kind: "set-paused", paused: !now.paused }));
+        },
+      },
+    ],
+  });
+}
 
-$("teach").addEventListener("click", async () => {
-  $("teach").disabled = true;
+/** A run driving this browser, possibly started somewhere else.
+ *
+ * Stoppable from here because this is where somebody sees it happening: a run
+ * started by a schedule is otherwise a cursor moving on its own.
+ */
+function performing(status) {
+  const run = status.performing;
+  const done = Number.isFinite(run.step) ? run.step : null;
+  const total = run.of && done !== null && done <= run.of ? run.of : null;
+  return card({
+    title: run.skill ? `“${run.skill}” is running` : "A run is performing here",
+    says:
+      (run.because || "Started elsewhere") +
+      (done === null ? "." : total ? `. Step ${done} of ${total}.` : `. Step ${done}.`),
+    metrics: `${run.kind} · ${clock(run.since)}`,
+    stage: run.stage || null,
+    progress: total ? { done, of: total } : null,
+    tone: "live",
+    actions: [
+      {
+        label: "Stop this run",
+        primary: true,
+        act: async (button) => {
+          button.disabled = true;
+          await ask({ kind: "abort-run", runId: run.runId });
+          // What is already inside the page finishes; this stops the next step,
+          // which is what the button says.
+          button.textContent = "stopping — the step already sent will finish";
+          await refresh();
+        },
+      },
+      { label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) },
+    ],
+  });
+}
+
+/** Everything wrong at once, in the order somebody should deal with it.
+ *
+ * These were four grey sentences in four places, each of which said what was
+ * true and none of which said what to do.
+ */
+function troubles(status) {
+  const cards = [];
+  if (status.deviceId && !status.capturing && !status.paused && !status.serverPaused) {
+    cards.push(card({ title: "Not observing", says: `${status.because}.`, tone: "attention" }));
+  }
+  if (status.deviceId && status.channel !== "open") {
+    cards.push(
+      card({
+        title: "This browser cannot be reached",
+        says:
+          `The command channel is ${status.channel}. A run started from the console or a `
+          + "schedule cannot act here until it opens; nothing already captured is lost.",
+        tone: "attention",
+      }),
+    );
+  }
+  if (status.lastError) {
+    cards.push(card({ title: "Last error", says: status.lastError, tone: "attention" }));
+  }
+  return cards;
+}
+
+async function startTeaching(button) {
+  button.disabled = true;
   try {
-    const status = await ask({ kind: "status" });
-    if (status.teaching) {
-      const stopped = await ask({ kind: "teach-stop" });
-      $("teaching-state").textContent = stopped.summary
-        ? `saved — ${stopped.summary.frame_count ?? 0} steps`
-        : "stopped";
-    } else {
-      const tab = await beside();
-      if (!tab) throw new Error("open the system you want to teach in this tab first");
-      // Named, not guessed: this panel is docked beside the tab being taught,
-      // which is the one thing the options page could never say.
-      await ask({ kind: "teach-start", tabId: tab.id, label: tab.title });
-    }
+    const tab = await beside();
+    if (!tab) throw new Error("open the system you want to teach in this tab first");
+    // Named, not guessed: this panel is docked beside the tab being taught,
+    // which is the one thing the options page could never say.
+    await ask({ kind: "teach-start", tabId: tab.id, label: tab.title });
   } catch (error) {
-    $("teaching-state").textContent = error.message;
+    said(error.message);
   }
   await refresh();
-});
+}
 
-$("abort").addEventListener("click", async () => {
-  const status = await ask({ kind: "status" });
-  if (!status.performing) return;
-  await ask({ kind: "abort-run", runId: status.performing.runId });
-  // What is already inside the page finishes; this stops the next step, which
-  // is what the button says.
-  $("run-state").textContent = "stopping — the step already sent will finish";
+async function stopTeaching(button, { discard = false } = {}) {
+  button.disabled = true;
+  try {
+    const stopped = await ask({ kind: "teach-stop", discard });
+    if (discard) {
+      said("discarded — nothing was kept");
+    } else {
+      const steps = stopped.summary?.frame_count ?? 0;
+      said(`saved — ${steps} step${steps === 1 ? "" : "s"}. Teach it once more to prove what varies.`);
+    }
+  } catch (error) {
+    said(error.message);
+  }
   await refresh();
+  await here();
+}
+
+/** A sentence under the cards, for what just happened. */
+function said(words) {
+  $("candidates-note").textContent = words;
+}
+
+async function refresh() {
+  const status = await ask({ kind: "status" });
+  // What a run driving this browser actually is: the worker knows its id and
+  // that it is happening, and the run's own record knows what it is called, how
+  // far through it is and which rung it is allowed to be on.
+  if (status.performing) {
+    try {
+      const run = await ask({ kind: "run", runId: status.performing.runId });
+      const skill = await ask({ kind: "skill", skillId: run.skill_id });
+      const version = (skill.versions || []).find((each) => each.version === run.skill_version);
+      status.performing = {
+        ...status.performing,
+        skill: skill.name || null,
+        stage: run.stage || null,
+        step: Array.isArray(run.steps) ? run.steps.length : null,
+        // How many steps the version has, which is what makes "step 3 of 6"
+        // answerable. A looping skill performs more positions than it has
+        // steps, so this is a floor rather than a promise -- and the card says
+        // "step 3" without the total when they disagree.
+        of: version?.steps?.length ?? null,
+        because: run.requested_by ? `Started by ${run.requested_by}` : null,
+      };
+    } catch {
+      // A run the panel cannot read is still a run the panel can stop.
+    }
+  }
+  return render(status);
+}
+
+/** The system this panel is docked beside. */
+async function whereWeAre() {
+  const tab = await beside();
+  const host = hostOf(tab?.url || "");
+  $("where").textContent = host || "no system open in this window";
+}
+
+function openConsole(path = "/console") {
+  ask({ kind: "panel-console" }).then(({ consoleUrl }) => {
+    if (consoleUrl) void chrome.tabs.create({ url: `${consoleUrl}${path}` });
+  });
+}
+
+$("open-console").addEventListener("click", () => openConsole());
+
+$("ask").addEventListener("click", () => {
+  // The console's chat, framed here rather than in a tab: asking for a task is
+  // the one console screen that belongs beside the work.
+  const console_ = $("console");
+  console_.hidden = !console_.hidden;
+  $("ask").textContent = console_.hidden ? "Ask for a task" : "Hide the console";
+  if (!console_.hidden && !$("frame").src) void frameTheConsole();
 });
 
 $("purge").addEventListener("click", async () => {
@@ -194,8 +434,8 @@ function row(candidate) {
   const facts = document.createElement("p");
   facts.className = "note";
   facts.textContent =
-    `done ${candidate.times_seen} times · ` +
-    `${Math.round(candidate.median_duration_ms / 1000)}s each · ` +
+    `Seen ${candidate.times_seen} times · ` +
+    `about ${Math.round(candidate.median_duration_ms / 1000)}s each · ` +
     `${candidate.minutes_so_far} minutes so far`;
 
   item.append(title, facts);
@@ -207,7 +447,7 @@ function row(candidate) {
 
   const teach = document.createElement("button");
   teach.type = "button";
-  teach.textContent = "Teach";
+  teach.textContent = "Teach it";
   teach.addEventListener("click", () => taught(candidate, item));
 
   const dismiss = document.createElement("button");
@@ -241,18 +481,22 @@ function row(candidate) {
  */
 function suggestion(candidate, join) {
   const holder = document.createElement("div");
+  holder.className = "joined";
 
-  const said = document.createElement("p");
-  said.className = "note";
+  const said_ = document.createElement("p");
+  said_.className = "note";
   const what =
     join.kind === "workflow"
       ? "looks like half of one job with another task"
       : "looks like the same task as another";
-  said.textContent = join.answered
+  said_.textContent = join.answered
     ? `${join.answered === "same" ? "one job with another task" : "a different task"} — ` +
       `${join.answered_by} said so`
     : `${what} — ${join.because}`;
-  holder.append(said);
+  holder.append(said_);
+
+  const actions = document.createElement("div");
+  actions.className = "row";
 
   if (join.answered) {
     // The only answer anything can act on. `same` about a workflow means the
@@ -270,22 +514,21 @@ function suggestion(candidate, join) {
             id: candidate.id,
             otherId: join.other_id,
           });
-          said.textContent = answer.needs_demonstration
+          said_.textContent = answer.needs_demonstration
             ? answer.because || "the evidence for the two halves was too thin"
             : "learned as one skill";
           await here();
         } catch (error) {
-          said.textContent = error.message;
+          said_.textContent = error.message;
           merge.disabled = false;
         }
       });
-      holder.append(merge);
+      actions.append(merge);
+      holder.append(actions);
     }
     return holder;
   }
 
-  const actions = document.createElement("div");
-  actions.className = "row";
   for (const [label, answer] of [
     ["Same task", "same"],
     ["Different", "different"],
@@ -306,7 +549,7 @@ function suggestion(candidate, join) {
         });
         await here();
       } catch (error) {
-        said.textContent = error.message;
+        said_.textContent = error.message;
       }
     });
     actions.append(button);
@@ -316,26 +559,26 @@ function suggestion(candidate, join) {
 }
 
 async function taught(candidate, item) {
-  const said = document.createElement("p");
-  said.className = "note";
-  item.append(said);
+  const note = document.createElement("p");
+  note.className = "note";
+  item.append(note);
   try {
     const answer = await ask({ kind: "teach-candidate", id: candidate.id });
     if (!answer.needs_demonstration) {
-      said.textContent = "learned from what was already watched";
+      note.textContent = "learned from what was already watched";
       await here();
       return;
     }
     // The loop the console cannot close: it can say the passive evidence was
     // too thin, and only this can start a demonstration in your browser.
-    said.textContent = `${answer.because || "the evidence was too thin"} — show me once:`;
+    note.textContent = `${answer.because || "the evidence was too thin"} — show me once:`;
     const show = document.createElement("button");
     show.type = "button";
     show.textContent = "Show me once";
     show.addEventListener("click", async () => {
       const tab = await beside();
       if (!tab) {
-        said.textContent = "open the system in this tab first";
+        note.textContent = "open the system in this tab first";
         return;
       }
       await ask({ kind: "teach-start", tabId: tab.id, label: candidate.title });
@@ -343,7 +586,7 @@ async function taught(candidate, item) {
     });
     item.append(show);
   } catch (error) {
-    said.textContent = error.message;
+    note.textContent = error.message;
   }
 }
 
@@ -351,12 +594,10 @@ async function taught(candidate, item) {
 
 async function frameTheConsole() {
   const { consoleUrl, token } = await ask({ kind: "panel-console" });
-  if (!consoleUrl) {
-    $("console-note").textContent = "no console configured — set one in Settings";
-    return;
-  }
-  if (!token) {
-    $("console-note").textContent = "connect this browser in Settings";
+  if (!token || !consoleUrl) {
+    // Already said once, at the top, with the button that fixes it. Saying it
+    // again down here would be a second complaint about one thing.
+    $("console").hidden = true;
     return;
   }
 
@@ -382,23 +623,79 @@ async function frameTheConsole() {
   frame.hidden = false;
 
   // A cross-origin frame does not report its own failures, so the reply is the
-  // only health check there is. Say the likely cause rather than a certain one.
+  // only health check there is -- and until it arrives the frame is a grey
+  // rectangle that looks like a broken page. Show what to do instead of it, and
+  // keep showing it: a setup step nobody is told about twice is a setup step
+  // nobody does.
   setTimeout(() => {
     if ($("console-note").textContent === "opening the console…") {
-      $("console-note").textContent =
-        `the console did not accept this browser — is ${chrome.runtime.id} in its ` +
-        "allowed extension origins?";
+      frame.hidden = true;
+      refused(consoleUrl);
     }
   }, 5000);
+}
+
+/** What to do when the console will not accept this browser.
+ *
+ * The console decides which extension may frame it and hand it a credential --
+ * a deployment that accepted any extension would accept one somebody else
+ * installed. So this is a line of configuration, and the panel is where
+ * somebody finds out it is missing. It says which line, where, and hands it
+ * over ready to paste.
+ */
+function refused(consoleUrl) {
+  const holder = $("console-refused");
+  holder.hidden = false;
+  holder.replaceChildren();
+
+  const origin = `chrome-extension://${chrome.runtime.id}`;
+  const said_ = document.createElement("p");
+  said_.className = "note";
+  said_.textContent = `${consoleUrl} did not accept this browser. It only frames extensions it has been told about.`;
+
+  const what = document.createElement("code");
+  what.className = "fix";
+  what.textContent = `NEXT_PUBLIC_EXTENSION_ORIGINS=${origin}`;
+
+  const where = document.createElement("p");
+  where.className = "note";
+  where.textContent = "Put that in the console's environment (frontend/.env.local) and restart it.";
+
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.textContent = "Copy the line";
+  copy.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(what.textContent);
+    copy.textContent = "copied";
+    setTimeout(() => (copy.textContent = "Copy the line"), 2000);
+  });
+
+  const again = document.createElement("button");
+  again.type = "button";
+  again.className = "quiet";
+  again.textContent = "Try again";
+  again.addEventListener("click", () => {
+    holder.hidden = true;
+    $("console-note").textContent = "";
+    void frameTheConsole();
+  });
+
+  const row_ = document.createElement("div");
+  row_.className = "row";
+  row_.append(copy, again);
+  holder.append(said_, what, where, row_);
+  $("console-note").textContent = "";
 }
 
 // ponytail: polled while the panel is open rather than pushed from the worker.
 // A few storage reads a second is cheap and has no lifecycle edge cases; make
 // it a broadcast if it is ever felt.
 setInterval(() => {
-  if (document.visibilityState === "visible") void refresh();
+  if (document.visibilityState !== "visible") return;
+  void refresh();
+  void whereWeAre();
 }, 2000);
 
 void refresh();
+void whereWeAre();
 void here();
-void frameTheConsole();

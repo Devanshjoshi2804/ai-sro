@@ -7,23 +7,25 @@
   </head>
   <body>
     <!-- What only this surface can say: it is docked beside the tab it is
-         talking about. Everything below the frame line is the console. -->
+         talking about. The host under the title is that tab's, and everything
+         below is about it -- the tasks offered, the demonstration a click would
+         start, the run a command would drive. -->
     <header id="strip">
-      <p id="headline" data-on="false">…</p>
-
-      <div class="row">
-        <button type="button" id="teach">Start teaching</button>
-        <button type="button" id="pause" class="quiet">Pause</button>
+      <div class="brand">
+        <span class="mark" aria-hidden="true">g</span>
+        <span class="name">AI-SRO</span>
+        <button type="button" id="open-console" class="link" title="Open the console in a tab">
+          Console ↗
+        </button>
       </div>
-      <p class="note" id="teaching-state"></p>
-
-      <div id="run" hidden>
-        <p class="note" id="run-state"></p>
-        <button type="button" id="abort" class="quiet">Stop this run</button>
-      </div>
-
-      <p class="note" id="trouble"></p>
+      <p id="where" class="where" data-state="unknown">…</p>
     </header>
+
+    <!-- One card per thing that is true, in the order somebody should deal with
+         it. Everything here is built in panel.js from the worker's status,
+         because every one of these states is a fact about this browser rather
+         than a screen the operator navigated to. -->
+    <main id="cards"></main>
 
     <section id="here">
       <h2>Tasks you keep doing here</h2>
@@ -31,13 +33,15 @@
       <p class="note" id="candidates-note"></p>
     </section>
 
-    <section id="console">
+    <section id="console" hidden>
       <p class="note" id="console-note"></p>
+      <div id="console-refused" class="card" hidden></div>
       <iframe id="frame" title="AI-SRO console" hidden></iframe>
     </section>
 
     <footer>
-      <button type="button" id="purge" class="quiet">Delete the last hour</button>
+      <button type="button" id="ask" class="quiet">Ask for a task</button>
+      <button type="button" id="purge" class="quiet danger">Delete the last hour</button>
       <a id="options" href="#">Settings</a>
       <p class="note" id="purged"></p>
     </footer>

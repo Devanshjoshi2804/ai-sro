@@ -31,11 +31,21 @@ def _shape(value: Any) -> Any:
     A list becomes the shape of its first element, because a fixture's arrays
     are homogeneous -- headers, redacted field names, AX properties -- and an
     empty one says nothing either way.
+
+    A number is a number. A gesture's `at` is milliseconds since the epoch, and
+    JSON has one number type: whether a browser hands back 1787725123456 or
+    1787725123456.7 is a fact about that millisecond, not about the protocol.
+    Telling those apart made this test fail about one run in five, which is the
+    kind of failure that teaches people to re-run rather than to read.
     """
     if isinstance(value, dict):
         return {key: _shape(inner) for key, inner in sorted(value.items())}
     if isinstance(value, list):
         return [_shape(value[0])] if value else []
+    if isinstance(value, bool):
+        return "bool"
+    if isinstance(value, int | float):
+        return "number"
     return type(value).__name__
 
 

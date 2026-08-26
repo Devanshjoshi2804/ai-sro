@@ -38,11 +38,11 @@ ANSWERS: dict[str, dict[str, Any]] = {
 
 async def serve(url: str, token: str, *, refuse: bool) -> None:
     async with websockets.connect(url, subprotocols=["bearer", token]) as socket:  # type: ignore[arg-type]
-        print("connected; waiting for commands")  # noqa: T201
+        print("connected; waiting for commands")
         async for raw in socket:
             command = json.loads(raw)
             kind = str(command.get("kind"))
-            print(f"<- {kind} {json.dumps(command.get('payload'))[:120]}")  # noqa: T201
+            print(f"<- {kind} {json.dumps(command.get('payload'))[:120]}")
 
             if refuse and kind.startswith("ui."):
                 answer: dict[str, Any] = {

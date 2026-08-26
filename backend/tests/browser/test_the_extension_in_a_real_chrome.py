@@ -1425,6 +1425,10 @@ def test_the_panel_hands_the_console_the_credential_it_cannot_see(browser: Any, 
     system.goto(api_url)
 
     panel = _panel(browser, worker)
+    # Asked for, because the panel no longer frames the console unasked: a
+    # screen full of other work is not what somebody docked this beside their
+    # WMS for. The handshake it protects is the same either way.
+    panel.get_by_role("button", name="Ask for a task").click()
     frame = panel.frame_locator("#frame")
     frame.locator("h1").wait_for(timeout=15_000)
 

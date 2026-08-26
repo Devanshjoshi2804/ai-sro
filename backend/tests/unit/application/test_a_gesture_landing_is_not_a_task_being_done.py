@@ -74,14 +74,20 @@ async def _skill(
     await uow.skills.add(skill)
 
 
-async def _run(uow: FakeUnitOfWork, ui: FakeUiDriver) -> StepDisposition:
+async def _run(
+    uow: FakeUnitOfWork, ui: FakeUiDriver, *, settles_within: float = 0.0
+) -> StepDisposition:
     run = await StartRun(uow, FakeClock(), FakeIdFactory()).execute(
         CTX,
         ExecutionRequest(
             skill_id=f.skill().id, parameters={}, authorized_by="supervisor", medium=Medium.UI
         ),
     )
-    step = ExecuteStep(uow, FakeHttpCaller(), FakeCredentialVault(), ui)
+    # Nothing to wait for by default: a test that asserts a screen never
+    # caught up should not spend the settling window doing it.
+    step = ExecuteStep(
+        uow, FakeHttpCaller(), FakeCredentialVault(), ui, settles_within=settles_within
+    )
     return await step.execute(CTX, run_id=run.id, index=0)  # type: ignore[return-value]
 
 
@@ -205,7 +211,7 @@ async def test_what_a_model_clicked_is_checked_against_the_screen_too() -> None:
         CTX,
         ExecutionRequest(skill_id=f.skill().id, parameters={}, authorized_by="supervisor"),
     )
-    step = ExecuteStep(uow, http, FakeCredentialVault(), ui, vision)
+    step = ExecuteStep(uow, http, FakeCredentialVault(), ui, vision, settles_within=0.0)
     outcome = await step.execute(CTX, run_id=run.id, index=0)
 
     assert outcome.medium is Medium.VISION
@@ -213,3 +219,38 @@ async def test_what_a_model_clicked_is_checked_against_the_screen_too() -> None:
     # And it clicked something that did not close the wave.
     assert outcome.assertion_failures == ("the screen does not show 'Wave closed'",)
     assert not outcome.ok
+
+
+async def test_a_screen_that_takes_a_moment_is_waited_for_not_failed() -> None:
+    """The driver answers the instant it dispatches the gesture -- the
+    extension's `perform` returns before the page has done anything at all. A
+    check that looked once would call every screen that takes a moment a failed
+    task, which is a worse lie than the one this exists to stop.
+    """
+    uow = FakeUnitOfWork()
+    await _skill(
+        uow,
+        asserts=(Assertion(kind=AssertionKind.UI_TEXT_VISIBLE, expected=Template("Wave closed")),),
+    )
+
+    class _CatchesUp(FakeUiDriver):
+        """Shows the old screen once, then the new one."""
+
+        async def capture(self) -> Screen:
+            screen = await super().capture()
+            return (
+                screen
+                if self.captures > 1
+                else Screen(
+                    image=screen.image,
+                    mime_type=screen.mime_type,
+                    width=screen.width,
+                    height=screen.height,
+                    text_digest="Closing…",
+                )
+            )
+
+    outcome = await _run(uow, _CatchesUp(digest="Wave closed"), settles_within=1.0)
+
+    assert outcome.assertion_failures == ()
+    assert outcome.ok

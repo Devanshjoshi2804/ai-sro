@@ -14,6 +14,7 @@ What this is careful about, in order of how much damage the alternative does:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -218,6 +219,15 @@ class StartRun:
         return run
 
 
+_LOOK_AGAIN = 0.4
+"""How long to leave a screen that has not caught up yet, between looks."""
+
+SCREEN_SETTLES_WITHIN = 2.0
+"""And how long to keep looking. Long enough for a screen that is working and
+short enough that a step which is genuinely wrong is not a wait: what is being
+waited for is a page reacting to a gesture, not a warehouse deciding anything."""
+
+
 class ExecuteStep:
     """One step of one run.
 
@@ -236,6 +246,7 @@ class ExecuteStep:
         heal: SelfHeal | None = None,
         tokens: TokenSource | None = None,
         agents: AgentDrivers | None = None,
+        settles_within: float = SCREEN_SETTLES_WITHIN,
     ) -> None:
         self._uow = uow
         self._http = http
@@ -246,6 +257,7 @@ class ExecuteStep:
         self._heal_with = heal
         self._tokens = tokens
         self._budgets: dict[str, HealBudget] = {}
+        self._settles_within = settles_within
 
     async def has_more(self, ctx: RequestContext, *, run_id: RunId) -> bool:
         """Whether this run has another position to perform.
@@ -530,15 +542,33 @@ class ExecuteStep:
         evidence is a response body costs no screenshot. A screen that cannot be
         read is not a failed step -- the gesture landed, and calling the task
         wrong because a capture failed would be worse than saying what happened.
+
+        Looked at again while it has not settled, because a driver answers the
+        moment it dispatches the gesture: the extension's `perform` returns
+        before the page has done anything at all. Checking once would call every
+        screen that takes a moment a failed task, which is a worse lie than the
+        one this exists to stop. Only a step that is failing pays for the
+        looking; a screen that already says what it should is read once.
         """
         wanted = tuple(a for a in step.assertions if a.kind is AssertionKind.UI_TEXT_VISIBLE)
         if not wanted:
             return (), ()
-        try:
-            screen = await ui.capture()
-        except (UiUnavailable, VisionUnavailable) as blind:
-            return (), (f"the screen could not be read ({blind})",)
-        return check_on_screen(step.assertions, screen.text_digest, values=values)
+
+        failures: tuple[str, ...] = ()
+        unchecked: tuple[str, ...] = ()
+        waited = 0.0
+        while True:
+            try:
+                screen = await ui.capture()
+            except (UiUnavailable, VisionUnavailable) as blind:
+                return (), (f"the screen could not be read ({blind})",)
+            failures, unchecked = check_on_screen(
+                step.assertions, screen.text_digest, values=values
+            )
+            if not failures or waited >= self._settles_within:
+                return failures, unchecked
+            await asyncio.sleep(min(_LOOK_AGAIN, self._settles_within - waited))
+            waited += _LOOK_AGAIN
 
     async def _escalate(
         self,

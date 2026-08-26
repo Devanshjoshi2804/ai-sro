@@ -128,6 +128,17 @@ check costs no screenshot, a post-condition this rung cannot see -- a response
 body -- is *said* rather than counted as satisfied, and a screen that cannot be
 read is not a failed task.
 
+**And it is looked at again while it has not settled.** A driver answers the
+moment it dispatches the gesture -- the extension's `perform` returns before the
+page has done anything at all, and the Steel adapter sleeps a fixed 1.2 seconds
+and calls that done. Checking once would fail every screen that takes a moment,
+which is a worse lie than the one the check exists to stop. Only a step that is
+failing pays for the looking. The Ringer-shaped version of this is to infer the
+wait from the demonstration and have the driver hold until the element that
+appeared last time appears again (`UiPlan.wait_for` is already captured and
+still read by nothing); that is a change to the extension protocol, and this is
+the part that needed no protocol at all.
+
 **A derived value may have been reformatted.** A parameter carries the pointer
 of the response that produces it and, where two demonstrations agreed on one, a
 small rewriting to apply on the way: trimmed, recased, zero-padded, a constant

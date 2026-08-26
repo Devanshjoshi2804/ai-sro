@@ -15,10 +15,10 @@ invented from scratch.
 |---|---|---|---|
 | Segment a run into its repetitions | Leno et al., ICPM 2020 | **Done** — `segment.py`; the miner was blind to back-to-back work | — |
 | Derived values that are *transformed*, not copied | Leno et al., 2020 (Foofah, A*) | **Done** — `induction/transform.py`, gated on both runs agreeing (ADR 004 v1) | — |
-| Loops in a skill ("for every short-shipped line") | WebRobot, PLDI 2022 | Skills are straight-line step lists; the commonest warehouse shape is a loop | L |
+| Loops in a skill ("for every short-shipped line") | WebRobot, PLDI 2022 | **Done** — `induction/loops.py` and `execution/plan.py`, validated the way they validate: a guessed loop must predict what it was not built from | — |
 | Element identity by similarity, not by one locator | Ringer, OOPSLA 2016 | `UiPlan` locators plus a healer; Ringer scores *all* candidates on many features | M |
 | A store of healed locators with confidence | Healenium | **Done, our way** — which locator actually found each control is written back as knowledge; the skill is never rewritten | — |
-| Synchronisation triggers, inferred | Ringer | `wait_for` is captured, not inferred | M |
+| Synchronisation triggers, inferred | Ringer | `wait_for` is captured and read by nothing; the screen check settles by looking again, which needs no protocol change but is the cruder half | M |
 | A validator as a separate rung | Skyvern 2.0, WebJudge | **Partly done** — L2 and L3 now check the demonstration's own `UI_TEXT_VISIBLE` post-conditions against the screen | S |
 | Failure taxonomy for runs | AgentRx | We have `FailureKind`; theirs is nine categories over a critical-step attribution | S |
 
@@ -111,8 +111,14 @@ this order" is either taught once per line or not at all. Their validation rule
 is the one that makes this safe for us: the loop must correctly predict the
 *next* demonstrated action, against evidence we already keep frame by frame.
 
-Large. It changes the skill document, the executor, the console's step list and
-every review screen. Worth designing when a customer asks for the shape twice.
+**Built** — `domain/skill/loop.py`, `application/induction/loops.py`,
+`application/execution/plan.py`. Narrower than theirs, because our evidence is
+calls and answers rather than a DOM trace: a loop is an earlier response's list,
+a block of steps run once per element, and values that are fields of the element.
+Their validation rule is the one that made it safe to keep — the guess must
+explain both runs' counts and every value sent, not the run it was read from.
+Their while-loops (pagination) are still theirs: `_rest_of` already walks paging,
+and value-path loops are what `run_batch` is.
 
 ## Element identity, and healing it
 

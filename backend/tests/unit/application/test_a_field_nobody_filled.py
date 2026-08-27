@@ -102,3 +102,24 @@ def test_a_group_left_null_is_the_same_optional_field_one_level_down() -> None:
             absent_as="null",
         )
     ]
+
+
+def test_a_group_left_null_is_optional_however_the_runs_happen_to_be_ordered() -> None:
+    """Which recording landed as A and which as B is an accident of storage
+    order, not something an operator controls -- so the mirror of the case
+    above has to resolve the same way, not raise. Here it is `document_a`
+    that sent null for the whole group and `document_b` that filled it in."""
+    run_a = _run({"workArea": "TWOTEST", "extra": None})
+    run_b = _run({"workArea": "TWOTEST", "extra": {"bar": 1}})
+
+    found = differences(run_a, run_b)
+
+    assert found == [
+        Difference(
+            step_index=0,
+            site=JsonBodySite("/extra/bar"),
+            value_a="",
+            value_b="1",
+            absent_as="null",
+        )
+    ]

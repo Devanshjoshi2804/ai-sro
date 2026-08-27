@@ -1001,26 +1001,7 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
     found: list[Difference] = []
     for pointer, leaf_a in jsonutil.leaves(document_a):
         if pointer not in leaves_b:
-            # Not a missing key -- same_shape already ruled that out. The group
-            # this pointer lives in was sent null on the other side instead of
-            # filled out leaf by leaf, so there is nothing at `pointer` to find;
-            # the empty group one level up is the field's absent form.
-            absent = _absent_ancestor(pointer, leaves_b)
-            if absent is _NOT_FOUND:
-                raise InductionFailed(
-                    f"{pointer} is in one run's body and not reachable in the other's; "
-                    "the demonstrations diverged",
-                    step_index=index,
-                )
-            found.append(
-                Difference(
-                    step_index=index,
-                    site=JsonBodySite(pointer),
-                    value_a=str(leaf_a),
-                    value_b="",
-                    absent_as=_absent_form(absent),
-                )
-            )
+            found.extend(_absent_differences(index, pointer, leaf_a, leaves_b))
             continue
 
         leaf_b = leaves_b[pointer]
@@ -1046,6 +1027,53 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
 _NOT_FOUND = object()
 """Sentinel for `_absent_ancestor`: distinguishes "found an empty ancestor
 whose value happens to be `None`" from "found nothing"."""
+
+
+def _absent_differences(
+    index: int, pointer: str, leaf_a: object, leaves_b: dict[str, object]
+) -> list[Difference]:
+    """`pointer` has nothing at that exact address in the other body.
+
+    Two honest reasons, mirror images of each other, both "the group was left
+    alone rather than filled out leaf by leaf" -- which run did the leaving
+    is not something either demonstration chose, so both directions have to
+    resolve the same way. Anything else missing is a real divergence and gets
+    a sentence, not a `KeyError`.
+    """
+    ancestor = _absent_ancestor(pointer, leaves_b)
+    if ancestor is not _NOT_FOUND:
+        # This run filled the group in; the other sent null for the whole
+        # thing instead of leaf by leaf, so the empty group one level up is
+        # this leaf's absent form.
+        return [
+            Difference(
+                step_index=index,
+                site=JsonBodySite(pointer),
+                value_a=str(leaf_a),
+                value_b="",
+                absent_as=_absent_form(ancestor),
+            )
+        ]
+    nested_in_b = {p: v for p, v in leaves_b.items() if p.startswith(pointer + "/")}
+    if jsonutil.is_empty(leaf_a) and nested_in_b:
+        # The mirror: this run left the whole group alone -- `pointer` is
+        # already the empty leaf -- and the other filled it in, leaf by leaf.
+        # One difference per leaf the other run actually sent.
+        return [
+            Difference(
+                step_index=index,
+                site=JsonBodySite(p),
+                value_a="",
+                value_b=str(v),
+                absent_as=_absent_form(leaf_a),
+            )
+            for p, v in nested_in_b.items()
+        ]
+    raise InductionFailed(
+        f"{pointer} is in one run's body and not reachable in the other's; "
+        "the demonstrations diverged",
+        step_index=index,
+    )
 
 
 def _absent_ancestor(pointer: str, leaves_b: dict[str, object]) -> object:

@@ -46,6 +46,17 @@ class Trigger:
     created_at: datetime
 
     parameters: Mapping[str, str] = field(default_factory=dict)
+    from_message: tuple[str, ...] = ()
+    """Parameters this trigger takes from whatever fires it, rather than from
+    what it was created with -- the order number in a mail.
+
+    Allowed, not required: everything left out of this stays the value the
+    trigger was created with. The distinction is the whole safety of an inbound
+    trigger, whose token is presented by a relay nobody in this tenant wrote.
+    A message that could name any parameter could name the facility, and a read
+    somebody authorised for one warehouse would answer about another.
+    """
+
     cron: str | None = None
     timezone: str = "UTC"
 
@@ -107,6 +118,12 @@ class Trigger:
         elif self.inbound_token is not None:
             raise InvariantViolation(f"a {self.kind} trigger is not reached by a token")
 
+        if self.from_message and self.kind is not TriggerKind.INBOUND:
+            raise InvariantViolation(
+                f"a {self.kind} trigger fires with the values it was created with; "
+                "only an inbound one is told anything"
+            )
+
         if self.writes and self.authorized_by is None:
             # The whole point of the record. Refused here, weeks before it
             # would have written to a warehouse with nobody's name on it.
@@ -119,6 +136,16 @@ class Trigger:
             self.requires_confirmation = False
 
         self.parameters = MappingProxyType(dict(self.parameters))
+
+    def values_from(self, message: Mapping[str, str]) -> dict[str, str]:
+        """What to run with, given what fired this.
+
+        A name the trigger did not declare is dropped rather than refused: a
+        relay that adds a field to its payload is not a reason for a mailbox
+        rule that has worked for a year to stop.
+        """
+        told = {name: value for name, value in message.items() if name in self.from_message}
+        return {**dict(self.parameters), **told}
 
     @property
     def is_scheduled(self) -> bool:

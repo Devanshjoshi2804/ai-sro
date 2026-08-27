@@ -37,6 +37,7 @@ async def create_trigger(
             cron=body.cron,
             timezone=body.timezone,
             parameters=body.parameters,
+            from_message=tuple(body.from_message),
             device_id=DeviceId(body.device_id) if body.device_id else None,
             medium=body.medium,
             authorized_by=body.authorized_by,

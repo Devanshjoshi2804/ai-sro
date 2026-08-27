@@ -549,6 +549,7 @@ def update_trigger_row(row: TriggerRow, trigger: Trigger) -> None:
     row.cron = trigger.cron
     row.timezone = trigger.timezone
     row.parameters = dict(trigger.parameters)
+    row.from_message = list(trigger.from_message)
     row.device_id = trigger.device_id.value if trigger.device_id else None
     row.medium = trigger.medium.value
     row.enabled = trigger.enabled
@@ -573,6 +574,7 @@ def row_to_trigger(row: TriggerRow) -> Trigger:
         created_by=PrincipalId(row.created_by),
         created_at=row.created_at,
         parameters=dict(row.parameters),
+        from_message=tuple(row.from_message or ()),
         cron=row.cron,
         timezone=row.timezone,
         device_id=DeviceId(row.device_id) if row.device_id else None,
@@ -602,6 +604,7 @@ def update_candidate_row(row: TaskCandidateRow, candidate: TaskCandidate) -> Non
     row.host = candidate.host
     row.title = candidate.title
     row.named_by_model = candidate.named_by_model
+    row.learned_from = candidate.learned_from
     row.status = candidate.status.value
     row.skill_id = candidate.skill_id.value if candidate.skill_id else None
     row.dismissed_reason = candidate.dismissed_reason
@@ -628,4 +631,5 @@ def row_to_candidate(row: TaskCandidateRow) -> TaskCandidate:
         dismissed_reason=row.dismissed_reason,
         joins=load_joins(row.joins),
         named_by_model=row.named_by_model,
+        learned_from=row.learned_from or 0,
     )

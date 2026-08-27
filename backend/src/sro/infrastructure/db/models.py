@@ -356,6 +356,11 @@ class TriggerRow(Base):
     cron: Mapped[str | None] = mapped_column(String(120))
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
     parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    # Which of those values whatever fires this may supply instead. A column
+    # rather than a key inside `parameters`, because these two are read in
+    # opposite directions: one is what the trigger knows, the other is what it
+    # is allowed to be told.
+    from_message: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
     device_id: Mapped[str | None] = mapped_column(String(64))
     medium: Mapped[str] = mapped_column(String(16), nullable=False, default="network")
@@ -401,6 +406,9 @@ class TaskCandidateRow(Base):
     host: Mapped[str] = mapped_column(String(200), nullable=False, default="")
     title: Mapped[str] = mapped_column(Text, nullable=False)
     named_by_model: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # How many doings had been seen when learning was last tried on this, so an
+    # unattended sweep does not retry the same evidence every quarter hour.
+    learned_from: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="new")
     skill_id: Mapped[str | None] = mapped_column(String(64))

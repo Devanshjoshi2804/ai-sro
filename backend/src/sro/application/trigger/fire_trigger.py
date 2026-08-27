@@ -9,6 +9,7 @@ system since the day somebody put it on a schedule.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from sro.application.context import RequestContext
@@ -19,6 +20,8 @@ from sro.application.ports.schedule import Scheduler
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.execution.run import RunId
 from sro.domain.shared.identifiers import TriggerId
+from sro.domain.skill.parameter import ParameterKind
+from sro.domain.skill.skill import SkillVersion
 from sro.domain.trigger.trigger import Trigger
 
 logger = logging.getLogger(__name__)
@@ -59,7 +62,15 @@ class FireTrigger:
         self._dispatcher = dispatcher
         self._scheduler = scheduler
 
-    async def execute(self, trigger_id: TriggerId) -> Fired:
+    async def execute(
+        self, trigger_id: TriggerId, *, message: Mapping[str, str] | None = None
+    ) -> Fired:
+        """Fire it.
+
+        `message` is what a mail relay or a watching browser said. Only the
+        names this trigger declared it would take are read from it; everything
+        else it runs with is what it was created with.
+        """
         async with self._uow as uow:
             trigger = await uow.triggers.find(trigger_id)
             if trigger is None:
@@ -88,8 +99,17 @@ class FireTrigger:
                 await uow.commit()
                 return Fired(trigger_id, skipped=trigger.disabled_reason)
 
+            values = trigger.values_from(message or {})
+            if blank := _blank(version, values):
+                # A mail that matched the rule but named no order. Every relay
+                # sends some of these -- an autoreply, a thread with the number
+                # only in an attachment -- and each one would otherwise be a
+                # run that starts, asks the warehouse for nothing, and fails.
+                # Skipped here, where the reason is still legible.
+                return Fired(trigger_id, skipped="nothing said " + ", ".join(blank))
+
             try:
-                run_id = await self._start(ctx, trigger, version=version.version)
+                run_id = await self._start(ctx, trigger, version=version.version, values=values)
             except DispatchFailed as unreachable:
                 # A laptop that is closed. Ordinary, and not a reason to stop
                 # the trigger: it will be open again before the next one.
@@ -102,7 +122,9 @@ class FireTrigger:
 
         return Fired(trigger_id, run_id=run_id)
 
-    async def _start(self, ctx: RequestContext, trigger: Trigger, *, version: int) -> RunId:
+    async def _start(
+        self, ctx: RequestContext, trigger: Trigger, *, version: int, values: dict[str, str]
+    ) -> RunId:
         if trigger.device_id is None:
             # Named before it starts, the same reason the console does this --
             # `wait=False` alone is not fire-and-forget: the durable adapter's
@@ -113,7 +135,7 @@ class FireTrigger:
             await self._durable.execute_skill(
                 ctx,
                 skill_id=trigger.skill_id,
-                parameters=dict(trigger.parameters),
+                parameters=values,
                 version=version,
                 authorized_by=trigger.authorized_by.value if trigger.authorized_by else None,
                 medium=trigger.medium.value,
@@ -129,7 +151,7 @@ class FireTrigger:
         return await self._dispatcher.start(
             ctx,
             skill_id=trigger.skill_id,
-            parameters=dict(trigger.parameters),
+            parameters=values,
             device_id=trigger.device_id,
             version=version,
             authorized_by=trigger.authorized_by is not None,
@@ -145,3 +167,17 @@ class FireTrigger:
             return
         logger.info("removing the schedule for trigger %s, which no longer exists", trigger_id)
         await self._scheduler.unschedule(trigger_id)
+
+
+def _blank(version: SkillVersion, values: Mapping[str, str]) -> list[str]:
+    """The values this skill needs that nothing supplied.
+
+    A parameter present but empty counts: a relay's template renders
+    `{{order}}` to nothing at all when the mail did not hold one, and an empty
+    string reaches a run as a value rather than as an absence.
+    """
+    return sorted(
+        p.name
+        for p in version.parameters
+        if p.kind is ParameterKind.INPUT and not values.get(p.name, "").strip()
+    )

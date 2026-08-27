@@ -17,6 +17,7 @@ from sro.application.trigger.receive_inbound import InboundRefused, ReceiveInbou
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, SkillId, TriggerId
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.template import Template
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from tests import factories as f
 from tests.unit.fakes import (
@@ -465,3 +466,109 @@ async def test_whether_a_fire_may_take_the_operator_s_screen_is_the_trigger_s_an
         assert dispatcher.may_take_focus is allowed, (
             f"a trigger with may_take_focus={allowed} dispatched {dispatcher.may_take_focus}"
         )
+
+
+async def _skill_needing(uow: FakeUnitOfWork, *names: str) -> SkillId:
+    """A skill whose run needs each of these values supplied."""
+    skill = f.skill(versions=0)
+    url = "https://wms.test/api/orders?" + "&".join(f"{name}=${{{name}}}" for name in names)
+    version = f.skill_version(
+        steps=(f.step(network_plan=f.network_plan(method="GET", body=None, url=Template(url))),),
+        parameters=tuple(f.parameter(name=name) for name in names),
+    )
+    skill.add_version(version)
+    version.promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
+    await uow.skills.add(skill)
+    return skill.id
+
+
+async def test_a_mail_supplies_the_order_it_names_and_nothing_else() -> None:
+    """The whole point of an inbound trigger: the facility is settled once, at
+    creation, and the order number arrives with each message."""
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill_needing(uow, "facility", "order_id")
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(
+            skill_id=skill_id,
+            kind=TriggerKind.INBOUND,
+            parameters={"facility": "DC01"},
+            from_message=("order_id",),
+        ),
+    )
+    assert trigger.inbound_token is not None
+    durable = FakeDurableExecution()
+    fire = FireTrigger(uow, FakeClock(), durable, ids=FakeIdFactory())
+
+    await ReceiveInbound(uow, fire).execute(
+        trigger.id,
+        token=trigger.inbound_token,
+        message={"order_id": "4471", "facility": "OTHER_DC"},
+    )
+
+    assert durable.with_values == [{"facility": "DC01", "order_id": "4471"}]
+
+
+async def test_a_value_a_message_will_supply_need_not_be_known_at_creation() -> None:
+    """Without this the trigger could not be created at all -- nobody knows the
+    order number of a mail that has not arrived."""
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill_needing(uow, "facility", "order_id")
+
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(
+            skill_id=skill_id,
+            kind=TriggerKind.INBOUND,
+            parameters={"facility": "DC01"},
+            from_message=("order_id",),
+        ),
+    )
+
+    assert trigger.from_message == ("order_id",)
+
+
+async def test_a_message_may_only_name_a_parameter_the_skill_has() -> None:
+    """A typo is silent otherwise: the value is dropped for having the wrong
+    name, and every mail fires a run with nothing in it."""
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill_needing(uow, "facility", "order_id")
+
+    with pytest.raises(TriggerRefused, match="no order_number for a message to supply"):
+        await _create(uow, scheduler).execute(
+            CTX,
+            NewTrigger(
+                skill_id=skill_id,
+                kind=TriggerKind.INBOUND,
+                parameters={"facility": "DC01", "order_id": "1"},
+                from_message=("order_number",),
+            ),
+        )
+
+
+async def test_a_message_that_names_no_order_is_not_a_run() -> None:
+    """Every relay sends some of these -- an autoreply, a thread whose number
+    is only in an attachment. Each would otherwise be a run that starts, asks
+    the warehouse for nothing, and fails."""
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill_needing(uow, "facility", "order_id")
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(
+            skill_id=skill_id,
+            kind=TriggerKind.INBOUND,
+            parameters={"facility": "DC01"},
+            from_message=("order_id",),
+        ),
+    )
+    assert trigger.inbound_token is not None
+    durable = FakeDurableExecution()
+    fire = FireTrigger(uow, FakeClock(), durable, ids=FakeIdFactory())
+
+    fired = await ReceiveInbound(uow, fire).execute(
+        trigger.id, token=trigger.inbound_token, message={"order_id": "   "}
+    )
+
+    assert fired.run_id is None
+    assert fired.skipped == "nothing said order_id"
+    assert durable.started == []

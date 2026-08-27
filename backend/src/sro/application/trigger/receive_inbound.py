@@ -15,6 +15,7 @@ unauthenticated caller could read.
 from __future__ import annotations
 
 import hmac
+from collections.abc import Mapping
 
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.trigger.fire_trigger import Fired, FireTrigger
@@ -35,7 +36,13 @@ class ReceiveInbound:
         self._uow = uow
         self._fire = fire
 
-    async def execute(self, trigger_id: TriggerId, *, token: str) -> Fired:
+    async def execute(
+        self, trigger_id: TriggerId, *, token: str, message: Mapping[str, str] | None = None
+    ) -> Fired:
+        """`message` is the relay's payload. A trigger reads from it only the
+        parameters it declared it would take, so a relay -- which nobody in
+        this tenant wrote and which anybody who learns a token can post to --
+        cannot name the facility a warehouse read runs against."""
         async with self._uow as uow:
             trigger = await uow.triggers.find(trigger_id)
         if (
@@ -45,4 +52,4 @@ class ReceiveInbound:
             or not hmac.compare_digest(trigger.inbound_token.encode(), token.encode())
         ):
             raise InboundRefused("no such inbound trigger")
-        return await self._fire.execute(trigger_id)
+        return await self._fire.execute(trigger_id, message=message)

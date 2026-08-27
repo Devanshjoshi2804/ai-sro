@@ -1277,6 +1277,12 @@ class NewTriggerRequest(BaseModel):
     at seven local time in March and in November."""
 
     parameters: dict[str, str] = Field(default_factory=dict)
+    from_message: list[str] = Field(default_factory=list)
+    """Which of the skill's parameters whatever fires this may name -- the order
+    number in a mail. Inbound only, and everything left out of it stays the
+    value the trigger was created with, so a relay cannot redirect a read at a
+    facility nobody authorised."""
+
     device_id: str | None = None
     """Run it in this operator's browser. Such a run happens only while that
     browser is connected, which is a property of a laptop rather than a fault."""
@@ -1307,6 +1313,7 @@ class TriggerModel(BaseModel):
     cron: str | None
     timezone: str
     parameters: dict[str, str]
+    from_message: list[str]
     device_id: str | None
     medium: str
     enabled: bool
@@ -1333,6 +1340,7 @@ class TriggerModel(BaseModel):
             cron=trigger.cron,
             timezone=trigger.timezone,
             parameters=dict(trigger.parameters),
+            from_message=list(trigger.from_message),
             device_id=trigger.device_id.value if trigger.device_id else None,
             medium=trigger.medium.value,
             enabled=trigger.enabled,

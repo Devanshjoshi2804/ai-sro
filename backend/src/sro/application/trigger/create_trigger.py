@@ -35,6 +35,11 @@ class NewTrigger:
     cron: str | None = None
     timezone: str = "UTC"
     parameters: dict[str, str] | None = None
+    from_message: tuple[str, ...] = ()
+    """Parameters a message that fires this may name -- an order number in a
+    mail. Everything not listed here is fixed at creation, so a relay cannot
+    point a warehouse read at another facility."""
+
     device_id: DeviceId | None = None
     medium: Medium = Medium.NETWORK
     authorized_by: bool = False
@@ -63,14 +68,26 @@ class CreateTrigger:
                     "this skill has no version that may run yet; it has never been rehearsed"
                 )
 
+            declared = {parameter.name for parameter in version.parameters}
+            if unknown := sorted(set(request.from_message) - declared):
+                # A typo here is silent otherwise: the mail's value is dropped
+                # for having the wrong name, and the trigger fires with nothing
+                # every time until somebody reads a run.
+                raise TriggerRefused(
+                    f"this skill has no {', '.join(unknown)} for a message to supply"
+                )
+
             missing = sorted(
-                parameter.name for parameter in version.inputs if parameter.name not in parameters
+                parameter.name
+                for parameter in version.inputs
+                if parameter.name not in parameters and parameter.name not in request.from_message
             )
             if missing:
                 # A trigger with a value missing fails every single time it
                 # fires, and nobody is watching when it does.
                 raise TriggerRefused(
-                    f"this skill needs {', '.join(missing)}, and a scheduled run has nobody to ask"
+                    f"this skill needs {', '.join(missing)}: supply a value, "
+                    "or say that a message will"
                 )
 
             writes = version.changes_the_system
@@ -98,6 +115,7 @@ class CreateTrigger:
                 created_by=ctx.principal_id,
                 created_at=self._clock.now(),
                 parameters=parameters,
+                from_message=request.from_message,
                 cron=request.cron,
                 timezone=request.timezone,
                 device_id=request.device_id,

@@ -163,3 +163,84 @@ def test_a_click_fills_nothing() -> None:
     saving = f.frame(1, requests=(f.request(request_body=f.body('{"workArea": "X"}')),))
 
     assert binding.key_filled_by(clicking, saving) is None
+
+
+def test_whitespace_typed_is_not_evidence_it_filled_anything() -> None:
+    """A keystroke that typed nothing but whitespace is not proof it filled
+    the field a form happened to send back empty -- tidying must not turn
+    "typed nothing" into a match for "left blank"."""
+    typing = f.frame(0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value=" "))
+    saving = f.frame(1, requests=(f.request(request_body=f.body('{"note": ""}')),))
+
+    assert binding.key_filled_by(typing, saving) is None
+
+
+def test_the_word_none_does_not_bind_to_a_json_null() -> None:
+    """`str(None)` renders "None", which case-folds to the English word
+    "none" -- close enough to fool a naive comparison into binding a real
+    keystroke to a field nobody touched."""
+    typing = f.frame(
+        0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value="none")
+    )
+    saving = f.frame(1, requests=(f.request(request_body=f.body('{"workArea": null}')),))
+
+    assert binding.key_filled_by(typing, saving) is None
+
+
+def test_a_failed_write_is_not_evidence_of_what_it_would_have_filled() -> None:
+    """A write the system rejected is not the write a typed value ended up
+    in -- binding to a failed call points a step at whatever the retry
+    changed, not at what actually happened."""
+    typing = f.frame(
+        0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value="TWOTEST")
+    )
+    saving = f.frame(
+        1,
+        requests=(
+            f.request(
+                status=500,
+                status_text="Internal Server Error",
+                request_body=f.body('{"workArea": "TWOTEST"}'),
+            ),
+        ),
+    )
+
+    assert binding.key_filled_by(typing, saving) is None
+
+
+def test_a_frame_with_two_writes_is_not_bound_to_only_the_first() -> None:
+    """Before `explode` splits a gesture into steps, one frame can carry two
+    real writes -- a Save that creates a record and then sets its address.
+    The field that matters is not always the first call the browser sent."""
+    typing = f.frame(
+        0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value="TWOTEST")
+    )
+    saving = f.frame(
+        1,
+        requests=(
+            f.request(request_id="req-1", request_body=f.body('{"priority": 1}')),
+            f.request(request_id="req-2", request_body=f.body('{"workArea": "TWOTEST"}')),
+        ),
+    )
+
+    assert binding.key_filled_by(typing, saving) == "/workArea"
+
+
+def test_a_value_matching_two_writes_is_bound_to_neither() -> None:
+    """The ambiguity rule applies across a frame's writes, not just within
+    one body -- a value cannot say which write it belongs to any more than
+    it can say which key."""
+    typing = f.frame(0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value="1"))
+    saving = f.frame(
+        1,
+        requests=(
+            f.request(request_id="req-1", request_body=f.body('{"voiceCode": 1}')),
+            f.request(
+                request_id="req-2",
+                url="https://wms.test/api/other",
+                request_body=f.body('{"priority": 1}'),
+            ),
+        ),
+    )
+
+    assert binding.key_filled_by(typing, saving) is None

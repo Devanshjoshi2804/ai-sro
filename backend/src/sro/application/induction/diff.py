@@ -265,18 +265,19 @@ def align(
         raise InductionFailed("both recordings must contain at least one step")
 
     paired = _longest_common(run_a, run_b)
-    for run, other, label in (
-        (run_a, run_b, "the first run"),
-        (run_b, run_a, "the second run"),
-    ):
-        matched = {id(frame) for pair in paired for frame in pair}
+    matched = {id(frame) for pair in paired for frame in pair}
+    # Which dropped gestures are excused is asked once, of the function that
+    # also hands them back to be emitted. Deciding it twice would let the two
+    # answers drift, and a gesture excused here but not emitted there is the
+    # field quietly becoming unfillable -- which is the whole reason the
+    # excusing exists.
+    excused = {id(fill.frame) for fill in optional_fills(run_a, run_b)}
+    for run, label in ((run_a, "the first run"), (run_b, "the second run")):
         orphan = next(
             (
                 frame
                 for frame in run
-                if id(frame) not in matched
-                and _evidential(frame)
-                and _optional_pointer(frame, run, other) is None
+                if id(frame) not in matched and id(frame) not in excused and _evidential(frame)
             ),
             None,
         )

@@ -34,7 +34,6 @@ from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
-from sro.domain.skill.loop import Loop
 from sro.domain.skill.parameter import Evidence, Parameter
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
@@ -270,7 +269,13 @@ class InduceSkill:
                 systems=systems_touched(
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
-                loops=(_moved_loop(looped.loop, conditionals),) if looped is not None else (),
+                # Not moved along like everything else below, because a loop
+                # and a conditional step never co-occur: `loops.detect` needs
+                # the two runs to be positionally identical through the prefix
+                # and exact repetitions after it, and an unmatched gesture in
+                # either run breaks both. Checked, not assumed -- if that ever
+                # relaxes, these indices need `_moved` like the rest.
+                loops=(looped.loop,) if looped is not None else (),
             )
             # Everything else the demonstration proved. Opening the screen to
             # create a transport mode lists the existing ones first, and that
@@ -513,15 +518,6 @@ def _moved(index: int, conditionals: tuple[_Conditional, ...]) -> int:
     return index + sum(1 for conditional in conditionals if conditional.fill.at <= index)
 
 
-def _moved_loop(loop: Loop, conditionals: tuple[_Conditional, ...]) -> Loop:
-    return replace(
-        loop,
-        over_step_index=_moved(loop.over_step_index, conditionals),
-        first_step=_moved(loop.first_step, conditionals),
-        last_step=_moved(loop.last_step, conditionals),
-    )
-
-
 def _make_room(
     parameterisation: Parameterisation, conditionals: tuple[_Conditional, ...]
 ) -> Parameterisation:
@@ -610,14 +606,20 @@ def _emit_conditional(
 ) -> SkillStep:
     """The gesture one run made, as a step that happens when the value is given.
 
-    Nothing is asserted of it. An assertion is what two runs agreed the system
-    answered, and only one run did this -- there is no second observation for it
-    to agree with, and inventing one is how a verifier starts failing correct
-    runs. What it sent, if it sent anything, is emitted like any other step's.
+    A gesture and nothing else -- the calls it made are dropped with the same
+    reasoning as the assertions. Both would be built from one observation, and
+    one observation is not two runs agreeing: only one run did this, so nothing
+    diffed what it sent and every value in it would replay exactly as
+    demonstrated. A form that PATCHes a draft on each keystroke would carry the
+    work area of whoever was recorded into every later run of the skill.
+
+    Nothing is lost by dropping them. If the value has to reach the system by
+    call, it reaches it in the write both runs sent -- which is an aligned step,
+    and already carries the parameter.
     """
     return emit_step(
         index,
-        conditional.fill.frame,
+        replace(conditional.fill.frame, requests=()),
         parameterisation,
         assertion_extraction.StepEvidence(assertions=(), wait_for=None),
         objective,

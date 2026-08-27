@@ -423,7 +423,7 @@ async def test_the_conditional_step_is_the_gesture_that_fills_the_field() -> Non
     assert plan.action is ActionKind.TYPE
     assert plan.target == _DELTA_PRIORITY
     assert plan.value is not None
-    assert plan.value.raw == "${delta_priority}", "it replays the one priority demonstrated"
+    assert plan.value.raw == "${delta_priority}", "it sends what the run was given"
     # In its place: the field is filled before the form is saved, never after.
     saving = next(s for s in version.steps if s.network_plan is not None)
     assert step.index < saving.index
@@ -457,3 +457,98 @@ def test_a_step_conditional_on_a_parameter_nobody_declared_is_refused() -> None:
     step that never happens, and nothing would say why."""
     with pytest.raises(InvariantViolation, match="references undeclared parameters: whichever"):
         f.skill_version(steps=(f.step(when="whichever"),), parameters=(f.parameter(),))
+
+
+def _drafting(index: int, target: object, value: str, body: dict[str, object]) -> object:
+    """A keystroke that PATCHes a draft as you type it, which is an ordinary
+    thing for a form in a single-page application to do."""
+    return f.frame(
+        index,
+        action=InputAction(kind=ActionKind.TYPE, target=target, value=value),  # type: ignore[arg-type]
+        requests=(
+            f.request(method="PATCH", url=f"{URL}/draft", request_body=f.body(json.dumps(body))),
+        ),
+    )
+
+
+async def test_a_conditional_step_replays_no_call_of_its_own() -> None:
+    """It is a gesture, and the calls it made are dropped for the reason its
+    assertions are: only one run made them, so nothing diffed what they sent
+    and every value in them would go out exactly as demonstrated. This PATCH
+    carries a work area, and replaying it would write ONE into every later run
+    of the skill."""
+    version = await _induce(
+        (
+            _typing(0, _WORK_AREA, "ONE"),
+            _drafting(1, _DELTA_PRIORITY, "1", {"workArea": "ONE", "deltaPriority": 1}),
+            _saving(2, {"workArea": "ONE", "deltaPriority": 1}),
+        ),
+        _skipped("TWO"),
+    )
+
+    step = next(s for s in version.steps if s.when == "delta_priority")
+    assert step.ui_plan is not None, "the field is filled by clicking or not at all"
+    assert step.network_plan is None
+    # The only call the skill makes is the write both runs sent, which already
+    # carries the parameter.
+    calls = [s.network_plan for s in version.steps if s.network_plan is not None]
+    assert [call.method for call in calls] == ["POST"]
+
+
+async def test_the_write_still_carries_its_parameters_once_a_step_moves() -> None:
+    """Every index the diff produced counts aligned steps, and inserting the
+    conditional one moves the save along. Left where it was, the save would be
+    handed its neighbour's substitutions -- and send the work area of whoever
+    happened to be recorded."""
+    version = await _induce_the_two_work_areas()
+
+    saving = next(s for s in version.steps if s.network_plan is not None)
+    assert saving.index == 2, "the conditional step took a place before it"
+    assert saving.network_plan is not None
+    assert saving.network_plan.body is not None
+    assert json.loads(saving.network_plan.body.raw) == {
+        "workArea": "${work_area}",
+        "deltaPriority": "${delta_priority}",
+    }
+
+
+def _looking(index: int, zone: str) -> object:
+    return f.frame(
+        index,
+        action=InputAction(
+            kind=ActionKind.CLICK, target=f.fingerprint(accessible_name="Find zone")
+        ),
+        requests=(
+            f.request(
+                method="GET",
+                url="https://wms.test/data/WM/wm/zones",
+                request_body=None,
+                response_body=f.body(json.dumps({"id": zone})),
+            ),
+        ),
+    )
+
+
+async def test_a_derived_parameter_still_names_the_step_that_produced_it() -> None:
+    """A derived parameter says which step's response carries it, and that
+    index counts aligned steps too. Here the operator typed the optional field
+    before looking the zone up, so the conditional step lands in front of the
+    read -- and an index left where it was would name the keystroke as the
+    thing that produced the zone."""
+    version = await _induce(
+        (
+            _typing(0, _DELTA_PRIORITY, "1"),
+            _looking(1, "A1"),
+            _saving(2, {"workArea": "SEVEN", "deltaPriority": 1, "zoneId": "A1"}),
+        ),
+        (
+            _looking(0, "B2"),
+            _saving(1, {"workArea": "SEVEN", "deltaPriority": None, "zoneId": "B2"}),
+        ),
+    )
+
+    zone = next(p for p in version.parameters if p.name == "zone_id")
+    assert zone.source_step_index == 1
+    produced_by = version.steps[zone.source_step_index]
+    assert produced_by.network_plan is not None
+    assert produced_by.network_plan.method == "GET", "it names the read, not the keystroke"

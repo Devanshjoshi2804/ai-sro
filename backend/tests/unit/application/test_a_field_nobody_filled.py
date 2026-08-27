@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from sro.application.induction import binding, jsonutil
-from sro.application.induction.diff import Difference, differences, parameterise
+from sro.application.induction.diff import Difference, align, differences, parameterise
+from sro.application.induction.errors import InductionFailed
 from sro.application.induction.sites import JsonBodySite
 from sro.domain.recording.events import ActionKind, InputAction
 from tests import factories as f
@@ -224,6 +227,93 @@ def test_a_frame_with_two_writes_is_not_bound_to_only_the_first() -> None:
     )
 
     assert binding.key_filled_by(typing, saving) == "/workArea"
+
+
+_WORK_AREA = f.fingerprint(node_id="work-area", accessible_name="Work Area")
+_DELTA_PRIORITY = f.fingerprint(node_id="delta-priority", accessible_name="Delta Priority")
+_ZONE = f.fingerprint(node_id="zone", accessible_name="Zone")
+_SAVE = f.fingerprint(node_id="save", accessible_name="Create work area")
+
+
+def test_a_step_the_other_run_skipped_does_not_refuse_the_pair() -> None:
+    """The two work areas. One run typed a Delta Priority and the other did
+    not, and both created a work area."""
+    filled = (
+        f.frame(
+            0, action=InputAction(kind=ActionKind.TYPE, target=_WORK_AREA, value="ONE"), requests=()
+        ),
+        f.frame(
+            1,
+            action=InputAction(kind=ActionKind.TYPE, target=_DELTA_PRIORITY, value="1"),
+            requests=(),
+        ),
+        f.frame(
+            2,
+            action=InputAction(kind=ActionKind.CLICK, target=_SAVE),
+            requests=(
+                f.request(
+                    method="POST",
+                    url=URL,
+                    request_body=f.body('{"workArea": "ONE", "deltaPriority": 1}'),
+                ),
+            ),
+        ),
+    )
+    skipped = (
+        f.frame(
+            0, action=InputAction(kind=ActionKind.TYPE, target=_WORK_AREA, value="TWO"), requests=()
+        ),
+        f.frame(
+            1,
+            action=InputAction(kind=ActionKind.CLICK, target=_SAVE),
+            requests=(
+                f.request(
+                    method="POST",
+                    url=URL,
+                    request_body=f.body('{"workArea": "TWO", "deltaPriority": null}'),
+                ),
+            ),
+        ),
+    )
+
+    paired = align(filled, skipped)
+
+    assert len(paired) == 2, "the pair was refused, or the skipped step was kept"
+
+
+def test_a_step_that_filled_something_the_other_run_did_not_send_still_refuses() -> None:
+    """A key in one body and not the other is two different requests. The
+    relaxation is for a field both runs carry and one leaves alone."""
+    filled = (
+        f.frame(
+            0, action=InputAction(kind=ActionKind.TYPE, target=_WORK_AREA, value="ONE"), requests=()
+        ),
+        f.frame(1, action=InputAction(kind=ActionKind.TYPE, target=_ZONE, value="9"), requests=()),
+        f.frame(
+            2,
+            action=InputAction(kind=ActionKind.CLICK, target=_SAVE),
+            requests=(
+                f.request(
+                    method="POST", url=URL, request_body=f.body('{"workArea": "ONE", "zone": 9}')
+                ),
+            ),
+        ),
+    )
+    without = (
+        f.frame(
+            0, action=InputAction(kind=ActionKind.TYPE, target=_WORK_AREA, value="TWO"), requests=()
+        ),
+        f.frame(
+            1,
+            action=InputAction(kind=ActionKind.CLICK, target=_SAVE),
+            requests=(
+                f.request(method="POST", url=URL, request_body=f.body('{"workArea": "TWO"}')),
+            ),
+        ),
+    )
+
+    with pytest.raises(InductionFailed, match="not two runs of one task"):
+        align(filled, without)
 
 
 def test_a_value_matching_two_writes_is_bound_to_neither() -> None:

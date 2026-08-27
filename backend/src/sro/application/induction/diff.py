@@ -11,7 +11,7 @@ from dataclasses import dataclass, replace
 from typing import Literal
 from urllib.parse import urlsplit
 
-from sro.application.induction import jsonutil
+from sro.application.induction import binding, jsonutil
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.naming import deduplicate, singular, suggest_name
 from sro.application.induction.sites import (
@@ -265,9 +265,21 @@ def align(
         raise InductionFailed("both recordings must contain at least one step")
 
     paired = _longest_common(run_a, run_b)
-    for run, label in ((run_a, "the first run"), (run_b, "the second run")):
+    for run, other, label in (
+        (run_a, run_b, "the first run"),
+        (run_b, run_a, "the second run"),
+    ):
         matched = {id(frame) for pair in paired for frame in pair}
-        orphan = next((f for f in run if id(f) not in matched and _evidential(f)), None)
+        orphan = next(
+            (
+                frame
+                for frame in run
+                if id(frame) not in matched
+                and _evidential(frame)
+                and not _fills_something_optional(frame, run, other)
+            ),
+            None,
+        )
         if orphan is not None:
             raise InductionFailed(
                 f"{label} did something the other did not: "
@@ -277,6 +289,33 @@ def align(
     if not paired:
         raise InductionFailed("the runs share no steps at all; they are different tasks")
     return explode(paired)
+
+
+def _fills_something_optional(
+    frame: ActionFrame, run: tuple[ActionFrame, ...], other: tuple[ActionFrame, ...]
+) -> bool:
+    """Whether this unmatched step only filled a field the other run left alone.
+
+    Two people filling one form fill different subsets of it, and both create
+    the record. Dropping such a step loses nothing the skill needs, because the
+    field it filled is about to become an optional parameter -- and keeping the
+    refusal means a form of any size never induces at all.
+
+    Everything here is read from the writes. The field must be one *both* runs
+    sent, or the two are different requests and the refusal stands.
+    """
+    for write in run:
+        pointer = binding.key_filled_by(frame, write)
+        if pointer is None:
+            continue
+        for theirs in other:
+            document = binding.write_document(theirs)
+            if document is None:
+                continue
+            leaves = dict(jsonutil.leaves(document))
+            if pointer in leaves:
+                return jsonutil.is_empty(leaves[pointer])
+    return False
 
 
 def describe_step(frame: ActionFrame) -> str:

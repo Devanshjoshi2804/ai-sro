@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import json
 
-from sro.application.induction import jsonutil
+from sro.application.induction import binding, jsonutil
 from sro.application.induction.diff import Difference, differences, parameterise
 from sro.application.induction.sites import JsonBodySite
+from sro.domain.recording.events import ActionKind, InputAction
 from tests import factories as f
 
 URL = "https://wms.test/data/WM/wm/workareas"
@@ -123,3 +124,42 @@ def test_a_group_left_null_is_optional_however_the_runs_happen_to_be_ordered() -
             absent_as="null",
         )
     ]
+
+
+def test_a_typed_value_is_bound_to_the_field_it_filled() -> None:
+    typing = f.frame(
+        0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value="twoTEST")
+    )
+    saving = f.frame(1, requests=(f.request(request_body=f.body('{"workArea": "TWOTEST"}')),))
+
+    assert binding.key_filled_by(typing, saving) == "/workArea"
+
+
+def test_a_form_is_allowed_to_tidy_what_it_was_given() -> None:
+    """The work area name field uppercases as you type. Exact comparison would
+    fail to bind the one field the whole task is named for."""
+    typing = f.frame(
+        0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value=" 1 ")
+    )
+    saving = f.frame(1, requests=(f.request(request_body=f.body('{"voiceCode": 1}')),))
+
+    assert binding.key_filled_by(typing, saving) == "/voiceCode"
+
+
+def test_a_value_that_could_be_two_fields_is_bound_to_neither() -> None:
+    """Two keys holding "1" cannot say which one the keystroke filled, and a
+    step made conditional on the wrong field is a step that silently stops
+    happening."""
+    typing = f.frame(0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value="1"))
+    saving = f.frame(
+        1, requests=(f.request(request_body=f.body('{"voiceCode": 1, "priority": 1}')),)
+    )
+
+    assert binding.key_filled_by(typing, saving) is None
+
+
+def test_a_click_fills_nothing() -> None:
+    clicking = f.frame(0, action=InputAction(kind=ActionKind.CLICK, target=f.fingerprint()))
+    saving = f.frame(1, requests=(f.request(request_body=f.body('{"workArea": "X"}')),))
+
+    assert binding.key_filled_by(clicking, saving) is None

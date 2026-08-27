@@ -269,12 +269,17 @@ class InduceSkill:
                 systems=systems_touched(
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
-                # Not moved along like everything else below, because a loop
-                # and a conditional step never co-occur: `loops.detect` needs
-                # the two runs to be positionally identical through the prefix
-                # and exact repetitions after it, and an unmatched gesture in
-                # either run breaks both. Checked, not assumed -- if that ever
-                # relaxes, these indices need `_moved` like the rest.
+                # Deliberately not moved along like the indices below, and
+                # this is the one place the two must not agree: a loop counts
+                # raw frames, everything else counts aligned steps. A loop can
+                # outlive an unmatched gesture -- `loops._shape` identifies a
+                # control by name-or-text while `diff._control` uses
+                # name-or-test-id-or-css, so a keystroke named in one run and
+                # only described in the other keeps its position in the shape
+                # sequence while failing to pair -- and putting that gesture
+                # back as a step moves the step space *towards* the frame space
+                # the loop already counts in. Moving the bound too counts it
+                # twice: the case above yields first_step=3 in a 3-step version.
                 loops=(looped.loop,) if looped is not None else (),
             )
             # Everything else the demonstration proved. Opening the screen to

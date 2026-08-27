@@ -1188,6 +1188,7 @@
           "inbound"
         ],
         "summary": "Receive Inbound",
+        "description": "The body is whatever the relay sends -- a mailbox rule's template, a\nwebhook's payload -- and it is read, not trusted: the trigger takes from it\nonly the parameters it declared. Unknown fields are ignored rather than\nrefused, so a relay adding one to its payload is not a reason for a mailbox\nrule that has worked for a year to start returning 422. A field whose value\nis not a single value -- a list of recipients, a nested envelope -- is not a\nparameter either, and is dropped here rather than reaching the run as the\nstring `['a', 'b']`.",
         "operationId": "receive_inbound_v1_inbound__trigger_id__post",
         "parameters": [
           {
@@ -1209,6 +1210,18 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "default": {},
+                "title": "Message"
+              }
+            }
+          }
+        },
         "responses": {
           "202": {
             "description": "Successful Response",
@@ -19906,6 +19919,13 @@
             "type": "object",
             "title": "Parameters"
           },
+          "from_message": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "From Message"
+          },
           "device_id": {
             "anyOf": [
               {
@@ -21565,6 +21585,17 @@
             ],
             "title": "Branch Hint"
           },
+          "when": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "When"
+          },
           "network_plan": {
             "anyOf": [
               {
@@ -21600,6 +21631,7 @@
           "requires_human",
           "narration",
           "branch_hint",
+          "when",
           "network_plan",
           "ui_plan",
           "assertions"
@@ -22387,6 +22419,13 @@
             "type": "object",
             "title": "Parameters"
           },
+          "from_message": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "From Message"
+          },
           "device_id": {
             "anyOf": [
               {
@@ -22492,6 +22531,7 @@
           "cron",
           "timezone",
           "parameters",
+          "from_message",
           "device_id",
           "medium",
           "enabled",

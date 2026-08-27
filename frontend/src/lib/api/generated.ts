@@ -132,7 +132,17 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Receive Inbound */
+        /**
+         * Receive Inbound
+         * @description The body is whatever the relay sends -- a mailbox rule's template, a
+         *     webhook's payload -- and it is read, not trusted: the trigger takes from it
+         *     only the parameters it declared. Unknown fields are ignored rather than
+         *     refused, so a relay adding one to its payload is not a reason for a mailbox
+         *     rule that has worked for a year to start returning 422. A field whose value
+         *     is not a single value -- a list of recipients, a nested envelope -- is not a
+         *     parameter either, and is dropped here rather than reaching the run as the
+         *     string `['a', 'b']`.
+         */
         post: operations["receive_inbound_v1_inbound__trigger_id__post"];
         delete?: never;
         options?: never;
@@ -1881,6 +1891,8 @@ export interface components {
             parameters?: {
                 [key: string]: string;
             };
+            /** From Message */
+            from_message?: string[];
             /** Device Id */
             device_id?: string | null;
             /** @default network */
@@ -2489,6 +2501,8 @@ export interface components {
             narration: string;
             /** Branch Hint */
             branch_hint: string | null;
+            /** When */
+            when: string | null;
             network_plan: components["schemas"]["NetworkPlanModel"] | null;
             ui_plan: components["schemas"]["UiPlanModel"] | null;
             /** Assertions */
@@ -2778,6 +2792,8 @@ export interface components {
             parameters: {
                 [key: string]: string;
             };
+            /** From Message */
+            from_message: string[];
             /** Device Id */
             device_id: string | null;
             /** Medium */
@@ -3410,7 +3426,13 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
         responses: {
             /** @description Successful Response */
             202: {

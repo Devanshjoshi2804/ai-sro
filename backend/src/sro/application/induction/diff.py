@@ -267,10 +267,11 @@ def align(
     paired = _longest_common(run_a, run_b)
     matched = {id(frame) for pair in paired for frame in pair}
     # Which dropped gestures are excused is asked once, of the function that
-    # also hands them back to be emitted. Deciding it twice would let the two
-    # answers drift, and a gesture excused here but not emitted there is the
-    # field quietly becoming unfillable -- which is the whole reason the
-    # excusing exists.
+    # also hands them back to be emitted, rather than decided here as well
+    # where the two answers could drift. Excused is the wider of the two:
+    # induction emits only those it can name an optional parameter for, and a
+    # gesture excused here that nothing emits is the field quietly becoming
+    # unfillable -- which is the whole reason the excusing exists.
     excused = {id(fill.frame) for fill in optional_fills(run_a, run_b)}
     for run, label in ((run_a, "the first run"), (run_b, "the second run")):
         orphan = next(

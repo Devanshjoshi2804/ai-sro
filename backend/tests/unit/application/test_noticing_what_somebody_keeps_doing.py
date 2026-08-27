@@ -121,11 +121,15 @@ def test_a_task_that_visits_a_screen_twice_is_not_cut_in_half() -> None:
     assert len(found) == 1
 
 
-def test_a_run_with_one_extra_step_in_it_is_left_whole() -> None:
-    """Deliberately timid. Three doings where the second took an extra click do
-    not repeat exactly, and inventing a boundary somewhere plausible is worse
-    than counting the run as one piece of work: a wrong cut produces a candidate
-    whose evidence is half of one task and half of another."""
+def test_a_detour_between_two_doings_belongs_to_one_of_them_not_to_both() -> None:
+    """Two doings with a wander in the middle do not repeat exactly, so the
+    period rule leaves them whole -- and the change rule cuts them anyway.
+
+    The cut is at the second save, which is never an invented boundary: it is
+    the moment the second task committed. The detour lands in the piece it
+    happened in and colours neither signature, because a signature starts at
+    the change.
+    """
     events = [
         *_doing(START, "S1"),
         _gesture(START + timedelta(seconds=80)),
@@ -135,14 +139,20 @@ def test_a_run_with_one_extra_step_in_it_is_left_whole() -> None:
 
     found = segment(read(_payload(events), BatchId("bat-1")))
 
-    assert len(found) == 1
+    assert len(found) == 2
+    assert found[0].signature == found[1].signature, (
+        "a detour between two doings made them two different tasks"
+    )
 
 
 def test_a_pile_the_operator_was_interrupted_in_the_middle_of_loses_nothing() -> None:
-    """Two doings and the start of a third is not a repetition, and the timid
-    answer is the safe one: cutting the two whole ones out would leave the
-    unfinished third belonging to nothing, and evidence that belongs to nothing
-    is evidence that quietly disappears."""
+    """Two doings and the start of a third, cut at the changes.
+
+    The unfinished third never got as far as saving, so it is what it looks
+    like: somebody reading a list. It becomes its own piece rather than being
+    swallowed by the doing before it or dropped -- evidence that belongs to
+    nothing is evidence that quietly disappears.
+    """
     events = [
         *_doing(START, "S1"),
         *_doing(START + timedelta(seconds=90), "S2"),
@@ -152,9 +162,12 @@ def test_a_pile_the_operator_was_interrupted_in_the_middle_of_loses_nothing() ->
 
     found = segment(read(_payload(events), BatchId("bat-1")))
 
-    assert len(found) == 1
-    last = found[0]
-    assert last.episode.ended_at == START + timedelta(seconds=181), "the tail was dropped"
+    assert [piece.signature for piece in found] == [
+        "POST api/suppliers → GET api/suppliers/*",
+        "POST api/suppliers → GET api/suppliers/*",
+        "GET api/suppliers",
+    ]
+    assert found[-1].episode.ended_at == START + timedelta(seconds=181), "the tail was dropped"
 
 
 def test_a_request_timestamp_missing_its_offset_is_skipped_not_crashed() -> None:
@@ -203,14 +216,46 @@ def test_a_repeat_of_the_same_step_is_one_step_not_two() -> None:
     # A grid that pages twice is the same step done twice.
     events = [
         _gesture(START),
-        _call(START + timedelta(seconds=1), "GET", "/api/suppliers"),
+        _call(START + timedelta(seconds=1), "POST", "/api/suppliers"),
         _call(START + timedelta(seconds=2), "GET", "/api/suppliers"),
-        _call(START + timedelta(seconds=3), "POST", "/api/suppliers"),
+        _call(START + timedelta(seconds=3), "GET", "/api/suppliers"),
     ]
 
     found = segment(read(_payload(events), BatchId("bat-1")))
 
-    assert found[0].signature == "GET api/suppliers → POST api/suppliers"
+    assert found[0].signature == "POST api/suppliers → GET api/suppliers"
+
+
+def test_how_somebody_got_there_is_not_what_the_task_is() -> None:
+    """The rule passive observation lives or dies by.
+
+    The same creation reached two different ways is one task done twice. Before
+    this it was two tasks done once each -- and once each is a number that
+    never earns anything, so a system nobody demonstrates to could never learn
+    a thing.
+    """
+    from_the_menu = [
+        _gesture(START),
+        _call(START + timedelta(seconds=1), "GET", "/api/menu"),
+        _call(START + timedelta(seconds=2), "GET", "/api/suppliers"),
+        _call(START + timedelta(seconds=3), "POST", "/api/suppliers"),
+        _call(START + timedelta(seconds=4), "GET", "/api/suppliers"),
+    ]
+    from_a_search = [
+        _gesture(START),
+        _call(START + timedelta(seconds=1), "GET", "/api/search"),
+        _call(START + timedelta(seconds=2), "GET", "/api/search/results"),
+        _call(START + timedelta(seconds=3), "POST", "/api/suppliers"),
+        _call(START + timedelta(seconds=4), "GET", "/api/suppliers"),
+    ]
+
+    menu = segment(read(_payload(from_the_menu), BatchId("bat-1")))
+    search = segment(read(_payload(from_a_search), BatchId("bat-2")))
+
+    assert menu[0].signature == search[0].signature == "POST api/suppliers → GET api/suppliers"
+    # The route is still evidence of the same piece of work; it is just not
+    # what the piece of work *is*.
+    assert menu[0].episode.calls == 4
 
 
 def test_a_title_says_what_changed_and_where() -> None:
@@ -293,3 +338,27 @@ async def test_evidence_that_has_aged_out_does_not_fail_the_sweep() -> None:
     mined = await MineObservations(uow, blobs, FakeIdFactory()).execute(CTX, since=START)
 
     assert mined.episodes == 0
+
+
+def test_a_beacon_landing_mid_form_does_not_cut_the_task_in_half() -> None:
+    """A keep-alive is a POST on a timer, not a thing somebody did.
+
+    The first real pair this produced was one whole creation and a second
+    "doing" that began at the third field of the same form -- because a
+    performance beacon landed while the operator was still typing, and the
+    piece of work was cut there. Two doings that do not start in the same place
+    are not two doings of one task, and induction says so and refuses.
+    """
+    events = [
+        _gesture(START),
+        _call(START + timedelta(seconds=1), "GET", "/api/suppliers"),
+        _gesture(START + timedelta(seconds=2)),
+        _call(START + timedelta(seconds=3), "POST", "/api/webPerformanceEntries/batch"),
+        _gesture(START + timedelta(seconds=4)),
+        _call(START + timedelta(seconds=5), "POST", "/api/suppliers"),
+    ]
+
+    found = segment(read(_payload(events), BatchId("bat-1")))
+
+    assert len(found) == 1, "a beacon on a timer ended the task the operator was in"
+    assert found[0].signature == "POST api/suppliers"

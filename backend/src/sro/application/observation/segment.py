@@ -80,9 +80,43 @@ def segment(observed: Sequence[Observed]) -> tuple[Segment, ...]:
     return tuple(
         segment
         for run in _runs(ordered)
-        for piece in _repetitions(run)
+        for block in _repetitions(run)
+        for piece in _one_change_each(block)
         if (segment := _segment(piece)) is not None
     )
+
+
+def _one_change_each(run: Sequence[Observed]) -> Iterator[Sequence[Observed]]:
+    """A run split so that no piece holds two changes.
+
+    An operator working for eight minutes without a three-minute pause is one
+    run today, however many separate things they did in it -- and a piece of
+    work that big is a piece of work that never happens twice: the second time
+    they came at it from a different screen, the signature differs, and the two
+    doings never meet.
+
+    The cut is the first thing the operator touched after something changed.
+    What the application does by itself between the save and that touch -- the
+    grid refreshing, the record being re-read -- belongs to the task that
+    caused it. Nothing here is invented: the boundary is a POST somebody caused
+    and the next thing they laid a finger on.
+
+    A POST somebody *caused*: a keep-alive or a performance beacon is a POST on
+    a timer, and cutting there halves whatever the operator was in the middle
+    of. The first real pair this produced was a whole creation and a second
+    "doing" that began at the third field of the same form.
+    """
+    at = 0
+    changed = False
+    for index, one in enumerate(run):
+        if changed and one.is_gesture:
+            yield run[at:index]
+            at = index
+            changed = False
+        if one.is_call and one.mutating and not is_background_traffic(one.url):
+            changed = True
+    if at < len(run):
+        yield run[at:]
 
 
 def _repetitions(run: Sequence[Observed]) -> Iterator[Sequence[Observed]]:
@@ -187,10 +221,24 @@ def _segment(run: Sequence[Observed]) -> Segment | None:
 
 
 def _signature(calls: Sequence[Observed]) -> str:
-    """The calls, in order, without their identifiers -- and without immediate
-    repeats, because a grid that pages twice is the same step done twice."""
+    """What makes two doings the same task.
+
+    From the first call that changes something, where there is one: a task is
+    identified by the change it makes and what it re-reads afterwards, never by
+    the route somebody took to get there. The same creation reached from a
+    menu, from a search and from a bookmark is one task done three times, and
+    before this it was three tasks done once each -- which is the number that
+    never earns anything.
+
+    The reads before it stay in the episode. They are evidence of the same
+    piece of work; they are just not what it *is*.
+
+    Where nothing changed, the whole run identifies it: reading a screen is a
+    task too, and it has nothing else to be known by.
+    """
+    first_change = next((index for index, one in enumerate(calls) if one.mutating), 0)
     steps: list[str] = []
-    for call in calls:
+    for call in calls[first_change:]:
         step = f"{call.method.upper()} {url_shape(call.url)}"
         if not steps or steps[-1] != step:
             steps.append(step)

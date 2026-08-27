@@ -48,9 +48,37 @@ def _sign_in(context: Any, worker: Any, api_url: str, console_url: str = "") -> 
     return status
 
 
+def _watch(context: Any, worker: Any, page: Any) -> dict[str, Any]:
+    """Say, the way an operator says it in the panel, that the work is in this tab.
+
+    Nothing is captured from a tab nobody pointed at, so every test that
+    expects evidence has to do this first -- which is the rule under test as
+    much as any assertion below.
+
+    The tab is identified by bringing it to the front and asking Chrome which
+    one that is: Playwright has no tab id to hand over, and matching on the URL
+    picks the wrong one the moment a test has two tabs on the same stub.
+    """
+    page.bring_to_front()
+    tab_id = worker.evaluate(
+        "async () => (await chrome.tabs.query({active: true, lastFocusedWindow: true}))[0]?.id"
+    )
+    assert tab_id is not None, "no active tab to watch"
+    asking = context.new_page()
+    asking.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
+    answer: dict[str, Any] = asking.evaluate(
+        """async (tabId) => await chrome.runtime.sendMessage({kind: "watch-tab", tabId})""",
+        tab_id,
+    )
+    asking.close()
+    assert "error" not in answer, f"could not watch that tab: {answer}"
+    return answer
+
+
 def _drive(context: Any, url: str) -> Any:
     page = context.new_page()
     page.goto(url)
+    _watch(context, _service_worker(context), page)
     page.fill("#client", CLIENT_CODE)
     page.fill("#pw", PASSWORD)
     page.click("#save")
@@ -162,6 +190,7 @@ def test_the_patch_does_not_announce_itself_to_the_page(browser: Any, stub: Any)
 
     page = browser.new_page()
     page.goto(api_url)
+    _watch(browser, worker, page)
     # Registering the MAIN-world script is async; a page navigated in the same
     # breath as sign-in can load before injection is in place, which no real
     # operator hits (they sign in once, then browse). Reload with capture already
@@ -263,6 +292,7 @@ def test_a_credential_in_a_url_or_a_plain_body_is_redacted(browser: Any, stub: A
 
     page = browser.new_page()
     page.goto(f"{api_url}/auth/callback?token={URL_TOKEN}&order={CLIENT_CODE}")
+    _watch(browser, worker, page)
     # With capture already on, so the navigation is seen the way every
     # subsequent one is rather than racing the registration.
     page.reload()
@@ -388,6 +418,7 @@ def test_the_page_cannot_forge_an_exchange_into_the_evidence_plane(browser: Any,
 
     page = browser.new_page()
     page.goto(api_url)
+    _watch(browser, worker, page)
     page.evaluate(
         """() => window.dispatchEvent(new CustomEvent("sro:request", {detail: JSON.stringify({
              request_id: "req_forged", method: "DELETE",
@@ -441,6 +472,7 @@ def test_pause_stops_capture_on_a_tab_that_is_already_open(browser: Any, stub: A
 
     page = browser.new_page()
     page.goto(api_url)  # injected while capture is on
+    _watch(browser, worker, page)
 
     options = browser.new_page()
     options.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/options/options.html")
@@ -559,6 +591,7 @@ def test_the_screenshots_stop_at_the_tenant_s_cap(
 
     page = browser.new_page()
     page.goto(api_url)
+    _watch(browser, worker, page)
     page.reload()
     # Paced past Chrome's own limit, which is not the one under test: it
     # refuses more than two `captureVisibleTab` calls a second, so ten clicks
@@ -666,6 +699,7 @@ def _dial(browser: Any, stub: Any, channel: Any) -> tuple[Any, Any]:
     open_channel = channel()
     page = browser.new_page()
     page.goto(api_url)
+    _watch(browser, worker, page)
     page.reload()
     return open_channel, page
 
@@ -1153,6 +1187,7 @@ def test_a_screenshot_that_fails_does_not_take_the_gesture_with_it(
     page = browser.new_page()
     page.goto(stub[0])
     page.reload()
+    _watch(browser, worker, page)
 
     # Break the write the per-minute count goes through, in the worker itself.
     worker.evaluate(
@@ -1736,3 +1771,149 @@ def test_the_tree_a_step_carries_is_the_page_the_operator_acted_on(browser: Any,
         "the tree is the page the click produced, not the one the operator clicked on"
     )
     assert not any("Only here" in name for name in names)
+
+
+def test_a_tab_nobody_pointed_at_is_not_evidence(browser: Any, stub: Any) -> None:
+    """Capture begins where the operator says it does, and nowhere else.
+
+    Before this, capture was decided by the tenant's host list, which cannot
+    tell the tab somebody is working in from the console tab polling this
+    backend beside it -- and on a real day the console won: 97% of what was
+    stored was this system watching itself, mined into tasks like "Create
+    finish on localhost".
+
+    Both halves matter. Silence in an unwatched tab is only worth something if
+    the same actions in the same tab, once pointed at, do produce evidence.
+    """
+    api_url, batches = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    page = browser.new_page()
+    page.goto(api_url)
+    page.fill("#client", CLIENT_CODE)
+    page.click("#save")
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+    _flush(browser, worker)
+
+    assert not [event for batch in batches for event in batch["events"]], (
+        "a tab nobody asked to be watched produced evidence"
+    )
+
+    _watch(browser, worker, page)
+    page.reload()
+    page.fill("#client", CLIENT_CODE)
+    page.click("#save")
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+    _flush(browser, worker)
+    page.close()
+
+    events = [event for batch in batches for event in batch["events"]]
+    assert events, "the tab the operator pointed at produced nothing"
+    assert CLIENT_CODE in json.dumps(batches), "the work in a watched tab was not captured"
+
+
+def test_the_panel_watches_the_tab_it_is_docked_beside(browser: Any, stub: Any) -> None:
+    """The panel is the surface that can answer "which tab": it is docked
+    beside the one being asked about. Pressing the button there is the whole
+    act -- no host is typed, and nothing is inferred from what is open."""
+    api_url, _ = stub
+    worker = _service_worker(browser)
+    _sign_in(browser, worker, api_url)
+
+    work = browser.new_page()
+    work.goto(f"{api_url}/work")
+    work.bring_to_front()
+    beside = worker.evaluate(
+        "async () => (await chrome.tabs.query({active: true, lastFocusedWindow: true}))[0]?.id"
+    )
+
+    panel = _panel(browser, worker)
+    before = panel.evaluate("""async () => await chrome.runtime.sendMessage({kind: "status"})""")
+    after = panel.evaluate(
+        """async (tabId) => {
+             await chrome.runtime.sendMessage({kind: "watch-tab", tabId});
+             return await chrome.runtime.sendMessage({kind: "status"});
+           }""",
+        beside,
+    )
+    stopped = panel.evaluate(
+        """async (tabId) => {
+             await chrome.runtime.sendMessage({kind: "unwatch-tab", tabId});
+             return await chrome.runtime.sendMessage({kind: "status"});
+           }""",
+        beside,
+    )
+    panel.close()
+    work.close()
+
+    assert before["watched"] == [], "something was being watched before anybody said so"
+    assert [entry["tabId"] for entry in after["watched"]] == [beside], (
+        f"the panel watched something other than the tab beside it: {after['watched']}"
+    )
+    assert stopped["watched"] == [], "stopping did not stop"
+
+
+def test_watching_a_tab_that_was_already_open_needs_no_reload(browser: Any, stub: Any) -> None:
+    """Pressing "watch this tab" has to work on the tab in front of you.
+
+    Registration only injects on the *next* navigation, so a tab opened before
+    the extension had scripts for it -- before sign-in, or before the extension
+    was last reloaded -- runs nothing of ours. The panel said "watching this
+    tab" and nothing whatever was recorded, which is the worst of both: a
+    surface claiming to observe, and no evidence.
+
+    The page is opened before sign-in here, which is the same condition as a
+    tab that outlived an extension reload, and it is never reloaded: an
+    operator halfway through a form does not get to lose it.
+    """
+    api_url, batches = stub
+    worker = _service_worker(browser)
+
+    page = browser.new_page()
+    page.goto(api_url)  # no registration exists yet: nothing of ours is in here
+
+    _sign_in(browser, worker, api_url)
+    _watch(browser, worker, page)
+
+    page.fill("#client", CLIENT_CODE)
+    page.click("#save")
+    page.wait_for_function("() => window.__done === true", timeout=15_000)
+    _flush(browser, worker)
+    page.close()
+
+    typed = [
+        event
+        for batch in batches
+        for event in batch["events"]
+        if event["kind"] == "gesture" and event["gesture"].get("value") == CLIENT_CODE
+    ]
+    assert typed, "watching an already-open tab recorded nothing"
+    assert len(typed) == 1, f"the gesture was recorded {len(typed)} times"
+    assert any(
+        event["kind"] == "request" and "/api/orders" in event["request"]["url"]
+        for batch in batches
+        for event in batch["events"]
+    ), "the page's own calls were not captured in a tab injected after the fact"
+
+    # And pressing it twice, which an operator does the moment they are not
+    # sure it took. Each press injects; without a guard in the frame that is
+    # two relays, two copies of every gesture, two of every call.
+    batches.clear()
+    second = browser.new_page()
+    second.goto(f"{api_url}/again")
+    _watch(browser, worker, second)
+    _watch(browser, worker, second)
+    second.fill("#client", CLIENT_CODE)
+    second.click("#save")
+    second.wait_for_function("() => window.__done === true", timeout=15_000)
+    _flush(browser, worker)
+    second.close()
+
+    again = [
+        event
+        for batch in batches
+        for event in batch["events"]
+        if event["kind"] == "gesture" and event["gesture"].get("value") == CLIENT_CODE
+    ]
+    assert len(again) == 1, f"watching twice recorded the same gesture {len(again)} times"

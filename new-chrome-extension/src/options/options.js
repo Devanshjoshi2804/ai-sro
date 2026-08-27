@@ -11,7 +11,7 @@ async function ask(message) {
 function render(status) {
   $("headline").dataset.on = String(status.capturing);
   $("headline").textContent = status.capturing
-    ? "Observing this browser."
+    ? `Ready. ${(status.watched || []).length} tab${(status.watched || []).length === 1 ? "" : "s"} being watched -- pick one in the side panel, beside the tab you work in.`
     : `Not observing — ${status.because}.`;
 
   $("device").textContent = status.deviceId || "not registered";

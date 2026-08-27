@@ -15,7 +15,19 @@ const $ = (id) => document.getElementById(id);
 
 async function ask(message) {
   const answer = await chrome.runtime.sendMessage(message);
-  if (answer?.error) throw new Error(answer.error);
+  if (answer?.error) {
+    // This panel reloads with its own page; the worker behind it does not.
+    // After an update, a new panel talks to the old worker and every new
+    // message comes back "no such message" -- which reads as a broken button
+    // rather than as a browser that has not picked the update up yet.
+    if (String(answer.error).startsWith("no such message")) {
+      throw new Error(
+        "this browser is still running an older copy of the extension — " +
+          "reload it at chrome://extensions, then try again",
+      );
+    }
+    throw new Error(answer.error);
+  }
   return answer;
 }
 
@@ -139,12 +151,16 @@ function render(status) {
   for (const trouble of troubles(status)) cards.push(trouble);
 
   $("cards").replaceChildren(...cards);
+  // Green means this tab -- the one the panel is docked beside -- is being
+  // recorded. A dot that went green for "capture is enabled somewhere" told an
+  // operator their work was being kept when nothing in front of them was.
+  const watchedHere = (status.watched || []).some((entry) => entry.tabId === tabHere.tabId);
   $("where").dataset.state = status.teaching
     ? "recording"
-    : status.capturing
+    : status.capturing && watchedHere
       ? "observing"
       : status.deviceId
-        ? "trouble"
+        ? "unknown"
         : "unknown";
 
   // While a demonstration is being recorded the panel is about that and
@@ -178,13 +194,56 @@ function recording(status) {
 
 function watching(status) {
   const paused = status.paused || status.serverPaused;
-  return card({
-    title: paused ? "Paused" : "Observing this browser",
-    says: paused
-      ? status.serverPaused
+  if (paused) {
+    return card({
+      title: "Paused",
+      says: status.serverPaused
         ? "Observation is paused for everyone on this deployment."
-        : "Nothing is being recorded until you resume."
-      : "What you repeat here becomes a task worth offering. Teach one deliberately at any time.",
+        : "Nothing is being recorded until you resume.",
+      actions: [pauseAction(status)],
+    });
+  }
+
+  const watched = status.watched || [];
+  const mine = watched.find((entry) => entry.tabId === tabHere.tabId) || null;
+  const others = watched.length - (mine ? 1 : 0);
+  const elsewhere = others
+    ? ` ${others} other tab${others === 1 ? " is" : "s are"} being watched.`
+    : "";
+
+  // Nothing is watched unless somebody said so. The alternative -- recording
+  // every tab and sorting it out later -- is what put a console's own polling
+  // into the evidence and a mail client one policy edit away from it.
+  if (!mine) {
+    return card({
+      title: "Not watching this tab",
+      says:
+        (tabHere.host
+          ? `Nothing in ${tabHere.host} is being recorded.`
+          : "Open the system you work in.") +
+        " Watch a tab and everything in it is evidence -- its calls, its screens," +
+        " wherever it navigates." +
+        elsewhere,
+      tone: "attention",
+      actions: [
+        {
+          label: "Watch this tab",
+          primary: true,
+          disabled: !status.capturing || !tabHere.tabId,
+          act: (button) => setWatch(button, true),
+        },
+        pauseAction(status),
+      ],
+    });
+  }
+
+  return card({
+    title: "Watching this tab",
+    says:
+      `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
+      " becomes a task worth offering; teach one deliberately at any time." +
+      elsewhere,
+    metrics: `since ${clock(mine.since)}`,
     actions: [
       {
         label: "Start teaching",
@@ -192,16 +251,31 @@ function watching(status) {
         disabled: !status.capturing,
         act: (button) => startTeaching(button),
       },
-      {
-        label: status.paused ? "Resume" : "Pause",
-        disabled: Boolean(status.serverPaused),
-        act: async () => {
-          const now = await ask({ kind: "status" });
-          render(await ask({ kind: "set-paused", paused: !now.paused }));
-        },
-      },
+      { label: "Stop watching", act: (button) => setWatch(button, false) },
+      pauseAction(status),
     ],
   });
+}
+
+function pauseAction(status) {
+  return {
+    label: status.paused ? "Resume" : "Pause",
+    disabled: Boolean(status.serverPaused),
+    act: async () => {
+      const now = await ask({ kind: "status" });
+      render(await ask({ kind: "set-paused", paused: !now.paused }));
+    },
+  };
+}
+
+async function setWatch(button, on) {
+  button.disabled = true;
+  try {
+    await ask({ kind: on ? "watch-tab" : "unwatch-tab", tabId: tabHere.tabId, url: tabHere.url });
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
 }
 
 /** A run driving this browser, possibly started somewhere else.
@@ -333,10 +407,25 @@ async function refresh() {
 }
 
 /** The system this panel is docked beside. */
+/** The host the task list below was built for, so switching tabs rebuilds it.
+ * Without this the list is whatever was in front when the panel opened, which
+ * reads as "nothing noticed on this system" while the line above it names a
+ * different system entirely. */
+let showing = null;
+
+/** The tab this panel is docked beside -- the one every card is about. */
+let tabHere = { tabId: null, host: "", url: "" };
+
 async function whereWeAre() {
   const tab = await beside();
   const host = hostOf(tab?.url || "");
+  tabHere = { tabId: tab?.id ?? null, host, url: tab?.url || "" };
   $("where").textContent = host || "no system open in this window";
+  if (host !== showing) {
+    showing = host;
+    await here();
+    await refresh();
+  }
 }
 
 function openConsole(path = "/console") {
@@ -698,4 +787,3 @@ setInterval(() => {
 
 void refresh();
 void whereWeAre();
-void here();

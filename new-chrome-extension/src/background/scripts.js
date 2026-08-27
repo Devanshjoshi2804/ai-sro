@@ -10,6 +10,25 @@ const MAIN_ID = "sro-observe-main";
 
 const ALL = ["http://*/*", "https://*/*"];
 
+/** The isolated world's half: the policy-checked relay and the request patch's
+ * receiving end. Order matters -- sensitivity.generated.js puts the credential
+ * rules on this world's window before network.js, which refuses to store a body
+ * it cannot check them against. */
+const ISOLATED = [
+  "src/content/sensitivity.generated.js",
+  "src/content/observe.js",
+  "src/content/network.js",
+];
+
+/** The page's own realm: the network patch must be the `fetch` the page
+ * actually calls, and the recorder identifies a control through the
+ * framework's `Ext` registry, which does not exist in an isolated world. */
+const MAIN = [
+  "src/content/recorder-bridge.main.js",
+  "src/content/recorder.generated.js",
+  "src/content/network.main.js",
+];
+
 /** `*.example.com` and `example.com` both mean the host and its subdomains. */
 function patternsFor(host) {
   const bare = host.replace(/^\*?\./, "");
@@ -31,11 +50,7 @@ export async function applyPolicy(policy, { on }) {
       // Order matters: sensitivity.generated.js puts the credential rules on
       // this world's window before network.js, which refuses to store a body
       // it cannot check them against.
-      js: [
-        "src/content/sensitivity.generated.js",
-        "src/content/observe.js",
-        "src/content/network.js",
-      ],
+      js: ISOLATED,
       matches,
       excludeMatches,
       // Both deliberate: `document_start` so the page's own scripts are not
@@ -54,11 +69,7 @@ export async function applyPolicy(policy, { on }) {
       // isolated world. Each hands its result to the isolated world over a
       // CustomEvent. Same matches/excludeMatches: an excluded page gets no
       // capture of any kind, not just gestures.
-      js: [
-        "src/content/recorder-bridge.main.js",
-        "src/content/recorder.generated.js",
-        "src/content/network.main.js",
-      ],
+      js: MAIN,
       matches,
       excludeMatches,
       runAt: "document_start",
@@ -106,4 +117,32 @@ export function allowsHost(url, policy) {
   const included = !policy.include_hosts?.length || policy.include_hosts.some(matchesHost);
   const excluded = (policy.exclude_hosts || []).some(matchesHost);
   return included && !excluded;
+}
+
+/** Put the recorder into a tab that is already open.
+ *
+ * Registration only injects on the *next* navigation, so a tab open before the
+ * operator pressed "watch" -- or before the extension was last reloaded -- runs
+ * nothing of ours and records nothing, however clearly the panel says it is
+ * watching. Telling somebody to reload the page they are working in is not an
+ * answer: they lose the form they had half filled in.
+ *
+ * Safe on a tab that already has them: the page-realm patch refuses a fetch it
+ * has already patched, and Chrome does not run a file it has already put in a
+ * frame -- pressing "watch" twice records one copy of a gesture, which
+ * `test_watching_a_tab_that_was_already_open_needs_no_reload` holds to.
+ */
+export async function injectInto(tabId, url, policy) {
+  if (!allowsHost(url, policy)) return false;
+  const into = { tabId, allFrames: true };
+  try {
+    await chrome.scripting.executeScript({ target: into, files: ISOLATED });
+    await chrome.scripting.executeScript({ target: into, files: MAIN, world: "MAIN" });
+    return true;
+  } catch {
+    // A tab that navigated away mid-injection, or a page Chrome will not let
+    // anyone script (the web store, a PDF viewer). Watching it is still
+    // recorded -- the next navigation injects normally.
+    return false;
+  }
 }

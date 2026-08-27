@@ -164,6 +164,20 @@ def _capture(context: Any, api_url: str, batches: list[dict[str, Any]]) -> list[
 
     page = context.new_page()
     page.goto(api_url)
+    # The operator's own answer to "which tab is the work in". Nothing is
+    # captured from a tab nobody pointed at, so a fixture run has to say it too.
+    watching = _options(context, worker)
+    watching.evaluate(
+        """async (wanted) => {
+             const tabs = await chrome.tabs.query({});
+             const tab = tabs.find((each) => (each.url || "").startsWith(wanted));
+             return await chrome.runtime.sendMessage(
+               {kind: "watch-tab", tabId: tab.id, url: tab.url},
+             );
+           }""",
+        api_url,
+    )
+    watching.close()
     page.reload()
     page.fill("#client", CLIENT_CODE)
     page.fill("#pw", PASSWORD)

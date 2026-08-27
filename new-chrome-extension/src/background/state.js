@@ -11,6 +11,7 @@ const KEYS = {
   apiUrl: "sro.apiUrl",
   consoleUrl: "sro.consoleUrl",
   policy: "sro.policy",
+  watched: "sro.watched",
   paused: "sro.paused",
   serverPaused: "sro.serverPaused",
   lastBeat: "sro.lastBeat",
@@ -48,6 +49,20 @@ export const state = {
    * what it can do itself, which is most of why it exists. */
   consoleUrl: () => read(KEYS.consoleUrl, ""),
   setConsoleUrl: (url) => write(KEYS.consoleUrl, url.replace(/\/+$/, "")),
+
+  /** The tabs the operator asked to be watched, newest first. Each is
+   * `{ tabId, host, since }`.
+   *
+   * Nothing is watched by default and nothing is inferred: what a person is
+   * working in is a thing only that person knows, and every rule this system
+   * tried to guess it by -- our own origins, the tenant's host list -- was
+   * either wrong about a tab or silently right about the wrong one.
+   *
+   * A tab id, not a host: the operator points at the window in front of them,
+   * and it keeps being that window when the application navigates to a
+   * different host mid-task, which every SSO flow does. */
+  watched: () => read(KEYS.watched, []),
+  setWatched: (tabs) => write(KEYS.watched, tabs),
 
   policy: () => read(KEYS.policy, null),
   setPolicy: (policy) => write(KEYS.policy, policy),

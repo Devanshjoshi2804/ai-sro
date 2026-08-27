@@ -31,3 +31,4 @@ scratch/
 # Credential vault: session cookies, CSRF tokens, whatever a login produced.
 # On disk so the services work; never in history.
 backend/.sro-vault
+backend/worker.log

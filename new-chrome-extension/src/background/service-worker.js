@@ -8,7 +8,7 @@ import * as channel from "./channel.js";
 import { abort, isDriving, performing } from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
-import { allowsHost, applyPolicy, unregister } from "./scripts.js";
+import { allowsHost, applyPolicy, injectInto, unregister } from "./scripts.js";
 import { capture } from "./shots.js";
 import { capturing, state } from "./state.js";
 import * as teaching from "./teaching.js";
@@ -59,6 +59,92 @@ chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => {
   void popupEvent(d);
 });
 
+
+// -- which tabs are being watched --------------------------------------------
+//
+// The operator points at a tab and says "the work is in here". Nothing else
+// decides it: not the tenant's host list (which cannot tell a warehouse tab
+// from a console tab on the same host), and not any rule this file could
+// invent about which origins are "ours". A watched tab is watched entirely --
+// every frame, every call it makes, wherever it navigates.
+
+/** Every change to the watched list, one at a time.
+ *
+ * Read-modify-write over `chrome.storage` has no transaction: a tab closing
+ * while another is being watched read the old list and wrote it back, and the
+ * new watch vanished. That failure is invisible -- capture simply produces
+ * nothing -- so it is worth the four lines.
+ */
+let changes = Promise.resolve();
+
+function serially(job) {
+  const next = changes.then(job, job);
+  changes = next.then(
+    () => {},
+    () => {},
+  );
+  return next;
+}
+
+async function watchedTabs() {
+  const watched = await state.watched();
+  // A tab id is only meaningful while the tab exists. Chrome hands the same
+  // ids out again after a restart, so a stale entry is not merely useless --
+  // it is a watch on whatever tab inherits the number.
+  const alive = await Promise.all(
+    watched.map(async (entry) => {
+      try {
+        await chrome.tabs.get(entry.tabId);
+        return entry;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const kept = alive.filter(Boolean);
+  // Tidying is never allowed to fail a capture. Storage can reject -- a full
+  // disk, a quota -- and a gesture lost because the housekeeping beside it
+  // threw is the same bug as a gesture lost to a failed screenshot.
+  if (kept.length !== watched.length) await state.setWatched(kept).catch(() => {});
+  return kept;
+}
+
+async function isWatched(tabId) {
+  if (tabId === null || tabId === undefined) return false;
+  return (await watchedTabs()).some((entry) => entry.tabId === tabId);
+}
+
+function watch(tabId, url) {
+  return serially(async () => {
+    const watched = await watchedTabs();
+    if (watched.some((entry) => entry.tabId === tabId)) return watched;
+    let host = "";
+    try {
+      host = new URL(url).hostname;
+    } catch {
+      host = "";
+    }
+    const next = [{ tabId, host, since: Date.now() }, ...watched];
+    await state.setWatched(next);
+    return next;
+  });
+}
+
+function unwatch(tabId) {
+  return serially(async () => {
+    const watched = await watchedTabs();
+    const next = watched.filter((entry) => entry.tabId !== tabId);
+    // A tab nobody was watching closes all day long. Writing the same list
+    // back for each one is how a watch set meanwhile gets overwritten.
+    if (next.length !== watched.length) await state.setWatched(next);
+    return next;
+  });
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  void unwatch(tabId);
+});
+
 /** A popup is two hosts, so it is two policy checks.
  *
  * `pageEvent` below tests the host being opened. The opener was never tested
@@ -76,6 +162,10 @@ async function popupEvent(d) {
   }
   const policy = await state.policy();
   if (!allowsHost(opener.url, policy)) return;
+  // A window the watched application opened is part of the same piece of work
+  // -- a picker, an SSO round trip, a print preview. The operator pointed at
+  // the task, not at a tab id, so the watch follows it.
+  if (await isWatched(d.sourceTabId)) await watch(d.tabId, d.url);
   // The new tab's id, not the opener's: `url` is the new tab's, and the two
   // together used to name one tab while describing another's page.
   await pageEvent("popup_opened", d.tabId, d.url, d.timeStamp);
@@ -83,8 +173,12 @@ async function popupEvent(d) {
 
 async function pageEvent(page_kind, tab_id, url, timeStamp) {
   try {
-    const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
-    if (!allowed.on || !allowsHost(url, policy)) return;
+    const [policy, allowed, watching] = await Promise.all([
+      state.policy(),
+      capturing(),
+      isWatched(tab_id),
+    ]);
+    if (!allowed.on || !watching || !allowsHost(url, policy)) return;
     await queue.enqueue({
       kind: "page",
       at: new Date(timeStamp).toISOString(),
@@ -154,10 +248,20 @@ async function handle(message, sender) {
       // `fetch`, and keeps sending. Gating only on registration meant an
       // operator who hit pause -- or a host that had just been excluded --
       // went on being recorded for as long as the tab stayed open.
-      const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
+      const [policy, allowed, watching] = await Promise.all([
+        state.policy(),
+        capturing(),
+        isWatched(sender?.tab?.id ?? null),
+      ]);
       const frameUrl = message.frameUrl;
-      if (!allowed.on || !allowsHost(frameUrl, policy)) {
-        return { ok: false, dropped: allowed.on ? "excluded host" : allowed.because };
+      if (!allowed.on) return { ok: false, dropped: allowed.because };
+      // The operator's own answer to "which tab is the work in". Everything in
+      // a watched tab is evidence and nothing outside one is -- no host list
+      // decides it, which is why a console polling its own backend all day
+      // never became 97% of a day's capture again.
+      if (!watching) return { ok: false, dropped: "this tab is not being watched" };
+      if (!allowsHost(frameUrl, policy)) {
+        return { ok: false, dropped: "excluded host" };
       }
       // A tab this extension is driving for a run is not an operator working.
       // Kept out of the evidence plane entirely: a replay's clicks and the
@@ -299,6 +403,11 @@ async function handle(message, sender) {
       if (!tab?.id || !/^https?:/.test(tab.url || "")) {
         return { error: "open the system you want to teach in a tab first" };
       }
+      // Pressing "teach" in a tab is the same sentence as "watch this tab",
+      // said more strongly. An operator who demonstrates in an unwatched tab
+      // and gets an empty recording learns nothing except not to trust this.
+      await watch(tab.id, tab.url);
+      await injectInto(tab.id, tab.url, await state.policy());
       const started = await api.startRecording(deviceId, message.label || tab.title || null);
       try {
         await teaching.start(started.recording_id, tab.id);
@@ -391,6 +500,29 @@ async function handle(message, sender) {
       const gone = await api.forget(since);
       await state.setLastError("");
       return gone;
+    }
+    case "watch-tab": {
+      const tabId = message.tabId ?? sender?.tab?.id ?? null;
+      if (tabId === null) return { error: "no tab to watch" };
+      let url = message.url || "";
+      if (!url) {
+        try {
+          url = (await chrome.tabs.get(tabId)).url || "";
+        } catch {
+          return { error: "that tab is gone" };
+        }
+      }
+      const watched = await watch(tabId, url);
+      // Into the tab as it stands, not on its next navigation. An operator who
+      // presses this in the middle of a job should not have to reload the page
+      // and lose the form they were halfway through.
+      await injectInto(tabId, url, await state.policy());
+      return { watched };
+    }
+    case "unwatch-tab": {
+      const tabId = message.tabId ?? sender?.tab?.id ?? null;
+      if (tabId === null) return { error: "no tab to stop watching" };
+      return { watched: await unwatch(tabId) };
     }
     case "status":
       return status();
@@ -555,6 +687,7 @@ async function status() {
     serverPaused,
     lastBeat,
     lastError,
+    watched: await watchedTabs(),
     version: VERSION,
   };
 }

@@ -13,15 +13,18 @@ from sro.application.induction import describe, lookups, loops, narration
 from sro.application.induction.companions import ambiguity_in, read_skills
 from sro.application.induction.diff import (
     Choice,
+    OptionalFill,
     Parameterisation,
     Substitution,
     align,
+    optional_fills,
     parameterise,
     typed_values,
 )
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.lookups import PlannedLookup
+from sro.application.induction.sites import ActionValueSite, JsonBodySite
 from sro.application.induction.understand import as_evidence
 from sro.application.knowledge.open_questions import Ambiguity, AskAbout
 from sro.application.ports.interpretation import Reading, WorkflowInterpreter
@@ -31,6 +34,7 @@ from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.domain.shared.objective import ObjectiveKey
+from sro.domain.skill.loop import Loop
 from sro.domain.skill.parameter import Evidence, Parameter
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Provenance, Skill, SkillStep, SkillVersion
@@ -214,7 +218,16 @@ class InduceSkill:
                     )
             if looped is not None:
                 parameterisation = _with_loop(parameterisation, looped)
-            steps = _build_steps(frames_a, frames_b, run_a, objective, parameterisation)
+
+            # The gestures the alignment dropped: one operator filled a field
+            # the other left alone, and that keystroke is the only evidence in
+            # either recording of how the field gets filled at all. Put back as
+            # steps that happen only when somebody supplies the value.
+            conditionals = _conditionals(parameterisation, optional_fills(frames_a, frames_b))
+            parameterisation = _make_room(parameterisation, conditionals)
+            steps = _build_steps(
+                frames_a, frames_b, run_a, objective, parameterisation, conditionals
+            )
             parameters = with_options(parameterisation.parameters, planned)
 
             skill = await uow.skills.find_by_objective(ctx.tenant_id, objective)
@@ -257,7 +270,7 @@ class InduceSkill:
                 systems=systems_touched(
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
-                loops=(looped.loop,) if looped is not None else (),
+                loops=(_moved_loop(looped.loop, conditionals),) if looped is not None else (),
             )
             # Everything else the demonstration proved. Opening the screen to
             # create a transport mode lists the existing ones first, and that
@@ -451,12 +464,105 @@ def _with_loop(parameterisation: Parameterisation, looped: loops.LoopFound) -> P
     )
 
 
+@dataclass(frozen=True, slots=True)
+class _Conditional:
+    """A dropped gesture and the optional parameter it fills.
+
+    Both halves are evidence and neither is a reading: the gesture is what the
+    operator did, and the parameter is the one the body diff already called
+    optional at the pointer that gesture's value landed on.
+    """
+
+    fill: OptionalFill
+    parameter: str
+
+
+def _conditionals(
+    parameterisation: Parameterisation, fills: tuple[OptionalFill, ...]
+) -> tuple[_Conditional, ...]:
+    """The dropped gestures that can be said to fill something, and which.
+
+    Nothing is guessed here. The pointer the keystroke bound to has to be one
+    the diff already parameterised *and* called optional; where it is not --
+    bound to a field both runs filled, or to nothing anybody can name -- the
+    gesture stays dropped, because a step conditional on the wrong parameter is
+    a step that silently stops happening.
+    """
+    optional = {parameter.name for parameter in parameterisation.parameters if parameter.optional}
+    named = {
+        sub.site.pointer: sub.parameter
+        for subs in parameterisation.substitutions.values()
+        for sub in subs
+        if isinstance(sub.site, JsonBodySite) and sub.parameter in optional
+    }
+    return tuple(
+        _Conditional(fill, parameter)
+        for fill in fills
+        if (parameter := named.get(fill.pointer)) is not None
+    )
+
+
+def _moved(index: int, conditionals: tuple[_Conditional, ...]) -> int:
+    """Where an aligned step ends up once the conditional ones take their place.
+
+    Every index induction produces -- a substitution's step, a parameter's
+    source, a loop's body -- counts aligned steps. Inserting a step among them
+    moves everything after it along, and an index left where it was would hand a
+    step its neighbour's values.
+    """
+    return index + sum(1 for conditional in conditionals if conditional.fill.at <= index)
+
+
+def _moved_loop(loop: Loop, conditionals: tuple[_Conditional, ...]) -> Loop:
+    return replace(
+        loop,
+        over_step_index=_moved(loop.over_step_index, conditionals),
+        first_step=_moved(loop.first_step, conditionals),
+        last_step=_moved(loop.last_step, conditionals),
+    )
+
+
+def _make_room(
+    parameterisation: Parameterisation, conditionals: tuple[_Conditional, ...]
+) -> Parameterisation:
+    """The same parameterisation, addressed to where the steps have moved to.
+
+    The conditional steps get an entry of their own: what the operator typed is
+    the value of the parameter they are conditional on, so the step sends
+    ``${delta_priority}`` exactly as an aligned step would rather than replaying
+    the one priority somebody happened to demonstrate.
+    """
+    if not conditionals:
+        return parameterisation
+    substitutions = {
+        _moved(index, conditionals): subs for index, subs in parameterisation.substitutions.items()
+    }
+    for position, conditional in enumerate(conditionals):
+        substitutions[conditional.fill.at + position] = (
+            Substitution(site=ActionValueSite(), parameter=conditional.parameter),
+        )
+    return replace(
+        parameterisation,
+        parameters=tuple(
+            parameter
+            if parameter.source_step_index is None
+            else replace(
+                parameter,
+                source_step_index=_moved(parameter.source_step_index, conditionals),
+            )
+            for parameter in parameterisation.parameters
+        ),
+        substitutions=substitutions,
+    )
+
+
 def _build_steps(
     run_a_frames: tuple[ActionFrame, ...],
     run_b_frames: tuple[ActionFrame, ...],
     run_a: Recording,
     objective: ObjectiveKey,
     parameterisation: Parameterisation,
+    conditionals: tuple[_Conditional, ...] = (),
 ) -> tuple[SkillStep, ...]:
     """Frames rather than recordings, because a looping task keeps one iteration
     of its body: the recording holds all of them, and the skill is the block."""
@@ -469,22 +575,53 @@ def _build_steps(
     # Run A's narration, because run A's frames are the ones being emitted. Run
     # B is here to disagree with A, not to describe it.
     said = narration.align(tuple(frames_a), run_a.narration)
-    return tuple(
-        emit_step(
-            index,
-            frames_a[index],
-            parameterisation,
-            assertion_extraction.extract(
+
+    steps: list[SkillStep] = []
+    pending = list(conditionals)
+    for index in range(len(frames_a) + 1):
+        while pending and pending[0].fill.at <= index:
+            steps.append(_emit_conditional(len(steps), pending.pop(0), parameterisation, objective))
+        if index == len(frames_a):
+            break
+        steps.append(
+            emit_step(
+                len(steps),
                 frames_a[index],
+                parameterisation,
+                assertion_extraction.extract(
+                    frames_a[index],
+                    frames_b[index],
+                    next_a=frames_a[index + 1] if index + 1 < len(frames_a) else None,
+                    next_b=frames_b[index + 1] if index + 1 < len(frames_b) else None,
+                ),
+                objective,
                 frames_b[index],
-                next_a=frames_a[index + 1] if index + 1 < len(frames_a) else None,
-                next_b=frames_b[index + 1] if index + 1 < len(frames_b) else None,
-            ),
-            objective,
-            frames_b[index],
-            said.get(frames_a[index].index),
+                said.get(frames_a[index].index),
+            )
         )
-        for index in range(len(frames_a))
+    return tuple(steps)
+
+
+def _emit_conditional(
+    index: int,
+    conditional: _Conditional,
+    parameterisation: Parameterisation,
+    objective: ObjectiveKey,
+) -> SkillStep:
+    """The gesture one run made, as a step that happens when the value is given.
+
+    Nothing is asserted of it. An assertion is what two runs agreed the system
+    answered, and only one run did this -- there is no second observation for it
+    to agree with, and inventing one is how a verifier starts failing correct
+    runs. What it sent, if it sent anything, is emitted like any other step's.
+    """
+    return emit_step(
+        index,
+        conditional.fill.frame,
+        parameterisation,
+        assertion_extraction.StepEvidence(assertions=(), wait_for=None),
+        objective,
+        when=conditional.parameter,
     )
 
 

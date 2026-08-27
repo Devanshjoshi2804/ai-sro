@@ -276,7 +276,7 @@ def align(
                 for frame in run
                 if id(frame) not in matched
                 and _evidential(frame)
-                and not _fills_something_optional(frame, run, other)
+                and _optional_pointer(frame, run, other) is None
             ),
             None,
         )
@@ -291,15 +291,70 @@ def align(
     return explode(paired)
 
 
-def _fills_something_optional(
+@dataclass(frozen=True, slots=True)
+class OptionalFill:
+    """A gesture only one run made, that only filled a field the other left alone.
+
+    What :func:`align` drops. Dropping it costs nothing the *pairing* needs --
+    both runs created the record -- but it is the only gesture in either
+    recording that fills that field, so a skill built from the pairs alone can
+    never fill it by clicking. On a system with no writable API that means never
+    at all.
+    """
+
+    frame: ActionFrame
+    pointer: str
+    """Where in the write the typed value landed. The parameter is named from
+    this pointer, never from the keystroke."""
+
+    at: int
+    """How many aligned steps come before it, so it can be put back in its place
+    in the order rather than at the end of it."""
+
+
+def optional_fills(
+    run_a: tuple[ActionFrame, ...], run_b: tuple[ActionFrame, ...]
+) -> tuple[OptionalFill, ...]:
+    """The gestures :func:`align` drops, with enough to place them again.
+
+    Beside `align` rather than inside it: what it returns is the pairs, and the
+    steps and the diff are both addressed by position in them. A caller that
+    wants the dropped ones asks for them separately and decides what to do with
+    them, which for induction is to emit each as a step conditional on the field
+    it filled.
+
+    Either run's, because which recording was taught first is an accident of
+    storage order: whichever operator filled the field, the skill that comes out
+    has to be able to fill it.
+    """
+    paired = _longest_common(run_a, run_b)
+    steps = explode(paired)
+    matched = {id(frame) for pair in paired for frame in pair}
+    found = [
+        OptionalFill(
+            frame=frame,
+            pointer=pointer,
+            at=sum(1 for pair in steps if pair[side].index < frame.index),
+        )
+        for side, (run, other) in enumerate(((run_a, run_b), (run_b, run_a)))
+        for frame in run
+        if id(frame) not in matched
+        and (pointer := _optional_pointer(frame, run, other)) is not None
+    ]
+    return tuple(sorted(found, key=lambda fill: fill.at))
+
+
+def _optional_pointer(
     frame: ActionFrame, run: tuple[ActionFrame, ...], other: tuple[ActionFrame, ...]
-) -> bool:
-    """Whether this unmatched step only filled a field the other run left alone.
+) -> str | None:
+    """Where this unmatched step's typed value landed, when it landed in a field
+    the other run left alone. None when it did not, and the step is a genuine
+    disagreement about what the task is.
 
     Two people filling one form fill different subsets of it, and both create
-    the record. Dropping such a step loses nothing the skill needs, because the
-    field it filled is about to become an optional parameter -- and keeping the
-    refusal means a form of any size never induces at all.
+    the record. Such a step is not a refusal, because the field it filled is
+    about to become an optional parameter -- and keeping the refusal means a
+    form of any size never induces at all.
 
     Everything here is read from the writes. The field must be one *both* runs
     sent, or the two are different requests and the refusal stands.
@@ -314,8 +369,8 @@ def _fills_something_optional(
                 continue
             leaves = dict(jsonutil.leaves(document))
             if pointer in leaves:
-                return jsonutil.is_empty(leaves[pointer])
-    return False
+                return pointer if jsonutil.is_empty(leaves[pointer]) else None
+    return None
 
 
 def describe_step(frame: ActionFrame) -> str:

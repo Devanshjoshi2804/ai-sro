@@ -31,6 +31,7 @@ def emit_step(
     objective: ObjectiveKey,
     other: ActionFrame | None = None,
     narration: StepNarration | None = None,
+    when: str | None = None,
 ) -> SkillStep:
     replacements = parameterisation.for_step(index)
     return SkillStep(
@@ -44,6 +45,7 @@ def emit_step(
         requires_human=_requires_human(frame) or bool(narration and narration.requires_human),
         narration=narration.text if narration else "",
         branch_hint=narration.branch_hint if narration else None,
+        when=when,
     )
 
 

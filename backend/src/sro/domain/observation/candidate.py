@@ -137,6 +137,14 @@ class TaskCandidate:
     part of a candidate anything generated, and it is marked so nobody mistakes
     a sentence for a fact."""
 
+    learned_from: int = 0
+    """How many doings had been seen the last time learning was tried on this.
+
+    Unattended learning runs on a sweep, and a candidate whose evidence will
+    not induce would otherwise be tried again every quarter of an hour, leaving
+    two sealed recordings behind each time. Trying again is only worth it when
+    there is something new to try it on."""
+
     def __post_init__(self) -> None:
         if not self.signature.strip():
             raise InvariantViolation("a candidate with no signature cannot be recognised again")
@@ -147,6 +155,14 @@ class TaskCandidate:
     @property
     def times_seen(self) -> int:
         return len(self.episodes)
+
+    @property
+    def worth_learning_again(self) -> bool:
+        """Whether a fresh attempt would see anything the last one did not."""
+        return self.times_seen > self.learned_from
+
+    def learning_tried(self) -> None:
+        self.learned_from = self.times_seen
 
     @property
     def first_seen(self) -> datetime | None:

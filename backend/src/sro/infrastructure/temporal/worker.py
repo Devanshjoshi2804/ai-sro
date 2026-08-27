@@ -14,8 +14,10 @@ from datetime import UTC, datetime, timedelta
 from temporalio.client import Client
 from temporalio.worker import Worker
 
+from sro.application.context import RequestContext
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.infrastructure.temporal.activities import Activities
 from sro.infrastructure.temporal.queues import BROWSER_QUEUE, DEFAULT_QUEUE
 from sro.infrastructure.temporal.workflows import (
@@ -84,6 +86,21 @@ async def mine_lately(container: Container, every_seconds: float, window_hours: 
                     found.candidates_new,
                     found.occurrences_new,
                 )
+
+        # And anything now done often enough is learned, without waiting for
+        # somebody to press a button. What comes out sits at the bottom of the
+        # promotion ladder; nothing here lets anything run.
+        for tenant in mined:
+            ctx = RequestContext(tenant_id=TenantId(tenant), principal_id=PrincipalId("miner"))
+            try:
+                learned = await container.learn_what_repeats().execute(ctx)
+            except Exception:
+                logger.exception("%s: the learner could not finish its pass", tenant)
+                continue
+            for skill_id in learned.skills:
+                logger.info("%s: learned a task nobody demonstrated -- %s", tenant, skill_id)
+            for waiting in learned.still_waiting:
+                logger.info("%s: waiting for a demonstration -- %s", tenant, waiting)
 
 
 async def retain_lately(container: Container, every_seconds: float) -> None:

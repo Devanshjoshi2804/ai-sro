@@ -72,12 +72,14 @@ class TeachCandidate:
         clock: Clock,
         ids: IdFactory,
         understand: UnderstandRecording,
+        induce: InduceSkill | None = None,
     ) -> None:
         self._uow = uow
         self._blobs = blobs
         self._clock = clock
         self._ids = ids
         self._understand = understand
+        self._induce = induce
 
     async def execute(self, ctx: RequestContext, *, candidate_id: CandidateId) -> Taught:
         async with self._uow as uow:
@@ -91,19 +93,88 @@ class TeachCandidate:
             # refused by it.
             raise NothingToTeach(f"this candidate is already {candidate.status}")
 
-        episode = _best(candidate)
-        if episode is None:
-            raise NothingToTeach("this candidate has no episode to learn from")
+        # Freshest first: the screens move, and the most recent doings of a
+        # task are the ones most likely to still find their controls.
+        recordings: list[Recording] = []
+        for episode in reversed(candidate.episodes):
+            recording = await self._demonstration(ctx, candidate, episode)
+            if recording is not None:
+                recordings.append(recording)
+            if len(recordings) == 2:
+                break
 
-        events = await self._evidence(ctx, episode)
-        assembled = assemble_frames(list(events))
-        if not assembled.frames:
+        if not recordings:
             return Taught(
                 candidate_id=candidate_id,
                 recording_id=None,
                 needs_demonstration=True,
                 because="the evidence for this has aged out or was never enough to replay",
             )
+
+        async with self._uow as uow:
+            for recording in recordings:
+                await uow.recordings.add(recording)
+            await uow.commit()
+
+        recording = recordings[0]
+        try:
+            skill_id = await self._learn(ctx, candidate, recordings)
+        except InductionFailed as thin:
+            # The recordings are kept: they are evidence either way, and the
+            # deliberate repetition this asks for will be diffed against them.
+            return Taught(
+                candidate_id=candidate_id,
+                recording_id=recording.id,
+                needs_demonstration=True,
+                because=str(thin),
+            )
+
+        async with self._uow as uow:
+            candidate = await uow.candidates.get(ctx.tenant_id, candidate_id)
+            candidate.taught(skill_id)
+            await uow.candidates.save(candidate)
+            await uow.commit()
+
+        return Taught(candidate_id=candidate_id, recording_id=recording.id, skill_id=skill_id)
+
+    async def _learn(
+        self, ctx: RequestContext, candidate: TaskCandidate, recordings: Sequence[Recording]
+    ) -> SkillId:
+        """A skill from what was watched, by the strongest instrument available.
+
+        Two doings are diffed against each other: what differs between them is
+        a parameter, proved, and no model is asked. One doing has nothing to
+        diff, so its narrative -- what varies, what each step was for -- is a
+        model reading the same evidence, and every part of it is marked as read
+        rather than proven.
+
+        The difference matters most to exactly the task this exists for. A
+        creation seen once yields a skill that would re-create the same record
+        by name; seen twice, the name is a parameter somebody can fill in.
+        """
+        if self._induce is not None and len(recordings) > 1:
+            induced = await self._induce.execute(
+                ctx,
+                first=recordings[0].id,
+                second=recordings[1].id,
+                name=candidate.title,
+            )
+            return induced.skill_id
+        understood = await self._understand.execute(
+            ctx, recording_id=recordings[0].id, name=candidate.title
+        )
+        return understood.skill_id
+
+    async def _demonstration(
+        self, ctx: RequestContext, candidate: TaskCandidate, episode: Episode
+    ) -> Recording | None:
+        """One doing of the task, read back out of the evidence plane as a
+        recording. `None` where that doing cannot be replayed at all -- its
+        batches have aged out, or nothing in it changed anything."""
+        events = await self._evidence(ctx, episode)
+        assembled = assemble_frames(list(events))
+        if not assembled.frames:
+            return None
 
         recording = Recording(
             id=self._ids.new_recording_id(),
@@ -119,44 +190,10 @@ class TeachCandidate:
 
         objective = derive_objective_key(recording.frames, system=candidate.host)
         if objective is None:
-            return Taught(
-                candidate_id=candidate_id,
-                recording_id=None,
-                needs_demonstration=True,
-                because="nothing in this looks like a task that changed something",
-            )
+            return None
         recording.name_objective(objective)
         recording.seal(self._clock.now())
-
-        async with self._uow as uow:
-            await uow.recordings.add(recording)
-            await uow.commit()
-
-        try:
-            understood = await self._understand.execute(
-                ctx, recording_id=recording.id, name=candidate.title
-            )
-        except InductionFailed as thin:
-            # The recording is kept: it is evidence either way, and the
-            # deliberate repetition this asks for will be diffed against it.
-            return Taught(
-                candidate_id=candidate_id,
-                recording_id=recording.id,
-                needs_demonstration=True,
-                because=str(thin),
-            )
-
-        async with self._uow as uow:
-            candidate = await uow.candidates.get(ctx.tenant_id, candidate_id)
-            candidate.taught(understood.skill_id)
-            await uow.candidates.save(candidate)
-            await uow.commit()
-
-        return Taught(
-            candidate_id=candidate_id,
-            recording_id=recording.id,
-            skill_id=understood.skill_id,
-        )
+        return recording
 
     async def _evidence(self, ctx: RequestContext, episode: Episode) -> Iterator[CaptureEvent]:
         """The events of one episode, read back out of the evidence plane.
@@ -435,12 +472,6 @@ class ReadCandidates:
     async def one(self, ctx: RequestContext, *, candidate_id: CandidateId) -> TaskCandidate:
         async with self._uow as uow:
             return await uow.candidates.get(ctx.tenant_id, candidate_id)
-
-
-def _best(candidate: TaskCandidate) -> Episode | None:
-    """The most recent one. The screens move, and the freshest doing of a task
-    is the one most likely to still find its controls."""
-    return candidate.episodes[-1] if candidate.episodes else None
 
 
 def _within(payload: bytes, episode: Episode) -> Sequence[CaptureEvent]:

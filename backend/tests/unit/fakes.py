@@ -306,6 +306,11 @@ class FakeDurableExecution:
         self.watching: list[str] = []
         self.finished: list[str] = []
         self.started: list[str] = []
+        self.with_values: list[dict[str, str]] = []
+        """One entry per `execute_skill` call, the parameters it was actually
+        given -- so a test can prove what a trigger fired with, not only that
+        it fired."""
+
         self.waited: list[bool] = []
         """One entry per `execute_skill` call, the `wait` it was actually
         given -- so a test can prove a caller asked not to be blocked, not
@@ -336,6 +341,7 @@ class FakeDurableExecution:
         wait: bool = True,
     ) -> RunId:
         self.started.append(str(skill_id))
+        self.with_values.append(dict(parameters))
         self.waited.append(wait)
         if self._execute is None:
             # A caller that only needs to know a run was started -- a trigger,
@@ -1062,6 +1068,7 @@ class FakeRunDispatcher:
     def __init__(self, *, reachable: bool = True) -> None:
         self.reachable = reachable
         self.asked: list[tuple[str, str]] = []
+        self.with_values: list[dict[str, str]] = []
         self.may_take_focus = False
 
     async def start(
@@ -1079,6 +1086,7 @@ class FakeRunDispatcher:
         if not self.reachable:
             raise DispatchFailed(f"{device_id} has no channel open anywhere")
         self.asked.append((skill_id.value, device_id.value))
+        self.with_values.append(dict(parameters))
         self.may_take_focus = may_take_focus
         return RunId(f"run-dispatched-{len(self.asked)}")
 

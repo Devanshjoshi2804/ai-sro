@@ -118,8 +118,37 @@ async def _stored(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidate:
     return candidate
 
 
-def _teach(uow: FakeUnitOfWork, blobs: FakeBlobStore, understand: object) -> TeachCandidate:
-    return TeachCandidate(uow, blobs, FakeClock(), FakeIdFactory(), understand)  # type: ignore[arg-type]
+def _teach(
+    uow: FakeUnitOfWork,
+    blobs: FakeBlobStore,
+    understand: object,
+    induce: object | None = None,
+    now: datetime | None = None,
+) -> TeachCandidate:
+    return TeachCandidate(uow, blobs, FakeClock(now), FakeIdFactory(), understand, induce)  # type: ignore[arg-type]
+
+
+class _Induces:
+    """The two-run diff, stood in for. What it proves about parameters is
+    tested where it lives; here what matters is that it is what gets used."""
+
+    def __init__(self) -> None:
+        self.pairs: list[tuple[str, str | None]] = []
+
+    async def execute(
+        self,
+        ctx: RequestContext,
+        *,
+        first: object,
+        second: object | None = None,
+        name: str | None = None,
+    ) -> object:
+        self.pairs.append((str(first), str(second) if second else None))
+
+        class _Induced:
+            skill_id = SkillId("skl-induced")
+
+        return _Induced()
 
 
 async def test_the_demonstration_is_made_out_of_what_was_already_watched() -> None:
@@ -299,3 +328,97 @@ async def test_a_taught_candidate_cannot_be_dismissed_out_from_under_the_skill()
         await DismissCandidate(uow).execute(CTX, candidate_id=candidate.id, reason="too late")
 
     assert uow.candidates.rows["cnd-1"].status is CandidateStatus.TAUGHT
+
+
+async def _seen_twice(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidate:
+    """The same task, done on Tuesday and again on Wednesday."""
+    candidate = await _stored(uow, blobs)
+    later = START + timedelta(days=1)
+    payload = b"".join(json.dumps(event).encode() + b"\n" for event in _events_at(later))
+    blobs.objects["acme/clerk/2026-03-02/bat-2.ndjson"] = payload
+    await uow.observations.add(
+        ObservationBatch(
+            id=BatchId("bat-2"),
+            tenant_id=f.TENANT,
+            device_id=DeviceId("dev-1"),
+            principal_id=f.OPERATOR,
+            mode=CaptureMode.PASSIVE,
+            started_at=later,
+            ended_at=later + timedelta(minutes=1),
+            received_at=later,
+            uri="s3://sro-artifacts/acme/clerk/2026-03-02/bat-2.ndjson",
+            event_count=3,
+            byte_count=len(payload),
+        )
+    )
+    candidate.observed(
+        Episode(
+            started_at=later,
+            ended_at=later + timedelta(seconds=10),
+            host="wms.acme.test",
+            batch_ids=(BatchId("bat-2"),),
+            gestures=1,
+            calls=1,
+        )
+    )
+    await uow.candidates.save(candidate)
+    return candidate
+
+
+def _events_at(at: datetime) -> list[dict[str, object]]:
+    shifted = at - START
+    events = []
+    for event in _events():
+        if event["kind"] == "gesture":
+            gesture = dict(event["gesture"])  # type: ignore[arg-type]
+            gesture["at"] = float(gesture["at"]) + shifted.total_seconds()
+            events.append({"kind": "gesture", "gesture": gesture})
+        else:
+            request = dict(event["request"])  # type: ignore[arg-type]
+            request["started_at"] = (
+                datetime.fromisoformat(str(request["started_at"])) + shifted
+            ).isoformat()
+            events.append({"kind": "request", "request": request})
+    return events
+
+
+async def test_a_task_watched_twice_is_learned_by_diffing_the_two_doings() -> None:
+    """Which instrument reads the evidence is the whole difference between a
+    skill and a recording of one afternoon.
+
+    Two doings are diffed: what differs between them is a parameter, proved,
+    and no model is asked. Seen once, the same creation yields a skill that
+    would re-create the record it watched, by name.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    candidate = await _seen_twice(uow, blobs)
+    understand = _NoUnderstanding()
+    induce = _Induces()
+
+    sealed_after = START + timedelta(days=2)
+    taught = await _teach(uow, blobs, understand, induce, now=sealed_after).execute(
+        CTX, candidate_id=candidate.id
+    )
+
+    assert taught.skill_id == SkillId("skl-induced")
+    assert understand.asked == [], "a model was asked to read what two doings could prove"
+    assert len(induce.pairs) == 1
+    first, second = induce.pairs[0]
+    assert second is not None, "the second doing was captured and not used"
+    assert first != second, "one recording was diffed against itself"
+
+
+async def test_a_task_watched_once_is_read_rather_than_diffed() -> None:
+    """Nothing to diff. The narrative is a model reading the evidence, and
+    every part of it is marked as read rather than proven -- which is worth
+    having, and is not the same thing."""
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    candidate = await _stored(uow, blobs)
+    understand = _NoUnderstanding("the evidence is too thin")
+    induce = _Induces()
+
+    taught = await _teach(uow, blobs, understand, induce).execute(CTX, candidate_id=candidate.id)
+
+    assert induce.pairs == [], "one doing was handed to a diff with nothing to diff it against"
+    assert len(understand.asked) == 1
+    assert taught.needs_demonstration is True

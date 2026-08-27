@@ -7,7 +7,14 @@ them leaves Delta Priority empty. Before this, that was "the flows diverged".
 
 from __future__ import annotations
 
+import json
+
 from sro.application.induction import jsonutil
+from sro.application.induction.diff import Difference, differences, parameterise
+from sro.application.induction.sites import JsonBodySite
+from tests import factories as f
+
+URL = "https://wms.test/data/WM/wm/workareas"
 
 
 def test_an_empty_value_is_not_a_different_shape() -> None:
@@ -30,3 +37,68 @@ def test_two_kinds_of_filled_value_still_disagree() -> None:
     """Relaxing null against anything is the whole change. A number against a
     string is a flow that diverged, and stays one."""
     assert jsonutil.same_shape({"qty": 5}, {"qty": "five"}) is False
+
+
+def test_a_filled_group_and_a_null_group_are_the_same_shape() -> None:
+    """A whole group can be left alone the same way one field can: null for
+    the group's key rather than null for every key inside it."""
+    assert jsonutil.same_shape({"extra": {"bar": 1}}, {"extra": None}) is True
+
+
+def _run(body: dict[str, object]) -> tuple:
+    request = f.request(method="POST", url=URL, request_body=f.body(json.dumps(body)))
+    return (f.frame(0, requests=(request,)),)
+
+
+def test_a_field_filled_once_becomes_a_difference_with_its_absent_form() -> None:
+    """`null` and `""` are both absence, and which one this field uses is the
+    application's business -- so the diff reads it off the run that skipped
+    it rather than choosing one."""
+    run_a = _run({"workArea": "TWOTEST", "deltaPriority": 1})
+    run_b = _run({"workArea": "TWOTEST", "deltaPriority": None})
+
+    found = differences(run_a, run_b)
+
+    assert found == [
+        Difference(
+            step_index=0,
+            site=JsonBodySite("/deltaPriority"),
+            value_a="1",
+            value_b="",
+            absent_as="null",
+        )
+    ]
+
+
+def test_a_field_filled_once_is_optional_and_remembers_what_empty_looked_like() -> None:
+    run_a = _run({"workArea": "TWOTEST", "deltaPriority": 1})
+    run_b = _run({"workArea": "TWOTEST", "deltaPriority": None})
+
+    parameters = parameterise(run_a, run_b).parameters
+
+    assert len(parameters) == 1
+    parameter = parameters[0]
+    assert parameter.optional is True
+    assert parameter.absent_as == "null"
+    assert parameter.observed_values == ("1",), "an absence is not a value somebody observed"
+
+
+def test_a_group_left_null_is_the_same_optional_field_one_level_down() -> None:
+    """One run fills a nested group; the other sends null for the whole thing
+    rather than for the field inside it. The leaf that varies is two pointers
+    deep, but what "left alone" looked like is still the empty group, not a
+    missing leaf -- so this reads the group's null, not a `KeyError`."""
+    run_a = _run({"workArea": "TWOTEST", "extra": {"bar": 1}})
+    run_b = _run({"workArea": "TWOTEST", "extra": None})
+
+    found = differences(run_a, run_b)
+
+    assert found == [
+        Difference(
+            step_index=0,
+            site=JsonBodySite("/extra/bar"),
+            value_a="1",
+            value_b="",
+            absent_as="null",
+        )
+    ]

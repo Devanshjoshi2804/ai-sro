@@ -5,6 +5,7 @@ Rationale and the rejected alternatives: docs/07-adr/004-diff-parameterisation.m
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, replace
 from typing import Literal
@@ -46,6 +47,10 @@ class Difference:
     value_b: str
     url: str = ""
     field_label: str | None = None
+    absent_as: str | None = None
+    """What this field looked like in the run that left it alone -- `"null"`,
+    or `""` from a text control nobody focused. Present only when exactly one
+    of the two runs filled it, which is what makes the field optional."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -766,6 +771,22 @@ def _build_parameter(
     source: tuple[int, str, Transform | None] | None,
 ) -> Parameter:
     if source is None:
+        absent_as = next((site.absent_as for site in sites if site.absent_as is not None), None)
+        if absent_as is not None:
+            # Filled in one demonstration and left alone in the other: proof the
+            # field is optional, not just proof it varies. The empty side is not
+            # a second observed value -- nobody observed it, the form supplied it.
+            return Parameter(
+                name=name,
+                kind=ParameterKind.INPUT,
+                description=(
+                    f"{_where(sites)}; left alone in one demonstration, so it may be "
+                    f"left out -- sent as {absent_as} when nobody supplies it"
+                ),
+                observed_values=(value_a or value_b,),
+                optional=True,
+                absent_as=absent_as,
+            )
         return Parameter(
             name=name,
             kind=ParameterKind.INPUT,
@@ -977,16 +998,75 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
         )
 
     leaves_b = dict(jsonutil.leaves(document_b))
-    return [
-        Difference(
-            step_index=index,
-            site=JsonBodySite(pointer),
-            value_a=str(leaf_a),
-            value_b=str(leaves_b[pointer]),
+    found: list[Difference] = []
+    for pointer, leaf_a in jsonutil.leaves(document_a):
+        if pointer not in leaves_b:
+            # Not a missing key -- same_shape already ruled that out. The group
+            # this pointer lives in was sent null on the other side instead of
+            # filled out leaf by leaf, so there is nothing at `pointer` to find;
+            # the empty group one level up is the field's absent form.
+            absent = _absent_ancestor(pointer, leaves_b)
+            if absent is _NOT_FOUND:
+                raise InductionFailed(
+                    f"{pointer} is in one run's body and not reachable in the other's; "
+                    "the demonstrations diverged",
+                    step_index=index,
+                )
+            found.append(
+                Difference(
+                    step_index=index,
+                    site=JsonBodySite(pointer),
+                    value_a=str(leaf_a),
+                    value_b="",
+                    absent_as=_absent_form(absent),
+                )
+            )
+            continue
+
+        leaf_b = leaves_b[pointer]
+        if str(leaf_a) == str(leaf_b):
+            continue
+        empty_a, empty_b = jsonutil.is_empty(leaf_a), jsonutil.is_empty(leaf_b)
+        found.append(
+            Difference(
+                step_index=index,
+                site=JsonBodySite(pointer),
+                # An absence is not a value, so it is not offered as one: the
+                # side that filled the field is what an operator is shown.
+                value_a="" if empty_a else str(leaf_a),
+                value_b="" if empty_b else str(leaf_b),
+                absent_as=_absent_form(leaf_a if empty_a else leaf_b)
+                if empty_a != empty_b
+                else None,
+            )
         )
-        for pointer, leaf_a in jsonutil.leaves(document_a)
-        if str(leaf_a) != str(leaves_b[pointer])
-    ]
+    return found
+
+
+_NOT_FOUND = object()
+"""Sentinel for `_absent_ancestor`: distinguishes "found an empty ancestor
+whose value happens to be `None`" from "found nothing"."""
+
+
+def _absent_ancestor(pointer: str, leaves_b: dict[str, object]) -> object:
+    """The nearest point along *pointer* that is an empty leaf in the other
+    body -- the reason nothing further down exists to look up there.
+
+    `_NOT_FOUND` when no ancestor is both present and empty, which means
+    `pointer` is missing from the other body for some other reason.
+    """
+    tokens = jsonutil.parse(pointer)
+    for depth in range(len(tokens) - 1, 0, -1):
+        prefix = jsonutil.build(tokens[:depth])
+        if prefix in leaves_b and jsonutil.is_empty(leaves_b[prefix]):
+            return leaves_b[prefix]
+    return _NOT_FOUND
+
+
+def _absent_form(leaf: object) -> str:
+    """The empty exactly as it was sent. `json.dumps` rather than `str`,
+    because a form that nulls a number wants `null` and not `None`."""
+    return json.dumps(leaf)
 
 
 def _find_source(

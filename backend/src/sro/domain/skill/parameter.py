@@ -67,6 +67,20 @@ class Parameter:
     supplier's address the way they would have on the screen instead of
     reciting an id."""
 
+    optional: bool = False
+    """Whether a run may leave this out.
+
+    Proved, not assumed: one demonstration filled this field and the other left
+    it alone, and both created the record. A field filled in every
+    demonstration there is stays required, because nothing has shown the task
+    works without it."""
+
+    absent_as: str | None = None
+    """What to send when nobody supplies it, exactly as the demonstration that
+    skipped it sent -- `"null"` for a number the form nulls, `""` for a text
+    control it empties. Never chosen here: a form that wants one and gets the
+    other rejects the write."""
+
     def __post_init__(self) -> None:
         if not self.name.isidentifier():
             raise InvariantViolation(f"parameter name {self.name!r} is not a valid identifier")

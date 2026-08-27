@@ -970,7 +970,7 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
         # Coarse, but better than a confident mis-parse of a format we do not model.
         return [Difference(step_index=index, site=TextBodySite(), value_a=body_a, value_b=body_b)]
 
-    if jsonutil.structure(document_a) != jsonutil.structure(document_b):
+    if not jsonutil.same_shape(document_a, document_b):
         raise InductionFailed(
             "the two runs sent differently-shaped request bodies; the flows diverged",
             step_index=index,

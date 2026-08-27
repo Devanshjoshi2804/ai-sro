@@ -96,3 +96,31 @@ def structure(value: JsonValue) -> object:
     if isinstance(value, list):
         return ("array", tuple(structure(item) for item in value))
     return ("scalar", type(value).__name__)
+
+
+def is_empty(value: object) -> bool:
+    """Whether this leaf is a field somebody left alone.
+
+    A form sends its whole record: what the operator skipped arrives as `null`,
+    or as `""` from a text control that was never focused. Both are absence
+    wearing the type the application chose for it.
+    """
+    return value is None or value == ""
+
+
+def same_shape(a: JsonValue, b: JsonValue) -> bool:
+    """Whether two bodies are the same request with different values in it.
+
+    Stricter than it looks. Every key must be in both -- a key one run did not
+    send is a different request, which is what `structure` was written to
+    catch. What is allowed is a leaf that is empty on one side: the same field,
+    filled once and skipped once, which is the ordinary way two people fill one
+    form.
+    """
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(same_shape(a[key], b[key]) for key in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(same_shape(x, y) for x, y in zip(a, b, strict=True))
+    if isinstance(a, dict | list) or isinstance(b, dict | list):
+        return False
+    return is_empty(a) or is_empty(b) or type(a) is type(b)

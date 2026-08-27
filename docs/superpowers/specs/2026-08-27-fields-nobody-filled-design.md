@@ -105,8 +105,16 @@ the recorder already captures in `attributes`) corroborate and are stored as
 knowledge, but never overrule what was actually done.
 
 **Binding a gesture to a field.** A `type` action is bound to the body key whose
-value equals what was typed, in that run's own write. Exact match only; a value
-that appears under two keys binds to neither and the step stays unconditional.
+value equals what was typed, in that run's own write.
+
+Compared after normalisation, because a form is allowed to tidy what it was
+given: `Warehouse Equipment Type` uppercases as you type (`text-transform` in
+its own attributes), a code field trims, a number field sends `1` for what was
+typed as `"1"`. So both sides are compared case-folded, trimmed, and with a
+numeric value read as its digits. Nothing looser — a value that merely *contains*
+another is not a match, and a value that binds to two keys binds to neither, so
+the step stays unconditional and an unmatched one still refuses the pair.
+
 This is the same instrument `Substitution` and the `sites` module already use to
 prove parameters (`application/induction/sites.py`), applied one level earlier.
 

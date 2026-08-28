@@ -29,7 +29,7 @@ from sro.domain.execution.run import (
     StepDisposition,
     StepOutcome,
 )
-from sro.domain.knowledge.entry import EntryKind
+from sro.domain.knowledge.entry import EntryKind, KnowledgeEntry
 from sro.domain.recording.events import ActionKind
 from sro.domain.shared.errors import Conflict
 from sro.domain.skill.assertion import Assertion, AssertionKind
@@ -37,7 +37,7 @@ from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.plan import Template, UiPlan
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
-from sro.domain.skill.track_record import TrackRecord
+from sro.domain.skill.track_record import REQUIRED_CLEAN_RUNS, TrackRecord
 from tests import factories as f
 from tests.unit.fakes import (
     FakeClock,
@@ -557,3 +557,160 @@ async def test_three_real_runs_that_escalated_leave_a_repaired_version_behind() 
     plan = skill.version(2).steps[0].ui_plan
     assert plan is not None
     assert plan.locators[0].strategy is LocatorStrategy.TEXT
+
+
+async def _alternating(store: _Witnessed, runs: int) -> Run:
+    """Runs that cannot agree: the control is reached by the fallback on some
+    and found where the demonstration put it on the others.
+
+    This is the drift that never settles and never stops costing anything. It
+    works every time -- escalation carries it -- and the store's newest claims
+    contradict each other forever, so nothing is ever adopted and the skill can
+    never climb.
+    """
+    for turn in range(runs):
+        matched = LocatorStrategy.CSS_PATH if turn % 2 == 0 else LocatorStrategy.COMPONENT
+        run = await store.saw(_call(), _click(matched_by=matched.value))
+    return run
+
+
+def _asked(store: _Witnessed) -> KnowledgeEntry:
+    """The one question raised about a control being reached two ways."""
+    asked = [
+        entry
+        for entry in store.uow.knowledge.rows.values()
+        if entry.kind is EntryKind.QUESTION and "reached two ways" in entry.key
+    ]
+    assert len(asked) == 1, f"asked {len(asked)} times"
+    return asked[0]
+
+
+def _questions(store: _Witnessed) -> list[KnowledgeEntry]:
+    return [e for e in store.uow.knowledge.rows.values() if e.kind is EntryKind.QUESTION]
+
+
+async def test_a_control_reached_two_ways_is_asked_about_rather_than_settled_on() -> None:
+    """The drift that never settles, and the whole cost of not saying so.
+
+    A majority is not evidence. A locator that only ever matches when the taught
+    one failed has not proved itself -- it has proved the taught one unreliable,
+    which is a different fact. So the counts go to somebody who works there.
+    """
+    skill = _skill(_version())
+    store = await _Witnessed(skill).ready()
+
+    run = await _alternating(store, SETTLED * 2)
+
+    assert await store.repair(run) is None, "never adopted on a count"
+    assert len(skill.versions) == 1
+    question = _asked(store)
+    assert "Which should this skill lead with?" in str(question.body["question"])
+    because = " ".join(str(reason) for reason in question.body["because"])
+    assert f"{SETTLED} of the last {SETTLED * 2} verified runs" in because, "the counts"
+    assert str(REQUIRED_CLEAN_RUNS) in because, (
+        "and the cost -- nobody can answer a bare question about a locator, and "
+        "everybody can answer one that says the skill cannot get faster"
+    )
+    assert FALLBACK.describe() in question.body["options"], (
+        "answerable with the locator, because that answer is what adopts it"
+    )
+
+
+async def test_the_same_contested_control_is_asked_about_once() -> None:
+    """Keyed by the control, so five skills contesting one button ask once --
+    and one skill contesting it for a month asks once too."""
+    skill = _skill(_version())
+    store = await _Witnessed(skill).ready()
+
+    await store.repair(await _alternating(store, SETTLED * 2))
+    await store.repair(await _alternating(store, SETTLED * 2))
+
+    assert len(_questions(store)) == 1
+
+
+async def test_a_control_nobody_has_seen_enough_of_is_not_asked_about() -> None:
+    """Two observations that disagree are a control nobody has watched yet."""
+    skill = _skill(_version())
+    store = await _Witnessed(skill).ready()
+
+    run = await _alternating(store, 2)
+
+    assert await store.repair(run) is None
+    assert _questions(store) == [], (
+        "no pattern yet, and asking about noise is how asking stops working"
+    )
+
+
+async def test_a_settled_drift_with_one_flake_in_it_settles_rather_than_asks() -> None:
+    """The asymmetry, and why it is there.
+
+    Three runs said the control moved and the fourth found it where it was
+    taught. That is not two facts, it is one fact and a slow page -- and asking
+    about it would leave a question on somebody's screen that the next run makes
+    pointless. Both sides have to clear the bar adoption clears.
+    """
+    skill = _skill(_version())
+    store = await _Witnessed(skill).ready()
+    for _ in range(SETTLED):
+        await store.saw(_call(), _click())
+    run = await store.saw(_call(), _click(matched_by=LocatorStrategy.COMPONENT.value))
+
+    assert await store.repair(run) is None, "the newest three no longer agree"
+    assert _questions(store) == [], "and one dissenter is not a contest"
+
+    for _ in range(SETTLED):
+        run = await store.saw(_call(), _click())
+        assert _questions(store) == [], "still nothing anybody needs to answer"
+    assert await store.repair(run) == 2, "it settles on its own, the way it always did"
+
+
+async def test_an_answer_adopts_the_locator_down_the_path_evidence_takes() -> None:
+    """One way a locator changes, one audit trail.
+
+    A person settling a contest reaches the same repair a settled drift does:
+    the same new version, the same empty record, the same inherited rung.
+    """
+    skill = _skill(_version())
+    store = await _Witnessed(skill).ready()
+    await store.repair(await _alternating(store, SETTLED * 2))
+
+    await store.ask.answer(
+        CTX,
+        system=SYSTEM,
+        key=_asked(store).key,
+        chosen=FALLBACK.describe(),
+        by="supervisor",
+    )
+
+    number = await store.repair(await _alternating(store, 2))
+
+    assert number == 2
+    fresh = skill.version(2)
+    plan = fresh.steps[1].ui_plan
+    assert plan is not None
+    assert plan.locators[0] is FALLBACK
+    assert fresh.provenance.induced_by == REPAIR, "a person chose it; nobody demonstrated it"
+    assert "answered by hand" in fresh.provenance.note, "and the note says which it was"
+    assert fresh.track_record == TrackRecord()
+    assert fresh.stage is PromotionStage.ASSISTED
+    assert fresh is skill.runnable
+
+
+async def test_an_answer_to_leave_it_alone_leaves_the_skill_alone() -> None:
+    """Silence and refusal are both fine: the runs go on working and go on
+    escalating. What was broken was nobody being told."""
+    skill = _skill(_version())
+    store = await _Witnessed(skill).ready()
+    await store.repair(await _alternating(store, SETTLED * 2))
+
+    await store.ask.answer(
+        CTX,
+        system=SYSTEM,
+        key=_asked(store).key,
+        chosen="leave it as it is and keep escalating",
+        by="supervisor",
+    )
+
+    assert await store.repair(await _alternating(store, 2)) is None
+    assert len(skill.versions) == 1
+    assert len({entry.key for entry in _questions(store)}) == 1, "and never asked again"

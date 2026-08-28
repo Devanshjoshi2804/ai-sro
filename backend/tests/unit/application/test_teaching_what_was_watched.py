@@ -334,15 +334,17 @@ async def test_a_taught_candidate_cannot_be_dismissed_out_from_under_the_skill()
     assert uow.candidates.rows["cnd-1"].status is CandidateStatus.TAUGHT
 
 
-async def _seen_twice(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidate:
-    """The same task, done on Tuesday and again on Wednesday."""
-    candidate = await _stored(uow, blobs)
-    later = START + timedelta(days=1)
+async def _again(
+    uow: FakeUnitOfWork, blobs: FakeBlobStore, candidate: TaskCandidate, *, days: int
+) -> TaskCandidate:
+    """The same task, done again some days later."""
+    later = START + timedelta(days=days)
+    key = f"acme/clerk/2026-03-0{1 + days}/bat-{1 + days}.ndjson"
     payload = b"".join(json.dumps(event).encode() + b"\n" for event in _events_at(later))
-    blobs.objects["acme/clerk/2026-03-02/bat-2.ndjson"] = payload
+    blobs.objects[key] = payload
     await uow.observations.add(
         ObservationBatch(
-            id=BatchId("bat-2"),
+            id=BatchId(f"bat-{1 + days}"),
             tenant_id=f.TENANT,
             device_id=DeviceId("dev-1"),
             principal_id=f.OPERATOR,
@@ -350,7 +352,7 @@ async def _seen_twice(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidat
             started_at=later,
             ended_at=later + timedelta(minutes=1),
             received_at=later,
-            uri="s3://sro-artifacts/acme/clerk/2026-03-02/bat-2.ndjson",
+            uri=f"s3://sro-artifacts/{key}",
             event_count=3,
             byte_count=len(payload),
         )
@@ -360,13 +362,18 @@ async def _seen_twice(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidat
             started_at=later,
             ended_at=later + timedelta(seconds=10),
             host="wms.acme.test",
-            batch_ids=(BatchId("bat-2"),),
+            batch_ids=(BatchId(f"bat-{1 + days}"),),
             gestures=1,
             calls=1,
         )
     )
     await uow.candidates.save(candidate)
     return candidate
+
+
+async def _seen_twice(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidate:
+    """The same task, done on Tuesday and again on Wednesday."""
+    return await _again(uow, blobs, await _stored(uow, blobs), days=1)
 
 
 def _events_at(at: datetime) -> list[dict[str, object]]:
@@ -411,6 +418,37 @@ async def test_a_task_watched_twice_is_learned_by_diffing_the_two_doings() -> No
     assert second is not None, "the second doing was captured and not used"
     assert first != second, "one recording was diffed against itself"
     assert induce.rest == [()], "a third doing appeared from a candidate seen twice"
+
+
+async def test_every_doing_is_handed_over_even_though_only_two_are_diffed() -> None:
+    """The two freshest are the pair, because the screens move and the freshest
+    doing is the one most likely to still find its controls. The rest go too,
+    read for one thing: whether some doing left a field empty.
+
+    An operator created the same kind of work area three times and left three
+    priorities empty the first time. Built from the two most recent episodes
+    alone, nothing induction looked at had ever seen those fields empty, and
+    the skill demanded all three.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    candidate = await _again(uow, blobs, await _seen_twice(uow, blobs), days=2)
+    induce = _Induces()
+
+    await _teach(uow, blobs, _NoUnderstanding(), induce, now=START + timedelta(days=4)).execute(
+        CTX, candidate_id=candidate.id
+    )
+
+    first, second = induce.pairs[0]
+    rest = induce.rest[0]
+    assert len(rest) == 1, "the oldest doing was built and then dropped on the floor"
+    assert first not in rest and second not in rest, "a diffed run was handed over twice"
+    # Freshest first, still: the pair is the two most recent, and the oldest is
+    # the one read only for what somebody left empty.
+    stored = [await uow.recordings.get(f.TENANT, ident) for ident in (first, second, *rest)]  # type: ignore[arg-type]
+    watched = [recording.started_at for recording in stored]
+    assert watched == sorted(watched, reverse=True), (
+        "the oldest doing was diffed and a fresher one read only for emptiness"
+    )
 
 
 async def test_a_task_watched_once_is_read_rather_than_diffed() -> None:

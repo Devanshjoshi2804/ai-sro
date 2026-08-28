@@ -506,9 +506,11 @@ def _skipped(name: str) -> tuple:
     return (_typing(0, _WORK_AREA, name), _saving(1, {"workArea": name, "deltaPriority": None}))
 
 
-async def _induce(first: tuple, second: tuple) -> SkillVersion:
+async def _induce(first: tuple, second: tuple, *others: tuple) -> SkillVersion:
     uow = FakeUnitOfWork()
-    for ident, frames in (("rec-a", first), ("rec-b", second)):
+    named = [("rec-a", first), ("rec-b", second)]
+    named += [(f"rec-{index}", frames) for index, frames in enumerate(others)]
+    for ident, frames in named:
         recording = f.recording(frames=0, id=RecordingId(ident))
         for frame in frames:
             recording.append_frame(frame)
@@ -520,7 +522,12 @@ async def _induce(first: tuple, second: tuple) -> SkillVersion:
         FakeClock(),
         FakeIdFactory(),
         AskAbout(uow, RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder())),
-    ).execute(CTX, first=RecordingId("rec-a"), second=RecordingId("rec-b"))
+    ).execute(
+        CTX,
+        first=RecordingId("rec-a"),
+        second=RecordingId("rec-b"),
+        others=tuple(RecordingId(ident) for ident, _ in named[2:]),
+    )
 
     return next(iter(uow.skills.rows.values())).versions[-1]
 
@@ -579,6 +586,158 @@ async def test_the_save_that_carries_the_optional_field_is_not_itself_conditiona
 
     saving = next(s for s in version.steps if s.network_plan is not None)
     assert saving.when is None
+
+
+_VOICE_CODE = f.fingerprint(node_id="voice-code", accessible_name="Voice Code")
+_ABSOLUTE = f.fingerprint(node_id="absolute", accessible_name="Absolute Priority")
+_HOME = f.fingerprint(node_id="home", accessible_name="Home Work Area Absolute Priority")
+_DESCRIPTION = f.fingerprint(node_id="description", accessible_name="Description")
+
+
+def _a_whole_form(name: str, description: str, voice: str, home: int, absolute: int) -> tuple:
+    """A work area created with every priority box filled in."""
+    return (
+        _typing(0, _WORK_AREA, name),
+        _typing(1, _DESCRIPTION, description),
+        _typing(2, _VOICE_CODE, voice),
+        _typing(3, _HOME, str(home)),
+        _typing(4, _ABSOLUTE, str(absolute)),
+        _saving(
+            5,
+            {
+                "workArea": name,
+                "workAreaDescription": description,
+                "voiceCode": voice,
+                "homeWorkAreaAbsolutePriority": home,
+                "absolutePriority": absolute,
+            },
+        ),
+    )
+
+
+def _just_the_name(name: str, description: str) -> tuple:
+    """The first work area anybody made on this screen: a name, a description,
+    and every priority box left exactly as the form drew it. The warehouse took
+    it -- 201, same as the other two."""
+    return (
+        _typing(0, _WORK_AREA, name),
+        _typing(1, _DESCRIPTION, description),
+        _saving(
+            2,
+            {
+                "workArea": name,
+                "workAreaDescription": description,
+                "voiceCode": "",
+                "homeWorkAreaAbsolutePriority": None,
+                "absolutePriority": None,
+            },
+        ),
+    )
+
+
+async def _the_third_time_lucky() -> SkillVersion:
+    """Three doings of one task, freshest first, as teaching hands them over."""
+    return await _induce(
+        _a_whole_form("TWOTEST", "testing again", "7", 8, 9),
+        _a_whole_form("THREE TE", "testing for ai sro", "4", 5, 6),
+        _just_the_name("NEWTESTS", "the first one"),
+    )
+
+
+async def test_a_field_the_oldest_doing_left_empty_is_optional() -> None:
+    """The evidence that moved this rule. An operator made the same kind of
+    work area three times: the first with nothing but a name and a description,
+    the two after it with every priority filled in. All three were accepted.
+
+    Diffing only the two most recent proves those priorities *vary*, and
+    nothing it looks at has ever seen them empty -- so the skill demanded all
+    three, and the doing that proves otherwise was never opened. Whether a
+    field may be left out is a fact about the whole history of a task.
+    """
+    version = await _the_third_time_lucky()
+
+    optional = {p.name: p.absent_as for p in version.parameters if p.optional}
+    assert optional == {
+        "voice_code": '""',
+        "home_work_area_absolute_priority": "null",
+        "absolute_priority": "null",
+    }
+
+
+async def test_the_absent_form_is_the_one_that_doing_actually_sent() -> None:
+    """Never chosen. This form empties its Voice Code and nulls its two
+    priorities, and a `null` arriving where a form wants `""` is a validation
+    error nobody demonstrated."""
+    version = await _the_third_time_lucky()
+
+    voice = next(p for p in version.parameters if p.name == "voice_code")
+    assert voice.absent_as == '""', "the empty string the oldest doing sent, not a null"
+    assert voice.observed_values == ("7", "4"), "both doings that filled it, and no absence"
+
+
+async def test_the_steps_that_fill_them_are_conditional_on_them() -> None:
+    """Both diffed runs typed into these boxes, so unlike Delta Priority the
+    gestures were never dropped -- they are ordinary aligned steps. They still
+    only happen when somebody supplies the value: typing empty into a box every
+    demonstration filled is how a form raises an error nobody triggered."""
+    version = await _the_third_time_lucky()
+
+    assert {step.when for step in version.steps if step.when} == {
+        "voice_code",
+        "home_work_area_absolute_priority",
+        "absolute_priority",
+    }
+    for step in version.steps:
+        if step.when is not None:
+            assert step.ui_plan is not None
+            assert step.ui_plan.value is not None
+            assert step.ui_plan.value.raw == f"${{{step.when}}}"
+    saving = next(step for step in version.steps if step.network_plan is not None)
+    assert saving.when is None, "the write goes out either way, carrying the absent form"
+
+
+async def test_a_key_the_oldest_doing_never_sent_is_still_a_divergence() -> None:
+    """The line this does not move. An absent key is a structural disagreement,
+    not an optional field -- and a doing read only for emptiness cannot say
+    anything about a key it never sent, so the field stays required."""
+    version = await _induce(
+        _a_whole_form("TWOTEST", "testing again", "7", 8, 9),
+        _a_whole_form("THREE TE", "testing for ai sro", "4", 5, 6),
+        (
+            _typing(0, _WORK_AREA, "NEWTESTS"),
+            _saving(1, {"workArea": "NEWTESTS", "workAreaDescription": "the first one"}),
+        ),
+    )
+
+    assert [p.name for p in version.parameters if p.optional] == []
+
+
+async def test_two_doings_that_disagree_about_the_absent_form_leave_it_required() -> None:
+    """One sent `null` and the other `""` at the same key. There is no single
+    thing to send when nobody supplies the field, and picking one is the
+    choosing this whole rule exists to avoid."""
+    version = await _induce(
+        _a_whole_form("TWOTEST", "testing again", "7", 8, 9),
+        _a_whole_form("THREE TE", "testing for ai sro", "4", 5, 6),
+        _just_the_name("NEWTESTS", "the first one"),
+        (
+            _typing(0, _WORK_AREA, "FOURTH"),
+            _saving(
+                1,
+                {
+                    "workArea": "FOURTH",
+                    "workAreaDescription": "another",
+                    "voiceCode": "",
+                    "homeWorkAreaAbsolutePriority": "",
+                    "absolutePriority": None,
+                },
+            ),
+        ),
+    )
+
+    optional = {p.name for p in version.parameters if p.optional}
+    assert "home_work_area_absolute_priority" not in optional, "an absent form was chosen"
+    assert optional == {"voice_code", "absolute_priority"}
 
 
 def test_a_step_conditional_on_a_parameter_nobody_declared_is_refused() -> None:

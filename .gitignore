@@ -32,3 +32,6 @@ scratch/
 # On disk so the services work; never in history.
 backend/.sro-vault
 backend/worker.log
+
+# Subagent-driven-development scratch (ledgers, briefs, review packages)
+.superpowers/

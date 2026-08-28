@@ -11,6 +11,23 @@ from sro.domain.skill.lookup import Options
 from sro.domain.skill.transform import Transform
 
 
+def json_type_of(value: object) -> str:
+    """What JSON calls this Python value: the vocabulary both the diff and the
+    renderer use to say what a slot holds. `bool` before `int`, because in
+    Python a boolean is one."""
+    match value:
+        case bool():
+            return "boolean"
+        case int() | float():
+            return "number"
+        case str():
+            return "string"
+        case None:
+            return "null"
+        case _:
+            return "structure"
+
+
 class ParameterKind(StrEnum):
     INPUT = "input"
     """Supplied by whoever runs the skill."""
@@ -81,6 +98,24 @@ class Parameter:
     skipped it sent -- `"null"` for a number the form nulls, `""` for a text
     control it empties. Never chosen here: a form that wants one and gets the
     other rejects the write."""
+
+    unquoted_as: str | None = None
+    """The JSON type the body slot holds, where the template leaves that slot
+    without quotes round it -- `"number"`, `"boolean"`, `"string"`.
+
+    Two separate facts decide the two halves of this. Whether the slot can be
+    quoted is decided by the absent form: a quoted slot renders `"null"`, the
+    four characters, where the demonstration sent a JSON `null`. What a
+    supplied value has to be is decided by the type the other demonstration
+    actually filled -- and those disagree in both directions. A form that
+    nulls an untouched *text* box gives a text field an unquoted slot, and a
+    value going in there is JSON-encoded rather than pasted in raw; a number
+    field whose form empties to `""` keeps its quotes, and its slot renders
+    the empty string the demonstration sent.
+
+    `None` where every site this parameter fills is quoted, which is every
+    required field: nothing has shown what such a field's absence looks like,
+    so its slot keeps the quotes the recorded body had."""
 
     def __post_init__(self) -> None:
         if not self.name.isidentifier():

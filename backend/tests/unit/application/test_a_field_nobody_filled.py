@@ -29,7 +29,6 @@ from sro.application.induction.diff import (
     optional_fills,
     parameterise,
 )
-from sro.application.induction.emit import _unquoted_parameters
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.induce_skill import InduceSkill, _conditionals
 from sro.application.induction.sites import JsonBodySite, substitute_body
@@ -115,6 +114,7 @@ def test_a_field_filled_once_becomes_a_difference_with_its_absent_form() -> None
             value_a="1",
             value_b="",
             absent_as="null",
+            filled_as="number",
         )
     ]
 
@@ -149,6 +149,7 @@ def test_a_group_left_null_is_the_same_optional_field_one_level_down() -> None:
             value_a="1",
             value_b="",
             absent_as="null",
+            filled_as="number",
         )
     ]
 
@@ -170,6 +171,7 @@ def test_a_group_left_null_is_optional_however_the_runs_happen_to_be_ordered() -
             value_a="",
             value_b="1",
             absent_as="null",
+            filled_as="number",
         )
     ]
 
@@ -696,8 +698,8 @@ def test_two_fields_nobody_filled_are_two_parameters_with_two_absent_forms() -> 
     template = Template(
         substitute_body(
             json.dumps(filled),
-            {sub.site: f"${{{sub.parameter}}}" for sub in parameterisation.substitutions[0]},
-            unquoted=_unquoted_parameters(parameterisation.parameters),
+            parameterisation.for_step(0),
+            unquoted=parameterisation.unquoted_sites(0),
         )
     )
     supplied = json.loads(template.render({"delta_priority": "4", "distance_threshold": "7"}))
@@ -731,8 +733,8 @@ def test_two_optional_fields_that_shared_a_value_are_still_two_parameters() -> N
     template = Template(
         substitute_body(
             json.dumps(filled),
-            {sub.site: f"${{{sub.parameter}}}" for sub in parameterisation.substitutions[0]},
-            unquoted=_unquoted_parameters(parameterisation.parameters),
+            parameterisation.for_step(0),
+            unquoted=parameterisation.unquoted_sites(0),
         )
     )
     one_of_them = json.loads(template.render({"delta_priority": "7", "distance_threshold": "null"}))
@@ -817,7 +819,9 @@ def test_substitute_body_unquotes_only_the_parameter_named_for_it() -> None:
         JsonBodySite("/voiceCode"): "${voice_code}",
     }
 
-    rendered = substitute_body(body, replacements, unquoted=frozenset({"delta_priority"}))
+    rendered = substitute_body(
+        body, replacements, unquoted=frozenset({JsonBodySite("/deltaPriority")})
+    )
     template = Template(rendered)
 
     filled = json.loads(template.render({"delta_priority": "4", "voice_code": "9"}))
@@ -827,6 +831,123 @@ def test_substitute_body_unquotes_only_the_parameter_named_for_it() -> None:
     absent = json.loads(template.render({"delta_priority": "null", "voice_code": "null"}))
     assert absent["deltaPriority"] is None, "unquoted: the demonstration's own JSON null"
     assert absent["voiceCode"] == "null", "left quoted: still a JSON string"
+
+
+async def test_a_text_field_the_form_nulls_is_a_text_field() -> None:
+    """`null` is how this form says "nobody touched it", whatever kind of
+    control it is -- so the absent form says nothing about what goes there when
+    somebody does type. Read as "not a string, therefore a number", a note
+    reading `check dock 9` went into the body raw and the write was not JSON
+    at all.
+
+    Which quotes the *slot* has is still the absent form's business: `null`
+    cannot be sent from inside a pair of them. What the demonstration filled
+    decides what a supplied value has to be -- and here that is text."""
+    version = await _induce(
+        (
+            _typing(0, _WORK_AREA, "TWOTEST"),
+            _typing(1, _DELTA_PRIORITY, "check dock 4"),
+            _saving(2, {"workArea": "TWOTEST", "note": "check dock 4"}),
+        ),
+        (
+            _typing(0, _WORK_AREA, "THREETE"),
+            _saving(1, {"workArea": "THREETE", "note": None}),
+        ),
+    )
+
+    note = next(p for p in version.parameters if p.name == "note")
+    assert note.absent_as == "null", "what the run that skipped it sent"
+    assert note.unquoted_as == "string", "what the run that filled it sent"
+
+
+def test_a_number_field_the_form_empties_keeps_its_quotes() -> None:
+    """The mirror, and the reason the quotes cannot be decided from the filled
+    type either: this form empties its number box to `""` rather than nulling
+    it. Unquoted on the strength of the `1`, the slot renders `{"qty":}` on
+    every run that leaves the field out -- which is not JSON."""
+    parameterisation = parameterise(
+        _run({"workArea": "TWOTEST", "qty": 1}), _run({"workArea": "TWOTEST", "qty": ""})
+    )
+
+    qty = next(p for p in parameterisation.parameters if p.name == "qty")
+    assert qty.absent_as == '""'
+    assert qty.unquoted_as is None, 'a quoted slot: `""` is what it has to render'
+    template = Template(
+        substitute_body(
+            json.dumps({"workArea": "TWOTEST", "qty": 1}),
+            parameterisation.for_step(0),
+            unquoted=parameterisation.unquoted_sites(0),
+        )
+    )
+    assert json.loads(template.render({"work_area": "TWOTEST", "qty": ""}))["qty"] == ""
+
+
+def _note_version() -> SkillVersion:
+    """The version the test above induces, written out: `note` unquoted so its
+    absence can be a JSON null, and text so a supplied value is text."""
+    return f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                network_plan=f.network_plan(
+                    url=Template(URL),
+                    body=Template('{"workArea":"${work_area}","note":${note}}'),
+                    headers=(
+                        HeaderPlan(
+                            name="cookie",
+                            sensitivity=Sensitivity.SESSION,
+                            credential_ref=_COOKIE_REF,
+                        ),
+                    ),
+                ),
+            ),
+        ),
+        parameters=(
+            f.parameter(name="work_area", observed_values=("ONE", "TWO")),
+            f.parameter(
+                name="note",
+                optional=True,
+                absent_as="null",
+                unquoted_as="string",
+                observed_values=("check dock 4",),
+            ),
+        ),
+    )
+
+
+async def _sent(parameters: dict[str, str], version: SkillVersion) -> dict[str, object]:
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    await _promoted(uow, version, PromotionStage.ASSISTED)
+
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"), parameters=parameters, authorized_by="supervisor"
+        ),
+    )
+
+    assert len(http.sent) == 1
+    body = http.sent[0]["body"]
+    assert isinstance(body, str)
+    return dict(json.loads(body))
+
+
+async def test_a_value_supplied_for_an_unquoted_text_field_arrives_as_text() -> None:
+    """The slot holds JSON, so the value goes in as the JSON of the type the
+    demonstration filled it with -- read off what actually left the process.
+    Pasted in raw it is `{"note":check dock 9}`, which no warehouse parses."""
+    assert await _sent({"work_area": "NEWAREA", "note": "check dock 9"}, _note_version()) == {
+        "workArea": "NEWAREA",
+        "note": "check dock 9",
+    }
+
+
+async def test_an_unquoted_text_field_nobody_supplied_still_sends_the_null() -> None:
+    """And the reason its slot is unquoted in the first place: the run that
+    skipped this field sent a real JSON `null`, not the four characters."""
+    sent = await _sent({"work_area": "NEWAREA"}, _note_version())
+    assert sent["note"] is None, "a real JSON null, not the string 'null'"
 
 
 def test_an_optional_parameter_nobody_supplied_still_runs_but_a_required_one_does_not() -> None:
@@ -860,7 +981,9 @@ def test_substitute_body_does_not_unquote_a_field_that_only_looks_like_the_marke
     body = json.dumps({"workArea": "TWOTEST", "deltaPriority": 1, "note": "${delta_priority}"})
     replacements = {JsonBodySite("/deltaPriority"): "${delta_priority}"}
 
-    rendered = substitute_body(body, replacements, unquoted=frozenset({"delta_priority"}))
+    rendered = substitute_body(
+        body, replacements, unquoted=frozenset({JsonBodySite("/deltaPriority")})
+    )
 
     assert rendered == (
         '{"workArea":"TWOTEST","deltaPriority":${delta_priority},"note":"${delta_priority}"}'

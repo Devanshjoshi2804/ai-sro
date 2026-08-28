@@ -787,7 +787,15 @@ class ExecuteStep:
         # One run cannot mean two things depending on which medium performs
         # it -- and an empty in an unquoted slot renders `{"deltaPriority":}`,
         # which is not JSON at all.
+        #
+        # And where a *text* field is the one the form nulls, its slot is
+        # unquoted too -- that is the only way `null` can be sent at all -- so
+        # a value supplied for it carries its own quotes into the body:
+        # `check dock 9` pasted in raw is not JSON, and a value carrying a `"`
+        # would be writing the rest of the body itself. Only the body gets the
+        # encoded form; the same value in a URL segment or a header is text.
         rendered = dict(values)
+        encoded: dict[str, str] = {}
         for parameter in parameters:
             if (
                 parameter.optional
@@ -798,10 +806,12 @@ class ExecuteStep:
                 rendered[parameter.name] = (
                     decoded if isinstance(decoded, str) else parameter.absent_as
                 )
+            elif parameter.unquoted_as == "string" and parameter.name in rendered:
+                encoded[parameter.name] = json.dumps(rendered[parameter.name])
 
         try:
             url = plan.url.render(rendered)
-            body = plan.body.render(rendered) if plan.body is not None else None
+            body = plan.body.render({**rendered, **encoded}) if plan.body is not None else None
         except KeyError as missing:
             # The step that would have minted this value, not merely some step
             # that was withheld. Any withheld step used to count, so a step that

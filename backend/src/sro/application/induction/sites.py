@@ -223,7 +223,7 @@ def substitute_url(url: str, replacements: dict[Site, str]) -> str:
 
 
 def substitute_body(
-    body: str, replacements: dict[Site, str], *, unquoted: frozenset[str] = frozenset()
+    body: str, replacements: dict[Site, str], *, unquoted: frozenset[Site] = frozenset()
 ) -> str:
     if any(isinstance(site, TextBodySite) for site in replacements):
         return next(value for site, value in replacements.items() if isinstance(site, TextBodySite))
@@ -243,18 +243,22 @@ def substitute_body(
     # A field whose absent form is not itself a JSON string -- `null` for a
     # number the form nulls -- must send that form unrendered: a quoted
     # `"null"` is a string, and a form expecting a number rejects it. Such a
-    # leaf gets a `\x00name\x00` sentinel instead of its placeholder here, so
-    # the later unquoting step can find exactly this leaf and nothing else --
-    # a `\x00` byte is not something a form control lets an operator type, and
-    # `json.dumps` always escapes one to `\u0000`, so the marker's quoted form
-    # can only occur in the output where this function itself put it. Doing
-    # this with the placeholder text directly, `${name}`, would unquote any
-    # other field whose own value happened to read that.
+    # leaf gets a `\x00pointer\x00` sentinel instead of its placeholder here,
+    # so the later unquoting step can find exactly this leaf and nothing else
+    # -- a `\x00` byte is not something a form control lets an operator type,
+    # and `json.dumps` always escapes one to `\u0000`, so the marker's quoted
+    # form can only occur in the output where this function itself put it.
+    # Doing this with the placeholder text directly, `${name}`, would unquote
+    # any other field whose own value happened to read that.
+    #
+    # Keyed on the site rather than the parameter's name, because which leaves
+    # lose their quotes is a fact about those leaves: one parameter can fill a
+    # body number here and a URL segment there, and the name says nothing about
+    # which is which.
     markers: dict[str, str] = {}
     for pointer, placeholder in pointers.items():
-        name = placeholder[2:-1]
-        if name in unquoted:
-            marker = f"\x00{name}\x00"
+        if JsonBodySite(pointer) in unquoted:
+            marker = f"\x00{pointer}\x00"
             markers[marker] = placeholder
             jsonutil.set_value(document, pointer, marker)
         else:

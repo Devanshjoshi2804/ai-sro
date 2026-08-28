@@ -32,7 +32,7 @@ from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.network import CapturedRequest
 from sro.domain.recording.sensitivity import classify_header, is_replayable
-from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
+from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind, json_type_of
 from sro.domain.skill.transform import Transform
 
 _UNREMARKABLE = frozenset({"", "true", "false", "null", "0", "1"})
@@ -52,11 +52,27 @@ class Difference:
     or `""` from a text control nobody focused. Present only when exactly one
     of the two runs filled it, which is what makes the field optional."""
 
+    filled_as: str | None = None
+    """The JSON type of the leaf the run that filled this field actually sent.
+
+    Read off the value rather than inferred from the absence beside it: a form
+    that nulls an untouched box nulls a text box the same way it nulls a
+    number, and `null` says nothing about what goes there when somebody types.
+    Only a body leaf has one; a URL segment and a header are text either way."""
+
 
 @dataclass(frozen=True, slots=True)
 class Substitution:
     site: Site
     parameter: str
+
+    unquoted: bool = False
+    """Whether this site's placeholder is emitted without the quotes
+    `json.dumps` would put round it.
+
+    Decided here, per site, rather than per parameter name downstream: one
+    parameter can fill a body leaf, a URL segment and a header, and only the
+    body leaf is JSON at all."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +112,10 @@ class Parameterisation:
 
     def for_step(self, index: int) -> dict[Site, str]:
         return {sub.site: f"${{{sub.parameter}}}" for sub in self.substitutions.get(index, ())}
+
+    def unquoted_sites(self, index: int) -> frozenset[Site]:
+        """The sites in this step whose placeholder loses its quotes."""
+        return frozenset(sub.site for sub in self.substitutions.get(index, ()) if sub.unquoted)
 
 
 def _mutations(frame: ActionFrame) -> list[CapturedRequest]:
@@ -523,7 +543,11 @@ def parameterise(
 
         for difference in sites:
             substitutions.setdefault(difference.step_index, []).append(
-                Substitution(site=difference.site, parameter=name)
+                Substitution(
+                    site=difference.site,
+                    parameter=name,
+                    unquoted=renders_unquoted(difference),
+                )
             )
 
     _link_produced_values(paired_a, paired_b, parameters, substitutions, taken)
@@ -939,6 +963,12 @@ def _build_parameter(
                 observed_values=(value_a or value_b,),
                 optional=True,
                 absent_as=absent_as,
+                # What the run that filled it actually sent, carried through to
+                # execution: an unquoted slot holds JSON, so a value going into
+                # one has to be the type the demonstration proved it holds.
+                unquoted_as=next(
+                    (site.filled_as for site in sites if renders_unquoted(site)), None
+                ),
             )
         return Parameter(
             name=name,
@@ -1180,6 +1210,7 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
                 absent_as=_absent_form(leaf_a if empty_a else leaf_b)
                 if empty_a != empty_b
                 else None,
+                filled_as=json_type_of(leaf_b if empty_a else leaf_a),
             )
         )
     return found
@@ -1213,6 +1244,7 @@ def _absent_differences(
                 value_a=str(leaf_a),
                 value_b="",
                 absent_as=_absent_form(ancestor),
+                filled_as=json_type_of(leaf_a),
             )
         ]
     nested_in_b = {p: v for p, v in leaves_b.items() if p.startswith(pointer + "/")}
@@ -1227,6 +1259,7 @@ def _absent_differences(
                 value_a="",
                 value_b=str(v),
                 absent_as=_absent_form(leaf_a),
+                filled_as=json_type_of(v),
             )
             for p, v in nested_in_b.items()
         ]
@@ -1250,6 +1283,26 @@ def _absent_ancestor(pointer: str, leaves_b: dict[str, object]) -> object:
         if prefix in leaves_b and jsonutil.is_empty(leaves_b[prefix]):
             return leaves_b[prefix]
     return _NOT_FOUND
+
+
+def renders_unquoted(difference: Difference) -> bool:
+    """Whether this site's placeholder is emitted without quotes round it.
+
+    The absent form decides it, and only the absent form: the slot has to be
+    able to render what the demonstration that skipped the field sent, and a
+    quoted slot can only ever render a string. `null` there is a JSON null and
+    `""` is an empty string, so a field the form empties keeps its quotes and
+    a field the form nulls loses them.
+
+    What a *supplied* value has to look like in that slot is a different
+    question, answered by `filled_as` -- deciding the quotes from that instead
+    unquotes a slot whose absent form is `""` and renders `{"qty":}`.
+    """
+    return (
+        isinstance(difference.site, JsonBodySite)
+        and difference.absent_as is not None
+        and not isinstance(json.loads(difference.absent_as), str)
+    )
 
 
 def _absent_form(leaf: object) -> str:

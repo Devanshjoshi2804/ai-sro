@@ -43,6 +43,47 @@ difference is the whole design:
   old one stays readable, and reverting is choosing it again.
 - **It re-earns its place.** A repaired version starts at the bottom of the ladder
   and inherits none of the old one's clean streak. Surviving one run is not ten.
+  *(Half of that last bullet was wrong. It is left standing because the section
+  below is about why.)*
+
+## The sentence above that was wrong
+
+> A repaired version starts at the bottom of the ladder and inherits none of the
+> old one's clean streak.
+
+That is one sentence doing two jobs, and running them together is the whole
+mistake.
+
+**The streak** gates `AUTONOMOUS` — running with nobody watching. A repair must
+reset it. Surviving one run is not ten, and unattended is exactly where a bad
+repair would go unnoticed.
+
+**The stage** gates something else entirely: whether a human-authorised run may
+write at all. A repair has no business resetting that. At `ASSISTED` a named
+person authorises every run; that person is the safety, and they are still there.
+What they are looking at differs from the version they were happily pressing by a
+single locator that a verified run proved.
+
+Written as one sentence, "the bottom of the ladder" drops an `ASSISTED` version to
+`SHADOW`. `Skill.runnable` serves the newest version that is not `RECORDED`, so
+the repair takes over the moment it is saved — at the one rung where every write
+is produced and withheld. **A skill that repairs itself stops doing the work.**
+The operator's Tuesday task quietly creates nothing, and the only way back is
+clean runs that a withholding rung cannot produce. Self-repair would punish a
+skill for healing, which inverts the point of building it.
+
+**The rule, corrected: a repaired version inherits the stage of the version it
+repairs, capped below `AUTONOMOUS`, and always starts with an empty track
+record.** Repairing a `SHADOW` version yields `SHADOW` — nothing was being sent,
+and a repair is not a reason to start. Repairing `ASSISTED` yields `ASSISTED`: the
+work continues, a human still presses. Repairing `AUTONOMOUS` yields `ASSISTED`,
+not `AUTONOMOUS` — a version nobody has watched must re-earn the right to act
+unwatched, and the cap is where "one run is not ten" actually belongs. The record
+is empty either way, so the climb back to `AUTONOMOUS` starts from zero.
+
+The rung is taken through the same `promote` the ladder uses, one step at a time,
+rather than assigned behind the guard that refuses a stage with no promoter and no
+time. What it names is the truth: the repair, and the run's clock.
 
 ## The decisions
 
@@ -95,6 +136,8 @@ demonstration.
 - A repair never invents a step that no run performed.
 - A vision-proposed gesture never becomes a skill without a person.
 - A repaired version never inherits the track record of the one it replaces.
+- A repaired version never stands higher than the one it repairs, and never higher
+  than `ASSISTED`.
 - Nothing is edited in place; a repair that was wrong is undone by promoting the
   older version.
 
@@ -104,6 +147,8 @@ demonstration.
   locator produces a new version whose plan names the locator that worked, with
   every other step byte-identical; a run that failed its assertions produces
   nothing; a vision-found control produces an offer rather than a version; the new
-  version starts at the bottom of the ladder with an empty streak.
+  version inherits the stage it repaired — `SHADOW` from `SHADOW`, `ASSISTED` from
+  `ASSISTED`, `ASSISTED` from `AUTONOMOUS` — with an empty streak, and is in every
+  case the version `Skill.runnable` then serves.
 - **Part 2** — not yet. It starts with the argument about capturing during a
   repair run, and that belongs in an ADR before any code.

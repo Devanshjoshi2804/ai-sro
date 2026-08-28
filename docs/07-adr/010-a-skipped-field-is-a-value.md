@@ -229,14 +229,51 @@ The costs, named rather than hidden:
   multi-line value in a JSON field; no form control an operator fills in
   produces one. Narrow it the day one does, by carrying the rest of the site
   kinds.
-- **A value can still add a query parameter the demonstration never sent.** A
-  URL slot substitutes raw text: supplying `X&limit=9999` for a query
-  parameter renders `?name=X&limit=9999&limit=25`, and `a/b` for a path
-  segment adds a segment. The same class as the JSON injection, in a different
-  syntax, and untouched by this decision — encoding on the way in is the fix
-  and it is not one line, because `substitute_url` records query values
-  decoded (`parse_qsl`) and path segments encoded (`url_path_segments` never
-  unquotes), so one uniform rule double-encodes half of them. Its own change.
+- ~~**A value can still add a query parameter the demonstration never sent.**~~
+  *Closed.* Supplying `X&limit=9999` for a query parameter rendered
+  `?name=X&limit=9999&limit=25`, and `a/b` for a path segment added a segment
+  — the same class as the JSON injection, in a different syntax. Closed the
+  way the body's was, by encoding rather than by refusing: an operator
+  searching for `Smith & Sons` deserves to have that work, and a value that
+  cannot be encoded into a URL at all is already refused by the control
+  character rule above.
+
+  What made it not one line is real and is why there are two rules rather
+  than one. The two site kinds hold their text in different vocabularies. A
+  query value is read back through `parse_qsl` and is therefore held
+  *decoded*, so what goes into it is escaped in form-urlencoding's own
+  delimiters — `%`, `&`, `=`, `+`, `;`, `#` — which is the syntax it will be
+  parsed out of again; a `%` there is a percent sign somebody typed, and
+  encoding it restores what the demonstration itself put on the wire. A path
+  segment is stored exactly as the demonstration sent it, because
+  `url_path_segments` never unquotes, so the text in one is *already*
+  percent-encoded and only the three characters the URL grammar itself breaks
+  on — `/`, `?`, `#` — may be touched. Encoding a path's `%` again is the
+  `ATTN%2520ALI` double-encoding `choices._searched` already carries a warning
+  about, and a uniform rule does exactly that to half of them.
+
+  A path segment can carry a structural break: a `/` splits one segment into
+  two, and a `?` or a `#` ends the path and starts a query or a fragment. It
+  is not a theoretical case — `a/b` is what made this a finding. But those
+  three are also the only ones it can carry, and they are safe to escape in
+  an already-encoded vocabulary precisely because an already-encoded value
+  cannot contain them bare: a segment with a literal `/` in it would have
+  been recorded as two segments. Everything else a path value carries —
+  `&`, `=`, a space, an accent, a `%` — adds no structure to a path and is
+  left alone.
+
+  `render_url` (`induction/sites.py`) splits the template at its first `?`
+  and renders each half with the same `Template` both halves came from, so
+  there is no second substitution syntax and nothing outside a placeholder is
+  rewritten. A skill induced before this renders byte-for-byte as it did,
+  which the test asserts by comparing against the plain substitution it
+  replaced rather than against a string written out by hand.
+
+  Narrowed, not closed, in one place: a value carrying a bare `%` that is not
+  a valid escape still goes into a *path* segment as it did before, because
+  there is no way to tell an operator's percent sign from the demonstration's
+  own escape once both are in the same slot. It mangles a value; it cannot
+  add a segment.
 - **Loop bounds count raw frame indices while step indices count aligned,
   post-`explode` steps.** Pre-existing, and reproducible independently of a
   conditional step at all — two non-evidential unmatched frames with no

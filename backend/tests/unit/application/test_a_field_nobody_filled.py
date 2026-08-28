@@ -88,8 +88,10 @@ def test_two_kinds_of_filled_value_still_disagree() -> None:
 
 
 def test_a_filled_group_and_a_null_group_are_the_same_shape() -> None:
-    """A whole group can be left alone the same way one field can: null for
-    the group's key rather than null for every key inside it."""
+    """Same request, different value in it -- so `same_shape` says yes. What
+    the diff can do with it is a different question, answered below: it
+    refuses, because the absent form of a group is not the absent form of the
+    leaves inside it."""
     assert jsonutil.same_shape({"extra": {"bar": 1}}, {"extra": None}) is True
 
 
@@ -133,48 +135,46 @@ def test_a_field_filled_once_is_optional_and_remembers_what_empty_looked_like() 
     assert parameter.observed_values == ("1",), "an absence is not a value somebody observed"
 
 
-def test_a_group_left_null_is_the_same_optional_field_one_level_down() -> None:
-    """One run fills a nested group; the other sends null for the whole thing
-    rather than for the field inside it. The leaf that varies is two pointers
-    deep, but what "left alone" looked like is still the empty group, not a
-    missing leaf -- so this reads the group's null, not a `KeyError`."""
-    run_a = _run({"workArea": "TWOTEST", "extra": {"bar": 1}})
-    run_b = _run({"workArea": "TWOTEST", "extra": None})
+def test_a_group_one_run_left_empty_is_refused_rather_than_guessed_at() -> None:
+    """The absent form of an *ancestor* is not the absent form of a leaf.
 
-    found = differences(run_a, run_b)
+    Run B sent `"lines": null`; it never sent a line item at all. Handing that
+    `null` down to `/lines/0/sku` and `/lines/0/qty` individually emitted
+    `{"ref":"${ref}","lines":[{"sku":${sku},"qty":${qty}}]}`, and a run
+    supplying neither sent `{"lines":[{"sku":null,"qty":null}]}` -- a shape
+    neither demonstration sent, and a blank order line in a WMS that takes it.
 
-    assert found == [
-        Difference(
-            step_index=0,
-            site=JsonBodySite("/extra/bar"),
-            value_a="1",
-            value_b="",
-            absent_as="null",
-            filled_as="number",
-        )
-    ]
+    One optional parameter holding the whole group would be the other honest
+    answer, and it is a parameter whose value is an object: no rule here can
+    check one against the slot it goes in. So the pair refuses, in a sentence.
+    """
+    run_a = _run({"ref": "R1", "lines": [{"sku": "ABC", "qty": 2}]})
+    run_b = _run({"ref": "R2", "lines": None})
+
+    with pytest.raises(InductionFailed, match="one sent a group there and the other left it"):
+        differences(run_a, run_b)
 
 
-def test_a_group_left_null_is_optional_however_the_runs_happen_to_be_ordered() -> None:
+def test_a_group_left_empty_is_refused_however_the_runs_happen_to_be_ordered() -> None:
     """Which recording landed as A and which as B is an accident of storage
-    order, not something an operator controls -- so the mirror of the case
-    above has to resolve the same way, not raise. Here it is `document_a`
-    that sent null for the whole group and `document_b` that filled it in."""
+    order, not something an operator controls, so the mirror has to resolve the
+    same way. Here it is `document_a` that sent null for the whole group."""
     run_a = _run({"workArea": "TWOTEST", "extra": None})
     run_b = _run({"workArea": "TWOTEST", "extra": {"bar": 1}})
 
-    found = differences(run_a, run_b)
+    with pytest.raises(InductionFailed, match="/extra"):
+        differences(run_a, run_b)
 
-    assert found == [
-        Difference(
-            step_index=0,
-            site=JsonBodySite("/extra/bar"),
-            value_a="",
-            value_b="1",
-            absent_as="null",
-            filled_as="number",
-        )
-    ]
+
+def test_one_leaf_under_an_emptied_group_is_refused_too() -> None:
+    """The single-leaf case looks harmless and is the same bug: nothing sent
+    `{"extra":{"bar":null}}` either. Pinned separately because it is the shape
+    the first version of this rule was written against and passed."""
+    run_a = _run({"workArea": "TWOTEST", "extra": {"bar": 1}})
+    run_b = _run({"workArea": "TWOTEST", "extra": None})
+
+    with pytest.raises(InductionFailed, match="a skill cannot yet express one"):
+        differences(run_a, run_b)
 
 
 def test_a_field_neither_run_filled_is_not_a_difference_at_all() -> None:

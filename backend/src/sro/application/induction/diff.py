@@ -1183,8 +1183,7 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
     found: list[Difference] = []
     for pointer, leaf_a in jsonutil.leaves(document_a):
         if pointer not in leaves_b:
-            found.extend(_absent_differences(index, pointer, leaf_a, leaves_b))
-            continue
+            raise InductionFailed(_group_left_empty(pointer), step_index=index)
 
         leaf_b = leaves_b[pointer]
         if str(leaf_a) == str(leaf_b):
@@ -1215,73 +1214,31 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
     return found
 
 
-_NOT_FOUND = object()
-"""Sentinel for `_absent_ancestor`: distinguishes "found an empty ancestor
-whose value happens to be `None`" from "found nothing"."""
+def _group_left_empty(pointer: str) -> str:
+    """Why a group one run filled and the other emptied is refused.
 
+    `same_shape` admits the pair -- `"lines": [{"sku": "ABC"}]` against
+    `"lines": null` is one request with a different value in it -- but nothing
+    here can express what comes out. The absent form of an *ancestor* is not
+    the absent form of the leaves under it: handing the group's `null` to each
+    leaf individually emitted `{"lines":[{"sku":${sku},"qty":${qty}}]}`, and a
+    run supplying neither sent `{"lines":[{"sku":null,"qty":null}]}` -- a blank
+    line item neither demonstration sent, which a WMS that accepts one turns
+    into a blank order line.
 
-def _absent_differences(
-    index: int, pointer: str, leaf_a: object, leaves_b: dict[str, object]
-) -> list[Difference]:
-    """`pointer` has nothing at that exact address in the other body.
-
-    Two honest reasons, mirror images of each other, both "the group was left
-    alone rather than filled out leaf by leaf" -- which run did the leaving
-    is not something either demonstration chose, so both directions have to
-    resolve the same way. Anything else missing is a real divergence and gets
-    a sentence, not a `KeyError`.
+    The honest alternative is one optional parameter holding the whole group,
+    whose absence sends the ancestor's own form. That is a parameter whose
+    value is an object, and every rule that keeps a supplied value from writing
+    the rest of the body -- `Parameter.rejects`, `_check_runnable` -- is written
+    for scalars. Refusing costs a pair nobody has demonstrated yet; guessing
+    costs a warehouse a record it never asked for.
     """
-    ancestor = _absent_ancestor(pointer, leaves_b)
-    if ancestor is not _NOT_FOUND:
-        # This run filled the group in; the other sent null for the whole
-        # thing instead of leaf by leaf, so the empty group one level up is
-        # this leaf's absent form.
-        return [
-            Difference(
-                step_index=index,
-                site=JsonBodySite(pointer),
-                value_a=str(leaf_a),
-                value_b="",
-                absent_as=_absent_form(ancestor),
-                filled_as=json_type_of(leaf_a),
-            )
-        ]
-    nested_in_b = {p: v for p, v in leaves_b.items() if p.startswith(pointer + "/")}
-    if jsonutil.is_empty(leaf_a) and nested_in_b:
-        # The mirror: this run left the whole group alone -- `pointer` is
-        # already the empty leaf -- and the other filled it in, leaf by leaf.
-        # One difference per leaf the other run actually sent.
-        return [
-            Difference(
-                step_index=index,
-                site=JsonBodySite(p),
-                value_a="",
-                value_b=str(v),
-                absent_as=_absent_form(leaf_a),
-                filled_as=json_type_of(v),
-            )
-            for p, v in nested_in_b.items()
-        ]
-    raise InductionFailed(
-        f"{pointer} is in one run's body and not reachable in the other's; "
-        "the demonstrations diverged",
-        step_index=index,
+    return (
+        f"the two runs disagree at {pointer}: one sent a group there and the other "
+        "left it empty. A whole group left empty is not a field left empty, and a "
+        "skill cannot yet express one -- demonstrate the pair with that group "
+        "filled in both runs"
     )
-
-
-def _absent_ancestor(pointer: str, leaves_b: dict[str, object]) -> object:
-    """The nearest point along *pointer* that is an empty leaf in the other
-    body -- the reason nothing further down exists to look up there.
-
-    `_NOT_FOUND` when no ancestor is both present and empty, which means
-    `pointer` is missing from the other body for some other reason.
-    """
-    tokens = jsonutil.parse(pointer)
-    for depth in range(len(tokens) - 1, 0, -1):
-        prefix = jsonutil.build(tokens[:depth])
-        if prefix in leaves_b and jsonutil.is_empty(leaves_b[prefix]):
-            return leaves_b[prefix]
-    return _NOT_FOUND
 
 
 def renders_unquoted(difference: Difference) -> bool:

@@ -108,9 +108,11 @@ def same_shape(a: JsonValue, b: JsonValue) -> bool:
     if isinstance(a, list) and isinstance(b, list):
         return len(a) == len(b) and all(same_shape(x, y) for x, y in zip(a, b, strict=True))
     if isinstance(a, dict | list) or isinstance(b, dict | list):
-        # A whole group can be skipped the same way one field can: null for the
-        # group's key rather than null for every key inside it. `is_empty` of a
-        # dict or list is always False, so this only fires when the *other*
-        # side is the one left empty.
+        # A group emptied on one side is still one request with a different
+        # value in it, so it is the same shape. Whether the *diff* can express
+        # it is a separate question, answered no: `_diff_body` refuses the pair
+        # rather than handing the group's absent form to each leaf inside it.
+        # `is_empty` of a dict or list is always False, so this only fires when
+        # the *other* side is the one left empty.
         return is_empty(a) or is_empty(b)
     return is_empty(a) or is_empty(b) or type(a) is type(b)

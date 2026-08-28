@@ -34,7 +34,7 @@ from sro.application.induction.diff import (
 )
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.induce_skill import InduceSkill, _conditionals
-from sro.application.induction.sites import JsonBodySite, substitute_body
+from sro.application.induction.sites import JsonBodySite, UrlQuerySite, substitute_body
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.observation.teach import TeachCandidate
@@ -762,6 +762,42 @@ def test_two_body_fields_the_runs_wrote_differently_are_two_parameters() -> None
         (JsonBodySite("/workArea"), "work_area"),
         (JsonBodySite("/slug"), "slug"),
     }
+
+
+def test_one_optional_field_sent_in_two_places_is_still_one_parameter() -> None:
+    """A form that puts Delta Priority in the query string as well as the body
+    sends it in two kinds of site, and only the body leaf carries an absent
+    form -- a query string has no way to spell `null`.
+
+    Keyed on the site, the two split: the URL half became a second parameter
+    with no absent form, so `_check_runnable` demanded a value for a field the
+    other half calls optional, and supplying 7 sent `?deltaPriority=7` beside a
+    body still carrying `"deltaPriority":null` -- a silent wrong write."""
+    request_a = f.request(
+        method="POST",
+        url=f"{URL}?deltaPriority=1",
+        request_body=f.body(json.dumps({"deltaPriority": 1})),
+    )
+    request_b = f.request(
+        method="POST",
+        url=f"{URL}?deltaPriority=",
+        request_body=f.body(json.dumps({"deltaPriority": None})),
+    )
+
+    parameterisation = parameterise(
+        (f.frame(0, requests=(request_a,)),), (f.frame(0, requests=(request_b,)),)
+    )
+
+    assert [(p.name, p.optional, p.absent_as) for p in parameterisation.parameters] == [
+        ("delta_priority", True, "null")
+    ]
+    assert {(sub.site, sub.parameter) for sub in parameterisation.substitutions[0]} == {
+        (JsonBodySite("/deltaPriority"), "delta_priority"),
+        (UrlQuerySite("deltaPriority"), "delta_priority"),
+    }
+    assert parameterisation.unquoted_sites(0) == frozenset({JsonBodySite("/deltaPriority")}), (
+        "the body leaf loses its quotes so it can render `null`; the URL is text either way"
+    )
 
 
 async def test_a_field_one_run_cleared_is_one_parameter_on_both_paths() -> None:

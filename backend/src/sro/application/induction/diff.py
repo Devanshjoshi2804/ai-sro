@@ -504,6 +504,24 @@ def parameterise(
         )
         groups.setdefault(key, []).append(difference)
 
+    # Keying on the site, though, splits one field that is sent in two places:
+    # a form that puts Delta Priority in the query string *and* the body sends
+    # `?deltaPriority=1` beside `{"deltaPriority":1}`, and only the body leaf
+    # carries an absent form -- a query string has no way to say `null`. Split,
+    # the URL site became a second, *required* parameter, and supplying 7 sent
+    # `?deltaPriority=7` with a body still carrying `"deltaPriority":null`.
+    #
+    # So a site with no form of its own rejoins the one that has one, when they
+    # agree on both values verbatim and there is exactly one such candidate.
+    # Verbatim because between two non-keystroke sites there is no form tidying
+    # anything, and exactly one because two candidates is real ambiguity.
+    for formless in [
+        key for key in groups if key[2] is None and not isinstance(key[3], ActionValueSite)
+    ]:
+        formed = [key for key in groups if key[2] is not None and key[:2] == formless[:2]]
+        if len(formed) == 1:
+            groups[formed[0]].extend(groups.pop(formless))
+
     # And here is where tidying is spent: a keystroke joins the one site whose
     # value it tidies to. It has to be exactly one -- typing that fits two
     # fields fits neither, the same rule `binding` already holds itself to.

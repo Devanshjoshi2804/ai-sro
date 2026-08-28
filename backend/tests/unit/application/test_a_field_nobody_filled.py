@@ -798,9 +798,7 @@ def test_a_gesture_align_excused_and_nothing_can_name_refuses_the_pair() -> None
     parameterisation = parameterise(filled, skipped)
     without_optional = replace(
         parameterisation,
-        parameters=tuple(
-            replace(p, optional=False, absent_as=None) for p in parameterisation.parameters
-        ),
+        parameters=tuple(replace(p, absent_as=None) for p in parameterisation.parameters),
     )
 
     with pytest.raises(InductionFailed, match="nothing in the diff calls that field optional"):
@@ -907,7 +905,6 @@ def _note_version() -> SkillVersion:
             f.parameter(name="work_area", observed_values=("ONE", "TWO")),
             f.parameter(
                 name="note",
-                optional=True,
                 absent_as="null",
                 unquoted_as="string",
                 observed_values=("check dock 4",),
@@ -963,7 +960,7 @@ def test_an_optional_parameter_nobody_supplied_still_runs_but_a_required_one_doe
 
     optional = f.skill_version(
         stage=PromotionStage.SHADOW,
-        parameters=(f.parameter(optional=True, absent_as="null"),),
+        parameters=(f.parameter(absent_as="null"),),
     )
     _check_runnable(optional, request)  # does not raise
 
@@ -991,14 +988,21 @@ def test_substitute_body_does_not_unquote_a_field_that_only_looks_like_the_marke
     )
 
 
-def test_an_optional_parameter_with_no_absent_form_is_refused() -> None:
+def test_a_field_that_may_be_left_out_and_one_that_may_not_cannot_disagree() -> None:
     """Optional means "a run may leave this out", and `absent_as` is the only
-    thing that says what goes on the wire when one does. Without it the pair
-    is a parameter nothing can satisfy: `_check_runnable` waves the run through
-    because the field is optional, and rendering the body then raises a bare
-    `KeyError` on the parameter's name, mid-run, with nothing saying why."""
-    with pytest.raises(InvariantViolation, match="has no absent form"):
-        f.parameter(optional=True)
+    thing that says what goes on the wire when one does -- so they were never
+    two facts. Stored as two, they could contradict each other, and the two
+    sides of the system asked different questions: emission unquoted the slot
+    on the strength of the absent form, execution declined to fill it on the
+    strength of the flag, and the write went out as `{"deltaPriority":}`.
+
+    Now the one derives from the other, and the contradiction cannot be
+    written down at all -- not by a fixture, an editing API or a migration."""
+    assert f.parameter(absent_as="null").optional is True
+    assert f.parameter().optional is False, "nothing has shown the task works without it"
+
+    with pytest.raises(TypeError):
+        f.parameter(absent_as="null", optional=False)
 
 
 def test_a_parameter_refuses_an_absent_as_that_is_not_json() -> None:
@@ -1010,7 +1014,7 @@ def test_a_parameter_refuses_an_absent_as_that_is_not_json() -> None:
     message names what is wrong, rather than surfacing as a JSONDecodeError
     stack trace mid-run."""
     with pytest.raises(InvariantViolation, match="not valid JSON"):
-        f.parameter(optional=True, absent_as="not json")
+        f.parameter(absent_as="not json")
 
 
 # Everything below drives a whole run through `ExecuteSkill` and reads what
@@ -1051,7 +1055,6 @@ def _work_area_version() -> SkillVersion:
             f.parameter(name="work_area", observed_values=("ONE", "TWO")),
             f.parameter(
                 name="delta_priority",
-                optional=True,
                 absent_as="null",
                 unquoted_as="number",
                 observed_values=("1",),
@@ -1298,9 +1301,7 @@ def _version_with_optional_delta() -> SkillVersion:
         ),
         parameters=(
             f.parameter(name="work_area", observed_values=("ONE", "TWO")),
-            f.parameter(
-                name="delta_priority", optional=True, absent_as="null", observed_values=("1",)
-            ),
+            f.parameter(name="delta_priority", absent_as="null", observed_values=("1",)),
         ),
     )
 

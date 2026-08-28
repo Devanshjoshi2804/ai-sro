@@ -961,7 +961,6 @@ def _build_parameter(
                     f"left out -- sent as {absent_as} when nobody supplies it"
                 ),
                 observed_values=(value_a or value_b,),
-                optional=True,
                 absent_as=absent_as,
                 # What the run that filled it actually sent, carried through to
                 # execution: an unquoted slot holds JSON, so a value going into

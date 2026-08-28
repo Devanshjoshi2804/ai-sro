@@ -91,14 +91,6 @@ class Parameter:
     supplier's address the way they would have on the screen instead of
     reciting an id."""
 
-    optional: bool = False
-    """Whether a run may leave this out.
-
-    Proved, not assumed: one demonstration filled this field and the other left
-    it alone, and both created the record. A field filled in every
-    demonstration there is stays required, because nothing has shown the task
-    works without it."""
-
     absent_as: str | None = None
     """What to send when nobody supplies it, exactly as the demonstration that
     skipped it sent -- `"null"` for a number the form nulls, `""` for a text
@@ -122,6 +114,25 @@ class Parameter:
     `None` where every site this parameter fills is quoted, which is every
     required field: nothing has shown what such a field's absence looks like,
     so its slot keeps the quotes the recorded body had."""
+
+    @property
+    def optional(self) -> bool:
+        """Whether a run may leave this out.
+
+        Derived rather than stored, because it is not a second fact: what makes
+        a field optional is one demonstration having left it alone, and
+        `absent_as` is what that demonstration sent instead. Held separately,
+        the two disagreed -- a parameter could be built with an absent form and
+        `optional=False`, and the two sides of the system asked different
+        questions about it. Emission read the absent form and unquoted the
+        slot; execution read the flag and never filled it, and the write went
+        out as `{"deltaPriority":}`.
+
+        Proved, not assumed, either way: a field filled in every demonstration
+        there is stays required, because nothing has shown the task works
+        without it.
+        """
+        return self.absent_as is not None
 
     def rejects(self, value: str) -> str | None:
         """Why this value cannot be put in this parameter's slot, or ``None``.
@@ -173,11 +184,6 @@ class Parameter:
             )
         if self.source_step_index is not None and self.source_step_index < 0:
             raise InvariantViolation("source_step_index must be non-negative")
-        if self.optional and self.absent_as is None:
-            raise InvariantViolation(
-                f"optional parameter {self.name!r} has no absent form, so there is nothing "
-                "to send when nobody supplies it"
-            )
         if self.absent_as is not None:
             try:
                 json.loads(self.absent_as)

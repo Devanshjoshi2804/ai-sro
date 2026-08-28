@@ -797,15 +797,11 @@ class ExecuteStep:
         rendered = dict(values)
         encoded: dict[str, str] = {}
         for parameter in parameters:
-            if (
-                parameter.optional
-                and not rendered.get(parameter.name)
-                and parameter.absent_as is not None
-            ):
-                decoded = json.loads(parameter.absent_as)
-                rendered[parameter.name] = (
-                    decoded if isinstance(decoded, str) else parameter.absent_as
-                )
+            # `absent_as is not None` is what `optional` means; asked this way
+            # round because the value is wanted as well as the fact.
+            if (absent_as := parameter.absent_as) is not None and not rendered.get(parameter.name):
+                decoded = json.loads(absent_as)
+                rendered[parameter.name] = decoded if isinstance(decoded, str) else absent_as
             elif parameter.unquoted_as == "string" and parameter.name in rendered:
                 encoded[parameter.name] = json.dumps(rendered[parameter.name])
 

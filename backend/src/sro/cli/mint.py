@@ -9,7 +9,7 @@ this on the box hands a token to somebody who needs one, and it expires. That
 is the right amount of identity for a system whose customers will bring their
 own SSO, and it is enough to make the tenant boundary real.
 
-    python -m sro.cli.mint acme devansh.j --days 30
+    python -m sro.cli.mint acme clerk --days 30
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from sro.infrastructure.auth.signed_tokens import SignedTokens
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Issue an AI-SRO credential.")
     parser.add_argument("tenant", help="the tenant this credential can see, e.g. acme")
-    parser.add_argument("principal", help="who it is for, e.g. devansh.j")
+    parser.add_argument("principal", help="who it is for, e.g. clerk")
     parser.add_argument("--days", type=float, default=30.0)
     args = parser.parse_args(argv)
 

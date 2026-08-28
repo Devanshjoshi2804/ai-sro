@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 import pytest
 
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import PrincipalId, SkillId
+from sro.domain.shared.identifiers import SkillId
 from sro.domain.trigger.trigger import Trigger, TriggerId, TriggerKind
 from tests import factories as f
 
@@ -28,7 +28,7 @@ def _trigger(**over: object) -> Trigger:
         "tenant_id": f.TENANT,
         "skill_id": SkillId("skl-1"),
         "kind": TriggerKind.INBOUND,
-        "created_by": PrincipalId("devansh"),
+        "created_by": f.OPERATOR,
         "created_at": datetime(2026, 8, 26, tzinfo=UTC),
         "parameters": {"facility": "DC01"},
         "inbound_token": "a-secret",

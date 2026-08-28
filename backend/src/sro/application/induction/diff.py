@@ -451,9 +451,20 @@ def parameterise(
     # type, so `twoTEST` typed and `TWOTEST` sent are one value -- and grouping
     # them by their exact text made them two parameters, one named after the
     # field's help text, both asked of whoever runs the skill.
-    groups: dict[tuple[str, str], list[Difference]] = {}
+    #
+    # Keyed on the absent form too, because two fields nobody filled look
+    # identical without it: both tidy to `""`, so a Delta Priority the form
+    # nulls and a Distance Threshold it empties became one parameter with one
+    # absent form -- whichever site came first -- and the other field was then
+    # sent that form, unquoted, on every run. An absence is not a value, and
+    # two sites that disagree about what theirs looks like are not one value.
+    groups: dict[tuple[str, str, str | None], list[Difference]] = {}
     for difference in differences(run_a, run_b):
-        key = (binding.tidied(difference.value_a), binding.tidied(difference.value_b))
+        key = (
+            binding.tidied(difference.value_a),
+            binding.tidied(difference.value_b),
+            difference.absent_as,
+        )
         groups.setdefault(key, []).append(difference)
 
     parameters: list[Parameter] = []

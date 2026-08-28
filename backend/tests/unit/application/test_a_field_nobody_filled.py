@@ -29,6 +29,7 @@ from sro.application.induction.diff import (
     optional_fills,
     parameterise,
 )
+from sro.application.induction.emit import _unquoted_parameters
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.induce_skill import InduceSkill, _conditionals
 from sro.application.induction.sites import JsonBodySite, substitute_body
@@ -658,6 +659,37 @@ async def test_an_empty_response_leaf_is_not_where_a_skipped_field_comes_from() 
     assert delta.optional is True
     assert delta.absent_as == '""'
     assert [step.when for step in version.steps if step.when] == ["delta_priority"]
+
+
+def test_two_fields_nobody_filled_are_two_parameters_with_two_absent_forms() -> None:
+    """Grouping asks whether two sites hold one value, and an absence is not a
+    value: a number the form nulls and a text box it empties both tidy to `""`,
+    so two unrelated optional fields merged into one parameter carrying
+    whichever absent form came first. The other field then got that form sent
+    to it on every run -- `null` into a text box, and unquoted, because the
+    unquoting follows the parameter's name to every site sharing it.
+
+    Proved on the rendered body: each field keeps its own absent form, and
+    both halves of the template are valid JSON supplied or omitted."""
+    filled = {"deltaPriority": 1, "distanceThreshold": "1"}
+    skipped = {"deltaPriority": None, "distanceThreshold": ""}
+
+    parameterisation = parameterise(_run(filled), _run(skipped))
+
+    absent_forms = {p.name: p.absent_as for p in parameterisation.parameters}
+    assert absent_forms == {"delta_priority": "null", "distance_threshold": '""'}
+
+    template = Template(
+        substitute_body(
+            json.dumps(filled),
+            {sub.site: f"${{{sub.parameter}}}" for sub in parameterisation.substitutions[0]},
+            unquoted=_unquoted_parameters(parameterisation.parameters),
+        )
+    )
+    supplied = json.loads(template.render({"delta_priority": "4", "distance_threshold": "7"}))
+    assert supplied == {"deltaPriority": 4, "distanceThreshold": "7"}
+    omitted = json.loads(template.render({"delta_priority": "null", "distance_threshold": ""}))
+    assert omitted == {"deltaPriority": None, "distanceThreshold": ""}
 
 
 def test_a_gesture_align_excused_and_nothing_can_name_refuses_the_pair() -> None:

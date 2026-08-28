@@ -139,6 +139,42 @@ class TestSkills:
 
         assert again.latest.stage.value == "shadow"
 
+    async def test_two_writers_appending_at_once_do_not_lose_one_of_them(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Every version lives in one JSONB document, so both writers read the
+        same list, appended to their own copy, and the second overwrote the
+        first. Two runs finishing together lost a repair; a repair racing a
+        demonstration lost the demonstration. Nothing said so.
+        """
+        skill = f.skill(id=SkillId("skill-race"))
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.skills.add(skill)
+            await uow.commit()
+
+        async with (
+            SqlUnitOfWork(session_factory) as first,
+            SqlUnitOfWork(session_factory) as second,
+        ):
+            mine = await first.skills.get(skill.tenant_id, skill.id)
+            theirs = await second.skills.get(skill.tenant_id, skill.id)
+            mine.add_version(f.skill_version(version=2, summary="mine"))
+            theirs.add_version(f.skill_version(version=2, summary="theirs"))
+
+            await first.skills.save(mine)
+            await first.commit()
+
+            await second.skills.save(theirs)
+            with pytest.raises(Conflict):
+                await second.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            again = await uow.skills.get(skill.tenant_id, skill.id)
+
+        assert len(again.versions) == 2
+        assert again.latest.summary == "mine", "the write that landed is the one that is there"
+
 
 class TestBrowserOwnership:
     """The claims that say whose a browser is, in SQL.

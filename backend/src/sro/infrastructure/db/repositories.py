@@ -13,6 +13,7 @@ from datetime import datetime
 from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm.exc import StaleDataError
 
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
@@ -157,18 +158,33 @@ class SqlRecordingRepository(RecordingRepository):
 
 
 class SqlSkillRepository(SkillRepository):
+    """Holds on to the rows it read, for as long as the unit of work lasts.
+
+    SQLAlchemy's identity map is weak, and a repository that loads a row, builds
+    an aggregate out of it and drops the row leaves nothing referring to it --
+    so the row is collected and the next `save` re-reads it. That re-read is
+    what defeated the version check on `skills`: it fetched, and believed, a
+    `latest_version` somebody else had committed in between, and then wrote over
+    them. Keeping the row is what makes "the version I read" mean anything.
+    """
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self._read: dict[str, SkillRow] = {}
 
     async def add(self, skill: Skill) -> None:
-        self._session.add(skill_to_row(skill))
+        self._session.add(self._kept(skill_to_row(skill)))
 
     async def get(self, tenant_id: TenantId, skill_id: SkillId) -> Skill:
-        return row_to_skill(await self._row(tenant_id, skill_id))
+        return row_to_skill(self._kept(await self._row(tenant_id, skill_id)))
 
     async def save(self, skill: Skill) -> None:
-        row = await self._row(skill.tenant_id, skill.id)
+        row = self._read.get(skill.id.value) or await self._row(skill.tenant_id, skill.id)
         update_skill_row(row, skill)
+
+    def _kept(self, row: SkillRow) -> SkillRow:
+        self._read[row.id] = row
+        return row
 
     async def find_by_objective(
         self, tenant_id: TenantId, objective_key: ObjectiveKey
@@ -178,7 +194,7 @@ class SqlSkillRepository(SkillRepository):
             query = query.where(getattr(SkillRow, column) == value)
 
         row = (await self._session.execute(query)).scalar_one_or_none()
-        return row_to_skill(row) if row is not None else None
+        return row_to_skill(self._kept(row)) if row is not None else None
 
     async def list_for_tenant(
         self, tenant_id: TenantId, *, limit: int = 50, offset: int = 0
@@ -191,7 +207,7 @@ class SqlSkillRepository(SkillRepository):
             .offset(offset)
         )
         rows = (await self._session.execute(query)).scalars().all()
-        return tuple(row_to_skill(row) for row in rows)
+        return tuple(row_to_skill(self._kept(row)) for row in rows)
 
     async def _row(self, tenant_id: TenantId, skill_id: SkillId) -> SkillRow:
         query = select(SkillRow).where(
@@ -842,7 +858,16 @@ class SqlUnitOfWork(UnitOfWork):
             self._session = None
 
     async def commit(self) -> None:
-        await self._require_session().commit()
+        try:
+            await self._require_session().commit()
+        except StaleDataError as clash:
+            # Somebody wrote the row between this block reading it and
+            # committing, and the write that was about to land was computed
+            # from what it read. Reported as a conflict rather than a crash
+            # because it is one: the caller decides whether to redo the work
+            # against what is there now or to leave it to whoever comes next.
+            await self._require_session().rollback()
+            raise Conflict(str(clash)) from clash
 
     async def rollback(self) -> None:
         await self._require_session().rollback()

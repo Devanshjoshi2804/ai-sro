@@ -22,6 +22,7 @@ import logging
 from dataclasses import dataclass, field
 
 from sro.application.context import RequestContext
+from sro.application.induction.version import INDUCTION_VERSION
 from sro.application.observation.teach import NothingToTeach, TeachCandidate
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.observation.candidate import CandidateStatus
@@ -54,9 +55,12 @@ class LearnWhatRepeats:
 
         learned = Learned()
         for candidate in candidates:
-            if not candidate.worth_offering or not candidate.worth_learning_again:
-                # Nothing new to try it on. The sweep comes round every quarter
-                # of an hour; an attempt on evidence that already refused would
+            if not candidate.worth_offering or not candidate.worth_learning_again(
+                INDUCTION_VERSION
+            ):
+                # Nothing new to try it on, and nothing new to try it with. The
+                # sweep comes round every quarter of an hour; an attempt on
+                # evidence that already refused under these same rules would
                 # refuse again and leave two more sealed recordings behind it.
                 continue
             await self._tried(ctx, candidate.id)
@@ -87,9 +91,12 @@ class LearnWhatRepeats:
         An attempt that dies halfway -- a model timing out, a process killed --
         must still count, or a candidate that breaks induction becomes a sweep
         that does the same expensive thing forever.
+
+        Stamped with the rules that made it, so the next change to induction is
+        what brings this candidate back rather than a doing that may never come.
         """
         async with self._uow as uow:
             candidate = await uow.candidates.get(ctx.tenant_id, candidate_id)
-            candidate.learning_tried()
+            candidate.learning_tried(INDUCTION_VERSION)
             await uow.candidates.save(candidate)
             await uow.commit()

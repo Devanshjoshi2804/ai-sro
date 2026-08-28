@@ -605,6 +605,7 @@ def update_candidate_row(row: TaskCandidateRow, candidate: TaskCandidate) -> Non
     row.title = candidate.title
     row.named_by_model = candidate.named_by_model
     row.learned_from = candidate.learned_from
+    row.learned_under = candidate.learned_under
     row.status = candidate.status.value
     row.skill_id = candidate.skill_id.value if candidate.skill_id else None
     row.dismissed_reason = candidate.dismissed_reason
@@ -632,4 +633,5 @@ def row_to_candidate(row: TaskCandidateRow) -> TaskCandidate:
         joins=load_joins(row.joins),
         named_by_model=row.named_by_model,
         learned_from=row.learned_from or 0,
+        learned_under=row.learned_under or 0,
     )

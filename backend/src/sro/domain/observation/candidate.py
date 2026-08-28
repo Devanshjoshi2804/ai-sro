@@ -145,6 +145,14 @@ class TaskCandidate:
     two sealed recordings behind each time. Trying again is only worth it when
     there is something new to try it on."""
 
+    learned_under: int = 0
+    """Which version of the induction rules made that attempt.
+
+    The other half of "something new": rules change too. A candidate refused
+    under rules that have since been fixed would otherwise sit refused
+    forever, silently, while the code that could learn it is already merged.
+    Zero means the attempt predates anyone counting."""
+
     def __post_init__(self) -> None:
         if not self.signature.strip():
             raise InvariantViolation("a candidate with no signature cannot be recognised again")
@@ -156,13 +164,19 @@ class TaskCandidate:
     def times_seen(self) -> int:
         return len(self.episodes)
 
-    @property
-    def worth_learning_again(self) -> bool:
-        """Whether a fresh attempt would see anything the last one did not."""
-        return self.times_seen > self.learned_from
+    def worth_learning_again(self, induction_version: int) -> bool:
+        """Whether a fresh attempt would see anything the last one did not.
 
-    def learning_tried(self) -> None:
+        Two ways it might: a doing arrived that the last attempt never read, or
+        induction has learned to read what it already had. The version is given
+        rather than known here, because which rules are current is not
+        something a task somebody keeps doing has any business knowing.
+        """
+        return self.times_seen > self.learned_from or induction_version > self.learned_under
+
+    def learning_tried(self, induction_version: int) -> None:
         self.learned_from = self.times_seen
+        self.learned_under = induction_version
 
     @property
     def first_seen(self) -> datetime | None:

@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 
 from sro.application.context import RequestContext
 from sro.application.induction.errors import InductionFailed
+from sro.application.induction.version import INDUCTION_VERSION
 from sro.application.observation.learn import LearnWhatRepeats
 from sro.domain.observation.candidate import (
     WORTH_OFFERING,
@@ -210,3 +211,23 @@ async def test_a_further_doing_is_worth_another_attempt() -> None:
 
     assert teaches.asked == [waiting.id, waiting.id]
     assert learned.skills == [LEARNED]
+
+
+async def test_evidence_refused_under_older_rules_is_tried_again() -> None:
+    """The other half of "something new to try it on": the rules change too.
+
+    This candidate was refused, no further doing ever came, and induction was
+    fixed in between. Without the version stamp it sits refused forever while
+    the code that would learn it is already merged -- which is exactly what
+    happened, and had to be undone by hand.
+    """
+    refused = _candidate(1, times_seen=WORTH_OFFERING)
+    refused.learned_from = refused.times_seen
+    refused.learned_under = INDUCTION_VERSION - 1
+    learner, teaches, uow = await _learner(refused)
+
+    learned = await learner.execute(CTX)
+
+    assert teaches.asked == [refused.id]
+    assert learned.skills == [LEARNED]
+    assert uow.candidates.rows[refused.id.value].learned_under == INDUCTION_VERSION

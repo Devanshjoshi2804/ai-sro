@@ -409,6 +409,9 @@ class TaskCandidateRow(Base):
     # How many doings had been seen when learning was last tried on this, so an
     # unattended sweep does not retry the same evidence every quarter hour.
     learned_from: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # And which induction rules made that attempt, so a candidate refused under
+    # rules that have since been fixed comes back without waiting for a doing.
+    learned_under: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="new")
     skill_id: Mapped[str | None] = mapped_column(String(64))

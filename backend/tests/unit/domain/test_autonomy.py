@@ -21,7 +21,11 @@ from sro.domain.skill.assertion import Assertion, AssertionKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillVersion
 from sro.domain.skill.template import Template
-from sro.domain.skill.track_record import REQUIRED_CLEAN_RUNS, TrackRecord
+from sro.domain.skill.track_record import (
+    DEMOTE_AFTER_FAILURES,
+    REQUIRED_CLEAN_RUNS,
+    TrackRecord,
+)
 from tests import factories as f
 
 
@@ -74,6 +78,35 @@ class TestVerdict:
         assert judge(run) is Verdict.WITHHELD
         assert TrackRecord().after(judge(run), f.at(1)) == TrackRecord()
 
+    def test_a_run_that_never_reached_the_system_is_not_a_failed_run(self) -> None:
+        """The operator's browser had no tab open on it. That is a fact about
+        the browser, and the skill was never asked anything."""
+        run = _run(
+            _step(
+                disposition=StepDisposition.FAILED,
+                status_code=None,
+                detail="no tab is open on https://wms.example/data/WM/wm/workAreas",
+                unreachable=True,
+            )
+        )
+
+        assert judge(run) is Verdict.UNREACHABLE
+
+    def test_a_system_that_answered_wrong_is_still_a_failed_run(self) -> None:
+        """It answered. What it answered is exactly what a track record is for."""
+        run = _run(_step(status_code=500, assertion_failures=("expected status 200, got 500",)))
+
+        assert judge(run) is Verdict.FAILED
+
+    def test_one_step_that_did_reach_it_makes_the_whole_run_evidence_again(self) -> None:
+        """Otherwise a genuine failure hides behind a laptop that closed later."""
+        run = _run(
+            _step(index=0, assertion_failures=("/data/ok is 'false'",)),
+            _step(index=1, disposition=StepDisposition.FAILED, unreachable=True),
+        )
+
+        assert judge(run) is Verdict.FAILED
+
 
 class TestTrackRecord:
     def test_the_streak_is_consecutive_rather_than_cumulative(self) -> None:
@@ -97,6 +130,30 @@ class TestTrackRecord:
         record = TrackRecord().after(Verdict.FAILED, f.at(1)).after(Verdict.CLEAN, f.at(2))
 
         assert record.consecutive_failures == 0
+
+    def test_a_closed_browser_never_demotes_a_skill(self) -> None:
+        """The live case this exists for: two work areas created, then three
+        runs where the operator had no tab open on the system. Under the old
+        rule the third one demoted a skill that had never done anything wrong."""
+        record = TrackRecord()
+        for _ in range(2):
+            record = record.after(Verdict.CLEAN, f.at(1))
+        for _ in range(DEMOTE_AFTER_FAILURES):
+            record = record.after(Verdict.UNREACHABLE, f.at(2))
+
+        assert record.consecutive_failures == 0
+        assert not record.should_demote
+        assert record.clean_streak == 2, "a browser that was closed is not the skill drifting"
+        assert record.total_runs == 5, "the attempts happened and the record says so"
+        assert record.unreachable_runs == 3, "in their own column, neither win nor fault"
+
+    def test_a_run_that_did_reach_the_system_still_counts_towards_demotion(self) -> None:
+        record = TrackRecord()
+        for _ in range(DEMOTE_AFTER_FAILURES):
+            record = record.after(Verdict.UNREACHABLE, f.at(1))
+            record = record.after(Verdict.FAILED, f.at(2))
+
+        assert record.should_demote, "an unreachable run between them interrupts nothing"
 
 
 class TestEarningAutonomy:

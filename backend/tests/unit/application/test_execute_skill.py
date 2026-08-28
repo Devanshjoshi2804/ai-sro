@@ -14,6 +14,7 @@ from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest, NotRunnable
 from sro.application.induction.assertions import extract
 from sro.domain.execution.run import RunStatus, StepDisposition
+from sro.domain.execution.verdict import Verdict, judge
 from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.identifiers import SkillId
 from sro.domain.skill.assertion import Assertion, AssertionKind
@@ -22,6 +23,7 @@ from sro.domain.skill.plan import HeaderPlan
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillStep, SkillVersion
 from sro.domain.skill.template import Template
+from sro.domain.skill.track_record import DEMOTE_AFTER_FAILURES
 from tests import factories as f
 from tests.unit.fakes import (
     FakeClock,
@@ -517,3 +519,54 @@ async def test_a_skill_taught_at_one_site_uses_the_system_s_login() -> None:
 
     assert resolved.missing == ()
     assert resolved.headers["cookie"] == "session=current"
+
+
+async def test_a_run_that_never_reached_the_system_does_not_mark_the_skill_down() -> None:
+    """Found by running the system for real: a skill that had created two work
+    areas was one closed browser away from demotion, because a run that never
+    left the machine counted as a run that got the wrong answer."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    http.unreachable = True
+    await _skill(uow, f.skill_version(steps=(_write_step(),)), PromotionStage.ASSISTED)
+
+    for _ in range(DEMOTE_AFTER_FAILURES):
+        await _executor(uow, http, vault).execute(
+            CTX,
+            ExecutionRequest(
+                skill_id=SkillId("skill-1"),
+                parameters={"shipment_id": "555"},
+                authorized_by="supervisor",
+            ),
+        )
+
+    version = (await uow.skills.get(f.TENANT, SkillId("skill-1"))).latest
+    assert version.stage is PromotionStage.ASSISTED, "the browser was shut, not the skill broken"
+    assert version.track_record.consecutive_failures == 0
+    assert version.track_record.unreachable_runs == DEMOTE_AFTER_FAILURES
+
+
+async def test_a_url_the_skill_rendered_wrong_is_the_skill_being_wrong() -> None:
+    """The one way this exemption could be abused: a step that fails before
+    anything is sent still never reached the system. It is still the skill's
+    fault, so it is still counted."""
+    step = _write_step(url=Template("not-a-url://{shipment_id}"))
+    uow, vault = FakeUnitOfWork(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    http = FakeHttpCaller()
+    http.malformed = True
+    await _skill(uow, f.skill_version(steps=(step,)), PromotionStage.ASSISTED)
+
+    run = await _executor(uow, http, vault).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert run.steps[0].disposition is StepDisposition.FAILED
+    assert not run.steps[0].unreachable
+    assert judge(run) is Verdict.FAILED
+    assert "may have arrived" not in (run.steps[0].detail or ""), "nothing was sent"

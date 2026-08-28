@@ -36,6 +36,17 @@ class Verdict(StrEnum):
     """A shadow run. It proves the request was buildable and nothing more, so it
     neither advances nor resets anything."""
 
+    UNREACHABLE = "unreachable"
+    """It never reached the system it was aiming at, so it says nothing about the
+    skill either way.
+
+    A closed laptop, no tab open on the system, a connection that died before a
+    response. The trigger already treats this as ordinary -- a browser that
+    cannot be reached does not stop a trigger, because it will be open again
+    before the next one -- and a run has no better claim to be evidence than the
+    trigger that started it. Counted, so the record says the attempt happened;
+    counted separately, so nobody reads it as either a success or a fault."""
+
 
 REQUIRED_CLEAN_RUNS = 10
 """Consecutive clean runs before autonomy is available.
@@ -61,11 +72,17 @@ class TrackRecord:
     clean_runs: int = 0
     degraded_runs: int = 0
     failed_runs: int = 0
+    unreachable_runs: int = 0
+    """Attempts that never reached the system. Kept in its own column rather
+    than folded into the failures or left out: a reviewer asking why a skill has
+    four runs and two clean ones deserves the third number instead of having to
+    infer that something is missing."""
+
     last_run_at: datetime | None = None
 
     @property
     def total_runs(self) -> int:
-        return self.clean_runs + self.degraded_runs + self.failed_runs
+        return self.clean_runs + self.degraded_runs + self.failed_runs + self.unreachable_runs
 
     def after(self, verdict: Verdict, at: datetime) -> TrackRecord:
         """The record this run leaves behind."""
@@ -97,6 +114,17 @@ class TrackRecord:
                     clean_streak=0,
                     consecutive_failures=self.consecutive_failures + 1,
                     failed_runs=self.failed_runs + 1,
+                    last_run_at=at,
+                )
+            case Verdict.UNREACHABLE:
+                # Neither a step forward nor a step back. The streak survives it
+                # because a browser that was closed is not the skill drifting,
+                # and the failure count survives it because three closed laptops
+                # in a row would otherwise demote a skill that has never once
+                # done anything wrong.
+                return replace(
+                    self,
+                    unreachable_runs=self.unreachable_runs + 1,
                     last_run_at=at,
                 )
             case Verdict.WITHHELD:

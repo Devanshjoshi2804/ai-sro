@@ -20,7 +20,12 @@ from sro.application.ports.blob import BlobStore
 from sro.application.ports.browser import BrowserProvider, BrowserSession, BrowserUnavailable
 from sro.application.ports.dispatch import DispatchFailed, RunDispatcher
 from sro.application.ports.embedding import Embedder
-from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
+from sro.application.ports.http import (
+    HttpCaller,
+    HttpResponse,
+    MalformedRequest,
+    TargetUnreachable,
+)
 from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
@@ -536,6 +541,10 @@ class FakeHttpCaller:
         self.sent: list[dict[str, object]] = []
         self.responses: list[HttpResponse] = []
         self.unreachable = False
+        self.malformed = False
+        """The request could not be built at all -- what a real client raises
+        for a URL that is not a URL. Distinct from ``unreachable`` because only
+        one of the two is the skill's own fault."""
 
     def answer(
         self, status_code: int = 200, text: str = "{}", headers: dict[str, str] | None = None
@@ -556,6 +565,8 @@ class FakeHttpCaller:
         self.sent.append(
             {"method": method, "url": url, "headers": dict(headers or {}), "body": body}
         )
+        if self.malformed:
+            raise MalformedRequest(f"unsupported protocol in {url!r}")
         if self.unreachable:
             raise TargetUnreachable("connection reset")
         if self.responses:

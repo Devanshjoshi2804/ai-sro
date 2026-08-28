@@ -10,6 +10,7 @@ escalating works forever and can never again run unattended.
 from __future__ import annotations
 
 from sro.application.context import RequestContext
+from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.skill.repair_drift import RepairDrift
@@ -29,7 +30,15 @@ from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.track_record import TrackRecord
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeClock,
+    FakeCredentialVault,
+    FakeEmbedder,
+    FakeHttpCaller,
+    FakeIdFactory,
+    FakeUiDriver,
+    FakeUnitOfWork,
+)
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
@@ -267,3 +276,56 @@ async def test_the_repaired_version_no_longer_drifts() -> None:
 
     assert number is None
     assert len(skill.versions) == 2
+
+
+async def test_a_real_run_that_escalated_leaves_a_repaired_version_behind() -> None:
+    """The seam, end to end: the call 404s, the browser finishes the step by a
+    locator the demonstration did not lead with, and closing the run adopts it.
+
+    Worth its own test because everything above proves the use case is right and
+    none of it proves anything is calling it.
+    """
+    uow = FakeUnitOfWork()
+    version = f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                ui_plan=UiPlan(
+                    action=ActionKind.CLICK,
+                    target=f.fingerprint(accessible_name="Finish"),
+                    locators=(TAUGHT, ControlLocator(LocatorStrategy.TEXT, Template("Finish"))),
+                ),
+            ),
+        )
+    )
+    skill = f.skill(versions=0)
+    skill.add_version(version)
+    for stage in (PromotionStage.SHADOW, PromotionStage.ASSISTED):
+        version.promote(stage, f.at(700), f.OPERATOR)
+    await uow.skills.add(skill)
+
+    http, ui = FakeHttpCaller(), FakeUiDriver()
+    http.answer(status_code=404, text='{"message": "Not Found"}')
+    ui.will_find(LocatorStrategy.TEXT)
+    ask = AskAbout(uow, RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()))
+
+    run = await ExecuteSkill(
+        uow,
+        http,
+        FakeCredentialVault(),
+        FakeClock(),
+        FakeIdFactory(),
+        ui,
+        repair=RepairDrift(uow, FakeClock(), ask),
+    ).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=skill.id, parameters={"shipment_id": "555"}, authorized_by="supervisor"
+        ),
+    )
+
+    assert run.status is RunStatus.SUCCEEDED
+    assert run.steps[0].matched_by == LocatorStrategy.TEXT.value
+    plan = skill.version(2).steps[0].ui_plan
+    assert plan is not None
+    assert plan.locators[0].strategy is LocatorStrategy.TEXT

@@ -39,7 +39,11 @@ class FailureKind(StrEnum):
     """It answered, and the answer was not the one the demonstration proved."""
 
     CREDENTIAL_MISSING = "credential_missing"
+
     UNREACHABLE = "unreachable"
+    """Nothing was there to answer: a closed laptop, no tab open on the system,
+    a connection that died before a response. Not a claim about the skill, which
+    is why a run that ends this way is not held against it."""
     CONTROL_NOT_FOUND = "control_not_found"
     """A UI rung could not find the control. The skill has drifted from the
     system it was taught on."""

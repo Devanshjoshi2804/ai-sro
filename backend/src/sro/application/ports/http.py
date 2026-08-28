@@ -45,3 +45,18 @@ class TargetUnreachable(Exception):
     arrived; a timeout leaves a mutation in an unknown state, and only the
     caller knows whether that is safe to retry.
     """
+
+
+class MalformedRequest(TargetUnreachable):
+    """Nothing was sent, and the reason is this end rather than the far one.
+
+    A URL a template rendered into something that is not a URL, a scheme no
+    client speaks, a request the protocol will not frame. The system never had
+    the chance to answer, but that is not a fact about the system: it is a fact
+    about the skill, and a run that fails this way is evidence the recipe has
+    drifted from what it was taught on.
+
+    A subclass, so every caller that only wants "it did not answer" keeps
+    working unchanged. Execution asks the narrower question in exactly one
+    place -- where the difference decides whether the skill is marked down.
+    """

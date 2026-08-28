@@ -6,7 +6,7 @@ from collections.abc import Mapping
 
 import httpx
 
-from sro.application.ports.http import HttpResponse, TargetUnreachable
+from sro.application.ports.http import HttpResponse, MalformedRequest, TargetUnreachable
 
 
 class HttpxCaller:
@@ -33,6 +33,21 @@ class HttpxCaller:
                 content=body.encode() if body is not None else None,
                 timeout=timeout_s,
             )
+        except (
+            httpx.InvalidURL,
+            httpx.UnsupportedProtocol,
+            httpx.LocalProtocolError,
+            httpx.DecodingError,
+        ) as wrong:
+            # This end got it wrong: the URL a template rendered is not a URL,
+            # the scheme is one no client speaks, the request could not be
+            # framed. Separated from the network errors below because a step
+            # that failed here failed for a reason the skill owns, and letting
+            # it look like a closed laptop is how a broken skill stops being
+            # counted as broken. `InvalidURL` is not an `httpx.HTTPError` at
+            # all, so until now it escaped the executor and took the run with
+            # it rather than being recorded as a failed step.
+            raise MalformedRequest(str(wrong) or type(wrong).__name__) from wrong
         except httpx.HTTPError as error:
             # httpx raises several of these with an empty message -- a read
             # error carries nothing but its class -- and a run that failed with

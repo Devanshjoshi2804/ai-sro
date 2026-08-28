@@ -36,7 +36,12 @@ from sro.application.induction.sites import parse_json as _parse_json
 from sro.application.induction.sites import render_url
 from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.ports.agent import AgentDrivers
-from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
+from sro.application.ports.http import (
+    HttpCaller,
+    HttpResponse,
+    MalformedRequest,
+    TargetUnreachable,
+)
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.token import TokenRefused, TokenSource
@@ -538,7 +543,9 @@ class ExecuteStep:
             )
         ui = self._ui_for(run, version, step)
         if ui is None:
-            return self._failed(step, None, "no browser is attached", medium=Medium.UI)
+            return self._failed(
+                step, None, "no browser is attached", medium=Medium.UI, unreachable=True
+            )
 
         try:
             locators = tuple(
@@ -559,7 +566,10 @@ class ExecuteStep:
         try:
             result = await ui.perform(action=plan.action, locators=locators, value=value)
         except UiUnavailable as error:
-            return self._failed(step, None, str(error), medium=Medium.UI)
+            # A laptop that closed, or no tab open on the system this step acts
+            # on. The driver already sorts those from a control that moved; this
+            # carries that distinction onto the run.
+            return self._failed(step, None, str(error), medium=Medium.UI, unreachable=True)
 
         if not result.performed:
             return self._failed(step, None, result.detail or "control not found", medium=Medium.UI)
@@ -1015,13 +1025,25 @@ class ExecuteStep:
             caller = self._caller_for(run)
             response = await caller.send(plan.method, url, headers=headers, body=body)
         except TargetUnreachable as error:
+            # Which end failed. A request this end could not build was never in
+            # flight, so it neither warns about a write that may have landed nor
+            # excuses the skill that produced it.
+            built_wrong = isinstance(error, MalformedRequest)
             detail = str(error)
-            if mutating:
+            if mutating and not built_wrong:
                 detail += " -- the call may have arrived; do not retry without checking"
             if oversize is not None:
                 detail += f"; {oversize}"
             return (
-                self._failed(step, key, detail, method=plan.method, url=url, request_body=sent),
+                self._failed(
+                    step,
+                    key,
+                    detail,
+                    method=plan.method,
+                    url=url,
+                    request_body=sent,
+                    unreachable=not built_wrong,
+                ),
                 {},
                 FailureKind.UNREACHABLE,
                 None,
@@ -1142,6 +1164,7 @@ class ExecuteStep:
         url: str | None = None,
         medium: Medium = Medium.NETWORK,
         request_body: str | None = None,
+        unreachable: bool = False,
     ) -> StepOutcome:
         return StepOutcome(
             index=step.index,
@@ -1153,6 +1176,7 @@ class ExecuteStep:
             idempotency_key=key,
             request_body=request_body,
             detail=detail,
+            unreachable=unreachable,
         )
 
 

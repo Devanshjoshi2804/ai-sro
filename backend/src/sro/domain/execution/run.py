@@ -113,6 +113,19 @@ class StepOutcome:
     detail: str | None = None
     """Why it was withheld, skipped or failed. Never carries a response body."""
 
+    unreachable: bool = False
+    """This step failed because nothing was there to answer it.
+
+    The call never left the machine, or left and nothing came back: a closed
+    laptop, no tab open on the system, a connection that died before a response.
+    Recorded as a flag rather than read back out of ``detail`` because the
+    verdict turns on it -- a skill is not marked down for the state of somebody's
+    browser -- and a rule that reads free text is a rule any failure can dress
+    itself up to satisfy.
+
+    Never set where the system answered. A 500 is an answer, and an answer is
+    what a track record is about."""
+
     found_rows: int | None = None
     """How many records this response carried. Kept because a run that reports
     `GET … -> 200` has answered nothing: the number was in the response and was

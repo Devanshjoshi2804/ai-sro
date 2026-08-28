@@ -45,8 +45,8 @@ verbatim as JSON.
 
 *Amended.* Optionality is a fact about the whole history of a task, not about
 the last two times somebody did it. The pair is still what proves a parameter
-and still decides identity -- ADR 004 stands, nothing here is inferred from a
-run nothing was diffed against -- but a key that *any* recorded doing left
+and still decides identity — ADR 004 stands, nothing here is inferred from a
+run nothing was diffed against — but a key that *any* recorded doing left
 empty is optional, and a key filled in every doing there is stays required,
 because nothing has shown the task works without it.
 
@@ -55,14 +55,14 @@ accepted. The first sent only `workArea`, `workAreaDescription` and
 `warehouseId`; the two after it also filled `absolutePriority`,
 `homeWorkAreaAbsolutePriority` and `voiceCode`. `TeachCandidate` built
 recordings from the two most recent episodes only, so nothing induction looked
-at had ever seen those three fields empty and the skill demanded all three --
+at had ever seen those three fields empty and the skill demanded all three —
 while the doing that proves the warehouse takes them empty sat unopened in the
 evidence plane.
 
 So `TeachCandidate` builds a recording from every episode it can, hands the
-two freshest to `InduceSkill` as the pair -- the rule about the freshest doing
+two freshest to `InduceSkill` as the pair — the rule about the freshest doing
 being the one most likely to still find its controls is a rule about the pair
-that gets *diffed*, and it has not changed -- and passes the rest as `others`.
+that gets *diffed*, and it has not changed — and passes the rest as `others`.
 `differences` reads them for one thing: whether some write sent a key holding
 nothing (`diff._absences`, `_absence_elsewhere`). They are never aligned, never
 diffed, and no step or value comes out of them. Every doing the induction read
@@ -75,7 +75,7 @@ being empty says nothing about the other. Those are the same three things
 `_same` already uses to decide two calls are the same call.
 
 Two rules do not move. The absent form is still read off a doing that actually
-sent it, never chosen -- and where two doings disagree about it, one `null` and
+sent it, never chosen — and where two doings disagree about it, one `null` and
 one `""`, there is no single form to send and the field stays required. And a
 key no doing sent at all is still a divergence: a doing read only for emptiness
 cannot say anything about a key it never sent, so nothing about it reaches the
@@ -165,12 +165,12 @@ The dropped gesture is not discarded. It is emitted back as a step conditional
 on the field it filled (`SkillStep.when`), so a WMS with no writable API can
 still fill it by clicking. *Amended:* being conditional is not a property of
 having been dropped. Where the history is what proves the field optional, both
-diffed runs typed into the box and the gesture is an ordinary aligned step --
+diffed runs typed into the box and the gesture is an ordinary aligned step —
 which still only happens when somebody supplies the value, because typing empty
 into a box every demonstration filled is how a form raises a validation error
 nobody triggered. So the question is asked of every step in `emit_step`: a
 keystroke whose value is an optional parameter is conditional on it, wherever
-that step came from. The keystroke only -- the write that carries the field is
+that step came from. The keystroke only — the write that carries the field is
 not conditional on it, since that call goes out either way carrying the absent
 form. `_perform_in_ui` skips a conditional step when
 nothing was supplied for its field, rather than clicking it empty and risking
@@ -201,7 +201,7 @@ A key one run's write never sends at all still refuses the pair; that
 guarantee is unchanged, and it is what keeps this from being a guess.
 
 A field an operator left empty once, three visits ago, is optional in the
-skill induced today -- without the two doings that get diffed having to be the
+skill induced today — without the two doings that get diffed having to be the
 two that happened to disagree about it.
 
 
@@ -248,15 +248,15 @@ The costs, named rather than hidden:
 - **A form that nulls a whole nested block refuses to induce.** Everything
   above is written for leaves: what proves a field optional is a key both
   writes send, one holding a value and the other holding nothing, and the
-  absent form is read off that leaf. An *ancestor* left empty --
+  absent form is read off that leaf. An *ancestor* left empty —
   `"lines": [{"sku": "ABC"}]` in one run against `"lines": null` in the other
-  -- is admitted by `same_shape`, and nothing here can say what comes out of
+  — is admitted by `same_shape`, and nothing here can say what comes out of
   it. The group's `null` is not the absent form of the leaves under it: handed
   down to each of them it emitted `{"lines":[{"sku":${sku},"qty":${qty}}]}`,
   and a run supplying neither sent a blank line item neither demonstration
   sent, which a WMS that accepts one turns into a blank order line. The honest
   alternative is one optional parameter holding the whole group, whose value is
-  an object -- and every rule that keeps a supplied value from writing the rest
+  an object — and every rule that keeps a supplied value from writing the rest
   of the body, `Parameter.rejects` and `_check_runnable`, is written for
   scalars. So the pair is refused, naming the pointer and asking for that group
   filled in both runs. This is the more reachable of the two refusals recorded
@@ -267,7 +267,7 @@ The costs, named rather than hidden:
 - **A loop and a skipped field in one pair is refused.** Built, the pair proved
   worse than the bounds question that prompted looking for it: a loop's
   substitutions are keyed by raw frame, the diff's by aligned step, and
-  `_make_room` moves every key it is handed -- so the conditional step moved
+  `_make_room` moves every key it is handed — so the conditional step moved
   the loop's own `${line_id}` one place past the step that sends it, and the
   skill posted `/api/lines/1/adjust` once per line the order had. Nothing
   complained; the version passed its own invariants. Reconciling the two spaces
@@ -280,7 +280,7 @@ The costs, named rather than hidden:
   it empty.** Optionality is read from the history; identity and
   parameterisation are not, and ADR 004 is the reason. Two runs that both sent
   `voiceCode: "1"` produce a constant, and an older doing that sent `""` there
-  cannot turn that constant into an optional parameter -- nothing in the pair
+  cannot turn that constant into an optional parameter — nothing in the pair
   says the value varies, and inventing a parameter from a run nothing was
   diffed against is exactly the guess that decision forbids. It costs a skill
   that always sends `"1"` where it could have offered a box. The demonstration

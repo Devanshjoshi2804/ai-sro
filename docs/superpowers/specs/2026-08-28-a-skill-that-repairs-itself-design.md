@@ -90,6 +90,8 @@ time. What it names is the truth: the repair, and the run's clock.
 **A verified run may write a new version of the skill it ran.** Only verified: a
 run whose assertions failed proves the skill and the system disagree, and which of
 them is wrong is exactly what it does not establish.
+*(Wrong, and the section below is about why. What may write a version is
+corroborated evidence; a run only triggers the look.)*
 
 **A repair edits only what drifted.** The new version is the old one with the
 changed steps replaced — never a fresh induction. The run says which steps
@@ -130,9 +132,105 @@ person, it is the system doing a task it was asked to do and verifying the
 outcome. Until that argument is made and written down, a drifted call asks for a
 demonstration.
 
+## The other sentence that was wrong
+
+> A verified run may write a new version of the skill it ran.
+
+**A single run cannot tell drift from noise.** It says the control was reached by
+something other than what the step leads with. So does a page that had not
+finished rendering, a modal that was still closing, a race between a click and
+the thing it was aimed at. One escalation is all four of those and a control that
+moved, and nothing on the run distinguishes them — which is why building the
+repair on one produced every defect the review found, and not by accident:
+
+- one flaky iteration out of twelve rewrote the plan for all twelve;
+- twelve alternating runs produced thirteen versions, because every run
+  rediscovered the same drift and every run was a fresh chance to react to it;
+- a skill that asserted nothing repaired itself, because "no assertion failed"
+  and "the assertions passed" are the same thing to a rule reading one run.
+
+**And this system has not believed a single observation anywhere else since the
+day it started counting.** `WORTH_OFFERING` is three: twice is a coincidence and
+the operator knows it, and being asked about coincidences is how a
+recommendation surface gets ignored. `AUTONOMOUS` asks for ten clean runs. The
+knowledge store exists precisely so evidence accumulates and outranks arrival
+order, and its own words are that an ambiguity resolved by whichever evidence
+arrived first is a confident wrong answer with extra steps. The repair was the
+one place in the system that acted on the first thing it saw.
+
+**The rule, corrected: corroborated evidence may write a new version; a run only
+triggers the look.** `LearnFromRun` already writes, from every verified run, that
+*control X is found by Y, not by the Z it was taught with*, keyed by the control
+rather than by the skill. A repair reads that history. Where the last three
+claims about a control come from three separate verified runs, all say it
+drifted, and all name the same thing as having found it, the drift is settled and
+is adopted — once. Three, for the reason `WORTH_OFFERING` is three: a repair is a
+larger claim than an offer, not a smaller one.
+
+That ends the chain without a rule invented to end it. The repaired version leads
+with the locator that worked, so what later runs write down is a control found
+where it was taught, and there is nothing left to adopt.
+
+**"Verified" has to be asked for, not inferred from the absence of a failure.** A
+step with no assertions cannot fail one, so `ok` was true and the run came out
+SUCCEEDED; a step whose screen could not be read produced silence, and silence
+reads as a passing check. Both say so on the step now, in `unchecked`, beside the
+failures — and a step nothing checked contributes no evidence about where a
+control is. The gesture landed on something. That the something was the right
+control is what the assertions were for.
+
+**Where the evidence cannot name a locator, nobody guesses.** What a run records
+is a *strategy*. A step carrying two CSS paths cannot say which of them resolved,
+and promoting the first of them put a destructive control ahead of the one that
+had worked. Refused and asked about, beside the vision case. Plumbing the
+identity out of the driver would fix this deployment's own Playwright driver and
+not the operator's extension, which is a separate build reporting a strategy and
+nothing else — so the refusing branch has to exist either way, and once it exists
+it is the whole answer.
+
+**A repaired version says the system wrote it.** `induced_by` was the requester of
+the proving run, which reads as a person having produced it.
+`Provenance.repaired_from` names the run in a field a screen can filter on, and
+`induced_by` is `drift-repair`. The recordings stay, and this is a deliberate
+disagreement with the review: they are what every value the version sends still
+came from, and `from_one_demonstration` counts them to decide whether a write
+skill's values were ever diffed. A repaired version that dropped them would read
+as diffed and climb a rung nobody meant it to — a worse lie than the one it
+would have fixed, and in the more dangerous direction.
+
+**Two writers must not silently lose one.** Every version of a skill lives in one
+JSONB document, so two that both appended read the same list and the second
+overwrote the first. `latest_version` is already the count and already a column,
+so it is the version counter: the write carries `WHERE latest_version = <what was
+read>` and fails rather than lands. It costs the append path a conflict to
+handle — a repair drops its version and the next run adopts it — and it protects
+nothing else, because a concurrent promotion writes one field and the loser's
+write is the whole truth about that field rather than half of a list.
+
+## The track record, reconsidered
+
+A repaired version starts with an empty record, and the question was whether that
+means a skill which repairs itself can never climb. It does not, and the reason
+is that the streak being cleared is already zero.
+
+`judge` returns `DEGRADED` for any run with a step that did not happen at the
+network rung or that escalated, and `DEGRADED` clears `clean_streak`. A drift is
+only ever observed by a run that went to the browser — that is what observing it
+means — so every run that corroborated it was `DEGRADED`, and the version being
+repaired has a streak of zero at the moment it is repaired. The reset costs
+nothing that was not already gone.
+
+What the repair buys is the opposite. A skill drifting on a UI step could never
+be `CLEAN` again and so could never reach `AUTONOMOUS` at all; adopting the
+locator that works is what makes the climb possible in the first place. Kept as
+it is.
+
 ## What this refuses
 
-- A run that did not verify writes nothing.
+- A run that did not verify writes nothing, and a step nothing checked did not
+  verify.
+- One run writes nothing. Corroborated evidence writes, or nothing does.
+- A repair that cannot say which locator matched asks rather than guesses.
 - A repair never invents a step that no run performed.
 - A vision-proposed gesture never becomes a skill without a person.
 - A repaired version never inherits the track record of the one it replaces.
@@ -143,11 +241,16 @@ demonstration.
 
 ## Verification
 
-- **Part 1** — unit: a verified UI run whose control was found by a different
-  locator produces a new version whose plan names the locator that worked, with
-  every other step byte-identical; a run that failed its assertions produces
-  nothing; a vision-found control produces an offer rather than a version; the new
-  version inherits the stage it repaired — `SHADOW` from `SHADOW`, `ASSISTED` from
+- **Part 1** — unit: three verified UI runs agreeing that a control was found by a
+  different locator produce a new version whose plan names the locator that
+  worked, with every other step byte-identical; one such run, and then two,
+  produce nothing; a run that failed its assertions produces nothing; a step
+  nothing checked never settles anything; eleven iterations as taught and one
+  fallen back settle nothing either; a vision-found control, and a strategy the
+  step carries twice, produce a question rather than a version; the repaired
+  version names `drift-repair` and the run that closed the evidence; a repair that
+  loses a race to another writer is dropped rather than forced; the new version
+  inherits the stage it repaired — `SHADOW` from `SHADOW`, `ASSISTED` from
   `ASSISTED`, `ASSISTED` from `AUTONOMOUS` — with an empty streak, and is in every
   case the version `Skill.runnable` then serves.
 - **Part 2** — not yet. It starts with the argument about capturing during a

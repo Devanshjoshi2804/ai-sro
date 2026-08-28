@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -91,3 +92,10 @@ class Parameter:
             )
         if self.source_step_index is not None and self.source_step_index < 0:
             raise InvariantViolation("source_step_index must be non-negative")
+        if self.absent_as is not None:
+            try:
+                json.loads(self.absent_as)
+            except json.JSONDecodeError as error:
+                raise InvariantViolation(
+                    f"absent_as for {self.name!r} is not valid JSON: {self.absent_as!r}"
+                ) from error

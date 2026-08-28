@@ -624,3 +624,15 @@ def test_substitute_body_does_not_unquote_a_field_that_only_looks_like_the_marke
     assert rendered == (
         '{"workArea":"TWOTEST","deltaPriority":${delta_priority},"note":"${delta_priority}"}'
     )
+
+
+def test_a_parameter_refuses_an_absent_as_that_is_not_json() -> None:
+    """`absent_as` is read back later as JSON without a guard of its own --
+    `_perform` trusts it because nothing else can construct a `Parameter`
+    without going through this check first. A value that is not valid JSON
+    -- a fixture, an editing API, a migration, never induction itself, which
+    always writes it with `json.dumps` -- must be refused here, where the
+    message names what is wrong, rather than surfacing as a JSONDecodeError
+    stack trace mid-run."""
+    with pytest.raises(InvariantViolation, match="not valid JSON"):
+        f.parameter(optional=True, absent_as="not json")

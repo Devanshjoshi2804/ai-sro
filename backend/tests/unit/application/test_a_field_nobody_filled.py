@@ -12,17 +12,24 @@ import json
 import pytest
 
 from sro.application.context import RequestContext
+from sro.application.execution.execute_skill import (
+    ExecutionRequest,
+    NotRunnable,
+    _check_runnable,
+)
 from sro.application.induction import binding, jsonutil
 from sro.application.induction.diff import Difference, align, differences, parameterise
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.induce_skill import InduceSkill
-from sro.application.induction.sites import JsonBodySite
+from sro.application.induction.sites import JsonBodySite, substitute_body
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.domain.recording.events import ActionKind, InputAction
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import RecordingId
+from sro.domain.shared.identifiers import RecordingId, SkillId
+from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillVersion
+from sro.domain.skill.template import Template
 from tests import factories as f
 from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
 
@@ -554,3 +561,49 @@ async def test_a_derived_parameter_still_names_the_step_that_produced_it() -> No
     produced_by = version.steps[zone.source_step_index]
     assert produced_by.network_plan is not None
     assert produced_by.network_plan.method == "GET", "it names the read, not the keystroke"
+
+
+def test_substitute_body_unquotes_only_the_parameter_named_for_it() -> None:
+    """`json.dumps` quotes every placeholder alike; `unquoted` says which ones
+    lose those quotes afterwards -- the fields whose absent form is not itself
+    a JSON string. Proved on the rendered text, parsed as JSON: a supplied
+    value comes back a JSON number for the named field either way, but the
+    absent form comes back a JSON `null` only for the field named in
+    `unquoted` -- for the other it is still the four characters `"null"`."""
+    body = json.dumps({"workArea": "TWOTEST", "deltaPriority": 1, "voiceCode": 1})
+    replacements = {
+        JsonBodySite("/deltaPriority"): "${delta_priority}",
+        JsonBodySite("/voiceCode"): "${voice_code}",
+    }
+
+    rendered = substitute_body(body, replacements, unquoted=frozenset({"delta_priority"}))
+    template = Template(rendered)
+
+    filled = json.loads(template.render({"delta_priority": "4", "voice_code": "9"}))
+    assert filled["deltaPriority"] == 4, "unquoted: a JSON number"
+    assert filled["voiceCode"] == "9", "left quoted: still a JSON string"
+
+    absent = json.loads(template.render({"delta_priority": "null", "voice_code": "null"}))
+    assert absent["deltaPriority"] is None, "unquoted: the demonstration's own JSON null"
+    assert absent["voiceCode"] == "null", "left quoted: still a JSON string"
+
+
+def test_an_optional_parameter_nobody_supplied_still_runs_but_a_required_one_does_not() -> None:
+    """A field one demonstration skipped is optional, and a run that leaves it
+    out the same way is not a run missing something -- `_check_runnable` must
+    let it through rather than demanding a value nobody who performed the
+    task supplied either. The field every demonstration filled stays
+    required, though: nothing has shown the task works without it, so a
+    version asking for that and getting nothing is still refused, with the
+    message this always raised."""
+    request = ExecutionRequest(skill_id=SkillId("skill-1"), parameters={})
+
+    optional = f.skill_version(
+        stage=PromotionStage.SHADOW,
+        parameters=(f.parameter(optional=True, absent_as="null"),),
+    )
+    _check_runnable(optional, request)  # does not raise
+
+    required = f.skill_version(stage=PromotionStage.SHADOW, parameters=(f.parameter(),))
+    with pytest.raises(NotRunnable, match="no value supplied for shipment_id"):
+        _check_runnable(required, request)

@@ -41,9 +41,55 @@ excuse (`:275`), nothing wider.
 The field's absent form — what to send when nobody supplies it — is read from
 the run that skipped it, never chosen by the system: `null` for a number the
 form nulls, `""` for a text control it empties. `Parameter.absent_as` stores it
-verbatim as JSON, and the network body renders it unquoted when that JSON is
-not itself a string, so a required-looking `null` doesn't arrive as the string
-`"null"` and get rejected by a form expecting a number.
+verbatim as JSON.
+
+Two facts decide how that field renders, and reading both off one of them was
+wrong in both directions. Whether the body template keeps the quotes
+`json.dumps` puts round a placeholder is the *absent form's* business: a quoted
+slot can only ever render a string, so a field the form nulls loses its quotes
+— a required-looking `null` must not arrive as the string `"null"` and be
+rejected by a form expecting a number — and a field the form empties to `""`
+keeps them. What a *supplied* value has to be is the business of the type the
+other demonstration actually filled: `Difference.filled_as`, read off the leaf
+where `_diff_body` already has it, carried to `Parameter.unquoted_as`. Deciding
+both from the absent form unquotes a text box whose form nulls it, and
+`check dock 9` goes out as `{"note":check dock 9}`; deciding both from the
+filled type unquotes a number box whose form empties it, and every run that
+skips it renders `{"qty":}`. A value going into an unquoted *text* slot is
+JSON-encoded on its way into the body, and only into the body — the same value
+in a URL segment is text.
+
+Which sites lose their quotes is decided per site, at parameterisation time,
+and carried on `Substitution`. One parameter can fill a body leaf here and a
+URL segment there, and only the body leaf is JSON at all; a set of parameter
+*names* handed to `substitute_body` cannot tell those apart. The `\x00` marker
+that finds the leaf again afterwards is keyed on its pointer and stays a local
+detail of the one function that writes it.
+
+A value is not only a value. A template substitutes as text and
+`ExecutionRequest.parameters` is a free-form dict off an HTTP request, so a
+quantity supplied as `2,"approved":true` renders a valid body carrying a field
+no demonstration ever sent — and unquoting made that free where a quoted slot
+at least needs a `"` to get out of. `Parameter.rejects` says, in a sentence,
+why a value cannot go in its slot: a bare number slot takes a JSON number or
+the absent form the demonstration itself sent, a quoted slot takes text that
+cannot end its own string, an unquoted text slot is encoded and takes anything.
+It is asked in two places, because the values arrive from two. `_check_runnable`
+refuses what an operator supplied before the run starts, since a job whose
+fourth step carries the bad value has already written three times by the time
+rendering sees it; and rendering asks again for the values `_check_runnable`
+cannot see — a value an earlier response produced, or the thing a loop is on
+this time round. A run that refuses is better than a run that writes something
+nobody demonstrated.
+
+Whether a field may be left out is not stored beside all this. `optional`
+derives from `absent_as`, because they were never two facts: what makes a field
+optional is one demonstration having left it alone, and the absent form is what
+that demonstration sent instead. Held separately they could disagree —
+`Parameter(absent_as="null", optional=False)` was legal — and the two sides
+read different predicates: emission unquoted the slot on the strength of the
+absent form, execution declined to fill it on the strength of the flag, and the
+write left as `{"deltaPriority":}`.
 
 A keystroke binds to the field it filled by comparing the typed text against
 the values in that run's own write — not the other run's, and not a value
@@ -102,6 +148,14 @@ The costs, named rather than hidden:
   optional field, proven by a skipped demonstration. A required field with no
   such evidence still substitutes as `"${name}"`, which ADR 004 already
   recorded as a known gap; this decision narrows it rather than closing it.
+- **A value carrying a `"` or a `\` is refused wherever it was headed.** The
+  quoted-slot rule is asked of every parameter, because nothing on a
+  `Parameter` says which of its sites is a JSON body leaf and which is a URL
+  segment — so a form-encoded body parameterised whole, or a search term with
+  a quotation mark in it, is refused rather than sent. A false refusal names
+  the field and the character; the alternative is a body somebody else's
+  quotation marks helped write. Narrow it by carrying the site kinds a
+  parameter fills, the day a real value needs one of those characters.
 - **Loop bounds count raw frame indices while step indices count aligned,
   post-`explode` steps.** Pre-existing, and reproducible independently of a
   conditional step at all — two non-evidential unmatched frames with no

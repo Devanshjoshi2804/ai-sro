@@ -17104,7 +17104,7 @@
           "field": "lastModifiedBy",
           "types": "string",
           "null_in_sample": false,
-          "example": "CGARNER"
+          "example": "USER32"
         },
         {
           "field": "lastPrintedDate",

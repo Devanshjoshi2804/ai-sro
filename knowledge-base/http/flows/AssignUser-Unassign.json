@@ -75,7 +75,7 @@
           "sourceWorkArea": "STO-CO",
           "locationTravelSequence": "101113600209",
           "zoneTravelSequence": 10,
-          "assignedTo": "ABELOT",
+          "assignedTo": "USER31",
           "lastEscalationDate": "2026-08-13T18:15:35.000Z",
           "locationAccess": "FLOR",
           "locationAccessLongDescription": "Floor Locations -CLAMP and FORK",

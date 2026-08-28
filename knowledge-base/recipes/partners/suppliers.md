@@ -80,7 +80,7 @@ Correct way to set a supplier's receiving phone:
 
 ```
 PUT /data/WM/wm/addresses/{supplier.addressId}
-{ ...address record..., "phoneNumber": "5551110000", "faxNumber": "5552220000" }
+{ ...address record..., "phoneNumber": "555-0129", "faxNumber": "5552220000" }
 ```
 
 Then re-read the supplier: `receivingPhone` / `receivingFax` now show those values.

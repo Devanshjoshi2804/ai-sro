@@ -66,7 +66,7 @@ NONE`) was already in the queue and was left untouched.
 ## 3. One report bookmark that cannot be deleted — 2026-08-19
 
 **State:** bookmark `RPTBMRK-20260819084827_755006` on report `BP-PackingList`, owned by user
-`RKUCHIYAGM`, with `bookmarkDetails` "ZZAUDIT bookmark v2".
+`OPERATOR`, with `bookmarkDetails` "ZZAUDIT bookmark v2".
 
 **Impact: negligible.** A bookmark is a per-user pointer at a report. It changes no warehouse data
 and is visible only to the account that created it.

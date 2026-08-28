@@ -506,10 +506,12 @@ async def test_the_write_still_carries_its_parameters_once_a_step_moves() -> Non
     assert saving.index == 2, "the conditional step took a place before it"
     assert saving.network_plan is not None
     assert saving.network_plan.body is not None
-    assert json.loads(saving.network_plan.body.raw) == {
-        "workArea": "${work_area}",
-        "deltaPriority": "${delta_priority}",
-    }
+    # Not `json.loads`: `deltaPriority`'s absent form is `null`, a JSON number
+    # slot, so its placeholder is unquoted here and the raw template is not
+    # standalone JSON any more -- only the rendered text is.
+    assert saving.network_plan.body.raw == (
+        '{"workArea":"${work_area}","deltaPriority":${delta_priority}}'
+    )
 
 
 def _looking(index: int, zone: str) -> object:

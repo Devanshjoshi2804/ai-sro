@@ -222,7 +222,9 @@ def substitute_url(url: str, replacements: dict[Site, str]) -> str:
     )
 
 
-def substitute_body(body: str, replacements: dict[Site, str]) -> str:
+def substitute_body(
+    body: str, replacements: dict[Site, str], *, unquoted: frozenset[str] = frozenset()
+) -> str:
     if any(isinstance(site, TextBodySite) for site in replacements):
         return next(value for site, value in replacements.items() if isinstance(site, TextBodySite))
 
@@ -239,7 +241,18 @@ def substitute_body(body: str, replacements: dict[Site, str]) -> str:
         return body
 
     for pointer, placeholder in pointers.items():
-        # ponytail: a numeric leaf becomes the string "${name}". Harmless while
-        # nothing executes; typed substitution is a change to render, not here.
+        # Every leaf, string or not, becomes the string "${name}" here; a
+        # number's placeholder is unquoted below, once the document is text.
         jsonutil.set_value(document, pointer, placeholder)
-    return json.dumps(document, separators=(",", ":"))
+    text = json.dumps(document, separators=(",", ":"))
+
+    # A field whose absent form is not itself a JSON string -- `null` for a
+    # number the form nulls -- sends that form unrendered: a quoted `"null"`
+    # is a string, and a form expecting a number rejects it. json.dumps just
+    # quoted every placeholder alike, so the ones that must not stay quoted
+    # lose their quotes here, once, rather than the template guessing per key.
+    for placeholder in pointers.values():
+        name = placeholder[2:-1]
+        if name in unquoted:
+            text = text.replace(f'"{placeholder}"', placeholder)
+    return text

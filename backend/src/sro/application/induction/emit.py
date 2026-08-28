@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from sro.application.induction.assertions import StepEvidence
 from sro.application.induction.diff import Parameterisation
 from sro.application.induction.headers import build_header_plans
@@ -15,6 +17,7 @@ from sro.application.induction.sites import (
 )
 from sro.domain.recording.events import ActionFrame, ActionKind
 from sro.domain.shared.objective import ObjectiveKey
+from sro.domain.skill.parameter import Parameter
 from sro.domain.skill.plan import NetworkPlan, UiPlan
 from sro.domain.skill.skill import SkillStep
 from sro.domain.skill.template import Template
@@ -34,10 +37,11 @@ def emit_step(
     when: str | None = None,
 ) -> SkillStep:
     replacements = parameterisation.for_step(index)
+    unquoted = _unquoted_parameters(parameterisation.parameters)
     return SkillStep(
         index=index,
         intent=_describe_intent(frame),
-        network_plan=_network_plan(frame, replacements, objective),
+        network_plan=_network_plan(frame, replacements, objective, unquoted),
         ui_plan=_ui_plan(frame, replacements, evidence, other),
         assertions=evidence.assertions,
         # Either source may flag a human: the screen shows an MFA field, or the
@@ -49,8 +53,28 @@ def emit_step(
     )
 
 
+def _unquoted_parameters(parameters: tuple[Parameter, ...]) -> frozenset[str]:
+    """Parameters whose absent form is not itself a JSON string.
+
+    `absent_as` is the demonstration's own JSON: `"null"` for a number the
+    form nulls, `'""'` for a text control it empties. The body template quotes
+    every placeholder by default -- that is correct for the text case, where
+    both the absent form and whatever gets supplied are strings -- and wrong
+    for the rest, where a quoted `"null"` or `"4"` is a JSON string and a form
+    expecting a number rejects the write.
+    """
+    return frozenset(
+        parameter.name
+        for parameter in parameters
+        if parameter.absent_as is not None and not isinstance(json.loads(parameter.absent_as), str)
+    )
+
+
 def _network_plan(
-    frame: ActionFrame, replacements: dict[Site, str], objective: ObjectiveKey
+    frame: ActionFrame,
+    replacements: dict[Site, str],
+    objective: ObjectiveKey,
+    unquoted: frozenset[str],
 ) -> NetworkPlan | None:
     request = frame.primary_request
     if request is None:
@@ -69,7 +93,7 @@ def _network_plan(
             replacements=replacements,
         ),
         body=(
-            Template(substitute_body(body.text, replacements))
+            Template(substitute_body(body.text, replacements, unquoted=unquoted))
             if body is not None and body.text is not None
             else None
         ),

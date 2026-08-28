@@ -979,7 +979,7 @@
       "verdict": "REPRODUCED",
       "evidence": "http/flows/holdCycle-api.json; http/exchanges/processInventoryHoldAction.jsonl; DAMAGE.md",
       "observed": [
-        "Apply succeeded and is confirmed in holdsHistory: action A, hold HLD0307485, by RKUCHIYAGM, 2026-08-18T09:40:26Z, from status AV.",
+        "Apply succeeded and is confirmed in holdsHistory: action A, hold HLD0307485, by OPERATOR, 2026-08-18T09:40:26Z, from status AV.",
         "Release failed three times with errorCode 90011 \"Hold with type (RH) not editable by (USER)\".",
         "The hold definition record gives allowAllocationFlag, allowMoveFlag and allowInventoryStatusChangeFlag — none of which express who may release it. The panel offers no warning, and the message catalogue has no key for this case.",
         "The failure is only visible in the async resource. The POST itself returned 200 with a normal receipt, identical in shape to the one the successful apply returned."
@@ -1706,7 +1706,7 @@
     {
       "id": "subsites-really-is-sent-repeated",
       "source": "tmp/act-batch14.mjs, tmp/act-platform.mjs, tmp/act-reporting.mjs, tmp/cancel-cyclecount.mjs — 2026-08-19",
-      "claim": "The client sends subsites as a REPEATED query parameter — subsites=----&subsites=NEWTEST19&subsites=RUDRAKSH&subsites=TESTSRO&subsites=TRYNEWSRO9 — one value per client.",
+      "claim": "The client sends subsites as a REPEATED query parameter — subsites=----&subsites=NEWTEST19&subsites=SUBSITE1&subsites=TESTSRO&subsites=TRYNEWSRO9 — one value per client.",
       "verdict": "REPRODUCED",
       "evidence": "Observed off the wire on rpux/persistence/ while the Location Audit screen loaded.",
       "observed": [
@@ -1719,7 +1719,7 @@
       "source": "tmp/via-rpajax.mjs, tmp/rpajax-params.mjs, tmp/via-client.mjs — 2026-08-19",
       "claim": "Issuing a call through the page's own RP.Ajax.request reproduces everything the real UI supplies — siteId, the repeated per-client subsites list, the CSRF header, the referer — without having to drive the screen. It settles \"is this a payload problem?\" in one call.",
       "verdict": "REPRODUCED",
-      "evidence": "Driving the Location Audit screen failed for structural reasons (its grid is an output store; components move between two same-URL frames; stores reset between passes). RP.Ajax with the controller's own request object reproduced the exact wire form: PUT wm/locationaudit/validatelocations?siteId=SG&subsites=----&subsites=NEWTEST19&subsites=RUDRAKSH&subsites=TESTSRO&subsites=TRYNEWSRO9 with the whole location record as body.",
+      "evidence": "Driving the Location Audit screen failed for structural reasons (its grid is an output store; components move between two same-URL frames; stores reset between passes). RP.Ajax with the controller's own request object reproduced the exact wire form: PUT wm/locationaudit/validatelocations?siteId=SG&subsites=----&subsites=NEWTEST19&subsites=SUBSITE1&subsites=TESTSRO&subsites=TRYNEWSRO9 with the whole location record as body.",
       "observed": [
         "This changes the method for every remaining blocked route: rather than reverse-engineering a screen, hand the mined request object to the client's own transport and read the answer.",
         "It also immediately found a REAL difference: workflowOperations/initiation returns 400 to a raw fetch sending a JSON-encoded STRING, and 200 to RP.Ajax sending an object. The bundle line Ext.JSON.encode(b) misled me — Ext re-encodes, so passing an already-encoded string double-encodes it."
@@ -1791,7 +1791,7 @@
       "source": "tmp/save-locationrange.mjs, tmp/test-subsites.mjs, tmp/act-last.mjs — 2026-08-19",
       "claim": "POST /wm/locationList/async returns 422/11630 even when the request is issued by the client's own LocationRange model via save(), which serialises exactly what the proxy expects.",
       "verdict": "FALSIFIED",
-      "evidence": "Ext model save produced POST wm/locationList/async?siteId=SG&subsites=----&subsites=NEWTEST19&subsites=RUDRAKSH&subsites=TESTSRO&subsites=TRYNEWSRO9 with body {\"conflicts\":\"\",\"endRange\":\"ZZAUDIT01\",\"locationCount\":1,\"startRange\":\"ZZAUDIT01\"} -> 422. The same body by hand, with single / repeated / siteId-only query forms -> 422/11630 in every case. No ZZAUDIT01 location was created.",
+      "evidence": "Ext model save produced POST wm/locationList/async?siteId=SG&subsites=----&subsites=NEWTEST19&subsites=SUBSITE1&subsites=TESTSRO&subsites=TRYNEWSRO9 with body {\"conflicts\":\"\",\"endRange\":\"ZZAUDIT01\",\"locationCount\":1,\"startRange\":\"ZZAUDIT01\"} -> 422. The same body by hand, with single / repeated / siteId-only query forms -> 422/11630 in every case. No ZZAUDIT01 location was created.",
       "observed": [
         "The body is a BARE OBJECT, not an array — mining had suggested an array, and the model settled it.",
         "Same conclusion as validatelocations: the client itself cannot call this successfully here, so it is not a contract gap that further work could close.",

@@ -1,6 +1,6 @@
 # ADR 004 — Parameters come from a two-run diff, not from a model
 
-**Status:** accepted · v1
+**Status:** accepted · v2
 
 ## Context
 
@@ -85,6 +85,16 @@ naming the step and the disagreement. The answer is to re-record, not to
 reconcile. Fuzzy alignment here would be a guess at the point where guessing
 costs the most.
 
+**Amended, v2** (ADR 010). A step count disagreement is no longer automatically
+this error. Two operators filling different subsets of a thirty-field form both
+create a correct record, and refusing every such pair refused passive
+observation on any form of realistic size. An unmatched step is now excused
+from the disagreement — dropped, and re-emitted as a step conditional on the
+field it filled — only when both runs' writes carry the key it filled and only
+one of them holds a value there. A key present in one run's write and absent
+from the other's is still, exactly as before, a genuine disagreement and still
+refuses. See ADR 010 for the rule in full.
+
 ### Substitution is by address, not by string replacement
 
 Values are replaced at known **sites** — a URL path index, a query key, a JSON
@@ -117,7 +127,10 @@ escape turns a literal into a phantom parameter.
 - Operators must record twice. This is friction, and it is the point.
 - A JSON numeric leaf becomes the string `"${name}"` after substitution. Harmless
   while nothing executes; typed substitution is a change to rendering, not to the
-  address scheme. Marked `# ponytail:` in `sites.py`.
+  address scheme. **Amended, v2:** fixed for a parameter proven optional by ADR
+  010 — its `absent_as` says the leaf was never a string, so the body renders it
+  unquoted. A *required* numeric field has no such evidence and still
+  substitutes quoted; that residue is still open.
 
 ## Headers are diffed too, but not all of them
 

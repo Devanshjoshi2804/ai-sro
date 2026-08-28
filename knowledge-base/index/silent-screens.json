@@ -16,7 +16,7 @@
         "GET /data/WM/rpux/filter/columns/WMCheckin"
       ],
       "screen": {
-        "text": "\ue05f Workstation SG RKUCHIYAGM SHIPPING \ue00e Dashboard Shipping Issues Staging Door Activity Appointments Loads Parcel Parcel Audit Log Check In Transport Equipment Manifesting Work Queue Workflows Print Compliant Labels Inventory Shipment Delivery History \ue05e \ue010",
+        "text": "\ue05f Workstation SG OPERATOR SHIPPING \ue00e Dashboard Shipping Issues Staging Door Activity Appointments Loads Parcel Parcel Audit Log Check In Transport Equipment Manifesting Work Queue Workflows Print Compliant Labels Inventory Shipment Delivery History \ue05e \ue010",
         "inputs": [
           {
             "name": "jdaSearchField-1011-inputEl",
@@ -26,7 +26,7 @@
           }
         ],
         "buttons": [
-          "RKUCHIYAGM",
+          "OPERATOR",
           "SG",
           "Workstation",
           "SHIPPING",
@@ -62,7 +62,7 @@
         "GET /data/WM/wm/movementZones/nonpaged"
       ],
       "screen": {
-        "text": "\ue05f Workstation SG RKUCHIYAGM SHIPPING \ue00e Dashboard Shipping Issues Staging Door Activity Appointments Loads Parcel Parcel Audit Log Check In Transport Equipment Manifesting Work Queue Workflows Print Compliant Labels Inventory Shipment Delivery History \ue05e \ue010",
+        "text": "\ue05f Workstation SG OPERATOR SHIPPING \ue00e Dashboard Shipping Issues Staging Door Activity Appointments Loads Parcel Parcel Audit Log Check In Transport Equipment Manifesting Work Queue Workflows Print Compliant Labels Inventory Shipment Delivery History \ue05e \ue010",
         "inputs": [
           {
             "name": "jdaSearchField-1011-inputEl",
@@ -72,7 +72,7 @@
           }
         ],
         "buttons": [
-          "RKUCHIYAGM",
+          "OPERATOR",
           "SG",
           "Workstation",
           "SHIPPING",
@@ -110,7 +110,7 @@
         "GET /data/WM/wm/movementZones/nonpaged"
       ],
       "screen": {
-        "text": "\ue05f Workstation SG RKUCHIYAGM YARD \ue00e Door Activity Appointments Check In Transport Equipment Check Out Workflows Work Queue History Transport Activity Send RF Message RF Display \ue010",
+        "text": "\ue05f Workstation SG OPERATOR YARD \ue00e Door Activity Appointments Check In Transport Equipment Check Out Workflows Work Queue History Transport Activity Send RF Message RF Display \ue010",
         "inputs": [
           {
             "name": "jdaSearchField-1011-inputEl",
@@ -120,7 +120,7 @@
           }
         ],
         "buttons": [
-          "RKUCHIYAGM",
+          "OPERATOR",
           "SG",
           "Workstation",
           "YARD",

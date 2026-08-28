@@ -38,6 +38,14 @@ class SkillStep:
     """A path the operator described but did not demonstrate. A question for a
     reviewer -- never executed, because nothing was recorded doing it."""
 
+    when: str | None = None
+    """The parameter whose presence decides whether this step happens at all.
+
+    A form's optional field: one demonstration typed here and the other left it
+    alone, and both created the record. Supplied, the step runs; left out, it is
+    skipped and the field goes over the wire the way the demonstration that
+    skipped it sent it."""
+
     def __post_init__(self) -> None:
         if self.index < 0:
             raise InvariantViolation("SkillStep.index must be non-negative")
@@ -274,7 +282,11 @@ class SkillVersion:
 
         declared = set(names)
         for step in self.steps:
-            missing = step.placeholders - declared
+            # ``when`` names a parameter the same way a template does, and an
+            # undeclared one is the same bug: a step conditional on something
+            # nobody can supply is a step that never happens.
+            named = step.placeholders | ({step.when} if step.when else frozenset())
+            missing = named - declared
             if missing:
                 raise InvariantViolation(
                     f"step {step.index} references undeclared parameters: "

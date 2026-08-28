@@ -1487,7 +1487,7 @@
       "label": "Check In",
       "hash": "#wm.receiving/wm.checkin////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "RECEIVING",
@@ -1835,7 +1835,7 @@
       "label": "Print Compliant Labels",
       "hash": "#wm.receiving/wm.printcompliantlabels////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "RECEIVING",
@@ -2178,7 +2178,7 @@
       "label": "Log Indirect Work",
       "hash": "#wm.receiving/wm.lmindirect////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "RECEIVING",
@@ -2670,7 +2670,7 @@
       "label": "Check In",
       "hash": "#wm.shipping/wm.checkin////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "SHIPPING",
@@ -2961,7 +2961,7 @@
       "label": "Print Compliant Labels",
       "hash": "#wm.shipping/wm.printcompliantlabels////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "SHIPPING",
@@ -3893,7 +3893,7 @@
       "label": "Print Compliant Labels",
       "hash": "#wm.picking/wm.printcompliantlabels////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "PICKING",
@@ -4152,7 +4152,7 @@
       "label": "Send RF Message",
       "hash": "#wm.picking/wm.rfmessage////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "PICKING",
@@ -4186,7 +4186,7 @@
       "label": "Log Indirect Work",
       "hash": "#wm.picking/wm.lmindirect////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "PICKING",
@@ -4668,7 +4668,7 @@
       "label": "Print Compliant Labels",
       "hash": "#wm.inventory/wm.printcompliantlabels////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "INVENTORY",
@@ -4711,7 +4711,7 @@
       "label": "Send RF Message",
       "hash": "#wm.inventory/wm.rfmessage////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "INVENTORY",
@@ -4732,7 +4732,7 @@
       "label": "Log Indirect Work",
       "hash": "#wm.inventory/wm.lmindirect////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "INVENTORY",
@@ -5880,7 +5880,7 @@
       "label": "Check In",
       "hash": "#wm.yard/wm.checkin////",
       "toolbar": [
-        "RKUCHIYAGM",
+        "OPERATOR",
         "SG",
         "Workstation",
         "YARD",

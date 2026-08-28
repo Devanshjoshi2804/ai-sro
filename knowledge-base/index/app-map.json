@@ -1526,7 +1526,7 @@
         {
           "seq": 0,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -1595,7 +1595,7 @@
         {
           "seq": 0,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -1676,7 +1676,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -12158,7 +12158,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -12271,7 +12271,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -26436,7 +26436,7 @@
         {
           "seq": 3,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -29513,7 +29513,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -29609,7 +29609,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -30211,7 +30211,7 @@
         {
           "seq": 3,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -30512,7 +30512,7 @@
         {
           "seq": 2,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -30529,7 +30529,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -30616,7 +30616,7 @@
         {
           "seq": 0,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -30983,7 +30983,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -31424,7 +31424,7 @@
         {
           "seq": 5,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -31686,7 +31686,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -31810,7 +31810,7 @@
         {
           "seq": 5,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -32096,7 +32096,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         }
@@ -32434,7 +32434,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -34388,7 +34388,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -35658,7 +35658,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -38040,7 +38040,7 @@
         {
           "seq": 13,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -38195,7 +38195,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -38603,7 +38603,7 @@
         {
           "seq": 7,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -38908,7 +38908,7 @@
         {
           "seq": 5,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -39160,7 +39160,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -39256,7 +39256,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -39666,7 +39666,7 @@
         {
           "seq": 2,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -40112,7 +40112,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -40289,7 +40289,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         }
@@ -40521,7 +40521,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -40619,7 +40619,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -40951,7 +40951,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -41047,7 +41047,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         }
@@ -42166,7 +42166,7 @@
         {
           "seq": 9,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -42642,7 +42642,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -42794,7 +42794,7 @@
         {
           "seq": 0,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -42969,7 +42969,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -43375,7 +43375,7 @@
         {
           "seq": 6,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -43663,7 +43663,7 @@
         {
           "seq": 0,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         }
@@ -43849,7 +43849,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -44280,7 +44280,7 @@
         {
           "seq": 5,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -44531,7 +44531,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -44632,7 +44632,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         }
@@ -44864,7 +44864,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -44977,7 +44977,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -47752,7 +47752,7 @@
         {
           "seq": 13,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -47907,7 +47907,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -48192,7 +48192,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -48586,7 +48586,7 @@
         {
           "seq": 7,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -48863,7 +48863,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -49337,7 +49337,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -49728,7 +49728,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         }
@@ -50598,7 +50598,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -50615,7 +50615,7 @@
       "forms": [],
       "actions": [
         {
-          "label": "RKUCHIYAGM",
+          "label": "OPERATOR",
           "itemId": "user-button",
           "disabled": false
         },
@@ -50706,7 +50706,7 @@
         {
           "seq": 0,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -51073,7 +51073,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -51224,7 +51224,7 @@
         {
           "seq": 5,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -51485,7 +51485,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -51915,7 +51915,7 @@
         {
           "seq": 2,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -52873,7 +52873,7 @@
         {
           "seq": 7,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -53257,7 +53257,7 @@
         {
           "seq": 0,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         }
@@ -53554,7 +53554,7 @@
         {
           "seq": 3,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -53854,7 +53854,7 @@
         {
           "seq": 1,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -54278,7 +54278,7 @@
         {
           "seq": 4,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },
@@ -54671,7 +54671,7 @@
         {
           "seq": 0,
           "method": "GET",
-          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/RKUCHIYAGM",
+          "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/data/MCS/rpux/user/OPERATOR",
           "status": 200,
           "rows": null
         },

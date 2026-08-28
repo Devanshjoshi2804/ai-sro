@@ -5,12 +5,13 @@ Rationale and the rejected alternatives: docs/07-adr/004-diff-parameterisation.m
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, replace
 from typing import Literal
 from urllib.parse import urlsplit
 
-from sro.application.induction import jsonutil
+from sro.application.induction import binding, jsonutil
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.naming import deduplicate, singular, suggest_name
 from sro.application.induction.sites import (
@@ -31,7 +32,7 @@ from sro.domain.recording.background import is_background_traffic
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.network import CapturedRequest
 from sro.domain.recording.sensitivity import classify_header, is_replayable
-from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind
+from sro.domain.skill.parameter import Evidence, Parameter, ParameterKind, json_type_of
 from sro.domain.skill.transform import Transform
 
 _UNREMARKABLE = frozenset({"", "true", "false", "null", "0", "1"})
@@ -46,12 +47,32 @@ class Difference:
     value_b: str
     url: str = ""
     field_label: str | None = None
+    absent_as: str | None = None
+    """What this field looked like in the run that left it alone -- `"null"`,
+    or `""` from a text control nobody focused. Present only when exactly one
+    of the two runs filled it, which is what makes the field optional."""
+
+    filled_as: str | None = None
+    """The JSON type of the leaf the run that filled this field actually sent.
+
+    Read off the value rather than inferred from the absence beside it: a form
+    that nulls an untouched box nulls a text box the same way it nulls a
+    number, and `null` says nothing about what goes there when somebody types.
+    Only a body leaf has one; a URL segment and a header are text either way."""
 
 
 @dataclass(frozen=True, slots=True)
 class Substitution:
     site: Site
     parameter: str
+
+    unquoted: bool = False
+    """Whether this site's placeholder is emitted without the quotes
+    `json.dumps` would put round it.
+
+    Decided here, per site, rather than per parameter name downstream: one
+    parameter can fill a body leaf, a URL segment and a header, and only the
+    body leaf is JSON at all."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +112,10 @@ class Parameterisation:
 
     def for_step(self, index: int) -> dict[Site, str]:
         return {sub.site: f"${{{sub.parameter}}}" for sub in self.substitutions.get(index, ())}
+
+    def unquoted_sites(self, index: int) -> frozenset[Site]:
+        """The sites in this step whose placeholder loses its quotes."""
+        return frozenset(sub.site for sub in self.substitutions.get(index, ()) if sub.unquoted)
 
 
 def _mutations(frame: ActionFrame) -> list[CapturedRequest]:
@@ -260,9 +285,23 @@ def align(
         raise InductionFailed("both recordings must contain at least one step")
 
     paired = _longest_common(run_a, run_b)
+    matched = {id(frame) for pair in paired for frame in pair}
+    # Which dropped gestures are excused is asked once, of the function that
+    # also hands them back to be emitted, rather than decided here as well
+    # where the two answers could drift. Excused is the wider of the two:
+    # induction emits only those it can name an optional parameter for, and a
+    # gesture excused here that nothing emits is the field quietly becoming
+    # unfillable -- which is the whole reason the excusing exists.
+    excused = {id(fill.frame) for fill in optional_fills(run_a, run_b)}
     for run, label in ((run_a, "the first run"), (run_b, "the second run")):
-        matched = {id(frame) for pair in paired for frame in pair}
-        orphan = next((f for f in run if id(f) not in matched and _evidential(f)), None)
+        orphan = next(
+            (
+                frame
+                for frame in run
+                if id(frame) not in matched and id(frame) not in excused and _evidential(frame)
+            ),
+            None,
+        )
         if orphan is not None:
             raise InductionFailed(
                 f"{label} did something the other did not: "
@@ -272,6 +311,88 @@ def align(
     if not paired:
         raise InductionFailed("the runs share no steps at all; they are different tasks")
     return explode(paired)
+
+
+@dataclass(frozen=True, slots=True)
+class OptionalFill:
+    """A gesture only one run made, that only filled a field the other left alone.
+
+    What :func:`align` drops. Dropping it costs nothing the *pairing* needs --
+    both runs created the record -- but it is the only gesture in either
+    recording that fills that field, so a skill built from the pairs alone can
+    never fill it by clicking. On a system with no writable API that means never
+    at all.
+    """
+
+    frame: ActionFrame
+    pointer: str
+    """Where in the write the typed value landed. The parameter is named from
+    this pointer, never from the keystroke."""
+
+    at: int
+    """How many aligned steps come before it, so it can be put back in its place
+    in the order rather than at the end of it."""
+
+
+def optional_fills(
+    run_a: tuple[ActionFrame, ...], run_b: tuple[ActionFrame, ...]
+) -> tuple[OptionalFill, ...]:
+    """The gestures :func:`align` drops, with enough to place them again.
+
+    Beside `align` rather than inside it: what it returns is the pairs, and the
+    steps and the diff are both addressed by position in them. A caller that
+    wants the dropped ones asks for them separately and decides what to do with
+    them, which for induction is to emit each as a step conditional on the field
+    it filled.
+
+    Either run's, because which recording was taught first is an accident of
+    storage order: whichever operator filled the field, the skill that comes out
+    has to be able to fill it.
+    """
+    paired = _longest_common(run_a, run_b)
+    steps = explode(paired)
+    matched = {id(frame) for pair in paired for frame in pair}
+    found = [
+        OptionalFill(
+            frame=frame,
+            pointer=pointer,
+            at=sum(1 for pair in steps if pair[side].index < frame.index),
+        )
+        for side, (run, other) in enumerate(((run_a, run_b), (run_b, run_a)))
+        for frame in run
+        if id(frame) not in matched
+        and (pointer := _optional_pointer(frame, run, other)) is not None
+    ]
+    return tuple(sorted(found, key=lambda fill: fill.at))
+
+
+def _optional_pointer(
+    frame: ActionFrame, run: tuple[ActionFrame, ...], other: tuple[ActionFrame, ...]
+) -> str | None:
+    """Where this unmatched step's typed value landed, when it landed in a field
+    the other run left alone. None when it did not, and the step is a genuine
+    disagreement about what the task is.
+
+    Two people filling one form fill different subsets of it, and both create
+    the record. Such a step is not a refusal, because the field it filled is
+    about to become an optional parameter -- and keeping the refusal means a
+    form of any size never induces at all.
+
+    Everything here is read from the writes. The field must be one *both* runs
+    sent, or the two are different requests and the refusal stands.
+    """
+    for write in run:
+        pointer = binding.key_filled_by(frame, write)
+        if pointer is None:
+            continue
+        for theirs in other:
+            document = binding.write_document(theirs)
+            if document is None:
+                continue
+            leaves = dict(jsonutil.leaves(document))
+            if pointer in leaves:
+                return pointer if jsonutil.is_empty(leaves[pointer]) else None
+    return None
 
 
 def describe_step(frame: ActionFrame) -> str:
@@ -344,19 +465,116 @@ def parameterise(
 
     # Grouped by value pair: an order number in the URL, the body and a
     # confirmation field is one parameter with three sites, not three that agree.
-    groups: dict[tuple[str, str], list[Difference]] = {}
+    #
+    # Verbatim between one site and another. Tidying exists to join a keystroke
+    # to the site it filled -- a form is allowed to change what it was given on
+    # the way out, so `twoTEST` typed and `TWOTEST` sent are one value -- and
+    # between two body sites there is no keystroke and nothing to see through.
+    # Both texts are what the system stored. Case-folded, they merged fields the
+    # demonstrations proved differ: a `workArea` sent `TWOTEST` beside a `slug`
+    # sent `twotest` became one parameter, and the skill then sent `NEWAREA` as
+    # the slug both runs showed lowercased.
+    #
+    # Keyed on the absent form too, because two fields nobody filled look
+    # identical without it: both tidy to `""`, so a Delta Priority the form
+    # nulls and a Distance Threshold it empties became one parameter with one
+    # absent form -- whichever site came first -- and the other field was then
+    # sent that form, unquoted, on every run. An absence is not a value, and
+    # two sites that disagree about what theirs looks like are not one value.
+    #
+    # And keyed on the site itself wherever there is an absent form, which is
+    # to say wherever only one run filled the field. Two body keys really can
+    # hold one value -- Blue Yonder's adjust payload sends the detail number as
+    # both `lpn` and `detailNumber` -- and what says so is both runs agreeing at
+    # both keys, twice, with two different values. An optional field agrees only
+    # once: the other side of its pair is an absence, and every skipped field's
+    # absence looks the same. So a Delta Priority and a Distance Threshold that
+    # both happened to carry 1 in the run that filled them, and null in the run
+    # that did not, matched on the whole key and became one parameter --
+    # supplying 7 wrote 7 to both fields and typed it into both boxes, on the
+    # strength of one coincidence.
+    groups: dict[tuple[str, str, str | None, Site | None], list[Difference]] = {}
     for difference in differences(run_a, run_b):
-        groups.setdefault((difference.value_a, difference.value_b), []).append(difference)
+        keystroke = isinstance(difference.site, ActionValueSite)
+        key = (
+            binding.tidied(difference.value_a) if keystroke else difference.value_a,
+            binding.tidied(difference.value_b) if keystroke else difference.value_b,
+            difference.absent_as,
+            difference.site if keystroke or difference.absent_as is not None else None,
+        )
+        groups.setdefault(key, []).append(difference)
+
+    # Keying on the site, though, splits one field that is sent in two places:
+    # a form that puts Delta Priority in the query string *and* the body sends
+    # `?deltaPriority=1` beside `{"deltaPriority":1}`, and only the body leaf
+    # carries an absent form -- a query string has no way to say `null`. Split,
+    # the URL site became a second, *required* parameter, and supplying 7 sent
+    # `?deltaPriority=7` with a body still carrying `"deltaPriority":null`.
+    #
+    # So a site with no form of its own rejoins the one that has one, when they
+    # agree on both values verbatim and there is exactly one such candidate.
+    # Verbatim because between two non-keystroke sites there is no form tidying
+    # anything, and exactly one because two candidates is real ambiguity.
+    #
+    # And when they name the same field. Agreeing on the value pair says only
+    # that two sites carried the same two values; `?deltaPriority=1` beside a
+    # body `{"distanceThreshold":1}`, nulled in the other run, agrees on both
+    # and names two different fields, so the rejoin welded them into one
+    # parameter and supplying 7 wrote 7 to a field nobody supplied. Where the
+    # names differ -- or where a site names nothing at all, a path segment or a
+    # whole text body -- there is no join, and the URL half comes out required
+    # for a field the body half calls optional. That trade is deliberate:
+    # refusing to merge costs an operator one extra prompt, merging wrongly
+    # writes to a field nobody asked about.
+    for formless in [
+        key for key in groups if key[2] is None and not isinstance(key[3], ActionValueSite)
+    ]:
+        # A set because a formless group can already hold several sites -- two
+        # body keys the runs proved hold one value -- and a group that spans
+        # two field names has none to match on.
+        named = {_key_of(difference.site) for difference in groups[formless]}
+        formed = [
+            key
+            for key in groups
+            if key[2] is not None
+            and key[:2] == formless[:2]
+            and named == {_key_of(groups[key][0].site)}
+            and None not in named
+        ]
+        if len(formed) == 1:
+            groups[formed[0]].extend(groups.pop(formless))
+
+    # And here is where tidying is spent: a keystroke joins the one site whose
+    # value it tidies to. It has to be exactly one -- typing that fits two
+    # fields fits neither, the same rule `binding` already holds itself to.
+    #
+    # Joined rather than keyed together, because a keystroke carries no absent
+    # form -- only a body leaf does -- and keying on that alone separated the
+    # typing that fills a field from the body site it fills: the field came out
+    # twice, required on the gesture path and optional on the network path, two
+    # answers for the one thing this whole decision exists to get right.
+    for typed_key in [key for key in groups if isinstance(key[3], ActionValueSite)]:
+        filled = [
+            key
+            for key in groups
+            if not isinstance(key[3], ActionValueSite)
+            and (binding.tidied(key[0]), binding.tidied(key[1])) == typed_key[:2]
+        ]
+        if len(filled) == 1:
+            groups[filled[0]].extend(groups.pop(typed_key))
 
     parameters: list[Parameter] = []
     substitutions: dict[int, list[Substitution]] = {}
     taken: set[str] = set()
 
-    for (value_a, value_b), sites in groups.items():
+    for sites in groups.values():
+        named_by = _names_it(sites)
+        # The values the site that names the parameter saw. Whatever the form
+        # did to the keystroke, what the system stored is what this value is.
+        value_a, value_b = named_by.value_a, named_by.value_b
         earliest_use = min(site.step_index for site in sites)
         source = _find_source(value_a, value_b, paired_a, paired_b, before=earliest_use)
 
-        named_by = _names_it(sites)
         name = deduplicate(
             suggest_name(named_by.site, url=named_by.url, field_label=named_by.field_label), taken
         )
@@ -365,7 +583,11 @@ def parameterise(
 
         for difference in sites:
             substitutions.setdefault(difference.step_index, []).append(
-                Substitution(site=difference.site, parameter=name)
+                Substitution(
+                    site=difference.site,
+                    parameter=name,
+                    unquoted=renders_unquoted(difference),
+                )
             )
 
     _link_produced_values(paired_a, paired_b, parameters, substitutions, taken)
@@ -765,12 +987,40 @@ def _build_parameter(
     sites: list[Difference],
     source: tuple[int, str, Transform | None] | None,
 ) -> Parameter:
+    # A body that is not JSON is parameterised whole, and a value going into
+    # one is the body rather than something inside it: nothing round it to
+    # escape into, and nothing round it to break out of either. Every other
+    # site kind here is a value inside something, which is the safe default.
+    is_the_body = any(isinstance(site.site, TextBodySite) for site in sites)
     if source is None:
+        absent_as = next((site.absent_as for site in sites if site.absent_as is not None), None)
+        if absent_as is not None:
+            # Filled in one demonstration and left alone in the other: proof the
+            # field is optional, not just proof it varies. The empty side is not
+            # a second observed value -- nobody observed it, the form supplied it.
+            return Parameter(
+                name=name,
+                kind=ParameterKind.INPUT,
+                description=(
+                    f"{_where(sites)}; left alone in one demonstration, so it may be "
+                    f"left out -- sent as {absent_as} when nobody supplies it"
+                ),
+                observed_values=(value_a or value_b,),
+                absent_as=absent_as,
+                # What the run that filled it actually sent, carried through to
+                # execution: an unquoted slot holds JSON, so a value going into
+                # one has to be the type the demonstration proved it holds.
+                unquoted_as=next(
+                    (site.filled_as for site in sites if renders_unquoted(site)), None
+                ),
+                is_the_body=is_the_body,
+            )
         return Parameter(
             name=name,
             kind=ParameterKind.INPUT,
             description=_where(sites),
             observed_values=(value_a, value_b),
+            is_the_body=is_the_body,
         )
     step_index, pointer, rewrite = source
     described = f"produced by step {step_index} response at {pointer}"
@@ -788,6 +1038,7 @@ def _build_parameter(
         source_step_index=step_index,
         source_pointer=pointer,
         transform=rewrite,
+        is_the_body=is_the_body,
     )
 
 
@@ -970,23 +1221,98 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
         # Coarse, but better than a confident mis-parse of a format we do not model.
         return [Difference(step_index=index, site=TextBodySite(), value_a=body_a, value_b=body_b)]
 
-    if jsonutil.structure(document_a) != jsonutil.structure(document_b):
+    if not jsonutil.same_shape(document_a, document_b):
         raise InductionFailed(
             "the two runs sent differently-shaped request bodies; the flows diverged",
             step_index=index,
         )
 
     leaves_b = dict(jsonutil.leaves(document_b))
-    return [
-        Difference(
-            step_index=index,
-            site=JsonBodySite(pointer),
-            value_a=str(leaf_a),
-            value_b=str(leaves_b[pointer]),
+    found: list[Difference] = []
+    for pointer, leaf_a in jsonutil.leaves(document_a):
+        if pointer not in leaves_b:
+            raise InductionFailed(_group_left_empty(pointer), step_index=index)
+
+        leaf_b = leaves_b[pointer]
+        if str(leaf_a) == str(leaf_b):
+            continue
+        empty_a, empty_b = jsonutil.is_empty(leaf_a), jsonutil.is_empty(leaf_b)
+        if empty_a and empty_b:
+            # `null` in one run and `""` in the other: two spellings of nobody
+            # filling the field, whose string forms differ, so the test above
+            # let them through. Nothing varies here. Called a difference, this
+            # became a required parameter with two empty observed values --
+            # nothing an operator could sensibly supply, and refusing every run
+            # that left it out, which is every honest run.
+            continue
+        found.append(
+            Difference(
+                step_index=index,
+                site=JsonBodySite(pointer),
+                # An absence is not a value, so it is not offered as one: the
+                # side that filled the field is what an operator is shown.
+                value_a="" if empty_a else str(leaf_a),
+                value_b="" if empty_b else str(leaf_b),
+                absent_as=_absent_form(leaf_a if empty_a else leaf_b)
+                if empty_a != empty_b
+                else None,
+                filled_as=json_type_of(leaf_b if empty_a else leaf_a),
+            )
         )
-        for pointer, leaf_a in jsonutil.leaves(document_a)
-        if str(leaf_a) != str(leaves_b[pointer])
-    ]
+    return found
+
+
+def _group_left_empty(pointer: str) -> str:
+    """Why a group one run filled and the other emptied is refused.
+
+    `same_shape` admits the pair -- `"lines": [{"sku": "ABC"}]` against
+    `"lines": null` is one request with a different value in it -- but nothing
+    here can express what comes out. The absent form of an *ancestor* is not
+    the absent form of the leaves under it: handing the group's `null` to each
+    leaf individually emitted `{"lines":[{"sku":${sku},"qty":${qty}}]}`, and a
+    run supplying neither sent `{"lines":[{"sku":null,"qty":null}]}` -- a blank
+    line item neither demonstration sent, which a WMS that accepts one turns
+    into a blank order line.
+
+    The honest alternative is one optional parameter holding the whole group,
+    whose absence sends the ancestor's own form. That is a parameter whose
+    value is an object, and every rule that keeps a supplied value from writing
+    the rest of the body -- `Parameter.rejects`, `_check_runnable` -- is written
+    for scalars. Refusing costs a pair nobody has demonstrated yet; guessing
+    costs a warehouse a record it never asked for.
+    """
+    return (
+        f"the two runs disagree at {pointer}: one sent a group there and the other "
+        "left it empty. A whole group left empty is not a field left empty, and a "
+        "skill cannot yet express one -- demonstrate the pair with that group "
+        "filled in both runs"
+    )
+
+
+def renders_unquoted(difference: Difference) -> bool:
+    """Whether this site's placeholder is emitted without quotes round it.
+
+    The absent form decides it, and only the absent form: the slot has to be
+    able to render what the demonstration that skipped the field sent, and a
+    quoted slot can only ever render a string. `null` there is a JSON null and
+    `""` is an empty string, so a field the form empties keeps its quotes and
+    a field the form nulls loses them.
+
+    What a *supplied* value has to look like in that slot is a different
+    question, answered by `filled_as` -- deciding the quotes from that instead
+    unquotes a slot whose absent form is `""` and renders `{"qty":}`.
+    """
+    return (
+        isinstance(difference.site, JsonBodySite)
+        and difference.absent_as is not None
+        and not isinstance(json.loads(difference.absent_as), str)
+    )
+
+
+def _absent_form(leaf: object) -> str:
+    """The empty exactly as it was sent. `json.dumps` rather than `str`,
+    because a form that nulls a number wants `null` and not `None`."""
+    return json.dumps(leaf)
 
 
 def _find_source(
@@ -1005,7 +1331,21 @@ def _find_source(
     Verbatim first, everywhere, before any reformatting is considered: a value
     handed over unchanged is the ordinary case and must never be explained by a
     story about padding that happens to fit.
+
+    An empty side is never a dependency. Requiring *both* runs to match is the
+    only thing separating a data path from a coincidence, and an empty leaf
+    matches every empty leaf there is -- so the moment one of the two values is
+    empty that check carries no information and the pair is decided by the other
+    run alone. A difference always has two unequal values, so this can only ever
+    fire where exactly one run left the field alone: the optional field. Calling
+    that DERIVED is the worst reading available -- every run would fill it from
+    a response leaf, including the runs an operator wanted blank, and the
+    keystroke `align` excused would come back as nothing at all. Read as an
+    optional input it stays fillable by hand, with the absent form the run that
+    skipped it actually sent.
     """
+    if not value_a or not value_b:
+        return None
     for verbatim in (True, False):
         for step_index in range(before):
             # Every call the gesture made, not its "primary" one: a Save that

@@ -15,6 +15,7 @@ What this is careful about, in order of how much damage the alternative does:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -343,6 +344,14 @@ class ExecuteStep:
                 + (f" -- {outcome.detail}" if outcome.detail else ""),
             )
         elif healed is not None and _may_be_retried(step, outcome):
+            # The same call again, so the same facts about it: `parameters`
+            # is what fills an optional nobody supplied with its absent form
+            # and what checks a value against the slot it goes in, and `feeds`
+            # is the list a loop is over. Handed only `produces`, the retry
+            # rendered a body with an empty parameter tuple and failed "no
+            # value for parameter" -- so a healed session expiry, the ordinary
+            # thing the healer exists for, became a hard failure on any skill
+            # with an unsupplied optional.
             outcome, derived, failure, iterated = await self._perform(
                 run,
                 step,
@@ -351,6 +360,8 @@ class ExecuteStep:
                 objective=skill.objective_key,
                 connections=connections,
                 produces=produces,
+                parameters=tuple(version.parameters),
+                feeds=version.loop_from(nxt.step_index),
             )
             outcome = replace(
                 outcome,
@@ -469,6 +480,18 @@ class ExecuteStep:
         indistinguishable from a call once it has happened, so a stage that may
         not write may not click either.
         """
+        if step.when and not values.get(step.when):
+            # The demonstration that skipped this field did not touch this
+            # control, so neither does this. Skipped rather than typed empty:
+            # an empty keystroke into a required-looking field is how a form
+            # ends up with a validation error nobody asked for.
+            return StepOutcome(
+                index=step.index,
+                medium=Medium.UI,
+                disposition=StepDisposition.SKIPPED,
+                intent=step.intent,
+                detail=f"nothing was supplied for {step.when}, which this step fills",
+            )
         plan = step.ui_plan
         if plan is None or not plan.replayable:
             return StepOutcome(
@@ -760,9 +783,63 @@ class ExecuteStep:
         mutating = plan.is_mutation
         key = f"{run.id}:{step.index}" if mutating else None
 
+        # An optional field nobody supplied is sent the way the demonstration
+        # that skipped it sent it, filled in here rather than left to the
+        # template: `absent_as` is the demonstration's own JSON -- `null` for
+        # a number the form nulls, `""` for a text control it empties -- and
+        # the string form (the two characters `n`,`u`,`l`,`l`) is not the JSON
+        # value. Its own quotes come off before it goes in a text slot, since
+        # the slot is already quoted at emission for a string-typed field.
+        #
+        # Supplied empty counts as not supplied, because `_perform_in_ui`
+        # already reads it that way and skips the gesture: these values come
+        # off a form, and a form hands back `""` for the box nobody typed in.
+        # One run cannot mean two things depending on which medium performs
+        # it -- and an empty in an unquoted slot renders `{"deltaPriority":}`,
+        # which is not JSON at all.
+        #
+        # Everything else that goes into the body is encoded for the JSON
+        # string it lands in, and not merely the text slot the form nulls.
+        # A body leaf is a body leaf: `check dock 9` pasted raw into an
+        # unquoted one is not JSON, and `he said "go"` pasted into a quoted
+        # one writes the rest of the body itself. One `json.dumps` answers
+        # both -- the difference is only whose quotes are used, its own where
+        # the slot has none and the template's where it already wrote them --
+        # and for anything carrying neither a quote nor a backslash it changes
+        # nothing at all. Refusing such a value instead, which is what this
+        # did, made a task whose body is XML permanently unrunnable.
+        #
+        # Only the body gets the encoded form; the same value in a URL segment
+        # or a header is text. And a parameter that *is* the body gets none of
+        # it: there is no surrounding string to escape into.
+        rendered = dict(values)
+        encoded: dict[str, str] = {}
+        for parameter in parameters:
+            # `absent_value is not None` is what `optional` means; asked this
+            # way round because the value is wanted as well as the fact.
+            if (absent := parameter.absent_value) is not None and not rendered.get(parameter.name):
+                rendered[parameter.name] = absent
+            elif parameter.name in rendered and not parameter.is_the_body:
+                written = json.dumps(rendered[parameter.name])
+                encoded[parameter.name] = (
+                    written if parameter.unquoted_as == "string" else written[1:-1]
+                )
+
+        # Last look before anything leaves: a value is substituted as text, so
+        # one that is not the shape its slot was demonstrated holding writes
+        # part of the body itself. `_check_runnable` has already refused what
+        # an operator supplied -- before step one, rather than halfway through
+        # a job -- and this is the same rule where the value came from
+        # somewhere it could not see: an earlier response, or the thing a loop
+        # is on this time round.
+        for parameter in parameters:
+            supplied = rendered.get(parameter.name)
+            if supplied is not None and (refused := parameter.rejects(supplied)) is not None:
+                return (self._failed(step, key, refused), {}, None, None)
+
         try:
-            url = plan.url.render(values)
-            body = plan.body.render(values) if plan.body is not None else None
+            url = plan.url.render(rendered)
+            body = plan.body.render({**rendered, **encoded}) if plan.body is not None else None
         except KeyError as missing:
             # The step that would have minted this value, not merely some step
             # that was withheld. Any withheld step used to count, so a step that
@@ -1212,9 +1289,20 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
             + ", so it runs in a browser that is signed in to all of them: name a device"
         )
     supplied = set(request.parameters)
-    required = {p.name for p in version.parameters if p.kind is ParameterKind.INPUT}
+    required = {
+        p.name for p in version.parameters if p.kind is ParameterKind.INPUT and not p.optional
+    }
     if absent := sorted(required - supplied):
         raise NotRunnable("no value supplied for " + ", ".join(absent))
+    # And what was supplied is the shape its slot holds. A template
+    # substitutes as text: a quantity given as `2,"approved":true` renders a
+    # valid body carrying a field no demonstration ever sent. Refused here,
+    # before the first step of a job, rather than at the step that would have
+    # sent it -- by which time the steps before it have already written.
+    for parameter in version.parameters:
+        value = request.parameters.get(parameter.name, "")
+        if value and (refused := parameter.rejects(value)) is not None:
+            raise NotRunnable(refused)
 
 
 _Iterations = tuple[int, list[dict[str, str]]]

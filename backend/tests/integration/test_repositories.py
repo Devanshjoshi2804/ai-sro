@@ -18,7 +18,6 @@ from sro.domain.shared.identifiers import (
     BrowserSessionId,
     CandidateId,
     DeviceId,
-    PrincipalId,
     RecordingId,
     SkillId,
     TenantId,
@@ -317,7 +316,7 @@ def _device(*, device_id: str = "dev-1") -> AgentDevice:
     return AgentDevice(
         id=DeviceId(device_id),
         tenant_id=TenantId("acme"),
-        principal_id=PrincipalId("devansh"),
+        principal_id=f.OPERATOR,
         label="laptop",
         extension_version="0.1.0",
         registered_at=at,
@@ -337,12 +336,12 @@ def _batch(
         id=BatchId(batch_id),
         tenant_id=tenant_id,
         device_id=DeviceId("dev-1"),
-        principal_id=PrincipalId("devansh"),
+        principal_id=f.OPERATOR,
         mode=CaptureMode.PASSIVE,
         started_at=started_at or at,
         ended_at=ended_at or at,
         received_at=at,
-        uri="s3://sro-artifacts/acme/devansh/2026-03-01/bat-1.ndjson",
+        uri=f"s3://sro-artifacts/{f.TENANT}/{f.OPERATOR}/2026-03-01/bat-1.ndjson",
         event_count=3,
         byte_count=512,
         rejected=(RejectedEvent(index=1, reason="an event kind nobody declared"),),
@@ -367,7 +366,7 @@ class TestTriggers:
 
         assert loaded.cron == "0 7 * * 1-5"
         assert loaded.parameters == {"facility": "SG"}
-        assert loaded.authorized_by == PrincipalId("devansh")
+        assert loaded.authorized_by == f.OPERATOR
         assert loaded.writes is True
 
     async def test_a_schedule_finds_its_trigger_without_being_told_the_tenant(
@@ -396,13 +395,13 @@ def _trigger() -> Trigger:
         tenant_id=TenantId("acme"),
         skill_id=SkillId("skill-1"),
         kind=TriggerKind.SCHEDULE,
-        created_by=PrincipalId("devansh"),
+        created_by=f.OPERATOR,
         created_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
         parameters={"facility": "SG"},
         cron="0 7 * * 1-5",
         timezone="Asia/Kolkata",
         writes=True,
-        authorized_by=PrincipalId("devansh"),
+        authorized_by=f.OPERATOR,
         requires_confirmation=False,
     )
 
@@ -591,7 +590,7 @@ def _candidate(
     return TaskCandidate(
         id=CandidateId(candidate_id),
         tenant_id=TenantId("acme"),
-        principal_id=PrincipalId("devansh"),
+        principal_id=f.OPERATOR,
         signature=signature,
         host=host,
         title="Create suppliers on wms.acme.test",

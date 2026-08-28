@@ -17,9 +17,10 @@ from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import BatchId, DeviceId, PrincipalId, TenantId
+from tests import factories as f
 from tests.unit.fakes import FakeBlobStore, FakeClock, FakeIdFactory, FakeUnitOfWork
 
-ACME = RequestContext(tenant_id=TenantId("acme"), principal_id=PrincipalId("devansh"))
+ACME = RequestContext(tenant_id=TenantId("acme"), principal_id=f.OPERATOR)
 OTHER = RequestContext(tenant_id=TenantId("acme"), principal_id=PrincipalId("priya"))
 
 GESTURE = {
@@ -64,7 +65,7 @@ async def test_two_registrations_racing_the_same_label_both_come_back_as_one_dev
     winner = AgentDevice(
         id=DeviceId("dev-winner"),
         tenant_id=TenantId("acme"),
-        principal_id=PrincipalId("devansh"),
+        principal_id=f.OPERATOR,
         label="laptop",
         extension_version="0.1.0",
         registered_at=datetime(2026, 3, 1, tzinfo=UTC),
@@ -163,7 +164,7 @@ async def test_what_is_kept_goes_to_object_storage_and_the_row_points_at_it() ->
 
     assert ingested.accepted == 1
     assert ingested.stored_at is not None
-    key = "acme/devansh/2026-03-01/bat_one.ndjson"
+    key = f"{f.TENANT}/{f.OPERATOR}/2026-03-01/bat_one.ndjson"
     assert blobs.objects[key].endswith(b"\n")
     assert uow.observations.rows["bat_one"].uri.endswith(key)
     assert uow.commits == before + 1
@@ -214,7 +215,9 @@ async def test_an_operator_purging_their_own_hour_does_not_touch_a_colleagues() 
     await _ingest(uow, blobs, mine, batch_id="bat_mine")
     await _ingest(uow, blobs, theirs, ctx=OTHER, batch_id="bat_theirs")
     await blobs.put(
-        "acme/devansh/2026-03-01/bat_mine/screenshot/00001.png", b"x", content_type="image/png"
+        f"{f.TENANT}/{f.OPERATOR}/2026-03-01/bat_mine/screenshot/00001.png",
+        b"x",
+        content_type="image/png",
     )
 
     forgotten = await ForgetObservations(uow, blobs, FakeClock()).execute(
@@ -223,7 +226,7 @@ async def test_an_operator_purging_their_own_hour_does_not_touch_a_colleagues() 
 
     assert forgotten.batches == 1
     assert set(uow.observations.rows) == {"bat_theirs"}
-    assert [key for key in blobs.objects if "devansh" in key] == []
+    assert [key for key in blobs.objects if str(f.OPERATOR) in key] == []
     assert [key for key in blobs.objects if "priya" in key] != []
 
 
@@ -253,7 +256,9 @@ async def test_a_sweep_also_removes_the_batchs_screenshots() -> None:
     device_id = await _register(uow, ACME)
     await _ingest(uow, blobs, device_id)
     await blobs.put(
-        "acme/devansh/2026-03-01/bat_one/screenshot/00001.png", b"x", content_type="image/png"
+        f"{f.TENANT}/{f.OPERATOR}/2026-03-01/bat_one/screenshot/00001.png",
+        b"x",
+        content_type="image/png",
     )
 
     forgotten = await SweepRetention(

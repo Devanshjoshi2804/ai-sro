@@ -31,12 +31,14 @@ def emit_step(
     objective: ObjectiveKey,
     other: ActionFrame | None = None,
     narration: StepNarration | None = None,
+    when: str | None = None,
 ) -> SkillStep:
     replacements = parameterisation.for_step(index)
+    unquoted = parameterisation.unquoted_sites(index)
     return SkillStep(
         index=index,
         intent=_describe_intent(frame),
-        network_plan=_network_plan(frame, replacements, objective),
+        network_plan=_network_plan(frame, replacements, objective, unquoted),
         ui_plan=_ui_plan(frame, replacements, evidence, other),
         assertions=evidence.assertions,
         # Either source may flag a human: the screen shows an MFA field, or the
@@ -44,11 +46,15 @@ def emit_step(
         requires_human=_requires_human(frame) or bool(narration and narration.requires_human),
         narration=narration.text if narration else "",
         branch_hint=narration.branch_hint if narration else None,
+        when=when,
     )
 
 
 def _network_plan(
-    frame: ActionFrame, replacements: dict[Site, str], objective: ObjectiveKey
+    frame: ActionFrame,
+    replacements: dict[Site, str],
+    objective: ObjectiveKey,
+    unquoted: frozenset[Site],
 ) -> NetworkPlan | None:
     request = frame.primary_request
     if request is None:
@@ -67,7 +73,7 @@ def _network_plan(
             replacements=replacements,
         ),
         body=(
-            Template(substitute_body(body.text, replacements))
+            Template(substitute_body(body.text, replacements, unquoted=unquoted))
             if body is not None and body.text is not None
             else None
         ),

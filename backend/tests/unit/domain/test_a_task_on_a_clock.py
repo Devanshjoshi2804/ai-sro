@@ -10,8 +10,9 @@ from datetime import UTC, datetime
 import pytest
 
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import PrincipalId, SkillId, TenantId, TriggerId
+from sro.domain.shared.identifiers import SkillId, TenantId, TriggerId
 from sro.domain.trigger.trigger import Trigger, TriggerKind
+from tests import factories as f
 
 AT = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
 
@@ -22,7 +23,7 @@ def _trigger(**overrides: object) -> Trigger:
         "tenant_id": TenantId("acme"),
         "skill_id": SkillId("skill-1"),
         "kind": TriggerKind.SCHEDULE,
-        "created_by": PrincipalId("devansh"),
+        "created_by": f.OPERATOR,
         "created_at": AT,
         "cron": "0 7 * * 1-5",
     }
@@ -37,17 +38,15 @@ def test_a_scheduled_write_must_name_who_stands_behind_it() -> None:
 
 
 def test_an_authorised_write_trigger_is_allowed() -> None:
-    trigger = _trigger(writes=True, authorized_by=PrincipalId("devansh"))
+    trigger = _trigger(writes=True, authorized_by=f.OPERATOR)
 
-    assert trigger.authorized_by == PrincipalId("devansh")
+    assert trigger.authorized_by == f.OPERATOR
     assert trigger.requires_confirmation is True
     assert trigger.auto_approves is False
 
 
 def test_auto_approve_is_a_named_persons_decision_not_a_default() -> None:
-    trigger = _trigger(
-        writes=True, authorized_by=PrincipalId("devansh"), requires_confirmation=False
-    )
+    trigger = _trigger(writes=True, authorized_by=f.OPERATOR, requires_confirmation=False)
 
     assert trigger.auto_approves is True
 

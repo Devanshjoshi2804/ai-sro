@@ -85,14 +85,34 @@ def set_value(document: JsonValue, pointer: str, new_value: JsonValue) -> None:
         parent[last] = new_value
 
 
-def structure(value: JsonValue) -> object:
-    """Hashable shape of a document, ignoring scalar values.
+def is_empty(value: object) -> bool:
+    """Whether this leaf is a field somebody left alone.
 
-    Two runs of one task share a shape. A different shape means the flows
-    diverged, which is a re-record rather than a diff.
+    A form sends its whole record: what the operator skipped arrives as `null`,
+    or as `""` from a text control that was never focused. Both are absence
+    wearing the type the application chose for it.
     """
-    if isinstance(value, dict):
-        return ("object", tuple(sorted((k, structure(v)) for k, v in value.items())))
-    if isinstance(value, list):
-        return ("array", tuple(structure(item) for item in value))
-    return ("scalar", type(value).__name__)
+    return value is None or value == ""
+
+
+def same_shape(a: JsonValue, b: JsonValue) -> bool:
+    """Whether two bodies are the same request with different values in it.
+
+    Stricter than it looks. Every key must be in both -- a key one run did not
+    send is a different request, and the pair is refused. What is allowed is a
+    leaf that is empty on one side: the same field, filled once and skipped
+    once, which is the ordinary way two people fill one form.
+    """
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(same_shape(a[key], b[key]) for key in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(same_shape(x, y) for x, y in zip(a, b, strict=True))
+    if isinstance(a, dict | list) or isinstance(b, dict | list):
+        # A group emptied on one side is still one request with a different
+        # value in it, so it is the same shape. Whether the *diff* can express
+        # it is a separate question, answered no: `_diff_body` refuses the pair
+        # rather than handing the group's absent form to each leaf inside it.
+        # `is_empty` of a dict or list is always False, so this only fires when
+        # the *other* side is the one left empty.
+        return is_empty(a) or is_empty(b)
+    return is_empty(a) or is_empty(b) or type(a) is type(b)

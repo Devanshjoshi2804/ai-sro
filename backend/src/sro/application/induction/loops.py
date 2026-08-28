@@ -38,7 +38,7 @@ from sro.application.induction.diff import (
 )
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.naming import deduplicate, singular, suggest_name
-from sro.application.induction.sites import parse_json
+from sro.application.induction.sites import TextBodySite, parse_json
 from sro.domain.recording.events import ActionFrame
 from sro.domain.skill.loop import Binding, Loop
 from sro.domain.skill.parameter import Parameter, ParameterKind
@@ -279,6 +279,11 @@ def _bindings(
                 ),
                 source_step_index=source,
                 source_pointer=place,
+                # A field of the thing being acted on can be a whole non-JSON
+                # body, where the call this loop repeats sends nothing else.
+                # Such a value is the body rather than a value inside one, and
+                # escaping it into a string that is not there would corrupt it.
+                is_the_body=any(isinstance(d.site, TextBodySite) for _, d in sites),
             )
         )
 

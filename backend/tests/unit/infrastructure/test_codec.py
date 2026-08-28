@@ -89,3 +89,18 @@ def test_what_was_done_to_a_derived_value_comes_back_with_it() -> None:
     carried = restored[0].parameters[0].transform
     assert carried is not None
     assert carried.apply("77") == "LPN-00077"
+
+
+def test_a_version_written_before_optional_was_derived_still_reads() -> None:
+    """`optional` used to be stored beside `absent_as` and the two could
+    disagree; it is now derived from it, and the versions already in the
+    column still carry the old key. Ignored on the way back in -- and the
+    contradiction it could hold reads as what the absent form always said,
+    which is the whole point of not storing it twice."""
+    stored = dump_versions((f.skill_version(parameters=(f.parameter(absent_as="null"),)),))
+    stored[0]["parameters"][0]["optional"] = False
+
+    restored = load_versions(stored)
+
+    assert restored[0].parameters[0].optional is True
+    assert restored[0].parameters[0].absent_as == "null"

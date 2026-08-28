@@ -5468,7 +5468,7 @@
         "allowInventoryStatusChangeFlag": true,
         "allowMoveFlag": false,
         "applyToFutureInventoryFlag": false,
-        "createdBy": "OPS-EBORISEVICH",
+        "createdBy": "OPS-USER45",
         "creationDate": "2024-04-26T22:48:25.000+0000",
         "dateLastModified": "2024-04-26T22:48:25.000+0000",
         "enabledFlag": false,
@@ -5477,7 +5477,7 @@
         "holdPrefix": "92",
         "holdType": "Q",
         "holdTypeDescription": "ZV86092",
-        "lastModifiedBy": "OPS-EBORISEVICH",
+        "lastModifiedBy": "OPS-USER45",
         "longDescription": "86092",
         "lpnCount": 0,
         "severity": "sev_1",
@@ -22643,7 +22643,7 @@
       "verdict": "FALSIFIED",
       "impact": null,
       "operational_rule": null,
-      "evidence": "Ext model save produced POST wm/locationList/async?siteId=SG&subsites=----&subsites=NEWTEST19&subsites=RUDRAKSH&subsites=TESTSRO&subsites=TRYNEWSRO9 with body {\"conflicts\":\"\",\"endRange\":\"ZZAUDIT01\",\"locationCount\":1,\"startRange\":\"ZZAUDIT01\"} -> 422. The same body by hand, with single / repeated / siteId-only query forms -> 422/11630 in every case. No ZZAUDIT01 location was created."
+      "evidence": "Ext model save produced POST wm/locationList/async?siteId=SG&subsites=----&subsites=NEWTEST19&subsites=SUBSITE1&subsites=TESTSRO&subsites=TRYNEWSRO9 with body {\"conflicts\":\"\",\"endRange\":\"ZZAUDIT01\",\"locationCount\":1,\"startRange\":\"ZZAUDIT01\"} -> 422. The same body by hand, with single / repeated / siteId-only query forms -> 422/11630 in every case. No ZZAUDIT01 location was created."
     },
     {
       "id": "remove-picks-needs-more-than-an-error-status-or-an-assignment",

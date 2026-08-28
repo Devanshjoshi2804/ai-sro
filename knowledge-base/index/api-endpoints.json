@@ -146,8 +146,8 @@
   {
     "service": "MCS",
     "kind": "ui-support",
-    "resource": "user/RKUCHIYAGM",
-    "path": "/data/MCS/rpux/user/RKUCHIYAGM",
+    "resource": "user/OPERATOR",
+    "path": "/data/MCS/rpux/user/OPERATOR",
     "hits": 10,
     "sources": [
       "observed"

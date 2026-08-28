@@ -13,11 +13,12 @@ import time
 import pytest
 
 from sro.application.ports.auth import Caller, CredentialRejected, Unconfigured
-from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.shared.identifiers import TenantId
 from sro.infrastructure.auth.signed_tokens import SignedTokens
+from tests import factories as f
 
 SECRET = "the-key-this-deployment-signs-with"  # noqa: S105 -- not a credential
-CALLER = Caller(tenant_id=TenantId("acme"), principal_id=PrincipalId("devansh.j"))
+CALLER = Caller(tenant_id=TenantId("acme"), principal_id=f.OPERATOR)
 
 
 def test_a_credential_names_the_caller_it_was_issued_to() -> None:
@@ -45,7 +46,7 @@ def test_changing_the_tenant_in_a_token_invalidates_it() -> None:
     tokens = SignedTokens(SECRET)
     header, _mine, signature = tokens.issue(CALLER, lasting_hours=1).split(".")
     other = tokens.issue(
-        Caller(tenant_id=TenantId("rival"), principal_id=PrincipalId("devansh.j")),
+        Caller(tenant_id=TenantId("rival"), principal_id=f.OPERATOR),
         lasting_hours=1,
     ).split(".")[1]
 

@@ -13,15 +13,18 @@ from sro.application.induction import describe, lookups, loops, narration
 from sro.application.induction.companions import ambiguity_in, read_skills
 from sro.application.induction.diff import (
     Choice,
+    OptionalFill,
     Parameterisation,
     Substitution,
     align,
+    optional_fills,
     parameterise,
     typed_values,
 )
 from sro.application.induction.emit import emit_step
 from sro.application.induction.errors import InductionFailed
 from sro.application.induction.lookups import PlannedLookup
+from sro.application.induction.sites import ActionValueSite, JsonBodySite
 from sro.application.induction.understand import as_evidence
 from sro.application.knowledge.open_questions import Ambiguity, AskAbout
 from sro.application.ports.interpretation import Reading, WorkflowInterpreter
@@ -214,7 +217,42 @@ class InduceSkill:
                     )
             if looped is not None:
                 parameterisation = _with_loop(parameterisation, looped)
-            steps = _build_steps(frames_a, frames_b, run_a, objective, parameterisation)
+
+            # The gestures the alignment dropped: one operator filled a field
+            # the other left alone, and that keystroke is the only evidence in
+            # either recording of how the field gets filled at all. Put back as
+            # steps that happen only when somebody supplies the value.
+            conditionals = _conditionals(parameterisation, optional_fills(frames_a, frames_b))
+            if conditionals and looped is not None:
+                # The two index spaces meet here and cannot both be right. A
+                # loop's substitutions are keyed by raw frame; everything the
+                # diff produced is keyed by aligned step; and `_make_room`
+                # moves every key it is handed. So the loop's `${line_id}` was
+                # moved one place past the step that sends it and quietly lost:
+                # the pair induced, the version passed its own invariants, and
+                # the skill adjusted line 1 once per line the order had.
+                #
+                # Refused rather than reconciled. Reconciling means deciding
+                # that a raw frame index and a step index agree once every
+                # dropped gesture is back, which holds only while every
+                # unmatched frame before the block is one of them -- true of
+                # this pair and not of a pair with one non-evidential gesture
+                # in it. That is the guess ADR 004 exists to prevent, and the
+                # cost of refusing is one demonstration done again.
+                raise InductionFailed(
+                    "this pair is a loop and a form somebody skipped a field on. The "
+                    "loop counts the frames as they were recorded and everything else "
+                    "counts the steps the two runs share, and putting the skipped "
+                    "field's gesture back as a step moves one and not the other -- so "
+                    "the loop would come out acting on whatever the first iteration "
+                    "happened to send. Demonstrate the loop with that field filled in "
+                    "both runs",
+                    step_index=conditionals[0].fill.frame.index,
+                )
+            parameterisation = _make_room(parameterisation, conditionals)
+            steps = _build_steps(
+                frames_a, frames_b, run_a, objective, parameterisation, conditionals
+            )
             parameters = with_options(parameterisation.parameters, planned)
 
             skill = await uow.skills.find_by_objective(ctx.tenant_id, objective)
@@ -257,6 +295,21 @@ class InduceSkill:
                 systems=systems_touched(
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
+                # Deliberately not moved along like the indices below, and
+                # this is the one place the two must not agree: a loop counts
+                # raw frames, everything else counts aligned steps. A loop can
+                # outlive an unmatched gesture -- `loops._shape` identifies a
+                # control by name-or-text while `diff._control` uses
+                # name-or-test-id-or-css, so a keystroke named in one run and
+                # only described in the other keeps its position in the shape
+                # sequence while failing to pair.
+                #
+                # Nothing here can be reached with a conditional step in the
+                # version: that pair is refused above, because the loop's own
+                # substitutions are keyed in the frame space and `_make_room`
+                # would move them. What is left is an unmatched gesture nobody
+                # puts back, and moving the bound for it would count a step
+                # that is not there.
                 loops=(looped.loop,) if looped is not None else (),
             )
             # Everything else the demonstration proved. Opening the screen to
@@ -451,12 +504,101 @@ def _with_loop(parameterisation: Parameterisation, looped: loops.LoopFound) -> P
     )
 
 
+@dataclass(frozen=True, slots=True)
+class _Conditional:
+    """A dropped gesture and the optional parameter it fills.
+
+    Both halves are evidence and neither is a reading: the gesture is what the
+    operator did, and the parameter is the one the body diff already called
+    optional at the pointer that gesture's value landed on.
+    """
+
+    fill: OptionalFill
+    parameter: str
+
+
+def _conditionals(
+    parameterisation: Parameterisation, fills: tuple[OptionalFill, ...]
+) -> tuple[_Conditional, ...]:
+    """The dropped gestures that can be said to fill something, and which.
+
+    Nothing is guessed here. The pointer the keystroke bound to has to be one
+    the diff already parameterised *and* called optional; where it is not, the
+    pair is refused rather than emitted, because these are exactly the gestures
+    `align` excused itself from refusing. Dropping one silently is the field
+    quietly becoming unfillable -- the skill still saves the form, still looks
+    right, and the only gesture in either recording that fills that field is
+    gone. Refusing says so, the way the pair said so before any of this existed.
+    """
+    optional = {parameter.name for parameter in parameterisation.parameters if parameter.optional}
+    named = {
+        sub.site.pointer: sub.parameter
+        for subs in parameterisation.substitutions.values()
+        for sub in subs
+        if isinstance(sub.site, JsonBodySite) and sub.parameter in optional
+    }
+    for fill in fills:
+        if fill.pointer not in named:
+            raise InductionFailed(
+                f"one run filled {fill.pointer} and the other left it alone, but nothing in "
+                f"the diff calls that field optional; the runs are not two runs of one task",
+                step_index=fill.frame.index,
+            )
+    return tuple(_Conditional(fill, named[fill.pointer]) for fill in fills)
+
+
+def _moved(index: int, conditionals: tuple[_Conditional, ...]) -> int:
+    """Where an aligned step ends up once the conditional ones take their place.
+
+    Every index induction produces -- a substitution's step, a parameter's
+    source, a loop's body -- counts aligned steps. Inserting a step among them
+    moves everything after it along, and an index left where it was would hand a
+    step its neighbour's values.
+    """
+    return index + sum(1 for conditional in conditionals if conditional.fill.at <= index)
+
+
+def _make_room(
+    parameterisation: Parameterisation, conditionals: tuple[_Conditional, ...]
+) -> Parameterisation:
+    """The same parameterisation, addressed to where the steps have moved to.
+
+    The conditional steps get an entry of their own: what the operator typed is
+    the value of the parameter they are conditional on, so the step sends
+    ``${delta_priority}`` exactly as an aligned step would rather than replaying
+    the one priority somebody happened to demonstrate.
+    """
+    if not conditionals:
+        return parameterisation
+    substitutions = {
+        _moved(index, conditionals): subs for index, subs in parameterisation.substitutions.items()
+    }
+    for position, conditional in enumerate(conditionals):
+        substitutions[conditional.fill.at + position] = (
+            Substitution(site=ActionValueSite(), parameter=conditional.parameter),
+        )
+    return replace(
+        parameterisation,
+        parameters=tuple(
+            parameter
+            if parameter.source_step_index is None
+            else replace(
+                parameter,
+                source_step_index=_moved(parameter.source_step_index, conditionals),
+            )
+            for parameter in parameterisation.parameters
+        ),
+        substitutions=substitutions,
+    )
+
+
 def _build_steps(
     run_a_frames: tuple[ActionFrame, ...],
     run_b_frames: tuple[ActionFrame, ...],
     run_a: Recording,
     objective: ObjectiveKey,
     parameterisation: Parameterisation,
+    conditionals: tuple[_Conditional, ...] = (),
 ) -> tuple[SkillStep, ...]:
     """Frames rather than recordings, because a looping task keeps one iteration
     of its body: the recording holds all of them, and the skill is the block."""
@@ -469,22 +611,59 @@ def _build_steps(
     # Run A's narration, because run A's frames are the ones being emitted. Run
     # B is here to disagree with A, not to describe it.
     said = narration.align(tuple(frames_a), run_a.narration)
-    return tuple(
-        emit_step(
-            index,
-            frames_a[index],
-            parameterisation,
-            assertion_extraction.extract(
+
+    steps: list[SkillStep] = []
+    pending = list(conditionals)
+    for index in range(len(frames_a) + 1):
+        while pending and pending[0].fill.at <= index:
+            steps.append(_emit_conditional(len(steps), pending.pop(0), parameterisation, objective))
+        if index == len(frames_a):
+            break
+        steps.append(
+            emit_step(
+                len(steps),
                 frames_a[index],
+                parameterisation,
+                assertion_extraction.extract(
+                    frames_a[index],
+                    frames_b[index],
+                    next_a=frames_a[index + 1] if index + 1 < len(frames_a) else None,
+                    next_b=frames_b[index + 1] if index + 1 < len(frames_b) else None,
+                ),
+                objective,
                 frames_b[index],
-                next_a=frames_a[index + 1] if index + 1 < len(frames_a) else None,
-                next_b=frames_b[index + 1] if index + 1 < len(frames_b) else None,
-            ),
-            objective,
-            frames_b[index],
-            said.get(frames_a[index].index),
+                said.get(frames_a[index].index),
+            )
         )
-        for index in range(len(frames_a))
+    return tuple(steps)
+
+
+def _emit_conditional(
+    index: int,
+    conditional: _Conditional,
+    parameterisation: Parameterisation,
+    objective: ObjectiveKey,
+) -> SkillStep:
+    """The gesture one run made, as a step that happens when the value is given.
+
+    A gesture and nothing else -- the calls it made are dropped with the same
+    reasoning as the assertions. Both would be built from one observation, and
+    one observation is not two runs agreeing: only one run did this, so nothing
+    diffed what it sent and every value in it would replay exactly as
+    demonstrated. A form that PATCHes a draft on each keystroke would carry the
+    work area of whoever was recorded into every later run of the skill.
+
+    Nothing is lost by dropping them. If the value has to reach the system by
+    call, it reaches it in the write both runs sent -- which is an aligned step,
+    and already carries the parameter.
+    """
+    return emit_step(
+        index,
+        replace(conditional.fill.frame, requests=()),
+        parameterisation,
+        assertion_extraction.StepEvidence(assertions=(), wait_for=None),
+        objective,
+        when=conditional.parameter,
     )
 
 

@@ -492,6 +492,7 @@ class StepModel(BaseModel):
     requires_human: bool
     narration: str
     branch_hint: str | None
+    when: str | None
     network_plan: NetworkPlanModel | None
     ui_plan: UiPlanModel | None
     assertions: list[AssertionModel]
@@ -589,6 +590,7 @@ class SkillVersionModel(BaseModel):
                     requires_human=step.requires_human,
                     narration=step.narration,
                     branch_hint=step.branch_hint,
+                    when=step.when,
                     network_plan=(
                         NetworkPlanModel(
                             method=step.network_plan.method,

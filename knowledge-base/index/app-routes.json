@@ -519,7 +519,7 @@
       "/data/MCS/mcs/userTimeZone/allTimeZones",
       "/data/MCS/rpux/currencies",
       "/data/MCS/rpux/mu",
-      "/data/MCS/rpux/user/RKUCHIYAGM",
+      "/data/MCS/rpux/user/OPERATOR",
       "/data/WM/listCountries",
       "/data/WM/listCurrencyCodes",
       "/data/WM/listStates",
@@ -702,7 +702,7 @@
     },
     "endpoints": [
       "/data/MCS/mcs/userTimeZone/allTimeZones",
-      "/data/MCS/rpux/user/RKUCHIYAGM",
+      "/data/MCS/rpux/user/OPERATOR",
       "/data/WM/listCountries",
       "/data/WM/listCurrencyCodes",
       "/data/WM/listStates",
@@ -2374,7 +2374,7 @@
       "/data/MCS/mcs/userTimeZone/preference",
       "/data/MCS/rpux/currencies",
       "/data/MCS/rpux/mu",
-      "/data/MCS/rpux/user/RKUCHIYAGM",
+      "/data/MCS/rpux/user/OPERATOR",
       "/data/WM/listAreasForPickupAndDeposit",
       "/data/WM/listAreasForProcessing",
       "/data/WM/listAreasForStaging",
@@ -3934,7 +3934,7 @@
       "md": "warehouse-management/configuration/inventory/items/item-classes.md"
     },
     "endpoints": [
-      "/data/MCS/rpux/user/RKUCHIYAGM",
+      "/data/MCS/rpux/user/OPERATOR",
       "/data/WM/rpux/filter/columns/WMProgressions",
       "/data/WM/wm/itemClasses",
       "/data/WM/wm/progressions",
@@ -3954,7 +3954,7 @@
       "md": "warehouse-management/configuration/inventory/items/item-class-levels.md"
     },
     "endpoints": [
-      "/data/MCS/rpux/user/RKUCHIYAGM",
+      "/data/MCS/rpux/user/OPERATOR",
       "/data/WM/rpux/persistence/",
       "/data/WM/wm/itemClassLevels",
       "/refs/filtering/api/v1/filterDefs",
@@ -3978,7 +3978,7 @@
       "md": "warehouse-management/configuration/inventory/items/item-families.md"
     },
     "endpoints": [
-      "/data/MCS/rpux/user/RKUCHIYAGM",
+      "/data/MCS/rpux/user/OPERATOR",
       "/data/WM/rpux/filter/columns/WMItemFamily",
       "/data/WM/rpux/filter/default/WMItemFamily",
       "/data/WM/rpux/persistence/",
@@ -9184,7 +9184,7 @@
       "md": "warehouse-management/production/bill-of-materials.md"
     },
     "endpoints": [
-      "/data/MCS/rpux/user/RKUCHIYAGM",
+      "/data/MCS/rpux/user/OPERATOR",
       "/data/WM/rpux/filter/columns/WMProductionLine",
       "/data/WM/wm/billOfMaterials",
       "/data/WM/wm/webPerformanceEntries/batch",

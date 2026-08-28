@@ -1483,6 +1483,25 @@ async def test_the_two_work_areas_become_one_skill() -> None:
     }
 
 
+async def test_what_a_reviewer_is_shown_is_what_the_system_stored() -> None:
+    """A parameter's observed values come from the site that names it.
+
+    The Work Area group holds two sites: the keystroke (`twoTEST`, `Three TE`)
+    and the body leaf the form uppercased on the way out (`TWOTEST`,
+    `THREE TE`). Tidying exists to join those two into one parameter -- and
+    once joined, only one of them is a fact about the system. Reading the
+    values off whichever site happened to be first or last in the group shows
+    a reviewer what somebody's fingers did, and offers the next operator a
+    value the form will not store as typed.
+    """
+    version = await _induced_from_the_evidence()
+
+    work_area = next(p for p in version.parameters if p.name == "work_area")
+    assert work_area.observed_values == ("THREE TE", "TWOTEST"), (
+        "the naming site's values, not the keystroke's"
+    )
+
+
 async def test_the_only_thing_nobody_has_to_fill_in_is_the_delta_priority() -> None:
     """Every other field was filled in both times, so every other field is
     required. Delta Priority is optional because one of the two doings proves

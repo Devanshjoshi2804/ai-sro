@@ -800,6 +800,38 @@ def test_one_optional_field_sent_in_two_places_is_still_one_parameter() -> None:
     )
 
 
+def test_two_different_fields_that_shared_a_value_are_not_rejoined() -> None:
+    """The rejoin above asks whether two sites carried the same two values. That
+    is not enough on its own: a query parameter and a body leaf can agree on
+    both values and still name two different fields, and the run that skipped
+    the body field empties the query string for its own reason.
+
+    Welded, one `distance_threshold` filled both sites -- supplying 7 sent
+    `?deltaPriority=7` as well, a value written to a field nobody supplied. Two
+    parameters is the answer, even though the URL half then comes out required
+    for a field the body half calls optional: one extra prompt beats a wrong
+    write."""
+    request_a = f.request(
+        method="POST",
+        url=f"{URL}?deltaPriority=1",
+        request_body=f.body(json.dumps({"distanceThreshold": 1})),
+    )
+    request_b = f.request(
+        method="POST",
+        url=f"{URL}?deltaPriority=",
+        request_body=f.body(json.dumps({"distanceThreshold": None})),
+    )
+
+    parameterisation = parameterise(
+        (f.frame(0, requests=(request_a,)),), (f.frame(0, requests=(request_b,)),)
+    )
+
+    assert {(sub.site, sub.parameter) for sub in parameterisation.substitutions[0]} == {
+        (JsonBodySite("/distanceThreshold"), "distance_threshold"),
+        (UrlQuerySite("deltaPriority"), "delta_priority"),
+    }
+
+
 async def test_a_field_one_run_cleared_is_one_parameter_on_both_paths() -> None:
     """The mirror of the case above, and the reason the absent form cannot be
     the whole of the grouping key. Both runs touch the control -- one types a

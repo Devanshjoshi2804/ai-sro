@@ -515,10 +515,32 @@ def parameterise(
     # agree on both values verbatim and there is exactly one such candidate.
     # Verbatim because between two non-keystroke sites there is no form tidying
     # anything, and exactly one because two candidates is real ambiguity.
+    #
+    # And when they name the same field. Agreeing on the value pair says only
+    # that two sites carried the same two values; `?deltaPriority=1` beside a
+    # body `{"distanceThreshold":1}`, nulled in the other run, agrees on both
+    # and names two different fields, so the rejoin welded them into one
+    # parameter and supplying 7 wrote 7 to a field nobody supplied. Where the
+    # names differ -- or where a site names nothing at all, a path segment or a
+    # whole text body -- there is no join, and the URL half comes out required
+    # for a field the body half calls optional. That trade is deliberate:
+    # refusing to merge costs an operator one extra prompt, merging wrongly
+    # writes to a field nobody asked about.
     for formless in [
         key for key in groups if key[2] is None and not isinstance(key[3], ActionValueSite)
     ]:
-        formed = [key for key in groups if key[2] is not None and key[:2] == formless[:2]]
+        # A set because a formless group can already hold several sites -- two
+        # body keys the runs proved hold one value -- and a group that spans
+        # two field names has none to match on.
+        named = {_key_of(difference.site) for difference in groups[formless]}
+        formed = [
+            key
+            for key in groups
+            if key[2] is not None
+            and key[:2] == formless[:2]
+            and named == {_key_of(groups[key][0].site)}
+            and None not in named
+        ]
         if len(formed) == 1:
             groups[formed[0]].extend(groups.pop(formless))
 

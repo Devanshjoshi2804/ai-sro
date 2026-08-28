@@ -798,12 +798,20 @@ class ExecuteStep:
         # it -- and an empty in an unquoted slot renders `{"deltaPriority":}`,
         # which is not JSON at all.
         #
-        # And where a *text* field is the one the form nulls, its slot is
-        # unquoted too -- that is the only way `null` can be sent at all -- so
-        # a value supplied for it carries its own quotes into the body:
-        # `check dock 9` pasted in raw is not JSON, and a value carrying a `"`
-        # would be writing the rest of the body itself. Only the body gets the
-        # encoded form; the same value in a URL segment or a header is text.
+        # Everything else that goes into the body is encoded for the JSON
+        # string it lands in, and not merely the text slot the form nulls.
+        # A body leaf is a body leaf: `check dock 9` pasted raw into an
+        # unquoted one is not JSON, and `he said "go"` pasted into a quoted
+        # one writes the rest of the body itself. One `json.dumps` answers
+        # both -- the difference is only whose quotes are used, its own where
+        # the slot has none and the template's where it already wrote them --
+        # and for anything carrying neither a quote nor a backslash it changes
+        # nothing at all. Refusing such a value instead, which is what this
+        # did, made a task whose body is XML permanently unrunnable.
+        #
+        # Only the body gets the encoded form; the same value in a URL segment
+        # or a header is text. And a parameter that *is* the body gets none of
+        # it: there is no surrounding string to escape into.
         rendered = dict(values)
         encoded: dict[str, str] = {}
         for parameter in parameters:
@@ -811,8 +819,11 @@ class ExecuteStep:
             # way round because the value is wanted as well as the fact.
             if (absent := parameter.absent_value) is not None and not rendered.get(parameter.name):
                 rendered[parameter.name] = absent
-            elif parameter.unquoted_as == "string" and parameter.name in rendered:
-                encoded[parameter.name] = json.dumps(rendered[parameter.name])
+            elif parameter.name in rendered and not parameter.is_the_body:
+                written = json.dumps(rendered[parameter.name])
+                encoded[parameter.name] = (
+                    written if parameter.unquoted_as == "string" else written[1:-1]
+                )
 
         # Last look before anything leaves: a value is substituted as text, so
         # one that is not the shape its slot was demonstrated holding writes

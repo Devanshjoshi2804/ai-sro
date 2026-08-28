@@ -987,6 +987,11 @@ def _build_parameter(
     sites: list[Difference],
     source: tuple[int, str, Transform | None] | None,
 ) -> Parameter:
+    # A body that is not JSON is parameterised whole, and a value going into
+    # one is the body rather than something inside it: nothing round it to
+    # escape into, and nothing round it to break out of either. Every other
+    # site kind here is a value inside something, which is the safe default.
+    is_the_body = any(isinstance(site.site, TextBodySite) for site in sites)
     if source is None:
         absent_as = next((site.absent_as for site in sites if site.absent_as is not None), None)
         if absent_as is not None:
@@ -1008,12 +1013,14 @@ def _build_parameter(
                 unquoted_as=next(
                     (site.filled_as for site in sites if renders_unquoted(site)), None
                 ),
+                is_the_body=is_the_body,
             )
         return Parameter(
             name=name,
             kind=ParameterKind.INPUT,
             description=_where(sites),
             observed_values=(value_a, value_b),
+            is_the_body=is_the_body,
         )
     step_index, pointer, rewrite = source
     described = f"produced by step {step_index} response at {pointer}"
@@ -1031,6 +1038,7 @@ def _build_parameter(
         source_step_index=step_index,
         source_pointer=pointer,
         transform=rewrite,
+        is_the_body=is_the_body,
     )
 
 

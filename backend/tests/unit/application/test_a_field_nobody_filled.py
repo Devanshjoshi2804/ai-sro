@@ -137,6 +137,38 @@ def test_a_field_filled_once_is_optional_and_remembers_what_empty_looked_like() 
     assert parameter.absent_as == "null"
     assert parameter.unquoted_as == "number", "what the run that filled it sent"
     assert parameter.observed_values == ("1",), "an absence is not a value somebody observed"
+    assert parameter.is_the_body is False, "a leaf inside the body, not the body"
+
+
+def test_a_body_that_is_not_json_is_one_parameter_that_is_the_body() -> None:
+    """A SOAP body is parameterised whole -- the diff has no leaves to address
+    in it -- so the value that fills it is the body rather than a value inside
+    one. Recorded on the parameter, because execution has to know not to
+    escape it into a JSON string that is not there, and not to refuse it for
+    the quotes and newlines every envelope carries."""
+    envelopes = [f'<?xml version="1.0"?><Release id="W-{n}"/>' for n in ("42", "43")]
+    runs = [
+        (
+            f.frame(
+                0,
+                requests=(
+                    f.request(
+                        method="POST",
+                        url=URL,
+                        request_body=f.body(envelope),
+                    ),
+                ),
+            ),
+        )
+        for envelope in envelopes
+    ]
+
+    parameters = parameterise(*runs).parameters
+
+    assert len(parameters) == 1
+    assert parameters[0].is_the_body is True
+    assert parameters[0].observed_values == tuple(envelopes)
+    assert parameters[0].rejects(envelopes[0]) is None, "its own recorded value must be sendable"
 
 
 def test_a_group_one_run_left_empty_is_refused_rather_than_guessed_at() -> None:
@@ -1249,25 +1281,58 @@ async def test_a_quantity_that_would_write_a_field_nobody_demonstrated_is_refuse
     assert http.sent == [], "a refusal must not send anything"
 
 
-async def test_a_value_that_would_end_its_own_string_is_refused_too() -> None:
-    """The milder half of the same hole, and older than the unquoting: a
-    quoted slot needs one `"` to get out of, and the body after it is the
-    supplier's to write."""
+async def test_a_value_that_would_end_its_own_string_is_escaped_rather_than_refused() -> None:
+    """The milder half of the same hole, and it closes by encoding rather than
+    by refusing. A quoted body slot is text inside a JSON string, exactly like
+    the unquoted string slot beside it, so the value is `json.dumps`-escaped on
+    its way in: the `"` it carries becomes `\\"` and writes nothing but its own
+    field. Refusing instead cost every legitimate value with a quote in it --
+    a search term, an address line, and every XML body there has ever been."""
     uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
     await vault.store(_SCOPED, "session=live")
     await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
 
-    with pytest.raises(NotRunnable, match="work_area is sent inside a quoted string"):
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"work_area": 'PACK-3","deltaPriority":9', "delta_priority": "1"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert len(http.sent) == 1
+    sent_body = http.sent[0]["body"]
+    assert isinstance(sent_body, str)
+    body = json.loads(sent_body)
+    assert body == {"workArea": 'PACK-3","deltaPriority":9', "deltaPriority": 1}, (
+        "the whole value in its own field, and the field beside it untouched"
+    )
+
+
+async def test_a_supplied_value_never_adds_a_field_the_demonstration_did_not_send() -> None:
+    """The rule the encoding has to keep: whatever a value carries, the body
+    that goes out has exactly the keys the demonstration sent. Asserted on the
+    keys rather than on the text, because "it did not break out" is the claim
+    and a rendered string only looks like it."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
+
+    for value in ('","approved":true,"x":"', "back\\slash", '""', 'he said "go"'):
         await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
             CTX,
             ExecutionRequest(
                 skill_id=SkillId("skill-1"),
-                parameters={"work_area": 'PACK-3","deltaPriority":9', "delta_priority": "1"},
+                parameters={"work_area": value, "delta_priority": "1"},
                 authorized_by="supervisor",
             ),
         )
-
-    assert http.sent == []
+        sent_body = http.sent[-1]["body"]
+        assert isinstance(sent_body, str)
+        body = json.loads(sent_body)
+        assert list(body) == ["workArea", "deltaPriority"], f"{value!r} wrote a key of its own"
+        assert body["workArea"] == value
 
 
 def test_the_absent_form_of_a_text_field_is_the_empty_string_not_two_quotes() -> None:
@@ -1279,14 +1344,31 @@ def test_the_absent_form_of_a_text_field_is_the_empty_string_not_two_quotes() ->
     Compared against the stored JSON instead, a supplied `""` was read as
     "leaving it out" and substituted as text into a slot that already had
     quotes round it, and the write went out with four in a row. Leaving it out
-    is what an empty value already means, on both paths."""
+    is what an empty value already means, on both paths -- and the two
+    characters are now an ordinary value, escaped into the slot like any
+    other, which is the second half of why four quotes cannot happen."""
     note = Parameter(name="note", kind=ParameterKind.INPUT, absent_as='""')
 
     assert note.absent_value == ""
     assert note.rejects("") is None, "an empty value is nobody supplying one"
-    assert note.rejects('""') == (
-        "note is sent inside a quoted string and '\"\"' would end it early"
+    assert note.rejects('""') is None, "an ordinary value now; the slot escapes it"
+
+
+def test_a_control_character_is_refused_wherever_the_value_is_not_the_body() -> None:
+    """The one character-level refusal left. A value is substituted as text
+    into headers and URLs as well as bodies -- a `\\r` there ends the header
+    value and starts a second header -- and nothing on a parameter separates
+    the body leaf from the header. A whole body is the exception: it is not
+    inside anything, and an XML envelope is full of newlines."""
+    note = Parameter(name="note", kind=ParameterKind.INPUT)
+    envelope = Parameter(name="envelope", kind=ParameterKind.INPUT, is_the_body=True)
+
+    assert note.rejects("check dock 9") is None
+    assert note.rejects("one\r\nTwo: three") == (
+        "note is substituted as text wherever it is sent, and no URL or header "
+        "can carry the '\\r' in 'one\\r\\nTwo: three'"
     )
+    assert envelope.rejects("<a>\n  <b>x</b>\n</a>") is None
 
 
 @pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity"])
@@ -1309,8 +1391,53 @@ async def test_a_value_a_response_produced_is_checked_where_it_is_rendered() -> 
     derived value comes out of the system's own earlier answer, and the thing
     a loop is acting on comes out of a list. `_check_runnable` never sees
     those, so the same rule is asked again where the body is actually built --
-    and the step fails saying why rather than sending a body somebody else's
-    quotation marks helped write."""
+    and the step fails saying why rather than sending a body an earlier
+    response helped write."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    http.answer(status_code=200, text=json.dumps({"qty": '2,"approved":true'}))
+    http.answer(status_code=200, text="{}")
+
+    version = f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                network_plan=f.network_plan(method="GET", url=Template(URL), body=None),
+            ),
+            f.step(
+                index=1,
+                network_plan=f.network_plan(url=Template(URL), body=Template('{"qty":${qty}}')),
+            ),
+        ),
+        parameters=(
+            Parameter(
+                name="qty",
+                kind=ParameterKind.DERIVED,
+                source_step_index=0,
+                source_pointer="/qty",
+                absent_as="null",
+                unquoted_as="number",
+            ),
+        ),
+    )
+    await _promoted(uow, version, PromotionStage.ASSISTED)
+
+    run = await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        ExecutionRequest(skill_id=SkillId("skill-1"), parameters={}, authorized_by="supervisor"),
+    )
+
+    assert run.status is RunStatus.FAILED
+    assert len(http.sent) == 1, "the read went; the write it fed never did"
+    assert run.steps[1].detail is not None
+    assert "is sent as a bare number" in run.steps[1].detail
+
+
+async def test_a_value_a_response_produced_is_escaped_into_the_body() -> None:
+    """The other half of the same path. A derived value that a quoted slot can
+    hold once it is encoded is sent, not refused: the answer said `he said
+    "go"` and that is what goes into the note, whole, with the body still one
+    field wide."""
     uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
     await vault.store(_SCOPED, "session=live")
     http.answer(status_code=200, text=json.dumps({"note": 'he said "go"'}))
@@ -1343,10 +1470,49 @@ async def test_a_value_a_response_produced_is_checked_where_it_is_rendered() -> 
         ExecutionRequest(skill_id=SkillId("skill-1"), parameters={}, authorized_by="supervisor"),
     )
 
-    assert run.status is RunStatus.FAILED
-    assert len(http.sent) == 1, "the read went; the write it fed never did"
-    assert run.steps[1].detail is not None
-    assert "would end it early" in run.steps[1].detail
+    assert run.status is RunStatus.SUCCEEDED
+    sent_body = http.sent[1]["body"]
+    assert isinstance(sent_body, str)
+    assert json.loads(sent_body) == {"note": 'he said "go"'}
+
+
+async def test_a_body_that_is_one_parameter_is_sent_exactly_as_supplied() -> None:
+    """A body that is not JSON -- SOAP here -- is parameterised whole: the
+    template is the placeholder and nothing else. Such a value *is* the body,
+    so it is neither escaped nor refused for what it carries. Both were wrong
+    and one was fatal: an XML envelope carries a `"` on every single run, so
+    the quoted-slot refusal made this task permanently unrunnable."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+
+    envelope = (
+        '<?xml version="1.0"?>\n'
+        '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">\n'
+        "  <soap:Body><Release id=\"W-42\" note='he said &quot;go&quot;'/></soap:Body>\n"
+        "</soap:Envelope>"
+    )
+    version = f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                network_plan=f.network_plan(url=Template(URL), body=Template("${envelope}")),
+            ),
+        ),
+        parameters=(Parameter(name="envelope", kind=ParameterKind.INPUT, is_the_body=True),),
+    )
+    await _promoted(uow, version, PromotionStage.ASSISTED)
+
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"envelope": envelope},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert len(http.sent) == 1
+    assert http.sent[0]["body"] == envelope, "byte for byte; there is nothing round it"
 
 
 async def test_a_required_input_nobody_supplied_still_refuses_to_run() -> None:

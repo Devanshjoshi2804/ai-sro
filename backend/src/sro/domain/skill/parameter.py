@@ -11,10 +11,16 @@ from sro.domain.shared.errors import InvariantViolation
 from sro.domain.skill.lookup import Options
 from sro.domain.skill.transform import Transform
 
-_BREAKS_OUT = re.compile(r'["\\\x00-\x1f]')
-"""What a value cannot carry into a quoted slot: the quote that ends the
-string, the backslash that escapes whatever follows it, and the control
-characters JSON does not allow inside one unescaped."""
+_BREAKS_THE_LINE = re.compile(r"[\x00-\x1f]")
+"""What no slot but a whole body can carry.
+
+A quote and a backslash are no longer here: a value going into a body is
+escaped on its way in, and one going into a URL or a header adds no structure
+by carrying either. A control character does: a `\\r` ends a header value and
+begins whatever follows it as a second header, and a URL has no way to spell
+one at all. A body leaf could escape it -- `json.dumps` does -- and is refused
+along with the rest, because nothing on a `Parameter` separates the leaf from
+the header, and no form control an operator fills in produces one anyway."""
 
 
 def _not_json(constant: str) -> float:
@@ -127,6 +133,22 @@ class Parameter:
     required field: nothing has shown what such a field's absence looks like,
     so its slot keeps the quotes the recorded body had."""
 
+    is_the_body: bool = False
+    """Whether this value *is* a request body rather than a value inside one.
+
+    A body that is not JSON -- SOAP, XML, form-encoded -- is parameterised
+    whole: the template is the placeholder and nothing else. That is the one
+    destination where escaping is wrong rather than harmless, because there is
+    no surrounding string to escape into, and the one where refusing a `"` is
+    fatal rather than annoying: an XML body carries quotes on every single run,
+    so the rule that kept a value from ending its own JSON string made such a
+    task permanently unrunnable.
+
+    False, meaning "escape it", for everything else and for everything stored
+    before this field existed. Which is the safe default in both directions: a
+    value that needs no escaping is unchanged by it, and a value that does is
+    the one this exists to stop writing the rest of the body."""
+
     @property
     def optional(self) -> bool:
         """Whether a run may leave this out.
@@ -168,14 +190,20 @@ class Parameter:
     def rejects(self, value: str) -> str | None:
         """Why this value cannot be put in this parameter's slot, or ``None``.
 
-        A template substitutes as text, so whatever is supplied lands inside
-        the body a demonstration sent and can write more of that body than its
-        own field. An unquoted slot is the plain case: `2,"approved":true` in
-        a quantity renders a valid write carrying a field nobody ever
-        demonstrated, straight to a live warehouse. A quoted slot is milder
-        and not safe -- a value carrying a `"` ends its own string and writes
-        the rest itself -- and a control character breaks the string it sits
-        in whether it is meant to or not.
+        Two rules, because only two things a value can carry cannot be dealt
+        with by encoding it. A quoted slot used to be the third: a value
+        carrying a `"` ended its own string, so it was turned away. It is
+        escaped on the way in now, exactly as an unquoted string slot has
+        always been -- same destination, same kind of value -- and the cost of
+        refusing was real. A whole-body parameter carries quotes on every run.
+
+        What is left. A bare slot renders its value as JSON with no quotes
+        round it, so `2,"approved":true` in a quantity writes a field nobody
+        demonstrated straight into a live warehouse: the value has to be the
+        type the demonstration proved that slot holds, and no amount of
+        escaping makes it one. And a control character is refused wherever the
+        value is not itself the body, because the same value is substituted as
+        text into headers and URLs, neither of which can carry one.
 
         Said as a sentence rather than a boolean because the answer is shown
         to whoever supplied the value, and "no" on its own is not something
@@ -185,14 +213,17 @@ class Parameter:
             # The form the demonstration itself sent, put here by execution
             # when nobody supplied a value. It is JSON by construction.
             return None
+        if self.is_the_body:
+            # The value is the body. There is nothing round it to write more
+            # of, and nothing to escape it into.
+            return None
+        if (carried := _BREAKS_THE_LINE.search(value)) is not None:
+            return (
+                f"{self.name} is substituted as text wherever it is sent, and no URL or "
+                f"header can carry the {carried.group()!r} in {value!r}"
+            )
         match self.unquoted_as:
-            case None:
-                if _BREAKS_OUT.search(value):
-                    return (
-                        f"{self.name} is sent inside a quoted string and "
-                        f"{value!r} would end it early"
-                    )
-            case "string":
+            case None | "string":
                 # Encoded on its way into the body, quotes and all, so there is
                 # nothing here a value can end.
                 pass

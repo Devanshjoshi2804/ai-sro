@@ -15,6 +15,7 @@ What this is careful about, in order of how much damage the alternative does:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -760,9 +761,28 @@ class ExecuteStep:
         mutating = plan.is_mutation
         key = f"{run.id}:{step.index}" if mutating else None
 
+        # An optional field nobody supplied is sent the way the demonstration
+        # that skipped it sent it, filled in here rather than left to the
+        # template: `absent_as` is the demonstration's own JSON -- `null` for
+        # a number the form nulls, `""` for a text control it empties -- and
+        # the string form (the two characters `n`,`u`,`l`,`l`) is not the JSON
+        # value. Its own quotes come off before it goes in a text slot, since
+        # the slot is already quoted at emission for a string-typed field.
+        rendered = dict(values)
+        for parameter in parameters:
+            if (
+                parameter.optional
+                and parameter.name not in rendered
+                and parameter.absent_as is not None
+            ):
+                decoded = json.loads(parameter.absent_as)
+                rendered[parameter.name] = (
+                    decoded if isinstance(decoded, str) else parameter.absent_as
+                )
+
         try:
-            url = plan.url.render(values)
-            body = plan.body.render(values) if plan.body is not None else None
+            url = plan.url.render(rendered)
+            body = plan.body.render(rendered) if plan.body is not None else None
         except KeyError as missing:
             # The step that would have minted this value, not merely some step
             # that was withheld. Any withheld step used to count, so a step that
@@ -1212,7 +1232,9 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
             + ", so it runs in a browser that is signed in to all of them: name a device"
         )
     supplied = set(request.parameters)
-    required = {p.name for p in version.parameters if p.kind is ParameterKind.INPUT}
+    required = {
+        p.name for p in version.parameters if p.kind is ParameterKind.INPUT and not p.optional
+    }
     if absent := sorted(required - supplied):
         raise NotRunnable("no value supplied for " + ", ".join(absent))
 

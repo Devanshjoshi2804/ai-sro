@@ -9,8 +9,10 @@ the whole of ``docs/superpowers/specs/2026-08-28-a-skill-that-repairs-itself``:
 - **It asserted.** The run's steps proved the outcome the demonstration proved.
 - **Nothing is rewritten.** A repair appends a version beside the old one, so
   reverting is promoting the older one again.
-- **It re-earns its place.** The repaired version starts where a freshly taught
-  one starts, with an empty record, so surviving one run is not ten clean ones.
+- **It re-earns its autonomy, not its right to work.** The repaired version
+  inherits the rung it was already trusted at, capped below ``AUTONOMOUS``, and
+  starts with an empty record. Surviving one run is not ten clean ones; it is
+  also not a reason to stop doing the job a person is still authorising.
 
 Only the drifted step changes. Every other step is the same object as before,
 because a repair is the old version with one plan replaced -- never a fresh
@@ -31,11 +33,21 @@ from sro.application.knowledge.open_questions import Ambiguity, AskAbout
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.domain.execution.run import Medium, Run, RunStatus, StepDisposition, StepOutcome
+from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.locator import ControlLocator
 from sro.domain.skill.plan import UiPlan
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillStep, SkillVersion
-from sro.domain.skill.track_record import TrackRecord, Verdict
+from sro.domain.skill.track_record import TrackRecord
+
+REPAIR = PrincipalId("drift-repair")
+"""Named as the promoter of a repaired version, because something has to be.
+
+Not a person, and it does not pretend to be one: the person is whoever
+authorises the next run, which at every rung a repair can reach is still
+somebody. What this records is that the rung was inherited rather than earned by
+runs or granted by a click.
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,9 +130,11 @@ class RepairDrift:
                 version,
                 version=skill.next_version_number(),
                 steps=tuple(repaired.get(step.index, step) for step in version.steps),
-                # None of the old one's standing: not its rung, not its streak,
-                # not the reason it was last pulled down.
+                # Appended where every version is appended. The rung it
+                # inherits is set below, once it is on the skill.
                 stage=PromotionStage.RECORDED,
+                # None of the old one's record: the climb back to unattended
+                # starts at zero, because one run is not ten.
                 track_record=TrackRecord(),
                 promoted_at=None,
                 promoted_by=None,
@@ -133,11 +147,34 @@ class RepairDrift:
                 ),
             )
             skill.add_version(fresh)
-            # The same step induction takes, and for the same reason: a version
-            # added at RECORDED cannot be run, so it could never earn the rung
-            # that lets it run, and `Skill.runnable` would go on offering the
-            # drifted one forever. Nothing is sent at the next rung.
-            fresh.earn(Verdict.WITHHELD, now)
+            # `Skill.runnable` serves the newest version that is not RECORDED,
+            # so this one takes over from the one it repairs the moment it is
+            # saved -- and a version that took over at SHADOW would withhold
+            # every write. A skill that repaired itself would stop doing the
+            # work, which is the opposite of healing.
+            #
+            # So it inherits the rung, capped below AUTONOMOUS. At ASSISTED a
+            # named person authorises every run; that person is the safety, and
+            # they are still there, looking at a version that differs from the
+            # one they were happily running by a single locator a verified run
+            # proved. Unattended is the one rung nobody is watching, so it is
+            # the one a repair may not inherit: a version nobody has watched
+            # re-earns the right to act unwatched, from the empty record above.
+            inherited = (
+                version.stage
+                if version.stage.rung < PromotionStage.AUTONOMOUS.rung
+                else PromotionStage.ASSISTED
+            )
+            while fresh.stage.rung < inherited.rung:
+                # Through `promote`, one rung at a time, rather than assigning
+                # the stage behind the guard's back -- and with the truthful
+                # promoter and the run's clock. `acknowledging_fixed_values`
+                # says what is true of an inherited rung: a fixed-value write
+                # skill only reaches ASSISTED because somebody read what it
+                # sends, and this version sends the same thing.
+                fresh.promote(
+                    fresh.stage.next_stage(), now, REPAIR, acknowledging_fixed_values=True
+                )
             await uow.skills.save(skill)
             await uow.commit()
             return fresh.version

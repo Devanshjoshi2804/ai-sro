@@ -66,10 +66,10 @@ def _version(*, number: int = 1) -> SkillVersion:
     )
 
 
-def _skill(version: SkillVersion) -> Skill:
+def _skill(version: SkillVersion, stage: PromotionStage = PromotionStage.ASSISTED) -> Skill:
     skill = f.skill(versions=0)
     skill.add_version(version)
-    version.stage = PromotionStage.ASSISTED
+    version.stage = stage
     version.track_record = TrackRecord(clean_streak=7, clean_runs=7)
     return skill
 
@@ -90,6 +90,21 @@ def _run(*outcomes: StepOutcome, version: int = 1) -> Run:
         run.record(outcome)
     run.finish(f.at(60))
     return run
+
+
+def _run_at(stage: PromotionStage) -> Run:
+    """A run of the repaired version, only to ask whether its rung sends."""
+    return Run(
+        id=RunId("run-2"),
+        tenant_id=f.TENANT,
+        skill_id=f.skill().id,
+        skill_version=2,
+        stage=stage,
+        parameters={},
+        requested_by=f.OPERATOR,
+        started_at=f.at(0),
+        authorized_by=f.OPERATOR,
+    )
 
 
 def _call() -> StepOutcome:
@@ -168,21 +183,62 @@ async def test_the_version_it_repaired_is_left_exactly_where_it_was() -> None:
     assert version.stage is PromotionStage.ASSISTED
 
 
-async def test_the_repaired_version_starts_at_the_bottom_with_no_record() -> None:
-    """Surviving one run is not ten clean ones."""
+async def test_a_repair_keeps_doing_the_work_it_was_already_trusted_with() -> None:
+    """`Skill.runnable` serves the repaired version immediately, so dropping it
+    a rung would stop the operator's Tuesday task from creating anything."""
     version = _version()
     skill = _skill(version)
 
     await _repair(_run(_call(), _click()), skill)
 
     fresh = skill.version(2)
-    assert fresh.track_record == TrackRecord(), "none of the old one's streak"
-    assert fresh.stage.rung < version.stage.rung
-    assert fresh.stage is PromotionStage.SHADOW, (
-        "the rung a freshly taught version reaches: runnable, and nothing it "
-        "sends leaves the process"
+    assert fresh is skill.runnable, "it is what the next run is offered"
+    assert fresh.stage is PromotionStage.ASSISTED, (
+        "the rung it was already trusted at: a human still presses, and what "
+        "they press on differs by one locator a verified run proved"
     )
-    assert fresh is skill.runnable, "and it is what the next run is offered"
+    assert _run_at(fresh.stage).performs_writes, "so the work still happens"
+    assert fresh.promoted_by is not None, "and the rung names who gave it"
+
+
+async def test_the_repaired_version_starts_with_no_record() -> None:
+    """Surviving one run is not ten clean ones, and unattended is exactly where
+    a bad repair would go unnoticed."""
+    version = _version()
+    skill = _skill(version)
+
+    await _repair(_run(_call(), _click()), skill)
+
+    assert skill.version(2).track_record == TrackRecord(), "none of the old one's streak"
+
+
+async def test_a_repair_of_an_unattended_version_asks_for_a_human_again() -> None:
+    """The one rung a repair may not inherit. Nobody has watched this version
+    run, and unattended is where that would go unnoticed -- so it re-earns the
+    right to act unwatched from the empty record, ten clean runs away."""
+    version = _version()
+    skill = _skill(version, stage=PromotionStage.AUTONOMOUS)
+
+    await _repair(_run(_call(), _click()), skill)
+
+    fresh = skill.version(2)
+    assert fresh.stage is PromotionStage.ASSISTED
+    assert fresh is skill.runnable
+    assert _run_at(fresh.stage).performs_writes, "the work continues; somebody watches it"
+
+
+async def test_a_repair_of_a_rehearsing_version_goes_on_rehearsing() -> None:
+    """Inheriting the stage cuts both ways: nothing is sent at SHADOW, and a
+    repair is not a reason to start sending."""
+    version = _version()
+    skill = _skill(version, stage=PromotionStage.SHADOW)
+
+    await _repair(_run(_call(), _click()), skill)
+
+    fresh = skill.version(2)
+    assert fresh.stage is PromotionStage.SHADOW
+    assert fresh is skill.runnable
+    assert not _run_at(fresh.stage).performs_writes
 
 
 async def test_the_new_version_names_the_run_that_proved_it() -> None:
@@ -270,7 +326,6 @@ async def test_the_repaired_version_no_longer_drifts() -> None:
     """The repair is self-limiting: the next run matches what it was taught."""
     skill = _skill(_version())
     await _repair(_run(_call(), _click()), skill)
-    skill.version(2).stage = PromotionStage.ASSISTED
 
     number, _ = await _repair(_run(_call(), _click(), version=2), skill)
 

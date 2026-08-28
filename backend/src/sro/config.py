@@ -2,10 +2,35 @@
 
 from __future__ import annotations
 
+import subprocess
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _git_head() -> str:
+    """The commit the working tree is on, asked once at import of the settings.
+
+    Only the fallback: ``SRO_REVISION`` wins when it is set, because a container
+    ships without a .git directory and knows its own build. Anything that goes
+    wrong here -- no git, not a checkout, a repository that answers slowly -- is
+    answered with "unknown". A process that refuses to start because it could
+    not name itself would be a worse failure than the one this exists to catch.
+    """
+    try:
+        done = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607 - git is on PATH or it is not
+            cwd=Path(__file__).parent,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    return done.stdout.strip() or "unknown"
 
 
 class Settings(BaseSettings):
@@ -15,6 +40,16 @@ class Settings(BaseSettings):
 
     environment: str = "local"
     debug: bool = False
+
+    revision: str = Field(default_factory=_git_head)
+    """The commit this process is running, resolved once at startup.
+
+    Every process reports it -- the API on ``/health``, the worker in the
+    identity it polls Temporal with -- so that `make status` can put them beside
+    the working tree's HEAD. This exists because an API left running for two
+    days served a rule that had been fixed an hour earlier, and every step of
+    the diagnosis looked like a code bug. Nothing enforces a match: a rolling
+    deploy is two revisions on purpose."""
 
     database_url: str = "postgresql+asyncpg://sro:sro@localhost:5432/sro"
 

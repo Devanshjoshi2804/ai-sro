@@ -8,7 +8,7 @@ BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
-.PHONY: help up down ps logs reset install migrate revision api worker web vault-key \
+.PHONY: help up down ps logs reset install migrate revision api worker status web vault-key \
         lint lint-backend lint-frontend format test test-unit test-integration \
         test-contract test-browser types check ingest-kb seed-skills gen-recorder
 
@@ -55,6 +55,9 @@ api: ## Run the API with reload
 
 worker: ## Run the Temporal worker
 	$(BACKEND) uv run python -m sro.infrastructure.temporal.worker
+
+status: ## Which commit each running process is actually on, beside this checkout
+	@$(BACKEND) uv run python scripts/status.py
 
 # --- frontend ---------------------------------------------------------------
 

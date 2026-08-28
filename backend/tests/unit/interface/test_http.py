@@ -17,7 +17,7 @@ from sro.application.execution.pursuits import Pursuits
 from sro.application.ports.auth import Caller
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
-from sro.config import Settings
+from sro.config import Settings, get_settings
 from sro.container import Container
 from sro.domain.shared.identifiers import BrowserSessionId, PrincipalId, RecordingId, TenantId
 from sro.infrastructure.agent.sockets import DeviceSockets
@@ -169,6 +169,13 @@ class TestHealth:
 
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
+
+    async def test_liveness_says_which_code_is_answering(self, client: httpx.AsyncClient) -> None:
+        """The field that turns "the fix is on disk" into "the fix is running"."""
+        response = await client.get("/health")
+
+        assert response.json()["revision"] == get_settings().revision
+        assert response.json()["revision"]
 
 
 async def _connected(uow: FakeUnitOfWork, container: _FakeContainer) -> None:

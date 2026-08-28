@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import socket
 from datetime import UTC, datetime, timedelta
 
 from temporalio.client import Client
@@ -29,6 +31,19 @@ from sro.infrastructure.temporal.workflows import (
 from sro.observability import configure_logging
 
 logger = logging.getLogger(__name__)
+
+
+def identity(settings: Settings) -> str:
+    """How this worker names itself to Temporal: ``pid@host@revision``.
+
+    Temporal's default is ``pid@host``; the revision is appended because that is
+    the field the server already keeps for every process polling a queue and
+    hands back from DescribeTaskQueue. So the worker reports which code it is
+    running without a new table, a new endpoint, or a log file to tail -- and it
+    reports it live, which a row written at startup by a process since killed
+    would not. `make status` reads the last ``@``-separated field.
+    """
+    return f"{os.getpid()}@{socket.gethostname()}@{settings.revision}"
 
 
 async def connect(settings: Settings) -> Client:
@@ -127,12 +142,15 @@ async def retain_lately(container: Container, every_seconds: float) -> None:
 async def run() -> None:
     settings = get_settings()
     configure_logging()
+    logger.info("worker starting on revision %s", settings.revision)
     container = build_container(settings)
     activities = Activities(container)
     client = await connect(settings)
+    me = identity(settings)
 
     default = Worker(
         client,
+        identity=me,
         task_queue=DEFAULT_QUEUE,
         workflows=[InductionWorkflow, ExecutionWorkflow, TriggerWorkflow],
         activities=[
@@ -145,6 +163,7 @@ async def run() -> None:
     )
     browser = Worker(
         client,
+        identity=me,
         task_queue=BROWSER_QUEUE,
         workflows=[RecordingSessionWorkflow],
         activities=[activities.abandon_stale_recording, activities.close_browser_session],

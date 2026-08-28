@@ -13,7 +13,9 @@ export interface paths {
         };
         /**
          * Health
-         * @description Liveness: the process answers. Deliberately touches no dependency.
+         * @description Liveness: the process answers, and says which code it is answering with.
+         *
+         *     Still touches no dependency: the revision was resolved once at startup.
          */
         get: operations["health_health_get"];
         put?: never;
@@ -1646,6 +1648,8 @@ export interface components {
         Health: {
             /** Status */
             status: string;
+            /** Revision */
+            revision: string;
             /** Checks */
             checks: {
                 [key: string]: boolean;

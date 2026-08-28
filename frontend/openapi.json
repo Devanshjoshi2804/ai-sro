@@ -12,7 +12,7 @@
           "health"
         ],
         "summary": "Health",
-        "description": "Liveness: the process answers. Deliberately touches no dependency.",
+        "description": "Liveness: the process answers, and says which code it is answering with.\n\nStill touches no dependency: the revision was resolved once at startup.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -19312,6 +19312,10 @@
             "type": "string",
             "title": "Status"
           },
+          "revision": {
+            "type": "string",
+            "title": "Revision"
+          },
           "checks": {
             "additionalProperties": {
               "type": "boolean"
@@ -19323,6 +19327,7 @@
         "type": "object",
         "required": [
           "status",
+          "revision",
           "checks"
         ],
         "title": "Health"

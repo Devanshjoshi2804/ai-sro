@@ -470,6 +470,18 @@ class ExecuteStep:
         indistinguishable from a call once it has happened, so a stage that may
         not write may not click either.
         """
+        if step.when and not values.get(step.when):
+            # The demonstration that skipped this field did not touch this
+            # control, so neither does this. Skipped rather than typed empty:
+            # an empty keystroke into a required-looking field is how a form
+            # ends up with a validation error nobody asked for.
+            return StepOutcome(
+                index=step.index,
+                medium=Medium.UI,
+                disposition=StepDisposition.SKIPPED,
+                intent=step.intent,
+                detail=f"nothing was supplied for {step.when}, which this step fills",
+            )
         plan = step.ui_plan
         if plan is None or not plan.replayable:
             return StepOutcome(

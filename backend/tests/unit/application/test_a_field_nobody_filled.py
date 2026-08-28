@@ -25,11 +25,13 @@ from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.sites import JsonBodySite, substitute_body
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
+from sro.domain.execution.run import Medium
 from sro.domain.recording.events import ActionKind, InputAction
 from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import RecordingId, SkillId
-from sro.domain.skill.plan import HeaderPlan
+from sro.domain.skill.locator import ControlLocator, LocatorStrategy
+from sro.domain.skill.plan import HeaderPlan, UiPlan
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillStep, SkillVersion
 from sro.domain.skill.template import Template
@@ -40,6 +42,7 @@ from tests.unit.fakes import (
     FakeEmbedder,
     FakeHttpCaller,
     FakeIdFactory,
+    FakeUiDriver,
     FakeUnitOfWork,
 )
 
@@ -770,3 +773,90 @@ async def test_a_required_input_nobody_supplied_still_refuses_to_run() -> None:
         )
 
     assert http.sent == [], "a refusal must not send anything"
+
+
+# On a system with no writable API, the form is the only way in -- so the
+# absent-form rule above has to hold on the gesture path too, or a run that
+# clicks types into a field nobody gave it a value for. Two keystrokes, one
+# conditional on ``delta_priority``: whether the driver was asked for the
+# second one is the whole test.
+
+_WORK_AREA_FIELD = f.fingerprint(node_id="work-area-field", accessible_name="Work Area")
+_DELTA_PRIORITY_FIELD = f.fingerprint(
+    node_id="delta-priority-field", accessible_name="Delta Priority"
+)
+
+
+def _typed_ui_step(index: int, *, when: str | None, target: object, parameter: str) -> SkillStep:
+    return f.step(
+        index=index,
+        when=when,
+        network_plan=None,
+        ui_plan=UiPlan(
+            action=ActionKind.TYPE,
+            target=target,  # type: ignore[arg-type]
+            value=Template(f"${{{parameter}}}"),
+            locators=(
+                ControlLocator(strategy=LocatorStrategy.COMPONENT, query=Template(f"#{parameter}")),
+            ),
+        ),
+    )
+
+
+def _version_with_optional_delta() -> SkillVersion:
+    return f.skill_version(
+        steps=(
+            _typed_ui_step(0, when=None, target=_WORK_AREA_FIELD, parameter="work_area"),
+            _typed_ui_step(
+                1, when="delta_priority", target=_DELTA_PRIORITY_FIELD, parameter="delta_priority"
+            ),
+        ),
+        parameters=(
+            f.parameter(name="work_area", observed_values=("ONE", "TWO")),
+            f.parameter(
+                name="delta_priority", optional=True, absent_as="null", observed_values=("1",)
+            ),
+        ),
+    )
+
+
+async def _run_by_clicking(values: dict[str, str], *, ui: FakeUiDriver) -> None:
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await _promoted(uow, _version_with_optional_delta(), PromotionStage.ASSISTED)
+
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), ui).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters=values,
+            authorized_by="supervisor",
+            medium=Medium.UI,
+        ),
+    )
+
+
+async def test_a_conditional_step_with_no_value_is_not_typed() -> None:
+    """On a system with no writable API, the form is the only way in -- so the
+    skip has to work here, not only on the call.
+
+    Sent as `""`, not simply left out of the request: a template that still
+    names `${delta_priority}` renders an omitted key into a `KeyError` on its
+    own, which would fail this step for an unrelated reason and prove nothing
+    about the guard under test. An empty string is the one shape that reaches
+    `ui.perform` unless something stops it on purpose -- the same shape a
+    console forwards for a field a person left blank."""
+    driver = FakeUiDriver()
+
+    await _run_by_clicking({"work_area": "PACK-3", "delta_priority": ""}, ui=driver)
+
+    typed = [asked for asked in driver.asked if asked["action"] is ActionKind.TYPE]
+    assert [asked["value"] for asked in typed] == ["PACK-3"], "the skipped field was typed anyway"
+
+
+async def test_a_conditional_step_with_a_value_is_typed() -> None:
+    driver = FakeUiDriver()
+
+    await _run_by_clicking({"work_area": "PACK-3", "delta_priority": "4"}, ui=driver)
+
+    typed = [asked for asked in driver.asked if asked["action"] is ActionKind.TYPE]
+    assert [asked["value"] for asked in typed] == ["PACK-3", "4"]

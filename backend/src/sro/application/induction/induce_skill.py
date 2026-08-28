@@ -223,6 +223,32 @@ class InduceSkill:
             # either recording of how the field gets filled at all. Put back as
             # steps that happen only when somebody supplies the value.
             conditionals = _conditionals(parameterisation, optional_fills(frames_a, frames_b))
+            if conditionals and looped is not None:
+                # The two index spaces meet here and cannot both be right. A
+                # loop's substitutions are keyed by raw frame; everything the
+                # diff produced is keyed by aligned step; and `_make_room`
+                # moves every key it is handed. So the loop's `${line_id}` was
+                # moved one place past the step that sends it and quietly lost:
+                # the pair induced, the version passed its own invariants, and
+                # the skill adjusted line 1 once per line the order had.
+                #
+                # Refused rather than reconciled. Reconciling means deciding
+                # that a raw frame index and a step index agree once every
+                # dropped gesture is back, which holds only while every
+                # unmatched frame before the block is one of them -- true of
+                # this pair and not of a pair with one non-evidential gesture
+                # in it. That is the guess ADR 004 exists to prevent, and the
+                # cost of refusing is one demonstration done again.
+                raise InductionFailed(
+                    "this pair is a loop and a form somebody skipped a field on. The "
+                    "loop counts the frames as they were recorded and everything else "
+                    "counts the steps the two runs share, and putting the skipped "
+                    "field's gesture back as a step moves one and not the other -- so "
+                    "the loop would come out acting on whatever the first iteration "
+                    "happened to send. Demonstrate the loop with that field filled in "
+                    "both runs",
+                    step_index=conditionals[0].fill.frame.index,
+                )
             parameterisation = _make_room(parameterisation, conditionals)
             steps = _build_steps(
                 frames_a, frames_b, run_a, objective, parameterisation, conditionals
@@ -276,10 +302,14 @@ class InduceSkill:
                 # control by name-or-text while `diff._control` uses
                 # name-or-test-id-or-css, so a keystroke named in one run and
                 # only described in the other keeps its position in the shape
-                # sequence while failing to pair -- and putting that gesture
-                # back as a step moves the step space *towards* the frame space
-                # the loop already counts in. Moving the bound too counts it
-                # twice: the case above yields first_step=3 in a 3-step version.
+                # sequence while failing to pair.
+                #
+                # Nothing here can be reached with a conditional step in the
+                # version: that pair is refused above, because the loop's own
+                # substitutions are keyed in the frame space and `_make_room`
+                # would move them. What is left is an unmatched gesture nobody
+                # puts back, and moving the bound for it would count a step
+                # that is not there.
                 loops=(looped.loop,) if looped is not None else (),
             )
             # Everything else the demonstration proved. Opening the screen to

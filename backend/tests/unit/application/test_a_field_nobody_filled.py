@@ -1566,3 +1566,124 @@ async def test_a_healed_step_is_retried_with_the_parameters_it_was_performed_wit
     sent_body = http.sent[0]["body"]
     assert isinstance(sent_body, str)
     assert json.loads(sent_body)["deltaPriority"] is None, "the absent form, on the retry too"
+
+
+# --- A loop and a conditional step in one skill -------------------------------
+#
+# The one pair that tells the two index spaces apart. A loop's bounds count raw
+# frames; every other index counts aligned steps -- and putting a dropped
+# gesture back moves the step space towards the frame space rather than away
+# from it, so the loop's bounds must not be moved along with everything else.
+# Nothing induced a loop and a conditional step together, so the comment saying
+# that was the only thing defending it.
+
+_ORDER = "https://wms.test/api/orders/55"
+
+
+def _open_order(lines: list[str]) -> object:
+    """The read that says how many lines are short. Its answer is the list."""
+    return f.frame(
+        index=0,
+        action=InputAction(kind=ActionKind.CLICK, target=f.fingerprint(accessible_name="Open")),
+        requests=(
+            f.request(
+                method="GET",
+                url=_ORDER,
+                status=200,
+                response_body=f.body(
+                    json.dumps(
+                        {"data": {"lines": [{"lineId": line, "short": True} for line in lines]}}
+                    )
+                ),
+            ),
+        ),
+    )
+
+
+def _type_priority(value: str, *, named: bool) -> object:
+    """The Delta Priority box, typed into once and left alone once.
+
+    Both runs report the control, and the page describes it differently in the
+    two of them -- an accessible name in one, only its text in the other. That
+    is what keeps the frame in its place in the shape sequence (`loops._shape`
+    reads name-or-text) while failing to pair (`diff._control` reads
+    name-or-test-id-or-css), which is the misalignment a conditional step is
+    put back into.
+    """
+    return f.frame(
+        index=1,
+        action=InputAction(
+            kind=ActionKind.TYPE,
+            target=f.fingerprint(
+                role="textbox",
+                accessible_name="Delta Priority" if named else None,
+                text=None if named else "Delta Priority",
+                css_path="input#deltaPriority",
+            ),
+            value=value,
+        ),
+        requests=(),
+    )
+
+
+def _adjust_line(index: int, line: str, priority: int | None) -> object:
+    return f.frame(
+        index=index,
+        action=InputAction(kind=ActionKind.CLICK, target=f.fingerprint(accessible_name="Adjust")),
+        requests=(
+            f.request(
+                method="POST",
+                url=f"https://wms.test/api/lines/{line}/adjust",
+                status=200,
+                request_body=f.body(json.dumps({"lineId": line, "deltaPriority": priority})),
+            ),
+        ),
+    )
+
+
+async def _induce_the_loop_with_a_skipped_field() -> SkillVersion:
+    """Two operators adjust every short line on an order. One typed a Delta
+    Priority first and the other left the box alone; one order had two short
+    lines and the other three. The line numbers are the order's own, so the
+    first iteration sends the same one in both runs -- which is what keeps the
+    diff from naming a parameter the loop also names, and lets the pair get as
+    far as emission at all."""
+    uow = FakeUnitOfWork()
+    runs = (("rec-a", ["1", "2"], 5, "5", True), ("rec-b", ["1", "2", "3"], None, "", False))
+    for ident, lines, priority, typed, named in runs:
+        recording = f.recording(frames=0, id=RecordingId(ident))
+        recording.append_frame(_open_order(lines))
+        recording.append_frame(_type_priority(typed, named=named))
+        for index, line in enumerate(lines):
+            recording.append_frame(_adjust_line(index + 2, line, priority))
+        recording.seal(f.at(300))
+        await uow.recordings.add(recording)
+
+    clock = FakeClock()
+    return await InduceSkill(
+        uow,
+        clock,
+        FakeIdFactory(),
+        AskAbout(uow, RecordClaims(uow, clock, FakeIdFactory(), FakeEmbedder())),
+    ).execute(CTX, first=RecordingId("rec-a"), second=RecordingId("rec-b"))
+
+
+async def test_a_loop_and_a_skipped_field_in_one_pair_is_refused() -> None:
+    """The comment in `induce_skill` that nothing checked, and what building
+    the pair it describes actually showed.
+
+    A loop's bounds and substitutions are keyed by raw frame; everything the
+    diff produced is keyed by aligned step; and `_make_room` moves every key it
+    is handed. So the conditional step moved the loop's own `${line_id}` one
+    place past the step that sends it, where nothing reads it. The pair induced
+    without complaint, the version passed its own invariants, and the skill it
+    produced posted `https://wms.test/api/lines/1/adjust` once per line the
+    order had -- the same line, as many times as there were lines.
+
+    Reconciling the two spaces means deciding that they agree once every
+    dropped gesture is back, which holds for this pair and not for one with a
+    non-evidential gesture in it as well. That is a guess, so the pair refuses
+    and says which demonstration to do again.
+    """
+    with pytest.raises(InductionFailed, match="a loop and a form somebody skipped a field on"):
+        await _induce_the_loop_with_a_skipped_field()

@@ -163,6 +163,19 @@ The costs, named rather than hidden:
   version's own invariant rejects (`skill.py:302`). A conditional step makes
   this more likely to occur, since more misalignment can now survive as far as
   emission, but it did not create the bug.
+
+- **A loop and a skipped field in one pair is refused.** Built, the pair proved
+  worse than the bounds question that prompted looking for it: a loop's
+  substitutions are keyed by raw frame, the diff's by aligned step, and
+  `_make_room` moves every key it is handed -- so the conditional step moved
+  the loop's own `${line_id}` one place past the step that sends it, and the
+  skill posted `/api/lines/1/adjust` once per line the order had. Nothing
+  complained; the version passed its own invariants. Reconciling the two spaces
+  means deciding they agree once every dropped gesture is back, which holds
+  only while every unmatched frame before the block is one of them. That is a
+  guess, so induction refuses the combination and names the demonstration to do
+  again. The bounds are still not remapped, and with the refusal in place there
+  is nothing that could reach the remapping.
 - This ADR covers Part 1 and Part 2 of
   `docs/superpowers/specs/2026-08-27-fields-nobody-filled-design.md` only —
   a value nobody has ever typed, the pre-flight, the offer, and when asking

@@ -607,3 +607,20 @@ def test_an_optional_parameter_nobody_supplied_still_runs_but_a_required_one_doe
     required = f.skill_version(stage=PromotionStage.SHADOW, parameters=(f.parameter(),))
     with pytest.raises(NotRunnable, match="no value supplied for shipment_id"):
         _check_runnable(required, request)
+
+
+def test_substitute_body_does_not_unquote_a_field_that_only_looks_like_the_marker() -> None:
+    """The quote-stripping targets the one leaf the parameter actually
+    substituted into, not every occurrence of its placeholder text in the
+    document. An operator who happened to type the literal string
+    "${delta_priority}" into some unrelated field must not have that field's
+    quotes stripped out from under it -- that would leave the body invalid
+    JSON over a value nobody named as a parameter at all."""
+    body = json.dumps({"workArea": "TWOTEST", "deltaPriority": 1, "note": "${delta_priority}"})
+    replacements = {JsonBodySite("/deltaPriority"): "${delta_priority}"}
+
+    rendered = substitute_body(body, replacements, unquoted=frozenset({"delta_priority"}))
+
+    assert rendered == (
+        '{"workArea":"TWOTEST","deltaPriority":${delta_priority},"note":"${delta_priority}"}'
+    )

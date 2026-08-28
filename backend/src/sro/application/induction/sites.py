@@ -240,19 +240,26 @@ def substitute_body(
     if document is None:  # pragma: no cover - callers only pass JSON here
         return body
 
-    for pointer, placeholder in pointers.items():
-        # Every leaf, string or not, becomes the string "${name}" here; a
-        # number's placeholder is unquoted below, once the document is text.
-        jsonutil.set_value(document, pointer, placeholder)
-    text = json.dumps(document, separators=(",", ":"))
-
     # A field whose absent form is not itself a JSON string -- `null` for a
-    # number the form nulls -- sends that form unrendered: a quoted `"null"`
-    # is a string, and a form expecting a number rejects it. json.dumps just
-    # quoted every placeholder alike, so the ones that must not stay quoted
-    # lose their quotes here, once, rather than the template guessing per key.
-    for placeholder in pointers.values():
+    # number the form nulls -- must send that form unrendered: a quoted
+    # `"null"` is a string, and a form expecting a number rejects it. Such a
+    # leaf gets a `\x00name\x00` sentinel instead of its placeholder here, so
+    # the later unquoting step can find exactly this leaf and nothing else --
+    # a `\x00` byte is not something a form control lets an operator type, and
+    # `json.dumps` always escapes one to `\u0000`, so the marker's quoted form
+    # can only occur in the output where this function itself put it. Doing
+    # this with the placeholder text directly, `${name}`, would unquote any
+    # other field whose own value happened to read that.
+    markers: dict[str, str] = {}
+    for pointer, placeholder in pointers.items():
         name = placeholder[2:-1]
         if name in unquoted:
-            text = text.replace(f'"{placeholder}"', placeholder)
+            marker = f"\x00{name}\x00"
+            markers[marker] = placeholder
+            jsonutil.set_value(document, pointer, marker)
+        else:
+            jsonutil.set_value(document, pointer, placeholder)
+    text = json.dumps(document, separators=(",", ":"))
+    for marker, placeholder in markers.items():
+        text = text.replace(json.dumps(marker), placeholder)
     return text

@@ -1138,6 +1138,14 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
         if str(leaf_a) == str(leaf_b):
             continue
         empty_a, empty_b = jsonutil.is_empty(leaf_a), jsonutil.is_empty(leaf_b)
+        if empty_a and empty_b:
+            # `null` in one run and `""` in the other: two spellings of nobody
+            # filling the field, whose string forms differ, so the test above
+            # let them through. Nothing varies here. Called a difference, this
+            # became a required parameter with two empty observed values --
+            # nothing an operator could sensibly supply, and refusing every run
+            # that left it out, which is every honest run.
+            continue
         found.append(
             Difference(
                 step_index=index,

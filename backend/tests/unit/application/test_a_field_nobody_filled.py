@@ -174,6 +174,20 @@ def test_a_group_left_null_is_optional_however_the_runs_happen_to_be_ordered() -
     ]
 
 
+def test_a_field_neither_run_filled_is_not_a_difference_at_all() -> None:
+    """`null` in one run and `""` in the other are two spellings of the same
+    thing: nobody filled this. Their string forms differ, though, so the diff
+    read them as a value that varies and emitted a required parameter with
+    observed values `("", "")` -- nothing an operator could sensibly supply,
+    and required, so every run that left it out was refused. An absence is not
+    a value on either side of the comparison."""
+    run_a = _run({"workArea": "TWOTEST", "note": None})
+    run_b = _run({"workArea": "TWOTEST", "note": ""})
+
+    assert differences(run_a, run_b) == []
+    assert parameterise(run_a, run_b).parameters == ()
+
+
 def test_a_typed_value_is_bound_to_the_field_it_filled() -> None:
     typing = f.frame(
         0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value="twoTEST")

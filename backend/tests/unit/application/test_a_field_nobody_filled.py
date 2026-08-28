@@ -25,7 +25,7 @@ from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.sites import JsonBodySite, substitute_body
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
-from sro.domain.execution.run import Medium
+from sro.domain.execution.run import Medium, Run, RunStatus, StepDisposition
 from sro.domain.recording.events import ActionKind, InputAction
 from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.errors import InvariantViolation
@@ -820,11 +820,11 @@ def _version_with_optional_delta() -> SkillVersion:
     )
 
 
-async def _run_by_clicking(values: dict[str, str], *, ui: FakeUiDriver) -> None:
+async def _run_by_clicking(values: dict[str, str], *, ui: FakeUiDriver) -> Run:
     uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
     await _promoted(uow, _version_with_optional_delta(), PromotionStage.ASSISTED)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), ui).execute(
+    return await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), ui).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -854,9 +854,28 @@ async def test_a_conditional_step_with_no_value_is_not_typed() -> None:
 
 
 async def test_a_conditional_step_with_a_value_is_typed() -> None:
+    """The mirror of the case above: a value somebody did supply is the one
+    thing the guard must never withhold from the control it belongs to."""
     driver = FakeUiDriver()
 
     await _run_by_clicking({"work_area": "PACK-3", "delta_priority": "4"}, ui=driver)
 
     typed = [asked for asked in driver.asked if asked["action"] is ActionKind.TYPE]
     assert [asked["value"] for asked in typed] == ["PACK-3", "4"]
+
+
+async def test_a_conditional_step_with_the_parameter_absent_is_skipped_not_failed() -> None:
+    """`driver.asked` cannot tell this case apart from the one above: with the
+    key left out of `values` entirely, `plan.value.render` would raise
+    `KeyError` on its own before ever reaching `ui.perform`, the same as it
+    would without the guard. What only the guard decides is which disposition
+    that step gets -- and the difference is not cosmetic. `SKIPPED` folds into
+    `Verdict.WITHHELD` and lets the run succeed; a step that instead fails
+    degrades the run and blocks the skill's climb up the promotion ladder, for
+    a parameter no demonstration required either."""
+    driver = FakeUiDriver()
+
+    run = await _run_by_clicking({"work_area": "PACK-3"}, ui=driver)
+
+    assert run.steps[1].disposition is StepDisposition.SKIPPED
+    assert run.status is RunStatus.SUCCEEDED

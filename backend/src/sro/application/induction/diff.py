@@ -445,19 +445,29 @@ def parameterise(
 
     # Grouped by value pair: an order number in the URL, the body and a
     # confirmation field is one parameter with three sites, not three that agree.
+    #
+    # Tidied, for the same reason `binding` tidies: a form is allowed to change
+    # what it was given on the way out. The work area box uppercases as you
+    # type, so `twoTEST` typed and `TWOTEST` sent are one value -- and grouping
+    # them by their exact text made them two parameters, one named after the
+    # field's help text, both asked of whoever runs the skill.
     groups: dict[tuple[str, str], list[Difference]] = {}
     for difference in differences(run_a, run_b):
-        groups.setdefault((difference.value_a, difference.value_b), []).append(difference)
+        key = (binding.tidied(difference.value_a), binding.tidied(difference.value_b))
+        groups.setdefault(key, []).append(difference)
 
     parameters: list[Parameter] = []
     substitutions: dict[int, list[Substitution]] = {}
     taken: set[str] = set()
 
-    for (value_a, value_b), sites in groups.items():
+    for sites in groups.values():
+        named_by = _names_it(sites)
+        # The values the site that names the parameter saw. Whatever the form
+        # did to the keystroke, what the system stored is what this value is.
+        value_a, value_b = named_by.value_a, named_by.value_b
         earliest_use = min(site.step_index for site in sites)
         source = _find_source(value_a, value_b, paired_a, paired_b, before=earliest_use)
 
-        named_by = _names_it(sites)
         name = deduplicate(
             suggest_name(named_by.site, url=named_by.url, field_label=named_by.field_label), taken
         )

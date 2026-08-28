@@ -8,6 +8,8 @@ them leaves Delta Priority empty. Before this, that was "the flows diverged".
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -25,11 +27,14 @@ from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.sites import JsonBodySite, substitute_body
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
+from sro.application.observation.teach import TeachCandidate
 from sro.domain.execution.run import Medium, Run, RunStatus, StepDisposition
+from sro.domain.observation.batch import CaptureMode, ObservationBatch
+from sro.domain.observation.candidate import Episode, TaskCandidate
 from sro.domain.recording.events import ActionKind, InputAction
 from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.errors import InvariantViolation
-from sro.domain.shared.identifiers import RecordingId, SkillId
+from sro.domain.shared.identifiers import BatchId, CandidateId, DeviceId, RecordingId, SkillId
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.plan import HeaderPlan, UiPlan
 from sro.domain.skill.promotion import PromotionStage
@@ -37,6 +42,7 @@ from sro.domain.skill.skill import SkillStep, SkillVersion
 from sro.domain.skill.template import Template
 from tests import factories as f
 from tests.unit.fakes import (
+    FakeBlobStore,
     FakeClock,
     FakeCredentialVault,
     FakeEmbedder,
@@ -186,6 +192,48 @@ def test_a_value_that_could_be_two_fields_is_bound_to_neither() -> None:
     typing = f.frame(0, action=InputAction(kind=ActionKind.TYPE, target=f.fingerprint(), value="1"))
     saving = f.frame(
         1, requests=(f.request(request_body=f.body('{"voiceCode": 1, "priority": 1}')),)
+    )
+
+    assert binding.key_filled_by(typing, saving) is None
+
+
+def test_a_control_that_names_its_own_field_breaks_the_tie() -> None:
+    """The evidence of 2026-08-27 sends `voiceCode` "1" beside `deltaPriority`
+    1, so the rule above binds the Delta Priority keystroke to neither -- and
+    the one field the whole pair turns on became unfillable. The control is not
+    silent about this: an ExtJS field is named for the key it posts under, and
+    where exactly one of the tied keys is the field's own name, nothing is
+    being guessed."""
+    typing = f.frame(
+        0,
+        action=InputAction(
+            kind=ActionKind.TYPE,
+            target=f.fingerprint(
+                role="textbox",
+                accessible_name="Delta Priority",
+                attributes={"name": "deltaPriority"},
+            ),
+            value="1",
+        ),
+    )
+    saving = f.frame(
+        1, requests=(f.request(request_body=f.body('{"voiceCode": "1", "deltaPriority": 1}')),)
+    )
+
+    assert binding.key_filled_by(typing, saving) == "/deltaPriority"
+
+
+def test_a_control_named_after_neither_tied_field_still_binds_to_neither() -> None:
+    typing = f.frame(
+        0,
+        action=InputAction(
+            kind=ActionKind.TYPE,
+            target=f.fingerprint(attributes={"name": "somethingElse"}),
+            value="1",
+        ),
+    )
+    saving = f.frame(
+        1, requests=(f.request(request_body=f.body('{"voiceCode": "1", "deltaPriority": 1}')),)
     )
 
     assert binding.key_filled_by(typing, saving) is None
@@ -879,3 +927,130 @@ async def test_a_conditional_step_with_the_parameter_absent_is_skipped_not_faile
 
     assert run.steps[1].disposition is StepDisposition.SKIPPED
     assert run.status is RunStatus.SUCCEEDED
+
+
+# --- The evidence itself -----------------------------------------------------
+#
+# Everything above this line is unit-scale. Below it, the two work areas a
+# person created by hand in a real Blue Yonder WMS on 2026-08-27 -- captured
+# passively, trimmed to the two doings, hostname swapped for wms.acme.test --
+# go through the whole passive path: batches, candidate, two recordings, real
+# induction. This is the pair that used to come back "the runs are not two runs
+# of one task".
+
+FIXTURES = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "work_areas"
+WATCHED = datetime(2026, 8, 27, 13, 0, tzinfo=UTC)
+
+
+async def _the_two_work_areas(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> TaskCandidate:
+    episodes = []
+    for index, name in enumerate(("with_a_delta_priority", "without_a_delta_priority")):
+        payload = (FIXTURES / f"{name}.ndjson").read_bytes()
+        key = f"acme/devansh/2026-08-27/{name}.ndjson"
+        blobs.objects[key] = payload
+        batch_id = BatchId(f"bat-{name}")
+        await uow.observations.add(
+            ObservationBatch(
+                id=batch_id,
+                tenant_id=f.TENANT,
+                device_id=DeviceId("dev-1"),
+                principal_id=f.OPERATOR,
+                mode=CaptureMode.PASSIVE,
+                started_at=WATCHED,
+                ended_at=WATCHED + timedelta(hours=1),
+                received_at=WATCHED + timedelta(hours=1),
+                uri=f"s3://sro-artifacts/{key}",
+                event_count=len(payload.splitlines()),
+                byte_count=len(payload),
+            )
+        )
+        episodes.append(
+            Episode(
+                started_at=WATCHED + timedelta(minutes=index),
+                ended_at=WATCHED + timedelta(hours=1),
+                host="wms.acme.test",
+                batch_ids=(batch_id,),
+                gestures=14,
+                calls=3,
+            )
+        )
+
+    candidate = TaskCandidate(
+        id=CandidateId("cnd-work-areas"),
+        tenant_id=f.TENANT,
+        principal_id=f.OPERATOR,
+        signature="POST data/WM/wm/workAreas",
+        host="wms.acme.test",
+        title="Create work areas on wms.acme.test",
+        episodes=tuple(episodes),
+    )
+    await uow.candidates.add(candidate)
+    return candidate
+
+
+async def _induced_from_the_evidence() -> SkillVersion:
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    candidate = await _the_two_work_areas(uow, blobs)
+    clock = FakeClock(WATCHED + timedelta(days=1))
+    induce = InduceSkill(
+        uow,
+        clock,
+        FakeIdFactory(),
+        AskAbout(uow, RecordClaims(uow, clock, FakeIdFactory(), FakeEmbedder())),
+    )
+    taught = await TeachCandidate(
+        uow, blobs, clock, FakeIdFactory(), _NeverAsked(), induce
+    ).execute(CTX, candidate_id=candidate.id)
+
+    assert taught.skill_id is not None, taught.because
+    skill = await uow.skills.get(f.TENANT, taught.skill_id)
+    return skill.versions[-1]
+
+
+class _NeverAsked:
+    """A single doing would fall back to a model reading it. Two doings never
+    should, and this says so out loud if the diff ever gives up quietly."""
+
+    async def execute(self, ctx: RequestContext, **kwargs: object) -> object:
+        raise AssertionError("two doings were diffed by asking a model")
+
+
+async def test_the_two_work_areas_become_one_skill() -> None:
+    """The evidence this whole plan came from: two work areas created by hand
+    on 2026-08-27, one with a Delta Priority typed and one with the field left
+    alone."""
+    version = await _induced_from_the_evidence()
+
+    names = {p.name for p in version.parameters}
+    assert {"work_area", "work_area_description"} <= names
+    # One parameter per box on the form, and nothing else. The Work Area box
+    # uppercases as you type, so `twoTEST` was typed and `TWOTEST` was sent:
+    # grouped by exact text those are two parameters, and the second is named
+    # after the field's help text -- `work_area_enter_a_unique_name_for_this_
+    # large_work_space`, asked of an operator alongside the real one.
+    assert names == {
+        "work_area",
+        "work_area_description",
+        "voice_code",
+        "absolute_priority",
+        "home_work_area_absolute_priority",
+        "delta_priority",
+    }
+
+
+async def test_the_only_thing_nobody_has_to_fill_in_is_the_delta_priority() -> None:
+    """Every other field was filled in both times, so every other field is
+    required. Delta Priority is optional because one of the two doings proves
+    the form takes it empty -- and what "empty" means here is the shape the
+    evidence actually sent, `null`, not the empty string a different field of
+    the same form uses."""
+    version = await _induced_from_the_evidence()
+
+    optional = [p for p in version.parameters if p.optional]
+    assert [p.name for p in optional] == ["delta_priority"]
+    assert optional[0].absent_as == "null"
+    # And the gesture only one of the two runs made is kept, conditional on it:
+    # this is the only step in either recording that fills that box, so a skill
+    # that dropped it could never fill Delta Priority by clicking at all.
+    conditional = [step for step in version.steps if step.when]
+    assert [step.when for step in conditional] == ["delta_priority"]

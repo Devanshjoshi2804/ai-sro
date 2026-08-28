@@ -1219,7 +1219,21 @@ def _find_source(
     Verbatim first, everywhere, before any reformatting is considered: a value
     handed over unchanged is the ordinary case and must never be explained by a
     story about padding that happens to fit.
+
+    An empty side is never a dependency. Requiring *both* runs to match is the
+    only thing separating a data path from a coincidence, and an empty leaf
+    matches every empty leaf there is -- so the moment one of the two values is
+    empty that check carries no information and the pair is decided by the other
+    run alone. A difference always has two unequal values, so this can only ever
+    fire where exactly one run left the field alone: the optional field. Calling
+    that DERIVED is the worst reading available -- every run would fill it from
+    a response leaf, including the runs an operator wanted blank, and the
+    keystroke `align` excused would come back as nothing at all. Read as an
+    optional input it stays fillable by hand, with the absent form the run that
+    skipped it actually sent.
     """
+    if not value_a or not value_b:
+        return None
     for verbatim in (True, False):
         for step_index in range(before):
             # Every call the gesture made, not its "primary" one: a Save that

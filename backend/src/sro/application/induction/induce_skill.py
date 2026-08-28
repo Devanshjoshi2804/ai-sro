@@ -493,10 +493,12 @@ def _conditionals(
     """The dropped gestures that can be said to fill something, and which.
 
     Nothing is guessed here. The pointer the keystroke bound to has to be one
-    the diff already parameterised *and* called optional; where it is not --
-    bound to a field both runs filled, or to nothing anybody can name -- the
-    gesture stays dropped, because a step conditional on the wrong parameter is
-    a step that silently stops happening.
+    the diff already parameterised *and* called optional; where it is not, the
+    pair is refused rather than emitted, because these are exactly the gestures
+    `align` excused itself from refusing. Dropping one silently is the field
+    quietly becoming unfillable -- the skill still saves the form, still looks
+    right, and the only gesture in either recording that fills that field is
+    gone. Refusing says so, the way the pair said so before any of this existed.
     """
     optional = {parameter.name for parameter in parameterisation.parameters if parameter.optional}
     named = {
@@ -505,11 +507,14 @@ def _conditionals(
         for sub in subs
         if isinstance(sub.site, JsonBodySite) and sub.parameter in optional
     }
-    return tuple(
-        _Conditional(fill, parameter)
-        for fill in fills
-        if (parameter := named.get(fill.pointer)) is not None
-    )
+    for fill in fills:
+        if fill.pointer not in named:
+            raise InductionFailed(
+                f"one run filled {fill.pointer} and the other left it alone, but nothing in "
+                f"the diff calls that field optional; the runs are not two runs of one task",
+                step_index=fill.frame.index,
+            )
+    return tuple(_Conditional(fill, named[fill.pointer]) for fill in fills)
 
 
 def _moved(index: int, conditionals: tuple[_Conditional, ...]) -> int:

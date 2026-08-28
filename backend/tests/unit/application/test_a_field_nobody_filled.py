@@ -8,6 +8,7 @@ them leaves Delta Priority empty. Before this, that was "the flows diverged".
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -21,9 +22,15 @@ from sro.application.execution.execute_skill import (
     _check_runnable,
 )
 from sro.application.induction import binding, jsonutil
-from sro.application.induction.diff import Difference, align, differences, parameterise
+from sro.application.induction.diff import (
+    Difference,
+    align,
+    differences,
+    optional_fills,
+    parameterise,
+)
 from sro.application.induction.errors import InductionFailed
-from sro.application.induction.induce_skill import InduceSkill
+from sro.application.induction.induce_skill import InduceSkill, _conditionals
 from sro.application.induction.sites import JsonBodySite, substitute_body
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
@@ -36,6 +43,7 @@ from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import BatchId, CandidateId, DeviceId, RecordingId, SkillId
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
+from sro.domain.skill.parameter import ParameterKind
 from sro.domain.skill.plan import HeaderPlan, UiPlan
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillStep, SkillVersion
@@ -622,6 +630,54 @@ async def test_a_derived_parameter_still_names_the_step_that_produced_it() -> No
     produced_by = version.steps[zone.source_step_index]
     assert produced_by.network_plan is not None
     assert produced_by.network_plan.method == "GET", "it names the read, not the keystroke"
+
+
+async def test_an_empty_response_leaf_is_not_where_a_skipped_field_comes_from() -> None:
+    """The absent form of the optional field -- `""` -- also sat in the earlier
+    response, in both runs. `_find_source` requires both runs to match, and
+    that requirement is the only thing separating a data path from a
+    coincidence; an empty leaf matching an empty value satisfies it for free.
+
+    Read as a dependency, the field becomes DERIVED: filled from a response
+    leaf on every run, including the runs an operator wanted blank, with no
+    `absent_as` to send instead and no conditional step -- so the keystroke
+    `align` excused would come back as nothing at all, and the only evidence of
+    how the field is filled by hand is thrown away.
+    """
+    version = await _induce(
+        (
+            _looking(0, "3"),
+            _typing(1, _DELTA_PRIORITY, "3"),
+            _saving(2, {"workArea": "NINE", "deltaPriority": "3"}),
+        ),
+        (_looking(0, ""), _saving(1, {"workArea": "NINE", "deltaPriority": ""})),
+    )
+
+    delta = next(p for p in version.parameters if p.name == "delta_priority")
+    assert delta.kind is ParameterKind.INPUT
+    assert delta.optional is True
+    assert delta.absent_as == '""'
+    assert [step.when for step in version.steps if step.when] == ["delta_priority"]
+
+
+def test_a_gesture_align_excused_and_nothing_can_name_refuses_the_pair() -> None:
+    """The invariant the case above is one instance of: `align` stops refusing
+    an unmatched keystroke only because `optional_fills` promises it comes back
+    as a conditional step. A fill that reaches emission with no optional
+    parameter to hang on has broken that promise, and the honest answer is the
+    refusal `align` would have raised -- not a skill that quietly never fills
+    the field again."""
+    filled, skipped = _filled("ONE"), _skipped("TWO")
+    parameterisation = parameterise(filled, skipped)
+    without_optional = replace(
+        parameterisation,
+        parameters=tuple(
+            replace(p, optional=False, absent_as=None) for p in parameterisation.parameters
+        ),
+    )
+
+    with pytest.raises(InductionFailed, match="nothing in the diff calls that field optional"):
+        _conditionals(without_optional, optional_fills(filled, skipped))
 
 
 def test_substitute_body_unquotes_only_the_parameter_named_for_it() -> None:

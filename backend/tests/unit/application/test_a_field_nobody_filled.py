@@ -43,7 +43,7 @@ from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import BatchId, CandidateId, DeviceId, RecordingId, SkillId
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
-from sro.domain.skill.parameter import ParameterKind
+from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.plan import HeaderPlan, UiPlan
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import SkillStep, SkillVersion
@@ -129,6 +129,7 @@ def test_a_field_filled_once_is_optional_and_remembers_what_empty_looked_like() 
     parameter = parameters[0]
     assert parameter.optional is True
     assert parameter.absent_as == "null"
+    assert parameter.unquoted_as == "number", "what the run that filled it sent"
     assert parameter.observed_values == ("1",), "an absence is not a value somebody observed"
 
 
@@ -1049,7 +1050,11 @@ def _work_area_version() -> SkillVersion:
         parameters=(
             f.parameter(name="work_area", observed_values=("ONE", "TWO")),
             f.parameter(
-                name="delta_priority", optional=True, absent_as="null", observed_values=("1",)
+                name="delta_priority",
+                optional=True,
+                absent_as="null",
+                unquoted_as="number",
+                observed_values=("1",),
             ),
         ),
     )
@@ -1143,6 +1148,96 @@ async def test_an_empty_value_supplied_for_an_optional_parameter_is_nobody_suppl
     assert isinstance(sent_body, str)
     body = json.loads(sent_body)
     assert body["deltaPriority"] is None, "the absent form, the same as omitting it entirely"
+
+
+async def test_a_quantity_that_would_write_a_field_nobody_demonstrated_is_refused() -> None:
+    """An unquoted slot takes whatever it is given as JSON, so a supplied
+    value is not only a value: `2,"approved":true` in Delta Priority renders a
+    valid body carrying a key no demonstration ever sent, and a warehouse has
+    no way to know the difference. Refused before the run starts -- a job
+    whose fourth step is the poisoned one has already written three times by
+    the time rendering sees it."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
+
+    with pytest.raises(NotRunnable, match="delta_priority is sent as a bare number"):
+        await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+            CTX,
+            ExecutionRequest(
+                skill_id=SkillId("skill-1"),
+                parameters={"work_area": "PACK-3", "delta_priority": '2,"approved":true'},
+                authorized_by="supervisor",
+            ),
+        )
+
+    assert http.sent == [], "a refusal must not send anything"
+
+
+async def test_a_value_that_would_end_its_own_string_is_refused_too() -> None:
+    """The milder half of the same hole, and older than the unquoting: a
+    quoted slot needs one `"` to get out of, and the body after it is the
+    supplier's to write."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
+
+    with pytest.raises(NotRunnable, match="work_area is sent inside a quoted string"):
+        await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+            CTX,
+            ExecutionRequest(
+                skill_id=SkillId("skill-1"),
+                parameters={"work_area": 'PACK-3","deltaPriority":9', "delta_priority": "1"},
+                authorized_by="supervisor",
+            ),
+        )
+
+    assert http.sent == []
+
+
+async def test_a_value_a_response_produced_is_checked_where_it_is_rendered() -> None:
+    """Not everything substituted was supplied by whoever asked for the run: a
+    derived value comes out of the system's own earlier answer, and the thing
+    a loop is acting on comes out of a list. `_check_runnable` never sees
+    those, so the same rule is asked again where the body is actually built --
+    and the step fails saying why rather than sending a body somebody else's
+    quotation marks helped write."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    http.answer(status_code=200, text=json.dumps({"note": 'he said "go"'}))
+    http.answer(status_code=200, text="{}")
+
+    version = f.skill_version(
+        steps=(
+            f.step(
+                index=0,
+                network_plan=f.network_plan(method="GET", url=Template(URL), body=None),
+            ),
+            f.step(
+                index=1,
+                network_plan=f.network_plan(url=Template(URL), body=Template('{"note":"${note}"}')),
+            ),
+        ),
+        parameters=(
+            Parameter(
+                name="note",
+                kind=ParameterKind.DERIVED,
+                source_step_index=0,
+                source_pointer="/note",
+            ),
+        ),
+    )
+    await _promoted(uow, version, PromotionStage.ASSISTED)
+
+    run = await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        ExecutionRequest(skill_id=SkillId("skill-1"), parameters={}, authorized_by="supervisor"),
+    )
+
+    assert run.status is RunStatus.FAILED
+    assert len(http.sent) == 1, "the read went; the write it fed never did"
+    assert run.steps[1].detail is not None
+    assert "would end it early" in run.steps[1].detail
 
 
 async def test_a_required_input_nobody_supplied_still_refuses_to_run() -> None:

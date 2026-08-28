@@ -809,6 +809,18 @@ class ExecuteStep:
             elif parameter.unquoted_as == "string" and parameter.name in rendered:
                 encoded[parameter.name] = json.dumps(rendered[parameter.name])
 
+        # Last look before anything leaves: a value is substituted as text, so
+        # one that is not the shape its slot was demonstrated holding writes
+        # part of the body itself. `_check_runnable` has already refused what
+        # an operator supplied -- before step one, rather than halfway through
+        # a job -- and this is the same rule where the value came from
+        # somewhere it could not see: an earlier response, or the thing a loop
+        # is on this time round.
+        for parameter in parameters:
+            supplied = rendered.get(parameter.name)
+            if supplied is not None and (refused := parameter.rejects(supplied)) is not None:
+                return (self._failed(step, key, refused), {}, None, None)
+
         try:
             url = plan.url.render(rendered)
             body = plan.body.render({**rendered, **encoded}) if plan.body is not None else None
@@ -1266,6 +1278,15 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
     }
     if absent := sorted(required - supplied):
         raise NotRunnable("no value supplied for " + ", ".join(absent))
+    # And what was supplied is the shape its slot holds. A template
+    # substitutes as text: a quantity given as `2,"approved":true` renders a
+    # valid body carrying a field no demonstration ever sent. Refused here,
+    # before the first step of a job, rather than at the step that would have
+    # sent it -- by which time the steps before it have already written.
+    for parameter in version.parameters:
+        value = request.parameters.get(parameter.name, "")
+        if value and (refused := parameter.rejects(value)) is not None:
+            raise NotRunnable(refused)
 
 
 _Iterations = tuple[int, list[dict[str, str]]]

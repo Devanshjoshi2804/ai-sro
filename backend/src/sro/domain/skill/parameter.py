@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.skill.lookup import Options
 from sro.domain.skill.transform import Transform
+
+_BREAKS_OUT = re.compile(r'["\\\x00-\x1f]')
+"""What a value cannot carry into a quoted slot: the quote that ends the
+string, the backslash that escapes whatever follows it, and the control
+characters JSON does not allow inside one unescaped."""
 
 
 def json_type_of(value: object) -> str:
@@ -116,6 +122,46 @@ class Parameter:
     `None` where every site this parameter fills is quoted, which is every
     required field: nothing has shown what such a field's absence looks like,
     so its slot keeps the quotes the recorded body had."""
+
+    def rejects(self, value: str) -> str | None:
+        """Why this value cannot be put in this parameter's slot, or ``None``.
+
+        A template substitutes as text, so whatever is supplied lands inside
+        the body a demonstration sent and can write more of that body than its
+        own field. An unquoted slot is the plain case: `2,"approved":true` in
+        a quantity renders a valid write carrying a field nobody ever
+        demonstrated, straight to a live warehouse. A quoted slot is milder
+        and not safe -- a value carrying a `"` ends its own string and writes
+        the rest itself -- and a control character breaks the string it sits
+        in whether it is meant to or not.
+
+        Said as a sentence rather than a boolean because the answer is shown
+        to whoever supplied the value, and "no" on its own is not something
+        anybody can act on.
+        """
+        if value == self.absent_as:
+            # The form the demonstration itself sent, put here by execution
+            # when nobody supplied a value. It is JSON by construction.
+            return None
+        match self.unquoted_as:
+            case None:
+                if _BREAKS_OUT.search(value):
+                    return (
+                        f"{self.name} is sent inside a quoted string and "
+                        f"{value!r} would end it early"
+                    )
+            case "string":
+                # Encoded on its way into the body, quotes and all, so there is
+                # nothing here a value can end.
+                pass
+            case wanted:
+                try:
+                    decoded = json.loads(value)
+                except json.JSONDecodeError:
+                    return f"{self.name} is sent as a bare {wanted} and {value!r} is not one"
+                if json_type_of(decoded) != wanted:
+                    return f"{self.name} is sent as a bare {wanted} and {value!r} is not one"
+        return None
 
     def __post_init__(self) -> None:
         if not self.name.isidentifier():

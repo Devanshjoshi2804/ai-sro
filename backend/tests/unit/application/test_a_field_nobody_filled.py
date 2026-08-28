@@ -13,6 +13,7 @@ import pytest
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import (
+    ExecuteSkill,
     ExecutionRequest,
     NotRunnable,
     _check_runnable,
@@ -25,13 +26,22 @@ from sro.application.induction.sites import JsonBodySite, substitute_body
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.domain.recording.events import ActionKind, InputAction
+from sro.domain.recording.sensitivity import Sensitivity
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import RecordingId, SkillId
+from sro.domain.skill.plan import HeaderPlan
 from sro.domain.skill.promotion import PromotionStage
-from sro.domain.skill.skill import SkillVersion
+from sro.domain.skill.skill import SkillStep, SkillVersion
 from sro.domain.skill.template import Template
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeClock,
+    FakeCredentialVault,
+    FakeEmbedder,
+    FakeHttpCaller,
+    FakeIdFactory,
+    FakeUnitOfWork,
+)
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
@@ -636,3 +646,127 @@ def test_a_parameter_refuses_an_absent_as_that_is_not_json() -> None:
     stack trace mid-run."""
     with pytest.raises(InvariantViolation, match="not valid JSON"):
         f.parameter(optional=True, absent_as="not json")
+
+
+# Everything below drives a whole run through `ExecuteSkill` and reads what
+# actually left the process, rather than the pieces that build up to it.
+# `deltaPriority` is unquoted in the body template the way `substitute_body`
+# really leaves a numeric field, so its absent form on the wire is a JSON
+# `null` and not the four characters `"null"`.
+
+_COOKIE_REF = "blue_yonder/SG/cookie"
+_SCOPED = f"{f.TENANT}/{_COOKIE_REF}"
+
+
+def _work_area_write_step() -> SkillStep:
+    return f.step(
+        index=0,
+        network_plan=f.network_plan(
+            url=Template("https://wms.test/data/WM/wm/workareas"),
+            body=Template('{"workArea":"${work_area}","deltaPriority":${delta_priority}}'),
+            headers=(
+                HeaderPlan(
+                    name="cookie", sensitivity=Sensitivity.SESSION, credential_ref=_COOKIE_REF
+                ),
+                HeaderPlan(name="Referer", sensitivity=Sensitivity.TRANSPORT, managed=True),
+                HeaderPlan(
+                    name="Content-Type",
+                    sensitivity=Sensitivity.SEMANTIC,
+                    value=Template("application/json"),
+                ),
+            ),
+        ),
+    )
+
+
+def _work_area_version() -> SkillVersion:
+    return f.skill_version(
+        steps=(_work_area_write_step(),),
+        parameters=(
+            f.parameter(name="work_area", observed_values=("ONE", "TWO")),
+            f.parameter(
+                name="delta_priority", optional=True, absent_as="null", observed_values=("1",)
+            ),
+        ),
+    )
+
+
+async def _promoted(uow: FakeUnitOfWork, version: SkillVersion, stage: PromotionStage) -> None:
+    """A skill at ``stage``, promoted one rung at a time as a reviewer would."""
+    skill = f.skill(versions=0)
+    skill.add_version(version)
+    current = PromotionStage.RECORDED
+    while current is not stage:
+        current = current.next_stage()
+        version.promote(current, f.at(700), f.OPERATOR)
+    await uow.skills.add(skill)
+
+
+async def test_a_run_that_supplies_no_value_for_an_optional_parameter_sends_the_absent_form() -> (
+    None
+):
+    """The demonstration that skipped Delta Priority sent a real JSON `null`
+    for it, not the string `"null"` -- and a run that leaves the same field
+    out has to put the same thing on the wire, read from what the fake HTTP
+    caller actually recorded rather than from the template that built it."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
+
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"work_area": "TWO"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert len(http.sent) == 1
+    sent_body = http.sent[0]["body"]
+    assert isinstance(sent_body, str)
+    body = json.loads(sent_body)
+    assert body["deltaPriority"] is None, "a real JSON null, not the string 'null'"
+
+
+async def test_a_run_that_supplies_the_value_sends_the_value() -> None:
+    """The same field, filled: nothing about the absent-form machinery should
+    get in the way of an ordinary run that supplies every parameter."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
+
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"work_area": "ONE", "delta_priority": "1"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert len(http.sent) == 1
+    sent_body = http.sent[0]["body"]
+    assert isinstance(sent_body, str)
+    body = json.loads(sent_body)
+    assert body["deltaPriority"] == 1
+
+
+async def test_a_required_input_nobody_supplied_still_refuses_to_run() -> None:
+    """`work_area` is filled in every demonstration there is, so it stays
+    required even though `delta_priority` sits right beside it as optional --
+    a run that supplies neither still fails for the field that has no absent
+    form of its own, with the message this always raised."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
+
+    with pytest.raises(NotRunnable, match="no value supplied for work_area"):
+        await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+            CTX,
+            ExecutionRequest(
+                skill_id=SkillId("skill-1"), parameters={}, authorized_by="supervisor"
+            ),
+        )
+
+    assert http.sent == [], "a refusal must not send anything"

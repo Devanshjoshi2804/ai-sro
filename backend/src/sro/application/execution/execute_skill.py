@@ -780,11 +780,18 @@ class ExecuteStep:
         # the string form (the two characters `n`,`u`,`l`,`l`) is not the JSON
         # value. Its own quotes come off before it goes in a text slot, since
         # the slot is already quoted at emission for a string-typed field.
+        #
+        # Supplied empty counts as not supplied, because `_perform_in_ui`
+        # already reads it that way and skips the gesture: these values come
+        # off a form, and a form hands back `""` for the box nobody typed in.
+        # One run cannot mean two things depending on which medium performs
+        # it -- and an empty in an unquoted slot renders `{"deltaPriority":}`,
+        # which is not JSON at all.
         rendered = dict(values)
         for parameter in parameters:
             if (
                 parameter.optional
-                and parameter.name not in rendered
+                and not rendered.get(parameter.name)
                 and parameter.absent_as is not None
             ):
                 decoded = json.loads(parameter.absent_as)

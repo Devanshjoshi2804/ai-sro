@@ -891,6 +891,35 @@ async def test_a_run_that_supplies_the_value_sends_the_value() -> None:
     assert body["deltaPriority"] == 1
 
 
+async def test_an_empty_value_supplied_for_an_optional_parameter_is_nobody_supplying_it() -> None:
+    """A form is the only place these values come from, and a form hands back
+    `""` for the box nobody typed in -- so an empty supplied value is the same
+    run as an omitted one, and the two mediums have to read it the same way.
+
+    `_perform_in_ui` already does: it skips the conditional step. The network
+    path tested for the key's presence instead, so the same run sent the empty
+    verbatim -- into a field unquoted in the template, which renders
+    `{"deltaPriority":}` and is not JSON at all."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(_SCOPED, "session=live")
+    await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
+
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"work_area": "TWO", "delta_priority": ""},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert len(http.sent) == 1
+    sent_body = http.sent[0]["body"]
+    assert isinstance(sent_body, str)
+    body = json.loads(sent_body)
+    assert body["deltaPriority"] is None, "the absent form, the same as omitting it entirely"
+
+
 async def test_a_required_input_nobody_supplied_still_refuses_to_run() -> None:
     """`work_area` is filled in every demonstration there is, so it stays
     required even though `delta_priority` sits right beside it as optional --

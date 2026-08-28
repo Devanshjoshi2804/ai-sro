@@ -85,19 +85,6 @@ def set_value(document: JsonValue, pointer: str, new_value: JsonValue) -> None:
         parent[last] = new_value
 
 
-def structure(value: JsonValue) -> object:
-    """Hashable shape of a document, ignoring scalar values.
-
-    Two runs of one task share a shape. A different shape means the flows
-    diverged, which is a re-record rather than a diff.
-    """
-    if isinstance(value, dict):
-        return ("object", tuple(sorted((k, structure(v)) for k, v in value.items())))
-    if isinstance(value, list):
-        return ("array", tuple(structure(item) for item in value))
-    return ("scalar", type(value).__name__)
-
-
 def is_empty(value: object) -> bool:
     """Whether this leaf is a field somebody left alone.
 
@@ -112,10 +99,9 @@ def same_shape(a: JsonValue, b: JsonValue) -> bool:
     """Whether two bodies are the same request with different values in it.
 
     Stricter than it looks. Every key must be in both -- a key one run did not
-    send is a different request, which is what `structure` was written to
-    catch. What is allowed is a leaf that is empty on one side: the same field,
-    filled once and skipped once, which is the ordinary way two people fill one
-    form.
+    send is a different request, and the pair is refused. What is allowed is a
+    leaf that is empty on one side: the same field, filled once and skipped
+    once, which is the ordinary way two people fill one form.
     """
     if isinstance(a, dict) and isinstance(b, dict):
         return a.keys() == b.keys() and all(same_shape(a[key], b[key]) for key in a)

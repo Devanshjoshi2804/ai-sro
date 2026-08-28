@@ -534,6 +534,12 @@ class SkillVersionModel(BaseModel):
     induced_at: datetime
     induced_by: str
     recording_ids: list[str]
+    repaired_from: str | None
+    """The run whose evidence produced this version, where nobody demonstrated
+    it. Named here because "did a person write this or did the system" is the
+    first question about a version that changed itself, and prose in the note is
+    not something a reviewer can filter a list by."""
+
     provenance_note: str
     steps: list[StepModel]
     parameters: list[ParameterModel]
@@ -572,6 +578,7 @@ class SkillVersionModel(BaseModel):
             induced_at=version.provenance.induced_at,
             induced_by=version.provenance.induced_by.value,
             recording_ids=[r.value for r in version.provenance.recording_ids],
+            repaired_from=version.provenance.repaired_from,
             provenance_note=version.provenance.note,
             loops=[
                 LoopModel(

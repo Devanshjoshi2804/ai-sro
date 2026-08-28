@@ -363,6 +363,23 @@ class SqlKnowledgeRepository(KnowledgeRepository):
         row = (await self._session.execute(query)).scalars().first()
         return row_to_knowledge(row) if row is not None else None
 
+    async def history(
+        self, tenant_id: TenantId, *, system: str, kind: EntryKind, key: str, limit: int = 10
+    ) -> tuple[KnowledgeEntry, ...]:
+        query = (
+            select(KnowledgeRow)
+            .where(
+                KnowledgeRow.tenant_id == tenant_id.value,
+                KnowledgeRow.system == system,
+                KnowledgeRow.kind == kind.value,
+                KnowledgeRow.key == key,
+            )
+            .order_by(KnowledgeRow.observed_at.desc())
+            .limit(limit)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_knowledge(row) for row in rows)
+
     async def without_embedding(
         self, tenant_id: TenantId, *, limit: int = 200
     ) -> tuple[KnowledgeEntry, ...]:

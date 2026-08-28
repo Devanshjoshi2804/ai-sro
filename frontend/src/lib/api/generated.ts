@@ -2465,6 +2465,8 @@ export interface components {
             induced_by: string;
             /** Recording Ids */
             recording_ids: string[];
+            /** Repaired From */
+            repaired_from: string | null;
             /** Provenance Note */
             provenance_note: string;
             /** Steps */

@@ -21435,6 +21435,17 @@
             "type": "array",
             "title": "Recording Ids"
           },
+          "repaired_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repaired From"
+          },
           "provenance_note": {
             "type": "string",
             "title": "Provenance Note"
@@ -21480,6 +21491,7 @@
           "induced_at",
           "induced_by",
           "recording_ids",
+          "repaired_from",
           "provenance_note",
           "steps",
           "parameters",

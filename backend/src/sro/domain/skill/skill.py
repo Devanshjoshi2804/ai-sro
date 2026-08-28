@@ -71,12 +71,40 @@ class SkillStep:
 
 @dataclass(frozen=True, slots=True)
 class Provenance:
-    """Which demonstrations a version came from. Never optional."""
+    """Where a version came from. Never optional."""
 
     recording_ids: tuple[RecordingId, ...]
+    """The demonstrations this version descends from.
+
+    Descends from, not "were performed against it": a repaired version carries
+    the recordings of the version it repairs, because every value it sends and
+    every step but one came from them and how many there were is a live safety
+    rule -- ``from_one_demonstration`` decides whether a write skill's values
+    were ever diffed, and a version that dropped them would read as diffed and
+    climb a rung nobody meant it to. What that field must not do is imply
+    somebody demonstrated *this* version, and ``repaired_from`` below is how a
+    reviewer tells the two apart without reading prose."""
+
     induced_at: datetime
     induced_by: PrincipalId
+    """Who produced this version. ``drift-repair`` where the system did, which
+    is not a person and does not pretend to be one."""
+
     note: str = ""
+
+    repaired_from: str | None = None
+    """The run that closed the evidence a repair adopted, where no demonstration
+    produced this version at all.
+
+    A field of its own rather than a sentence in ``note``: "was this written by
+    a person or by the system" is the first question anybody asks about a
+    version that changed itself, and an answer only prose can give is an answer
+    no screen and no query can filter on.
+
+    A run id as text, not a ``RunId``: an execution is a different aggregate,
+    and a skill importing one to name it would point the dependency the wrong
+    way round for the sake of a type.
+    """
 
     def __post_init__(self) -> None:
         if not self.recording_ids:
@@ -181,6 +209,11 @@ class SkillVersion:
         Every value in it is the value that run happened to send. That is a
         legitimate skill -- it replays one act exactly -- and it is a different
         thing from a skill whose constants were held across two runs.
+
+        A repaired version answers this the same way the version it repairs
+        does, which is why it keeps that version's recordings: what changed was
+        one locator, and every value it sends is still the value those
+        demonstrations carried.
         """
         return len(self.provenance.recording_ids) == 1
 

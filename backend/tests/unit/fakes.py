@@ -704,6 +704,21 @@ class FakeKnowledgeRepository:
                 return entry
         return None
 
+    async def history(
+        self, tenant_id: TenantId, *, system: str, kind: EntryKind, key: str, limit: int = 10
+    ) -> tuple[KnowledgeEntry, ...]:
+        # Newest last in, newest first out: the fake has no clock of its own and
+        # every entry a test writes carries the same instant.
+        found = [
+            entry
+            for entry in self.rows.values()
+            if entry.tenant_id == tenant_id
+            and entry.system == system
+            and entry.kind is kind
+            and entry.key == key
+        ]
+        return tuple(reversed(found))[:limit]
+
     async def without_embedding(
         self, tenant_id: TenantId, *, limit: int = 200
     ) -> tuple[KnowledgeEntry, ...]:
@@ -1138,6 +1153,12 @@ class FakeUnitOfWork:
         self.triggers = FakeTriggerRepository()
         self.commits = 0
         self.rollbacks = 0
+        self.commit_raises: Exception | None = None
+        """What ``commit`` should raise instead of committing.
+
+        A fake that cannot fail cannot prove what a caller does when a commit
+        does -- and losing a write to somebody else's concurrent one is exactly
+        the failure a caller has to handle rather than log."""
 
     async def __aenter__(self) -> FakeUnitOfWork:
         return self
@@ -1147,6 +1168,8 @@ class FakeUnitOfWork:
             await self.rollback()
 
     async def commit(self) -> None:
+        if self.commit_raises is not None:
+            raise self.commit_raises
         self.commits += 1
 
     async def rollback(self) -> None:

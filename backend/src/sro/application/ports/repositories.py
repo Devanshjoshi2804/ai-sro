@@ -159,6 +159,19 @@ class KnowledgeRepository(Protocol):
 
     async def save(self, entry: KnowledgeEntry) -> None: ...
 
+    async def history(
+        self, tenant_id: TenantId, *, system: str, kind: EntryKind, key: str, limit: int = 10
+    ) -> tuple[KnowledgeEntry, ...]:
+        """Every claim ever made about one key, newest first, superseded ones
+        included.
+
+        ``current`` is what the system believes; this is how it came to believe
+        it. Nothing here is ever overwritten, so how many separate runs have
+        said the same thing is already recorded and needs no counter of its own
+        -- which is what a rule that must not act on a single observation reads.
+        """
+        ...
+
     async def without_embedding(
         self, tenant_id: TenantId, *, limit: int = 200
     ) -> tuple[KnowledgeEntry, ...]:

@@ -56,6 +56,11 @@ class Doing:
     degraded: int
     failed: int
     withheld: int
+    unreachable: int
+    """Runs that never reached the system they were aiming at. Its own number
+    because it is neither a success nor a fault, and folding it into either
+    would make a week of closed laptops read as a week of a broken skill."""
+
     writes_sent: int
     minutes_saved: float
 
@@ -141,6 +146,7 @@ def _doing(runs: Sequence[Run], lines: Sequence[TaskLine]) -> Doing:
         degraded=verdicts.count(Verdict.DEGRADED),
         failed=verdicts.count(Verdict.FAILED),
         withheld=verdicts.count(Verdict.WITHHELD),
+        unreachable=verdicts.count(Verdict.UNREACHABLE),
         writes_sent=sum(run.writes_sent for run in runs),
         minutes_saved=round(sum(line.minutes_saved for line in lines), 1),
     )

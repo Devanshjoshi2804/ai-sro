@@ -117,7 +117,8 @@ export function SkillDetail({ skillId }: { skillId: string }) {
               <p className="tabular-nums">
                 {latest.track_record.clean_streak} clean in a row ·{" "}
                 {latest.track_record.clean_runs} clean · {latest.track_record.degraded_runs}{" "}
-                needed a slower rung · {latest.track_record.failed_runs} failed
+                needed a slower rung · {latest.track_record.failed_runs} failed ·{" "}
+                {latest.track_record.unreachable_runs} never reached the system
               </p>
               {latest.ready_for_autonomy ? (
                 <p className="text-muted-foreground">

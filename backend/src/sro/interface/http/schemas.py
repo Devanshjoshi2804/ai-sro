@@ -504,6 +504,7 @@ class TrackRecordModel(BaseModel):
     clean_runs: int
     degraded_runs: int
     failed_runs: int
+    unreachable_runs: int
 
 
 class LoopModel(BaseModel):
@@ -562,6 +563,7 @@ class SkillVersionModel(BaseModel):
                 clean_runs=version.track_record.clean_runs,
                 degraded_runs=version.track_record.degraded_runs,
                 failed_runs=version.track_record.failed_runs,
+                unreachable_runs=version.track_record.unreachable_runs,
             ),
             ready_for_autonomy=why_not_autonomous(
                 version.track_record, verifiable=version.verifiable
@@ -1535,6 +1537,7 @@ class DoingModel(BaseModel):
     degraded: int
     failed: int
     withheld: int
+    unreachable: int
     writes_sent: int
     minutes_saved: float
 

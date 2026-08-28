@@ -92,8 +92,9 @@ they hold on every path — HTTP, Temporal, or a future auto-promotion job:
    what holds the line is `SkillVersion.promote`: the last rung is refused
    unless the version is checkable (some step has an assertion) and has ten
    consecutive clean runs. A constant could always have been edited; a clean-run
-   streak cannot be. Three consecutive failures demote automatically. See
-   `docs/12-execution-and-agents.md`.
+   streak cannot be. Three consecutive failures demote automatically — failures
+   of the skill, not of the network: a run that never reached the system it was
+   aiming at counts towards neither. See `docs/12-execution-and-agents.md`.
 
 Demotion is not reachable through promotion. Auto-demotion on a failure spike is
 a separate, monitored action — deliberately not wired to a review-UI button.

@@ -19061,6 +19061,10 @@
             "type": "integer",
             "title": "Withheld"
           },
+          "unreachable": {
+            "type": "integer",
+            "title": "Unreachable"
+          },
           "writes_sent": {
             "type": "integer",
             "title": "Writes Sent"
@@ -19077,6 +19081,7 @@
           "degraded",
           "failed",
           "withheld",
+          "unreachable",
           "writes_sent",
           "minutes_saved"
         ],
@@ -22378,6 +22383,10 @@
           "failed_runs": {
             "type": "integer",
             "title": "Failed Runs"
+          },
+          "unreachable_runs": {
+            "type": "integer",
+            "title": "Unreachable Runs"
           }
         },
         "type": "object",
@@ -22386,7 +22395,8 @@
           "consecutive_failures",
           "clean_runs",
           "degraded_runs",
-          "failed_runs"
+          "failed_runs",
+          "unreachable_runs"
         ],
         "title": "TrackRecordModel"
       },

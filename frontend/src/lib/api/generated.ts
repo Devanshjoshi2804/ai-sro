@@ -1552,6 +1552,8 @@ export interface components {
             failed: number;
             /** Withheld */
             withheld: number;
+            /** Unreachable */
+            unreachable: number;
             /** Writes Sent */
             writes_sent: number;
             /** Minutes Saved */
@@ -2776,6 +2778,8 @@ export interface components {
             degraded_runs: number;
             /** Failed Runs */
             failed_runs: number;
+            /** Unreachable Runs */
+            unreachable_runs: number;
         };
         /**
          * TriggerKind

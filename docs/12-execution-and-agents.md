@@ -647,6 +647,25 @@ shadow with the reason attached. `demote()` is a separate method from `promote()
 precisely because it happens without a human — `promoted_by` is cleared, since
 nobody authorised it.
 
+**A run that reached nothing is not one of those failures.** The operator's
+browser had no tab open on the system, or the laptop was shut, so the call never
+left the machine. `judge()` returns `Verdict.UNREACHABLE`, which moves neither
+`consecutive_failures` nor `clean_streak`, and lands in its own
+`unreachable_runs` column so the record still says the attempt happened. The
+trigger has always treated this as ordinary — a browser it cannot reach does not
+stop it, "it will be open again before the next one" — and a run has no better
+claim to be evidence than the trigger that started it.
+
+The line is drawn at whether the *application* answered, not at whether bytes
+moved. A 500, a 502 from a gateway, a 422 — all answers, all evidence, all
+counted. A connection reset or a timeout is not an answer and is not counted.
+The one case that goes the other way is a request this end could not build: a
+URL a template rendered into something that is not a URL never reached the
+system either, and is entirely the skill's fault, so `HttpxCaller` raises
+`MalformedRequest` for it and the step is judged as an ordinary failure. That is
+the only place the exemption could have been abused, and it is closed at the
+adapter rather than in the verdict.
+
 **Two limits stop a run before it starts**, both derived from what recent runs
 actually did rather than from a counter somebody must remember to increment —
 derived state cannot drift, and a restart cannot lose it:

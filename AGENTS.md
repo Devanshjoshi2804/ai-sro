@@ -16,8 +16,8 @@ chat**. All three rungs are built — L1 network replay, L2 UI replay, L3 Gemini
 computer use — and `HIGHEST_PERMITTED_STAGE` is `AUTONOMOUS`. The ceiling is not
 what holds the line: `SkillVersion.promote` refuses the last rung until a
 version is checkable and has ten consecutive clean runs, three consecutive
-failures demote it automatically, and a circuit breaker stops a run before it
-starts. The medium ladder and the
+failures demote it automatically — a run that never reached the system at all is
+not one of them — and a circuit breaker stops a run before it starts. The medium ladder and the
 agent design are in [`docs/12-execution-and-agents.md`](docs/12-execution-and-agents.md)
 — read it before building anything that runs a skill.
 

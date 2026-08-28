@@ -77,7 +77,7 @@ export function Overview() {
         </Figure>
         <Figure label="Minutes saved" value={doing.minutes_saved.toString()} estimate>
           {doing.clean} clean · {doing.degraded} degraded · {doing.failed} failed ·{" "}
-          {doing.withheld} rehearsed
+          {doing.withheld} rehearsed · {doing.unreachable} never reached
         </Figure>
       </section>
 

@@ -458,12 +458,25 @@ def parameterise(
     # absent form -- whichever site came first -- and the other field was then
     # sent that form, unquoted, on every run. An absence is not a value, and
     # two sites that disagree about what theirs looks like are not one value.
-    groups: dict[tuple[str, str, str | None], list[Difference]] = {}
+    #
+    # And keyed on the site itself wherever there is an absent form, which is
+    # to say wherever only one run filled the field. Two body keys really can
+    # hold one value -- Blue Yonder's adjust payload sends the detail number as
+    # both `lpn` and `detailNumber` -- and what says so is both runs agreeing at
+    # both keys, twice, with two different values. An optional field agrees only
+    # once: the other side of its pair is an absence, and every skipped field's
+    # absence looks the same. So a Delta Priority and a Distance Threshold that
+    # both happened to carry 1 in the run that filled them, and null in the run
+    # that did not, matched on the whole key and became one parameter --
+    # supplying 7 wrote 7 to both fields and typed it into both boxes, on the
+    # strength of one coincidence.
+    groups: dict[tuple[str, str, str | None, Site | None], list[Difference]] = {}
     for difference in differences(run_a, run_b):
         key = (
             binding.tidied(difference.value_a),
             binding.tidied(difference.value_b),
             difference.absent_as,
+            difference.site if difference.absent_as is not None else None,
         )
         groups.setdefault(key, []).append(difference)
 

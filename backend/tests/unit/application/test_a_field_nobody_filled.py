@@ -706,6 +706,39 @@ def test_two_fields_nobody_filled_are_two_parameters_with_two_absent_forms() -> 
     assert omitted == {"deltaPriority": None, "distanceThreshold": ""}
 
 
+def test_two_optional_fields_that_shared_a_value_are_still_two_parameters() -> None:
+    """The absent form keeps two *skipped* fields apart. It says nothing about
+    two *filled* ones: both these fields carry 1 in the run that filled them and
+    null in the run that did not, so the whole key matched and they collapsed
+    into one parameter with two sites. Supplying 7 then wrote 7 to both --
+    and made both gestures conditional on `delta_priority`, so the UI path
+    typed it into both boxes too.
+
+    Two body keys really can hold one value -- Blue Yonder's adjust payload
+    sends the detail number as both `lpn` and `detailNumber` -- but what proves
+    that is both runs agreeing at both keys with two different values. An
+    optional field agrees once, against an absence, and every absence looks
+    alike."""
+    filled = {"deltaPriority": 1, "distanceThreshold": 1}
+    skipped = {"deltaPriority": None, "distanceThreshold": None}
+
+    parameterisation = parameterise(_run(filled), _run(skipped))
+
+    assert {(sub.site, sub.parameter) for sub in parameterisation.substitutions[0]} == {
+        (JsonBodySite("/deltaPriority"), "delta_priority"),
+        (JsonBodySite("/distanceThreshold"), "distance_threshold"),
+    }
+    template = Template(
+        substitute_body(
+            json.dumps(filled),
+            {sub.site: f"${{{sub.parameter}}}" for sub in parameterisation.substitutions[0]},
+            unquoted=_unquoted_parameters(parameterisation.parameters),
+        )
+    )
+    one_of_them = json.loads(template.render({"delta_priority": "7", "distance_threshold": "null"}))
+    assert one_of_them == {"deltaPriority": 7, "distanceThreshold": None}
+
+
 async def test_a_field_one_run_cleared_is_one_parameter_on_both_paths() -> None:
     """The mirror of the case above, and the reason the absent form cannot be
     the whole of the grouping key. Both runs touch the control -- one types a

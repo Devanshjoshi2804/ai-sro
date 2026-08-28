@@ -344,6 +344,14 @@ class ExecuteStep:
                 + (f" -- {outcome.detail}" if outcome.detail else ""),
             )
         elif healed is not None and _may_be_retried(step, outcome):
+            # The same call again, so the same facts about it: `parameters`
+            # is what fills an optional nobody supplied with its absent form
+            # and what checks a value against the slot it goes in, and `feeds`
+            # is the list a loop is over. Handed only `produces`, the retry
+            # rendered a body with an empty parameter tuple and failed "no
+            # value for parameter" -- so a healed session expiry, the ordinary
+            # thing the healer exists for, became a hard failure on any skill
+            # with an unsupplied optional.
             outcome, derived, failure, iterated = await self._perform(
                 run,
                 step,
@@ -352,6 +360,8 @@ class ExecuteStep:
                 objective=skill.objective_key,
                 connections=connections,
                 produces=produces,
+                parameters=tuple(version.parameters),
+                feeds=version.loop_from(nxt.step_index),
             )
             outcome = replace(
                 outcome,

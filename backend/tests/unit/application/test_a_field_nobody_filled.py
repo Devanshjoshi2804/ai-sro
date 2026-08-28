@@ -17,10 +17,13 @@ import pytest
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import (
     ExecuteSkill,
+    ExecuteStep,
     ExecutionRequest,
     NotRunnable,
+    StartRun,
     _check_runnable,
 )
+from sro.application.execution.self_heal import Healed
 from sro.application.induction import binding, jsonutil
 from sro.application.induction.diff import (
     Difference,
@@ -35,6 +38,7 @@ from sro.application.induction.sites import JsonBodySite, substitute_body
 from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.observation.teach import TeachCandidate
+from sro.domain.execution.diagnosis import Remedy
 from sro.domain.execution.run import Medium, Run, RunStatus, StepDisposition
 from sro.domain.observation.batch import CaptureMode, ObservationBatch
 from sro.domain.observation.candidate import Episode, TaskCandidate
@@ -1492,3 +1496,51 @@ async def test_the_only_thing_nobody_has_to_fill_in_is_the_delta_priority() -> N
     # that dropped it could never fill Delta Priority by clicking at all.
     conditional = [step for step in version.steps if step.when]
     assert [step.when for step in conditional] == ["delta_priority"]
+
+
+class _HealsTheSession:
+    """Repairs the one thing the step was missing, the way the real healer
+    repairs a session that aged out: it puts the credential back and says so."""
+
+    def __init__(self, vault: FakeCredentialVault) -> None:
+        self._vault = vault
+        self.asked = 0
+
+    async def attempt(self, ctx: RequestContext, **kwargs: object) -> Healed:
+        self.asked += 1
+        await self._vault.store(_SCOPED, "session=fresh")
+        return Healed(
+            remedy=Remedy.REFRESH_SESSION, because="the session had gone", detail="renewed it"
+        )
+
+
+async def test_a_healed_step_is_retried_with_the_parameters_it_was_performed_with() -> None:
+    """The retry after a heal is the same call, so it needs the same facts.
+
+    It was handed `produces=` and not `parameters=`, so the absent-form fill
+    loop ran over an empty tuple, `plan.body.render` raised `KeyError` on the
+    optional nobody supplied, and the step failed "no value for parameter
+    'delta_priority'". A session expiry -- the ordinary thing the healer exists
+    for -- became a hard `FAILED` on any skill with an unsupplied optional, and
+    a failure counts towards `DEMOTE_AFTER_FAILURES`.
+    """
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
+    healer = _HealsTheSession(vault)  # the vault starts empty: no session at all
+    run = await StartRun(uow, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"work_area": "TWO"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    outcome = await ExecuteStep(uow, http, vault, heal=healer).execute(CTX, run_id=run.id, index=0)
+
+    assert healer.asked == 1
+    assert outcome.disposition is StepDisposition.PERFORMED, outcome.detail
+    assert "then retried" in (outcome.detail or "")
+    sent_body = http.sent[0]["body"]
+    assert isinstance(sent_body, str)
+    assert json.loads(sent_body)["deltaPriority"] is None, "the absent form, on the retry too"

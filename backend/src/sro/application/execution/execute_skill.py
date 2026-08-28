@@ -252,6 +252,13 @@ class StartRun:
 _LOOK_AGAIN = 0.4
 """How long to leave a screen that has not caught up yet, between looks."""
 
+NOTHING_ASSERTED = "the step asserts nothing"
+"""Recorded as unchecked, because that is what it is.
+
+A step with no post-condition cannot fail one, so it came out "ok" and the run
+came out SUCCEEDED -- and everything reading that took it for a step that had
+been verified. It was performed. Nothing looked."""
+
 SCREEN_SETTLES_WITHIN = 2.0
 """And how long to keep looking. Long enough for a screen that is working and
 short enough that a step which is genuinely wrong is not a wait: what is being
@@ -587,6 +594,7 @@ class ExecuteStep:
             idempotency_key=f"{run.id}:{step.index}",
             matched_by=result.matched_by.value if result.matched_by else None,
             assertion_failures=failures,
+            unchecked=unchecked,
             detail="; ".join(said) or None,
         )
 
@@ -609,7 +617,13 @@ class ExecuteStep:
         """
         wanted = tuple(a for a in step.assertions if a.kind is AssertionKind.UI_TEXT_VISIBLE)
         if not wanted:
-            return (), ()
+            # Nothing here can be checked from the interface -- either the step
+            # asserts nothing at all, or what it asserts is a response body no
+            # rung in a browser can see. Silence was returned for both, and
+            # silence reads as a passing check to everything downstream.
+            return (), tuple(dict.fromkeys(a.kind.value for a in step.assertions)) or (
+                NOTHING_ASSERTED,
+            )
 
         failures: tuple[str, ...] = ()
         unchecked: tuple[str, ...] = ()
@@ -703,6 +717,7 @@ class ExecuteStep:
             escalation_reason=rule.because,
             matched_by=result.matched_by.value if result.matched_by else None,
             assertion_failures=failures,
+            unchecked=unchecked,
             detail=(
                 f"{outcome.detail or failure} at L1; performed in the interface"
                 + (f" ({result.candidates} candidates)" if result.candidates > 1 else "")
@@ -761,6 +776,7 @@ class ExecuteStep:
             result.outcome,
             escalation_reason=rule.because,
             assertion_failures=failures,
+            unchecked=unchecked,
             detail=(
                 f"{outcome.detail or 'the control was not found'}; {result.outcome.detail}"
                 if not performed

@@ -19,6 +19,7 @@ from sro.application.context import RequestContext
 from sro.application.knowledge.record_claim import Claim, RecordClaims, Recorded
 from sro.domain.execution.run import Medium, Run, RunStatus, StepDisposition, StepOutcome
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
+from sro.domain.skill.plan import UiPlan
 from sro.domain.skill.skill import SkillVersion
 
 
@@ -96,24 +97,23 @@ def _control_claims(run: Run, version: SkillVersion, system: str) -> Iterator[Cl
     It does work. It is also one screen change from not working, and the system
     knew and said nothing.
 
-    Kept as knowledge rather than written back onto the skill: a locator is
-    evidence from a demonstration, and the healer's rule is that evidence is
-    changed by demonstrating again. This is the same instinct as Healenium's
-    store of healed locators (docs/16), minus the part where the tool rewrites
-    what the test said.
-    """
-    for outcome in run.steps:
-        if outcome.medium not in (Medium.UI, Medium.VISION):
-            continue
-        if outcome.disposition is not StepDisposition.PERFORMED or outcome.assertion_failures:
-            continue
-        plan = version.steps[outcome.index].ui_plan if outcome.index < len(version.steps) else None
-        if plan is None or not plan.locators:
-            continue
+    Two things a run has to have before it says anything here:
 
+    **It checked.** A step whose post-conditions nothing evaluated -- it asserts
+    none, or none of them can be seen from a browser, or the screen could not be
+    read -- proves the gesture landed and nothing else. `ok` is true for a step
+    with no assertions and the run comes out SUCCEEDED, so "verified" has to be
+    asked for rather than inferred from the absence of a failure.
+
+    **It agreed with itself.** A loop's body is one step done once per thing in
+    the list, and eleven iterations matching as taught with one falling back is
+    a race or a page that had not settled, not a control that moved. A run whose
+    own iterations disagree about which locator found a control has no answer to
+    record, so it records none.
+    """
+    for index, (plan, matched) in _agreed(run, version).items():
         taught = plan.locators[0]
-        found = outcome.matched_by or "nothing"
-        drifted = found != taught.strategy.value
+        drifted = matched != taught.strategy.value
         yield Claim(
             system=system,
             kind=EntryKind.SCREEN,
@@ -122,18 +122,43 @@ def _control_claims(run: Run, version: SkillVersion, system: str) -> Iterator[Cl
             # calling one endpoint are two observations of what it answers.
             key=f"control {taught.describe()}",
             title=(
-                f"{taught.describe()} is found by {found}"
+                f"{taught.describe()} is found by {matched}"
                 + (f", not by the {taught.strategy.value} it was taught with" if drifted else "")
             ),
             body={
                 "control": taught.query.raw,
                 "taught_as": taught.strategy.value,
-                "found_by": found,
+                "found_by": matched,
                 "drifted": drifted,
                 "skill_id": run.skill_id.value,
                 "skill_version": run.skill_version,
-                "step": outcome.index,
+                "step": index,
             },
             source=run.id.value,
             evidence=EvidenceLevel.REPRODUCED,
         )
+
+
+def _agreed(run: Run, version: SkillVersion) -> dict[int, tuple[UiPlan, str]]:
+    """What each step of the plan found its control by, where the run is sure.
+
+    Keyed by the step of the version, not by the position in the run's log: a
+    looped step appears at as many positions as there were things in the list,
+    and they are all observations of one control.
+    """
+    seen: dict[int, tuple[UiPlan, set[str]]] = {}
+    for outcome in run.steps:
+        if outcome.medium not in (Medium.UI, Medium.VISION):
+            continue
+        if outcome.disposition is not StepDisposition.PERFORMED:
+            continue
+        if outcome.assertion_failures or outcome.unchecked:
+            continue
+        index = outcome.step_index
+        plan = version.steps[index].ui_plan if index < len(version.steps) else None
+        if plan is None or not plan.locators:
+            continue
+        seen.setdefault(index, (plan, set()))[1].add(outcome.matched_by or "nothing")
+    return {
+        index: (plan, matched.pop()) for index, (plan, matched) in seen.items() if len(matched) == 1
+    }

@@ -254,3 +254,53 @@ async def test_a_screen_that_takes_a_moment_is_waited_for_not_failed() -> None:
 
     assert outcome.assertion_failures == ()
     assert outcome.ok
+
+
+async def test_a_step_that_asserts_nothing_says_so_instead_of_passing_quietly() -> None:
+    """`ok` is true for a step with no assertions, and `Run.finish` marks a run
+    SUCCEEDED when no step is "not ok" -- so a skill that asserts nothing
+    produced verified-looking runs forever. Nothing failed because nothing
+    looked, and the two were indistinguishable to every rule that read them.
+    """
+    uow = FakeUnitOfWork()
+    await _skill(uow, asserts=())
+
+    outcome = await _run(uow, FakeUiDriver())
+
+    assert outcome.ok, "the gesture landed; this is not a failure"
+    assert outcome.unchecked == ("the step asserts nothing",), (
+        "and it is said on the step, where a rule can read it"
+    )
+
+
+async def test_what_cannot_be_checked_here_is_on_the_step_not_only_in_its_prose() -> None:
+    uow = FakeUnitOfWork()
+    await _skill(
+        uow,
+        asserts=(Assertion(kind=AssertionKind.HTTP_STATUS, expected=Template("200")),),
+    )
+
+    outcome = await _run(uow, FakeUiDriver())
+
+    assert outcome.unchecked == ("http_status",)
+
+
+async def test_a_screen_that_could_not_be_read_is_recorded_as_unchecked() -> None:
+    """The system knew it was blind. It threw that into free text beside
+    everything else a step might say, and the only field anybody read --
+    `assertion_failures` -- came back empty, which is what a passing check looks
+    like."""
+    uow = FakeUnitOfWork()
+    await _skill(
+        uow,
+        asserts=(Assertion(kind=AssertionKind.UI_TEXT_VISIBLE, expected=Template("Wave closed")),),
+    )
+
+    class _Blind(FakeUiDriver):
+        async def capture(self) -> Screen:
+            raise UiUnavailable("the tab was closed")
+
+    outcome = await _run(uow, _Blind())
+
+    assert outcome.assertion_failures == ()
+    assert outcome.unchecked and "could not be read" in outcome.unchecked[0]

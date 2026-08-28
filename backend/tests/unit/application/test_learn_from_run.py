@@ -232,3 +232,84 @@ async def test_a_run_whose_screen_check_failed_teaches_nothing_about_the_control
     await _learn_with(run, uow, _ui_version())
 
     assert not uow.knowledge.rows
+
+
+async def test_a_step_nothing_checked_teaches_nothing_about_the_control() -> None:
+    """The clean half of the same rule. A step that failed its assertions is
+    refused above; this is the step that had none to fail.
+
+    The run succeeded, because a step with nothing to check cannot fail a check
+    -- and where the control was found is exactly what a step nobody verified
+    must not be believed about. The gesture landed on something. That the
+    something was the right control is what the assertions were for.
+    """
+    uow = FakeUnitOfWork()
+    run = _run(
+        _outcome(
+            medium=Medium.UI,
+            method=None,
+            url=None,
+            status_code=None,
+            matched_by=LocatorStrategy.CSS_PATH.value,
+            unchecked=("the step asserts nothing",),
+        )
+    )
+    assert run.status is RunStatus.SUCCEEDED
+
+    await _learn_with(run, uow, _ui_version())
+
+    assert not [e for e in uow.knowledge.rows.values() if e.kind is EntryKind.SCREEN]
+
+
+async def test_a_run_that_disagrees_with_itself_about_a_control_records_nothing() -> None:
+    """Twelve times round the loop, eleven found as taught and one fell back.
+
+    That is a race, a page that had not settled, a modal still closing -- not a
+    control that moved. Counting the odd one out as evidence lets a single flaky
+    iteration outvote eleven clean ones.
+    """
+    uow = FakeUnitOfWork()
+    clicks = [
+        _outcome(
+            index=i,
+            plan_step=0,
+            iteration=i,
+            medium=Medium.UI,
+            method=None,
+            url=None,
+            status_code=None,
+            matched_by=(
+                LocatorStrategy.CSS_PATH.value if i == 2 else LocatorStrategy.COMPONENT.value
+            ),
+        )
+        for i in range(12)
+    ]
+
+    await _learn_with(_run(*clicks), uow, _ui_version())
+
+    assert not [e for e in uow.knowledge.rows.values() if e.kind is EntryKind.SCREEN]
+
+
+async def test_a_loop_that_agreed_every_time_records_one_claim_about_the_control() -> None:
+    """One control that moved is one observation, however many times it was
+    clicked -- not twelve rows all superseding each other from one run."""
+    uow = FakeUnitOfWork()
+    clicks = [
+        _outcome(
+            index=i,
+            plan_step=0,
+            iteration=i,
+            medium=Medium.UI,
+            method=None,
+            url=None,
+            status_code=None,
+            matched_by=LocatorStrategy.CSS_PATH.value,
+        )
+        for i in range(12)
+    ]
+
+    await _learn_with(_run(*clicks), uow, _ui_version())
+
+    screens = [e for e in uow.knowledge.rows.values() if e.kind is EntryKind.SCREEN]
+    assert len(screens) == 1
+    assert screens[0].body["drifted"] is True

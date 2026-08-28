@@ -87,6 +87,22 @@ class StepOutcome:
 
     assertion_failures: tuple[str, ...] = ()
 
+    unchecked: tuple[str, ...] = ()
+    """What this step asserts that nothing evaluated, and why.
+
+    Empty means every post-condition the demonstration left here was actually
+    tested. Anything else means the step was performed and not verified: it
+    asserts nothing at all, or it asserts something no rung can see from where
+    it ran, or the screen could not be read at the moment of looking.
+
+    Beside ``assertion_failures`` rather than inside ``detail`` because the two
+    are different facts and a rule has to be able to tell them apart. "Nothing
+    failed" was read as "everything passed" by every caller that looked, and a
+    step that checked nothing is exactly the step nothing should be learned
+    from -- a version repaired on the strength of an unverified click is the
+    system marking its own homework. A rule that reads free text is a rule any
+    outcome can dress itself up to satisfy."""
+
     escalated_from: Medium | None = None
     """Set when a slower medium finished what a faster one could not. The run
     says which rung actually did the work, because a step that quietly needs the

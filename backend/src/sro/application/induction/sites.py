@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sro.application.induction import jsonutil
+from sro.domain.skill.template import Template
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,6 +220,53 @@ def substitute_url(url: str, replacements: dict[Site, str]) -> str:
     # a human reviews these templates.
     return urlunsplit(
         (parts.scheme, parts.netloc, path, urlencode(query, safe="${}"), parts.fragment)
+    )
+
+
+_IN_PATH = str.maketrans({c: f"%{ord(c):02X}" for c in "/?#"})
+"""What a value cannot carry into a path segment without ending it.
+
+Only these three, because a path segment is stored the way the demonstration
+sent it -- `url_path_segments` never unquotes -- so the text in one is already
+percent-encoded and everything else in it has to be left exactly alone.
+Encoding the `%` of an `ATTN%20ALI` again gives `ATTN%2520ALI`, the
+double-encoding `choices._searched` already carries a warning about. These
+three are safe to touch anyway: an already-encoded segment spells them `%2F`,
+`%3F` and `%23`, never bare, since a bare `/` would have made it two segments
+in the recording."""
+
+_IN_QUERY = str.maketrans({c: f"%{ord(c):02X}" for c in "%&=+;#"})
+"""What a value cannot carry into a query parameter without ending it.
+
+More than the path's set, and that asymmetry is the point: a query value is
+held *decoded* -- `url_query_pairs` reads it through `parse_qsl` -- so a `%`
+here is a percent sign somebody typed and encoding it is restoring what the
+demonstration itself put on the wire, not doubling it. The set is
+form-urlencoding's own delimiters, because that is the syntax this value is
+read back out of; `+` and `;` are in it because a reader that means "space"
+by one and "separator" by the other is a reader we do not control."""
+
+
+def render_url(url: Template, values: dict[str, str]) -> str:
+    """Substitute values into a URL template, encoded for the slot each lands in.
+
+    A value is text, and text in a URL is structure: `X&limit=9999` supplied
+    for a search term used to render `?name=X&limit=9999&limit=25`, asking the
+    server a question nobody demonstrated. Same defect as the JSON body's, and
+    the same answer -- encode rather than refuse, so an operator searching for
+    `Smith & Sons` still gets to.
+
+    Split at the first `?` so each half encodes in its own syntax, and rendered
+    with the same `Template` both halves came from rather than a second
+    substitution syntax written here. Nothing outside a placeholder is touched,
+    so a template renders byte-for-byte as it did before wherever the values
+    going into it carry none of these characters.
+    """
+    path, mark, query = url.raw.partition("?")
+    return (
+        Template(path).render({name: v.translate(_IN_PATH) for name, v in values.items()})
+        + mark
+        + Template(query).render({name: v.translate(_IN_QUERY) for name, v in values.items()})
     )
 
 

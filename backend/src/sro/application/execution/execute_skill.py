@@ -33,6 +33,7 @@ from sro.application.execution.verify import check, check_on_screen, extract
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction import jsonutil
 from sro.application.induction.sites import parse_json as _parse_json
+from sro.application.induction.sites import render_url
 from sro.application.knowledge.learn_from_run import LearnFromRun
 from sro.application.ports.agent import AgentDrivers
 from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
@@ -860,7 +861,7 @@ class ExecuteStep:
                 return (self._failed(step, key, refused), {}, None, None)
 
         try:
-            url = plan.url.render(rendered)
+            url = render_url(plan.url, rendered)
             body = plan.body.render({**rendered, **encoded}) if plan.body is not None else None
         except KeyError as missing:
             # The step that would have minted this value, not merely some step

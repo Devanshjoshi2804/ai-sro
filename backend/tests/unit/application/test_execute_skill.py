@@ -20,7 +20,7 @@ from sro.domain.skill.assertion import Assertion, AssertionKind
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.plan import HeaderPlan
 from sro.domain.skill.promotion import PromotionStage
-from sro.domain.skill.skill import SkillStep
+from sro.domain.skill.skill import SkillStep, SkillVersion
 from sro.domain.skill.template import Template
 from tests import factories as f
 from tests.unit.fakes import (
@@ -159,12 +159,103 @@ async def test_a_body_too_large_to_record_says_so_rather_than_being_cut() -> Non
     assert "too large to record" in (run.steps[0].detail or "")
 
 
-async def test_a_write_that_was_sent_keeps_no_body() -> None:
-    """The system it reached holds it. Keeping every body a skill ever sent
-    would make the run log a copy of the warehouse."""
+def _bodied_version(body: str) -> SkillVersion:
+    """A write whose body carries one supplied value and one optional nobody
+    filled in -- the two things a reviewer checks a body for."""
+    return f.skill_version(
+        steps=(_write_step(body=Template(body)),),
+        parameters=(
+            f.parameter(),
+            f.parameter(
+                name="delta_priority",
+                absent_as="null",
+                unquoted_as="number",
+                observed_values=("1", "2"),
+            ),
+        ),
+    )
+
+
+BODY = '{"shipmentId": "${shipment_id}", "deltaPriority": ${delta_priority}}'
+
+
+async def test_a_write_that_was_sent_records_the_body_it_sent() -> None:
+    """A step that says only "POST -> 201" says a record was created in a live
+    warehouse and nothing about what is in it, and the review this system's
+    safety rests on cannot be done without re-rendering the write by hand."""
     uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
     await vault.store(SCOPED, "session=live")
-    await _skill(uow, f.skill_version(steps=(_write_step(),)), PromotionStage.ASSISTED)
+    http.answer(status_code=201)
+    await _skill(uow, _bodied_version(BODY), PromotionStage.ASSISTED)
+
+    run = await _executor(uow, http, vault).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert run.steps[0].disposition is StepDisposition.PERFORMED
+    assert run.steps[0].request_body == http.sent[0]["body"]
+    assert json.loads(run.steps[0].request_body or "") == {
+        "shipmentId": "555",
+        "deltaPriority": None,
+    }
+
+
+async def test_a_write_that_failed_on_the_wire_records_the_body_it_tried() -> None:
+    """ "The call may have arrived" is exactly the moment somebody needs to know
+    what would have arrived."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    http.unreachable = True
+    await _skill(uow, _bodied_version(BODY), PromotionStage.ASSISTED)
+
+    run = await _executor(uow, http, vault).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert run.steps[0].disposition is StepDisposition.FAILED
+    assert json.loads(run.steps[0].request_body or "") == {
+        "shipmentId": "555",
+        "deltaPriority": None,
+    }
+
+
+async def test_a_read_that_was_sent_keeps_no_body() -> None:
+    """A read's body is not what anybody reviews, and keeping every one would
+    make the run log a copy of the traffic."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    await _skill(
+        uow,
+        f.skill_version(steps=(_write_step(method="GET", body=Template('{"q": "x"}')),)),
+        PromotionStage.ASSISTED,
+    )
+
+    run = await _executor(uow, http, vault).execute(
+        CTX, ExecutionRequest(skill_id=SkillId("skill-1"), parameters={"shipment_id": "555"})
+    )
+
+    assert run.steps[0].disposition is StepDisposition.PERFORMED
+    assert run.steps[0].request_body is None
+
+
+async def test_a_sent_body_too_large_to_record_says_so_rather_than_being_cut() -> None:
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    await _skill(
+        uow,
+        f.skill_version(steps=(_write_step(body=Template('{"note": "' + "x" * 70_000 + '"}')),)),
+        PromotionStage.ASSISTED,
+    )
 
     run = await _executor(uow, http, vault).execute(
         CTX,
@@ -177,6 +268,7 @@ async def test_a_write_that_was_sent_keeps_no_body() -> None:
 
     assert run.steps[0].disposition is StepDisposition.PERFORMED
     assert run.steps[0].request_body is None
+    assert "too large to record" in (run.steps[0].detail or "")
 
 
 async def test_a_recorded_skill_cannot_be_run_at_all() -> None:

@@ -72,13 +72,26 @@ from sro.domain.skill.skill import Skill, SkillStep, SkillVersion
 logger = logging.getLogger(__name__)
 
 MAX_RECORDED_BODY_BYTES = 64 * 1024
-"""How much of a withheld write's body a run will keep.
+"""How much of a write's body a run will keep.
 
 Capture already bounds it -- a payload over the inline limit is a blob and
-never becomes a body template at all -- but a loop withholds one body per thing
-in a list, and twenty-five of the largest inlined body would be a megabyte of
-run log nobody is going to read. This is the size a person reads, not the size
-the wire allows."""
+never becomes a body template at all -- but a loop writes one body per thing in
+a list, and twenty-five of the largest inlined body would be a megabyte of run
+log nobody is going to read. This is the size a person reads, not the size the
+wire allows."""
+
+
+def _recordable(body: str | None) -> tuple[str | None, str | None]:
+    """The body to keep beside a write, and why it is missing when it is.
+
+    Past the cap the body is dropped and *said* to be dropped rather than cut:
+    a truncated body reads exactly like a whole one, and the reviewer this
+    exists for would sign off a write on half of it.
+    """
+    size = len(body.encode()) if body is not None else 0
+    if size > MAX_RECORDED_BODY_BYTES:
+        return None, f"its {size} byte body was too large to record"
+    return body, None
 
 
 class NotRunnable(DomainError):
@@ -965,16 +978,10 @@ class ExecuteStep:
             # nothing about what would have changed, and the body is where a
             # reviewer sees whether the skill got the fields right -- it is the
             # only copy there will ever be, since nothing sent it anywhere.
-            #
-            # Bounded because a loop withholds one of these per thing in a list.
-            # Past the bound the body is dropped and said to be dropped, rather
-            # than cut: a truncated body reads exactly like a whole one, and a
-            # reviewer would sign off a write on half of it.
             detail = f"{run.stage} does not send writes; the request was produced, not sent"
-            size = len(body.encode()) if body is not None else 0
-            if size > MAX_RECORDED_BODY_BYTES:
-                body = None
-                detail += f"; its {size} byte body was too large to record"
+            recorded, oversize = _recordable(body)
+            if oversize is not None:
+                detail += f"; {oversize}"
             return (
                 StepOutcome(
                     index=step.index,
@@ -984,7 +991,7 @@ class ExecuteStep:
                     method=plan.method,
                     url=url,
                     idempotency_key=key,
-                    request_body=body,
+                    request_body=recorded,
                     detail=detail,
                 ),
                 {},
@@ -993,6 +1000,16 @@ class ExecuteStep:
             )
 
         headers = {**client_headers(plan.headers, url), **resolved.headers}
+
+        # A write keeps the body it sends, success or failure alike. The safety
+        # story here is that a person reviews what the skill did, and a step
+        # that records only "POST -> 201" makes that review impossible: it says
+        # a record was created and nothing about what is in it. On the failure
+        # side the same body is the only thing to debug with, and "the call may
+        # have arrived" is precisely when somebody needs to know what would
+        # have arrived. Only a write: a read's body is not what anybody reviews.
+        sent, oversize = _recordable(body) if mutating else (None, None)
+
         try:
             caller = self._caller_for(run)
             response = await caller.send(plan.method, url, headers=headers, body=body)
@@ -1000,8 +1017,10 @@ class ExecuteStep:
             detail = str(error)
             if mutating:
                 detail += " -- the call may have arrived; do not retry without checking"
+            if oversize is not None:
+                detail += f"; {oversize}"
             return (
-                self._failed(step, key, detail, method=plan.method, url=url),
+                self._failed(step, key, detail, method=plan.method, url=url, request_body=sent),
                 {},
                 FailureKind.UNREACHABLE,
                 None,
@@ -1063,6 +1082,8 @@ class ExecuteStep:
                 url=url,
                 status_code=response.status_code,
                 idempotency_key=key,
+                request_body=sent,
+                detail=oversize,
                 assertion_failures=failures,
                 found_rows=answer.rows if answer else None,
                 found_total=answer.total if answer else None,
@@ -1119,6 +1140,7 @@ class ExecuteStep:
         method: str | None = None,
         url: str | None = None,
         medium: Medium = Medium.NETWORK,
+        request_body: str | None = None,
     ) -> StepOutcome:
         return StepOutcome(
             index=step.index,
@@ -1128,6 +1150,7 @@ class ExecuteStep:
             method=method,
             url=url,
             idempotency_key=key,
+            request_body=request_body,
             detail=detail,
         )
 

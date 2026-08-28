@@ -71,17 +71,19 @@ class StepOutcome:
     so a retry can tell "already done" from "never started"."""
 
     request_body: str | None = None
-    """The body a withheld write produced, and nothing else.
+    """The body a write produced -- withheld, sent, or failed on the wire.
 
-    Shadow exists so a person can read what a skill *would* send before anything
-    is sent, and a step that records only the method and the URL hides every
-    decision induction made -- which field became a parameter, what an optional
-    one falls back to, whether a value landed in the right key. That body exists
-    nowhere else: it was never sent, so no system holds a copy of it.
+    A step that records only the method and the URL hides every decision
+    induction made: which field became a parameter, what an optional one
+    nobody supplied falls back to, whether a value landed in the right key.
+    Withheld, that body exists nowhere else. Sent, "POST -> 201" says a record
+    was created in a live warehouse and nothing about what is in it, and the
+    review this system's safety rests on cannot be done. Failed, it is the only
+    thing left to debug with, and the failure that says "the call may have
+    arrived" is exactly when somebody needs to know what would have arrived.
 
-    A body that *was* sent is deliberately not kept. The system it reached has
-    it, and storing every one would turn the run log into a copy of the
-    warehouse."""
+    Writes only. A read's body is not what anybody reviews, and the UI medium
+    has no body at all."""
 
     assertion_failures: tuple[str, ...] = ()
 

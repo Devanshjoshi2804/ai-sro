@@ -791,8 +791,8 @@ class StepOutcomeModel(BaseModel):
     status_code: int | None
     idempotency_key: str | None
     request_body: str | None = None
-    """What a withheld write would have sent. Present only for a step the stage
-    refused to send, which is the only body no system holds a copy of."""
+    """The body a write produced: what a withheld step would have sent, or what
+    a performed one did send. Writes only -- a read's body is not reviewed."""
 
     assertion_failures: list[str]
     escalated_from: str | None

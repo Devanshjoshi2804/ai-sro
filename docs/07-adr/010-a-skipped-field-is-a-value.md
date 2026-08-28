@@ -43,6 +43,44 @@ the run that skipped it, never chosen by the system: `null` for a number the
 form nulls, `""` for a text control it empties. `Parameter.absent_as` stores it
 verbatim as JSON.
 
+*Amended.* Optionality is a fact about the whole history of a task, not about
+the last two times somebody did it. The pair is still what proves a parameter
+and still decides identity -- ADR 004 stands, nothing here is inferred from a
+run nothing was diffed against -- but a key that *any* recorded doing left
+empty is optional, and a key filled in every doing there is stays required,
+because nothing has shown the task works without it.
+
+The evidence: an operator created the same kind of work area three times, all
+accepted. The first sent only `workArea`, `workAreaDescription` and
+`warehouseId`; the two after it also filled `absolutePriority`,
+`homeWorkAreaAbsolutePriority` and `voiceCode`. `TeachCandidate` built
+recordings from the two most recent episodes only, so nothing induction looked
+at had ever seen those three fields empty and the skill demanded all three --
+while the doing that proves the warehouse takes them empty sat unopened in the
+evidence plane.
+
+So `TeachCandidate` builds a recording from every episode it can, hands the
+two freshest to `InduceSkill` as the pair -- the rule about the freshest doing
+being the one most likely to still find its controls is a rule about the pair
+that gets *diffed*, and it has not changed -- and passes the rest as `others`.
+`differences` reads them for one thing: whether some write sent a key holding
+nothing (`diff._absences`, `_absence_elsewhere`). They are never aligned, never
+diffed, and no step or value comes out of them. Every doing the induction read
+is named in the version's provenance, because a reviewer asked why a field is
+optional has to be able to go and look at the doing that proves it.
+
+Keyed by method, endpoint shape and pointer, not by pointer alone: a pointer is
+not a field, two writes in one task can both send `/name`, and one of them
+being empty says nothing about the other. Those are the same three things
+`_same` already uses to decide two calls are the same call.
+
+Two rules do not move. The absent form is still read off a doing that actually
+sent it, never chosen -- and where two doings disagree about it, one `null` and
+one `""`, there is no single form to send and the field stays required. And a
+key no doing sent at all is still a divergence: a doing read only for emptiness
+cannot say anything about a key it never sent, so nothing about it reaches the
+field.
+
 Two facts decide how that field renders, and reading both off one of them was
 wrong in both directions. Whether the body template keeps the quotes
 `json.dumps` puts round a placeholder is the *absent form's* business: a quoted
@@ -125,7 +163,16 @@ stays unconditional.
 
 The dropped gesture is not discarded. It is emitted back as a step conditional
 on the field it filled (`SkillStep.when`), so a WMS with no writable API can
-still fill it by clicking. `_perform_in_ui` skips a conditional step when
+still fill it by clicking. *Amended:* being conditional is not a property of
+having been dropped. Where the history is what proves the field optional, both
+diffed runs typed into the box and the gesture is an ordinary aligned step --
+which still only happens when somebody supplies the value, because typing empty
+into a box every demonstration filled is how a form raises a validation error
+nobody triggered. So the question is asked of every step in `emit_step`: a
+keystroke whose value is an optional parameter is conditional on it, wherever
+that step came from. The keystroke only -- the write that carries the field is
+not conditional on it, since that call goes out either way carrying the absent
+form. `_perform_in_ui` skips a conditional step when
 nothing was supplied for its field, rather than clicking it empty and risking
 a validation error the operator never triggered; the vision path inherits the
 same skip because it runs through the same guard.
@@ -137,7 +184,7 @@ every demonstration happens to fill is still, correctly, required; a field two
 demonstrations prove optional stays optional even if the page never says so.
 What was actually done outranks what the page claims.
 
-**Rejected: treating a key absent from one run's write as optional too.**
+**Rejected: treating a key absent from any doing's write as optional too.**
 That would be guessing at a structural disagreement, which is exactly what
 ADR 004 exists to prevent. Only a key both writes send, differing in whether
 it holds a value, is evidence of optionality.
@@ -152,6 +199,11 @@ becomes.
 
 A key one run's write never sends at all still refuses the pair; that
 guarantee is unchanged, and it is what keeps this from being a guess.
+
+A field an operator left empty once, three visits ago, is optional in the
+skill induced today -- without the two doings that get diffed having to be the
+two that happened to disagree about it.
+
 
 The costs, named rather than hidden:
 
@@ -224,6 +276,25 @@ The costs, named rather than hidden:
   guess, so induction refuses the combination and names the demonstration to do
   again. The bounds are still not remapped, and with the refusal in place there
   is nothing that could reach the remapping.
+- **A field the pair agreed on is not made a parameter by a doing that left
+  it empty.** Optionality is read from the history; identity and
+  parameterisation are not, and ADR 004 is the reason. Two runs that both sent
+  `voiceCode: "1"` produce a constant, and an older doing that sent `""` there
+  cannot turn that constant into an optional parameter -- nothing in the pair
+  says the value varies, and inventing a parameter from a run nothing was
+  diffed against is exactly the guess that decision forbids. It costs a skill
+  that always sends `"1"` where it could have offered a box. The demonstration
+  that fixes it is one where the two freshest doings disagree.
+- **Teaching now reads every episode of a candidate, not two.** A candidate
+  seen fifty times reads fifty batches out of the blob store and stores fifty
+  recordings on one teach. Bounded in practice by how often a task is watched
+  before somebody teaches it, and unbounded in principle; the day that bites,
+  the cheap fix is to read the older doings' writes without sealing them as
+  recordings, which costs the provenance line that names them.
+- **`TeachWorkflow` still hands over two.** Two candidates taught as one job
+  draw their pair from occurrences and spend an episode per side, so "the rest
+  of the history" there is a different thing to compute. Unchanged rather than
+  half-done: a workflow's optional fields are still decided by its pair.
 - This ADR covers Part 1 and Part 2 of
   `docs/superpowers/specs/2026-08-27-fields-nobody-filled-design.md` only —
   a value nobody has ever typed, the pre-flight, the offer, and when asking

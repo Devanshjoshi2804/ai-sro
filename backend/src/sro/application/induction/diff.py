@@ -467,6 +467,19 @@ def parameterise(
         )
         groups.setdefault(key, []).append(difference)
 
+    # Split by the absent form only among the sites that *have* one. A
+    # keystroke carries none -- only a body leaf does -- so keying on it alone
+    # separated the typing that fills a field from the body site it fills, and
+    # the field came out twice: required on the gesture path, optional on the
+    # network path, two answers for the one thing this whole decision exists to
+    # get right. A group with no form of its own rejoins the single group that
+    # has one; where two of them disagree about their form the ambiguity is
+    # real and they stay apart.
+    for formless in [key for key in groups if key[2] is None]:
+        formed = [key for key in groups if key[:2] == formless[:2] and key[2] is not None]
+        if len(formed) == 1:
+            groups[formed[0]].extend(groups.pop(formless))
+
     parameters: list[Parameter] = []
     substitutions: dict[int, list[Substitution]] = {}
     taken: set[str] = set()

@@ -692,6 +692,33 @@ def test_two_fields_nobody_filled_are_two_parameters_with_two_absent_forms() -> 
     assert omitted == {"deltaPriority": None, "distanceThreshold": ""}
 
 
+async def test_a_field_one_run_cleared_is_one_parameter_on_both_paths() -> None:
+    """The mirror of the case above, and the reason the absent form cannot be
+    the whole of the grouping key. Both runs touch the control -- one types a
+    priority, the other clears it -- so the keystroke is an aligned step rather
+    than a dropped one. Only a body leaf ever carries an absent form; a
+    keystroke never does. Splitting on that alone tore the typing away from the
+    body site it fills: a required `delta_priority` bound to the gesture and an
+    optional `delta_priority_2` bound to the write.
+
+    The field would stop being optional on the path an operator actually
+    performs it on, and the two mediums would fill it from two different
+    answers -- which is the guarantee this branch exists to provide."""
+    version = await _induce(
+        (_typing(0, _DELTA_PRIORITY, "1"), _saving(1, {"workArea": "ONE", "deltaPriority": 1})),
+        (_typing(0, _DELTA_PRIORITY, ""), _saving(1, {"workArea": "ONE", "deltaPriority": None})),
+    )
+
+    assert [(p.name, p.optional, p.absent_as) for p in version.parameters] == [
+        ("delta_priority", True, "null")
+    ]
+    typed, wrote = version.steps[0], version.steps[1]
+    assert typed.ui_plan is not None and typed.ui_plan.value is not None
+    assert typed.ui_plan.value.raw == "${delta_priority}"
+    assert wrote.network_plan is not None and wrote.network_plan.body is not None
+    assert wrote.network_plan.body.raw == '{"workArea":"ONE","deltaPriority":${delta_priority}}'
+
+
 def test_a_gesture_align_excused_and_nothing_can_name_refuses_the_pair() -> None:
     """The invariant the case above is one instance of: `align` stops refusing
     an unmatched keystroke only because `optional_fills` promises it comes back

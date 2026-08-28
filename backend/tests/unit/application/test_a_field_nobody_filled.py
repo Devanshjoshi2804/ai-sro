@@ -1238,6 +1238,25 @@ async def test_a_value_that_would_end_its_own_string_is_refused_too() -> None:
     assert http.sent == []
 
 
+def test_the_absent_form_of_a_text_field_is_the_empty_string_not_two_quotes() -> None:
+    """`rejects` waves through the form the demonstration itself sent, because
+    execution puts it there when nobody supplies a value. But what execution
+    puts there is what the slot can hold, and a slot that keeps its quotes
+    holds the empty string -- not the two characters `absent_as` stores.
+
+    Compared against the stored JSON instead, a supplied `""` was read as
+    "leaving it out" and substituted as text into a slot that already had
+    quotes round it, and the write went out with four in a row. Leaving it out
+    is what an empty value already means, on both paths."""
+    note = Parameter(name="note", kind=ParameterKind.INPUT, absent_as='""')
+
+    assert note.absent_value == ""
+    assert note.rejects("") is None, "an empty value is nobody supplying one"
+    assert note.rejects('""') == (
+        "note is sent inside a quoted string and '\"\"' would end it early"
+    )
+
+
 async def test_a_value_a_response_produced_is_checked_where_it_is_rendered() -> None:
     """Not everything substituted was supplied by whoever asked for the run: a
     derived value comes out of the system's own earlier answer, and the thing

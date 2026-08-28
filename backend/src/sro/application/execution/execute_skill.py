@@ -807,11 +807,10 @@ class ExecuteStep:
         rendered = dict(values)
         encoded: dict[str, str] = {}
         for parameter in parameters:
-            # `absent_as is not None` is what `optional` means; asked this way
-            # round because the value is wanted as well as the fact.
-            if (absent_as := parameter.absent_as) is not None and not rendered.get(parameter.name):
-                decoded = json.loads(absent_as)
-                rendered[parameter.name] = decoded if isinstance(decoded, str) else absent_as
+            # `absent_value is not None` is what `optional` means; asked this
+            # way round because the value is wanted as well as the fact.
+            if (absent := parameter.absent_value) is not None and not rendered.get(parameter.name):
+                rendered[parameter.name] = absent
             elif parameter.unquoted_as == "string" and parameter.name in rendered:
                 encoded[parameter.name] = json.dumps(rendered[parameter.name])
 

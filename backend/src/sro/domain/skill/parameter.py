@@ -134,6 +134,25 @@ class Parameter:
         """
         return self.absent_as is not None
 
+    @property
+    def absent_value(self) -> str | None:
+        """What goes in the slot when nobody supplies a value.
+
+        The absent form as it is *substituted*, which is not the JSON it is
+        stored as wherever the slot keeps its quotes: a text control the form
+        empties wants the empty string in there, not the two characters `""`.
+
+        One definition, asked by both the side that fills the slot and the
+        side that decides what may go in it. Held apart, they disagreed: two
+        quote characters supplied as a value were accepted as "the form the
+        demonstration sent", substituted as text into a slot that already had
+        quotes round it, and the write went out with four of them in a row.
+        """
+        if self.absent_as is None:
+            return None
+        decoded = json.loads(self.absent_as)
+        return decoded if isinstance(decoded, str) else self.absent_as
+
     def rejects(self, value: str) -> str | None:
         """Why this value cannot be put in this parameter's slot, or ``None``.
 
@@ -150,7 +169,7 @@ class Parameter:
         to whoever supplied the value, and "no" on its own is not something
         anybody can act on.
         """
-        if value == self.absent_as:
+        if value == self.absent_value:
             # The form the demonstration itself sent, put here by execution
             # when nobody supplied a value. It is JSON by construction.
             return None
@@ -168,7 +187,7 @@ class Parameter:
             case wanted:
                 try:
                     decoded = json.loads(value)
-                except json.JSONDecodeError:
+                except ValueError:
                     return f"{self.name} is sent as a bare {wanted} and {value!r} is not one"
                 if json_type_of(decoded) != wanted:
                     return f"{self.name} is sent as a bare {wanted} and {value!r} is not one"

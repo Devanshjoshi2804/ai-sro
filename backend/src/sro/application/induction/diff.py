@@ -446,11 +446,14 @@ def parameterise(
     # Grouped by value pair: an order number in the URL, the body and a
     # confirmation field is one parameter with three sites, not three that agree.
     #
-    # Tidied, for the same reason `binding` tidies: a form is allowed to change
-    # what it was given on the way out. The work area box uppercases as you
-    # type, so `twoTEST` typed and `TWOTEST` sent are one value -- and grouping
-    # them by their exact text made them two parameters, one named after the
-    # field's help text, both asked of whoever runs the skill.
+    # Verbatim between one site and another. Tidying exists to join a keystroke
+    # to the site it filled -- a form is allowed to change what it was given on
+    # the way out, so `twoTEST` typed and `TWOTEST` sent are one value -- and
+    # between two body sites there is no keystroke and nothing to see through.
+    # Both texts are what the system stored. Case-folded, they merged fields the
+    # demonstrations proved differ: a `workArea` sent `TWOTEST` beside a `slug`
+    # sent `twotest` became one parameter, and the skill then sent `NEWAREA` as
+    # the slug both runs showed lowercased.
     #
     # Keyed on the absent form too, because two fields nobody filled look
     # identical without it: both tidy to `""`, so a Delta Priority the form
@@ -472,26 +475,33 @@ def parameterise(
     # strength of one coincidence.
     groups: dict[tuple[str, str, str | None, Site | None], list[Difference]] = {}
     for difference in differences(run_a, run_b):
+        keystroke = isinstance(difference.site, ActionValueSite)
         key = (
-            binding.tidied(difference.value_a),
-            binding.tidied(difference.value_b),
+            binding.tidied(difference.value_a) if keystroke else difference.value_a,
+            binding.tidied(difference.value_b) if keystroke else difference.value_b,
             difference.absent_as,
-            difference.site if difference.absent_as is not None else None,
+            difference.site if keystroke or difference.absent_as is not None else None,
         )
         groups.setdefault(key, []).append(difference)
 
-    # Split by the absent form only among the sites that *have* one. A
-    # keystroke carries none -- only a body leaf does -- so keying on it alone
-    # separated the typing that fills a field from the body site it fills, and
-    # the field came out twice: required on the gesture path, optional on the
-    # network path, two answers for the one thing this whole decision exists to
-    # get right. A group with no form of its own rejoins the single group that
-    # has one; where two of them disagree about their form the ambiguity is
-    # real and they stay apart.
-    for formless in [key for key in groups if key[2] is None]:
-        formed = [key for key in groups if key[:2] == formless[:2] and key[2] is not None]
-        if len(formed) == 1:
-            groups[formed[0]].extend(groups.pop(formless))
+    # And here is where tidying is spent: a keystroke joins the one site whose
+    # value it tidies to. It has to be exactly one -- typing that fits two
+    # fields fits neither, the same rule `binding` already holds itself to.
+    #
+    # Joined rather than keyed together, because a keystroke carries no absent
+    # form -- only a body leaf does -- and keying on that alone separated the
+    # typing that fills a field from the body site it fills: the field came out
+    # twice, required on the gesture path and optional on the network path, two
+    # answers for the one thing this whole decision exists to get right.
+    for typed_key in [key for key in groups if isinstance(key[3], ActionValueSite)]:
+        filled = [
+            key
+            for key in groups
+            if not isinstance(key[3], ActionValueSite)
+            and (binding.tidied(key[0]), binding.tidied(key[1])) == typed_key[:2]
+        ]
+        if len(filled) == 1:
+            groups[filled[0]].extend(groups.pop(typed_key))
 
     parameters: list[Parameter] = []
     substitutions: dict[int, list[Substitution]] = {}

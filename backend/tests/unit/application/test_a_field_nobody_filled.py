@@ -739,6 +739,24 @@ def test_two_optional_fields_that_shared_a_value_are_still_two_parameters() -> N
     assert one_of_them == {"deltaPriority": 7, "distanceThreshold": None}
 
 
+def test_two_body_fields_the_runs_wrote_differently_are_two_parameters() -> None:
+    """Tidying joins a keystroke to the body site it filled, and that is all it
+    is for. Between two body sites there is no keystroke and nothing to see
+    through -- both texts are what the system stored -- and case-folding them
+    merged fields the demonstrations proved differ: every run wrote the slug
+    lowercased beside an uppercased work area, and one parameter meant the
+    skill sent `NEWAREA` as the slug."""
+    parameterisation = parameterise(
+        _run({"workArea": "TWOTEST", "slug": "twotest"}),
+        _run({"workArea": "THREETE", "slug": "threete"}),
+    )
+
+    assert {(sub.site, sub.parameter) for sub in parameterisation.substitutions[0]} == {
+        (JsonBodySite("/workArea"), "work_area"),
+        (JsonBodySite("/slug"), "slug"),
+    }
+
+
 async def test_a_field_one_run_cleared_is_one_parameter_on_both_paths() -> None:
     """The mirror of the case above, and the reason the absent form cannot be
     the whole of the grouping key. Both runs touch the control -- one types a

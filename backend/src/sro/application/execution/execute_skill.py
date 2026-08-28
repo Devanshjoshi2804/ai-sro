@@ -71,6 +71,15 @@ from sro.domain.skill.skill import Skill, SkillStep, SkillVersion
 
 logger = logging.getLogger(__name__)
 
+MAX_RECORDED_BODY_BYTES = 64 * 1024
+"""How much of a withheld write's body a run will keep.
+
+Capture already bounds it -- a payload over the inline limit is a blob and
+never becomes a body template at all -- but a loop withholds one body per thing
+in a list, and twenty-five of the largest inlined body would be a megabyte of
+run log nobody is going to read. This is the size a person reads, not the size
+the wire allows."""
+
 
 class NotRunnable(DomainError):
     """The skill cannot be run as asked. Never a partial run: this is raised
@@ -952,6 +961,20 @@ class ExecuteStep:
             )
 
         if mutating and not run.performs_writes:
+            # The body as well as the line above it. Method and URL alone say
+            # nothing about what would have changed, and the body is where a
+            # reviewer sees whether the skill got the fields right -- it is the
+            # only copy there will ever be, since nothing sent it anywhere.
+            #
+            # Bounded because a loop withholds one of these per thing in a list.
+            # Past the bound the body is dropped and said to be dropped, rather
+            # than cut: a truncated body reads exactly like a whole one, and a
+            # reviewer would sign off a write on half of it.
+            detail = f"{run.stage} does not send writes; the request was produced, not sent"
+            size = len(body.encode()) if body is not None else 0
+            if size > MAX_RECORDED_BODY_BYTES:
+                body = None
+                detail += f"; its {size} byte body was too large to record"
             return (
                 StepOutcome(
                     index=step.index,
@@ -961,7 +984,8 @@ class ExecuteStep:
                     method=plan.method,
                     url=url,
                     idempotency_key=key,
-                    detail=f"{run.stage} does not send writes; the request was produced, not sent",
+                    request_body=body,
+                    detail=detail,
                 ),
                 {},
                 None,

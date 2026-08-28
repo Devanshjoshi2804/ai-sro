@@ -2526,6 +2526,8 @@ export interface components {
             status_code: number | null;
             /** Idempotency Key */
             idempotency_key: string | null;
+            /** Request Body */
+            request_body?: string | null;
             /** Assertion Failures */
             assertion_failures: string[];
             /** Escalated From */

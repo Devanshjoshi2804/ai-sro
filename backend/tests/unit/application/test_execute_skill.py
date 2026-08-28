@@ -6,6 +6,8 @@ changing a warehouse, so most of what an executor must get right is refusing.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from sro.application.context import RequestContext
@@ -91,6 +93,90 @@ async def test_a_shadow_run_produces_the_write_without_sending_it() -> None:
     assert run.steps[0].url == "https://wms.test/api/shipments/555/release"
     assert run.steps[0].idempotency_key is not None
     assert run.status is RunStatus.SUCCEEDED
+
+
+async def test_a_shadow_run_records_the_body_it_would_have_sent() -> None:
+    """Method and URL say where; only the body says what.
+
+    The whole purpose of the stage is a person reading the write before anything
+    writes, and every decision induction made -- which field is a parameter,
+    what an optional one nobody filled falls back to -- is in the body and
+    nowhere else.
+    """
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    await _skill(
+        uow,
+        f.skill_version(
+            steps=(
+                _write_step(
+                    body=Template(
+                        '{"shipmentId": "${shipment_id}", "deltaPriority": ${delta_priority}}'
+                    )
+                ),
+            ),
+            parameters=(
+                f.parameter(),
+                f.parameter(
+                    name="delta_priority",
+                    absent_as="null",
+                    unquoted_as="number",
+                    observed_values=("1", "2"),
+                ),
+            ),
+        ),
+        PromotionStage.SHADOW,
+    )
+
+    run = await _executor(uow, http, vault).execute(
+        CTX, ExecutionRequest(skill_id=SkillId("skill-1"), parameters={"shipment_id": "555"})
+    )
+
+    assert http.sent == []
+    assert run.steps[0].request_body is not None
+    assert json.loads(run.steps[0].request_body) == {
+        "shipmentId": "555",
+        "deltaPriority": None,
+    }
+
+
+async def test_a_body_too_large_to_record_says_so_rather_than_being_cut() -> None:
+    """A truncated body reads exactly like a whole one, and a reviewer would
+    sign off a write on half of it."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    await _skill(
+        uow,
+        f.skill_version(steps=(_write_step(body=Template('{"note": "' + "x" * 70_000 + '"}')),)),
+        PromotionStage.SHADOW,
+    )
+
+    run = await _executor(uow, http, vault).execute(
+        CTX, ExecutionRequest(skill_id=SkillId("skill-1"), parameters={"shipment_id": "555"})
+    )
+
+    assert run.steps[0].request_body is None
+    assert "too large to record" in (run.steps[0].detail or "")
+
+
+async def test_a_write_that_was_sent_keeps_no_body() -> None:
+    """The system it reached holds it. Keeping every body a skill ever sent
+    would make the run log a copy of the warehouse."""
+    uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
+    await vault.store(SCOPED, "session=live")
+    await _skill(uow, f.skill_version(steps=(_write_step(),)), PromotionStage.ASSISTED)
+
+    run = await _executor(uow, http, vault).execute(
+        CTX,
+        ExecutionRequest(
+            skill_id=SkillId("skill-1"),
+            parameters={"shipment_id": "555"},
+            authorized_by="supervisor",
+        ),
+    )
+
+    assert run.steps[0].disposition is StepDisposition.PERFORMED
+    assert run.steps[0].request_body is None
 
 
 async def test_a_recorded_skill_cannot_be_run_at_all() -> None:

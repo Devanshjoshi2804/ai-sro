@@ -70,6 +70,19 @@ class StepOutcome:
     """Present for every mutating step, sent or withheld. Identifies the attempt
     so a retry can tell "already done" from "never started"."""
 
+    request_body: str | None = None
+    """The body a withheld write produced, and nothing else.
+
+    Shadow exists so a person can read what a skill *would* send before anything
+    is sent, and a step that records only the method and the URL hides every
+    decision induction made -- which field became a parameter, what an optional
+    one falls back to, whether a value landed in the right key. That body exists
+    nowhere else: it was never sent, so no system holds a copy of it.
+
+    A body that *was* sent is deliberately not kept. The system it reached has
+    it, and storing every one would turn the run log into a copy of the
+    warehouse."""
+
     assertion_failures: tuple[str, ...] = ()
 
     escalated_from: Medium | None = None

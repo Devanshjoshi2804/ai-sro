@@ -790,6 +790,10 @@ class StepOutcomeModel(BaseModel):
     url: str | None
     status_code: int | None
     idempotency_key: str | None
+    request_body: str | None = None
+    """What a withheld write would have sent. Present only for a step the stage
+    refused to send, which is the only body no system holds a copy of."""
+
     assertion_failures: list[str]
     escalated_from: str | None
     escalation_reason: str | None
@@ -832,6 +836,7 @@ class StepOutcomeModel(BaseModel):
             url=step.url,
             status_code=step.status_code,
             idempotency_key=step.idempotency_key,
+            request_body=step.request_body,
             assertion_failures=list(step.assertion_failures),
             escalated_from=step.escalated_from.value if step.escalated_from else None,
             escalation_reason=step.escalation_reason,

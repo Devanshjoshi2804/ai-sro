@@ -97,6 +97,13 @@ function StepOutcome({ step }: { step: StepOutcomeModel }) {
             {step.method} {step.url} {step.status_code ? `→ ${step.status_code}` : ""}
           </p>
         )}
+        {/* What a withheld write would have sent. The whole point of a shadow
+            run: the line above says where, this says what. */}
+        {step.request_body && (
+          <pre className="bg-muted overflow-x-auto rounded p-2 font-mono text-[11px] whitespace-pre-wrap">
+            {step.request_body}
+          </pre>
+        )}
         {step.matched_by && (
           <p className="text-muted-foreground text-xs">found by {step.matched_by}</p>
         )}

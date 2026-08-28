@@ -7,6 +7,7 @@ sets of states, timezone-aware timestamps. Those are what these assert.
 
 from __future__ import annotations
 
+from sro.domain.execution.run import Medium, StepDisposition, StepOutcome
 from sro.domain.recording.network import Body, Initiator, InitiatorKind, StackFrame
 from sro.domain.skill.parameter import Parameter, ParameterKind
 from sro.domain.skill.transform import Transform
@@ -18,6 +19,7 @@ from sro.infrastructure.db.codec import (
     load_frames,
     load_versions,
 )
+from sro.infrastructure.db.mappers import _step_from_json, _step_to_json
 from tests import factories as f
 
 
@@ -104,3 +106,32 @@ def test_a_version_written_before_optional_was_derived_still_reads() -> None:
 
     assert restored[0].parameters[0].optional is True
     assert restored[0].parameters[0].absent_as == "null"
+
+
+def test_the_body_a_shadow_run_withheld_survives_storage() -> None:
+    """A run's steps are a JSONB document, so a field the mapper forgets is a
+    field the console never sees again -- and the withheld body is the one thing
+    no other system holds a copy of."""
+    step = StepOutcome(
+        index=0,
+        medium=Medium.NETWORK,
+        disposition=StepDisposition.WITHHELD,
+        intent="create the work area",
+        method="POST",
+        url="https://wms.test/data/WM/wm/workAreas",
+        idempotency_key="run-1:0",
+        request_body='{"workArea":"SROTEST1","deltaPriority":null}',
+    )
+
+    assert _step_from_json(_step_to_json(step)) == step
+
+
+def test_a_step_stored_before_bodies_were_kept_still_reads() -> None:
+    stored = {
+        "index": 0,
+        "medium": "network",
+        "disposition": "withheld",
+        "intent": "create the work area",
+    }
+
+    assert _step_from_json(stored).request_body is None

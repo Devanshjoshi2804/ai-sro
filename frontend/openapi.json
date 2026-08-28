@@ -21700,6 +21700,17 @@
             ],
             "title": "Idempotency Key"
           },
+          "request_body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Body"
+          },
           "assertion_failures": {
             "items": {
               "type": "string"

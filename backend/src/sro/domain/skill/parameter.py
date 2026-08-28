@@ -92,6 +92,11 @@ class Parameter:
             )
         if self.source_step_index is not None and self.source_step_index < 0:
             raise InvariantViolation("source_step_index must be non-negative")
+        if self.optional and self.absent_as is None:
+            raise InvariantViolation(
+                f"optional parameter {self.name!r} has no absent form, so there is nothing "
+                "to send when nobody supplies it"
+            )
         if self.absent_as is not None:
             try:
                 json.loads(self.absent_as)

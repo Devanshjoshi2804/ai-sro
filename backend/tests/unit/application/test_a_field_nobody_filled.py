@@ -775,6 +775,16 @@ def test_substitute_body_does_not_unquote_a_field_that_only_looks_like_the_marke
     )
 
 
+def test_an_optional_parameter_with_no_absent_form_is_refused() -> None:
+    """Optional means "a run may leave this out", and `absent_as` is the only
+    thing that says what goes on the wire when one does. Without it the pair
+    is a parameter nothing can satisfy: `_check_runnable` waves the run through
+    because the field is optional, and rendering the body then raises a bare
+    `KeyError` on the parameter's name, mid-run, with nothing saying why."""
+    with pytest.raises(InvariantViolation, match="has no absent form"):
+        f.parameter(optional=True)
+
+
 def test_a_parameter_refuses_an_absent_as_that_is_not_json() -> None:
     """`absent_as` is read back later as JSON without a guard of its own --
     `_perform` trusts it because nothing else can construct a `Parameter`

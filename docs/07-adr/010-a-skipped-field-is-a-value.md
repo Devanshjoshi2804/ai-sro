@@ -72,10 +72,22 @@ quantity supplied as `2,"approved":true` renders a valid body carrying a field
 no demonstration ever sent — and unquoting made that free where a quoted slot
 at least needs a `"` to get out of. `Parameter.rejects` says, in a sentence,
 why a value cannot go in its slot: a bare number slot takes a JSON number or
-the absent form the demonstration itself sent, a quoted slot takes text that
-cannot end its own string, an unquoted text slot is encoded and takes anything.
-It is asked in two places, because the values arrive from two. `_check_runnable`
-refuses what an operator supplied before the run starts, since a job whose
+the absent form the demonstration itself sent, and nothing else does.
+
+*Amended.* A quoted slot used to be a third rule — text that cannot end its own
+string — and that was the wrong half of the asymmetry to keep. A quoted body
+slot holds text inside a JSON string, exactly as the unquoted string slot beside
+it does, and that one is `json.dumps`-encoded on its way in and takes anything.
+So the quoted slot is encoded too: one `json.dumps` in `execute_skill._perform`
+serves both, its own quotes carried where the slot has none and stripped where
+the template already wrote them, and for a value with neither a quote nor a
+backslash in it nothing on the wire changes. What is refused is what encoding
+cannot fix — the bare slot's JSON type, and a control character wherever the
+value is not itself the body, since the same value is substituted as text into
+headers and URLs and neither can carry one.
+
+Either way it is asked in two places, because the values arrive from two.
+`_check_runnable` refuses what an operator supplied before the run starts, since a job whose
 fourth step carries the bad value has already written three times by the time
 rendering sees it; and rendering asks again for the values `_check_runnable`
 cannot see — a value an earlier response produced, or the thing a loop is on
@@ -148,14 +160,31 @@ The costs, named rather than hidden:
   optional field, proven by a skipped demonstration. A required field with no
   such evidence still substitutes as `"${name}"`, which ADR 004 already
   recorded as a known gap; this decision narrows it rather than closing it.
-- **A value carrying a `"` or a `\` is refused wherever it was headed.** The
-  quoted-slot rule is asked of every parameter, because nothing on a
-  `Parameter` says which of its sites is a JSON body leaf and which is a URL
-  segment — so a form-encoded body parameterised whole, or a search term with
-  a quotation mark in it, is refused rather than sent. A false refusal names
-  the field and the character; the alternative is a body somebody else's
-  quotation marks helped write. Narrow it by carrying the site kinds a
-  parameter fills, the day a real value needs one of those characters.
+- ~~**A value carrying a `"` or a `\` is refused wherever it was headed.**~~
+  *Closed.* A whole-body parameter — SOAP, XML — carries a `"` on every single
+  run, so this was not a false refusal at the margin: it made such a task
+  permanently unrunnable. Closed the way this predicted, by carrying the one
+  site kind that matters: `Parameter.is_the_body` says whether the value *is*
+  a body rather than a value inside one. It is the body only for a body that
+  is not JSON, which is parameterised whole; everything else is escaped into
+  the JSON string it lands in, which is the safe default and so also what
+  every parameter stored before the field existed does.
+- **A control character is still refused, including in a body leaf that could
+  escape it.** `json.dumps` would encode a newline perfectly well, but a
+  parameter's value is substituted as text into headers and URLs too — a `\r`
+  ends a header value and starts a second header — and `is_the_body` is not
+  fine-grained enough to separate a body leaf from a header. Refusing costs a
+  multi-line value in a JSON field; no form control an operator fills in
+  produces one. Narrow it the day one does, by carrying the rest of the site
+  kinds.
+- **A value can still add a query parameter the demonstration never sent.** A
+  URL slot substitutes raw text: supplying `X&limit=9999` for a query
+  parameter renders `?name=X&limit=9999&limit=25`, and `a/b` for a path
+  segment adds a segment. The same class as the JSON injection, in a different
+  syntax, and untouched by this decision — encoding on the way in is the fix
+  and it is not one line, because `substitute_url` records query values
+  decoded (`parse_qsl`) and path segments encoded (`url_path_segments` never
+  unquotes), so one uniform rule double-encodes half of them. Its own change.
 - **Loop bounds count raw frame indices while step indices count aligned,
   post-`explode` steps.** Pre-existing, and reproducible independently of a
   conditional step at all — two non-evidential unmatched frames with no

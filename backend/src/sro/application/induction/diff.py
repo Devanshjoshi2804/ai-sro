@@ -117,6 +117,31 @@ class Parameterisation:
         """The sites in this step whose placeholder loses its quotes."""
         return frozenset(sub.site for sub in self.substitutions.get(index, ()) if sub.unquoted)
 
+    def conditional_on(self, index: int) -> str | None:
+        """The optional parameter this step's keystroke fills, if it fills one.
+
+        A step that types an optional field only happens when somebody supplies
+        it. That was already true of the gesture `align` dropped -- one run
+        filled the box and the other did not, so the step comes back
+        conditional. It is just as true of a gesture both runs made, where what
+        proves the field optional is some third doing that left it empty: with
+        nothing supplied there is nothing to type, and typing empty into a box
+        the demonstration always filled is how a form raises a validation error
+        nobody triggered.
+
+        The keystroke only. The write that carries the field is not conditional
+        on it -- that call goes out either way, carrying the absent form.
+        """
+        return next(
+            (
+                sub.parameter
+                for sub in self.substitutions.get(index, ())
+                if isinstance(sub.site, ActionValueSite)
+                and sub.parameter in {p.name for p in self.parameters if p.optional}
+            ),
+            None,
+        )
+
 
 def _mutations(frame: ActionFrame) -> list[CapturedRequest]:
     """The calls this gesture made that changed something, in the order sent."""
@@ -430,12 +455,72 @@ def _longest_common(
     return tuple(pairs)
 
 
-def differences(run_a: tuple[ActionFrame, ...], run_b: tuple[ActionFrame, ...]) -> list[Difference]:
+def differences(
+    run_a: tuple[ActionFrame, ...],
+    run_b: tuple[ActionFrame, ...],
+    others: tuple[tuple[ActionFrame, ...], ...] = (),
+) -> list[Difference]:
+    """What varies between these two runs, and what the rest of the history
+    says about emptiness.
+
+    ``others`` are further doings of the same task, read for one thing only:
+    whether some doing left a field empty. They are never aligned, never
+    diffed, and never a source of a step or a value -- the pair still proves
+    every parameter, exactly as ADR 004 says. What they can add is an absent
+    form to a parameter the pair already found, because whether a field may be
+    left out is a fact about the whole history of a task and not about the last
+    two times somebody did it. Two people who both happened to fill Absolute
+    Priority prove nothing about the third who did not.
+    """
+    absences = _absences(others)
     found: list[Difference] = []
     for index, (frame_a, frame_b) in enumerate(align(run_a, run_b)):
         found.extend(_diff_action(index, frame_a, frame_b))
-        found.extend(_diff_request(index, frame_a, frame_b))
+        found.extend(_diff_request(index, frame_a, frame_b, absences))
     return found
+
+
+def _absences(runs: tuple[tuple[ActionFrame, ...], ...]) -> dict[tuple[str, str, str], set[str]]:
+    """Every key some doing sent holding nothing, and what nothing looked like.
+
+    Keyed by the call as well as the pointer, because a pointer on its own is
+    not a field: two writes in one task can both send `/name`, and one of them
+    leaving it empty says nothing about the other. Same method, same endpoint
+    shape, same pointer -- the same three things `_same` and the diff already
+    use to decide two calls are the same call.
+
+    A key a doing never sent at all contributes nothing here. That is the line
+    ADR 010 draws and this does not move it: an absent key is a divergence, and
+    only a key that was sent holding nothing is evidence of an optional field.
+    """
+    found: dict[tuple[str, str, str], set[str]] = {}
+    for run in runs:
+        for frame in run:
+            for request in _mutations(frame):
+                document = parse_json(request.request_text)
+                if document is None:
+                    continue
+                for pointer, leaf in jsonutil.leaves(document):
+                    if not jsonutil.is_empty(leaf):
+                        continue
+                    key = (request.method.upper(), url_shape(request.url), pointer)
+                    found.setdefault(key, set()).add(_absent_form(leaf))
+    return found
+
+
+def _absence_elsewhere(
+    absences: dict[tuple[str, str, str], set[str]], request: CapturedRequest, pointer: str
+) -> str | None:
+    """The absent form some other doing sent at this key, where exactly one
+    form was seen.
+
+    Never chosen: what goes in the slot when nobody supplies the field is what
+    a doing actually sent there. Where two doings disagree about it -- one
+    `null`, one `""` -- there is no single form to send and the field stays
+    required, which is what the evidence supports.
+    """
+    forms = absences.get((request.method.upper(), url_shape(request.url), pointer), set())
+    return next(iter(forms)) if len(forms) == 1 else None
 
 
 def parameterise(
@@ -444,6 +529,7 @@ def parameterise(
     *,
     ask_for: frozenset[str] = frozenset(),
     also: tuple[Choice, ...] = (),
+    others: tuple[tuple[ActionFrame, ...], ...] = (),
 ) -> Parameterisation:
     """Diff, classify as input or derived, name, and address every substitution.
 
@@ -454,6 +540,9 @@ def parameterise(
     ``also`` adds candidates the diff cannot find on its own. A single
     demonstration has nothing to disagree with, so the values a person typed are
     offered from there -- still gated by ``ask_for``, still never invented.
+
+    ``others`` are the rest of the doings of this task, read only for whether
+    some doing left a field empty. See :func:`differences`.
     """
     # Every index below -- a difference's step, a parameter's source -- counts
     # paired steps, not the steps of either recording. Handing the raw runs to
@@ -494,7 +583,7 @@ def parameterise(
     # supplying 7 wrote 7 to both fields and typed it into both boxes, on the
     # strength of one coincidence.
     groups: dict[tuple[str, str, str | None, Site | None], list[Difference]] = {}
-    for difference in differences(run_a, run_b):
+    for difference in differences(run_a, run_b, others):
         keystroke = isinstance(difference.site, ActionValueSite)
         key = (
             binding.tidied(difference.value_a) if keystroke else difference.value_a,
@@ -1002,10 +1091,14 @@ def _build_parameter(
                 name=name,
                 kind=ParameterKind.INPUT,
                 description=(
-                    f"{_where(sites)}; left alone in one demonstration, so it may be "
-                    f"left out -- sent as {absent_as} when nobody supplies it"
+                    f"{_where(sites)}; left empty in one of the doings watched, so it "
+                    f"may be left out -- sent as {absent_as} when nobody supplies it"
                 ),
-                observed_values=(value_a or value_b,),
+                # Whichever sides were actually filled. An absence is not an
+                # observed value -- nobody observed it, the form supplied it --
+                # but where the pair both filled the field and a third doing is
+                # what proves it optional, both of theirs are real.
+                observed_values=tuple(value for value in (value_a, value_b) if value),
                 absent_as=absent_as,
                 # What the run that filled it actually sent, carried through to
                 # execution: an unquoted slot holds JSON, so a value going into
@@ -1075,7 +1168,12 @@ def _diff_action(index: int, frame_a: ActionFrame, frame_b: ActionFrame) -> list
     ]
 
 
-def _diff_request(index: int, frame_a: ActionFrame, frame_b: ActionFrame) -> list[Difference]:
+def _diff_request(
+    index: int,
+    frame_a: ActionFrame,
+    frame_b: ActionFrame,
+    absences: dict[tuple[str, str, str], set[str]] | None = None,
+) -> list[Difference]:
     request_a, request_b = frame_a.primary_request, frame_b.primary_request
     if request_a is None and request_b is None:
         return []
@@ -1106,7 +1204,7 @@ def _diff_request(index: int, frame_a: ActionFrame, frame_b: ActionFrame) -> lis
     return [
         *_diff_url(index, request_a, request_b),
         *_diff_headers(index, request_a, request_b),
-        *_diff_body(index, request_a, request_b),
+        *_diff_body(index, request_a, request_b, absences or {}),
     ]
 
 
@@ -1206,7 +1304,12 @@ def _is_a_clock(value_a: str, value_b: str) -> bool:
     )
 
 
-def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Difference]:
+def _diff_body(
+    index: int,
+    a: CapturedRequest,
+    b: CapturedRequest,
+    absences: dict[tuple[str, str, str], set[str]] | None = None,
+) -> list[Difference]:
     body_a, body_b = a.request_text, b.request_text
     if body_a is None and body_b is None:
         return []
@@ -1253,9 +1356,12 @@ def _diff_body(index: int, a: CapturedRequest, b: CapturedRequest) -> list[Diffe
                 # side that filled the field is what an operator is shown.
                 value_a="" if empty_a else str(leaf_a),
                 value_b="" if empty_b else str(leaf_b),
+                # From the pair where the pair shows it, and otherwise from
+                # whichever other doing of this task left the field empty.
+                # Either way it is read off a write that actually sent it.
                 absent_as=_absent_form(leaf_a if empty_a else leaf_b)
                 if empty_a != empty_b
-                else None,
+                else _absence_elsewhere(absences or {}, a, pointer),
                 filled_as=json_type_of(leaf_b if empty_a else leaf_a),
             )
         )

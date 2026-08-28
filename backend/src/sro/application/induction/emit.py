@@ -46,7 +46,10 @@ def emit_step(
         requires_human=_requires_human(frame) or bool(narration and narration.requires_human),
         narration=narration.text if narration else "",
         branch_hint=narration.branch_hint if narration else None,
-        when=when,
+        # Given for a gesture only one run made, and asked for otherwise: a
+        # step that types an optional field is conditional on it wherever it
+        # came from.
+        when=when or parameterisation.conditional_on(index),
     )
 
 

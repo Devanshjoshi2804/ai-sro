@@ -94,14 +94,17 @@ class TeachCandidate:
             raise NothingToTeach(f"this candidate is already {candidate.status}")
 
         # Freshest first: the screens move, and the most recent doings of a
-        # task are the ones most likely to still find their controls.
+        # task are the ones most likely to still find their controls. That is
+        # the rule for the two that get *diffed*, and all of them are built:
+        # whether a field may be left out is a fact about the whole history of
+        # a task rather than about the last two times somebody did it, and the
+        # doing that proves the warehouse takes Absolute Priority empty may be
+        # the first of three.
         recordings: list[Recording] = []
         for episode in reversed(candidate.episodes):
             recording = await self._demonstration(ctx, candidate, episode)
             if recording is not None:
                 recordings.append(recording)
-            if len(recordings) == 2:
-                break
 
         if not recordings:
             return Taught(
@@ -142,11 +145,12 @@ class TeachCandidate:
     ) -> SkillId:
         """A skill from what was watched, by the strongest instrument available.
 
-        Two doings are diffed against each other: what differs between them is
-        a parameter, proved, and no model is asked. One doing has nothing to
-        diff, so its narrative -- what varies, what each step was for -- is a
-        model reading the same evidence, and every part of it is marked as read
-        rather than proven.
+        The two freshest doings are diffed against each other: what differs
+        between them is a parameter, proved, and no model is asked. The older
+        doings are handed over too, read only for the fields somebody left
+        empty. One doing has nothing to diff, so its narrative -- what varies,
+        what each step was for -- is a model reading the same evidence, and
+        every part of it is marked as read rather than proven.
 
         The difference matters most to exactly the task this exists for. A
         creation seen once yields a skill that would re-create the same record
@@ -158,6 +162,11 @@ class TeachCandidate:
                 first=recordings[0].id,
                 second=recordings[1].id,
                 name=candidate.title,
+                # The rest of the history, read for one thing: whether some
+                # doing left a field empty. Nothing else about them is used --
+                # they are not aligned, not diffed, and no step comes out of
+                # them.
+                others=tuple(recording.id for recording in recordings[2:]),
             )
             return induced.skill_id
         understood = await self._understand.execute(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
@@ -148,6 +149,7 @@ class InduceSkill:
         first: RecordingId,
         second: RecordingId | None = None,
         name: str | None = None,
+        others: Sequence[RecordingId] = (),
     ) -> InducedSkill:
         """Two demonstrations, or one.
 
@@ -158,6 +160,16 @@ class InduceSkill:
         so every value it sent stays exactly as demonstrated and the skill has no
         parameters at all. It replays one specific act; teaching it a second time
         is what turns the values in it into questions.
+
+        ``others`` are the rest of the doings of this task, read for one thing
+        only: whether some doing left a field empty. They are never aligned,
+        never diffed, and never a source of a step -- the pair still proves
+        every parameter and still decides identity. Whether a field may be left
+        out is the one fact here that belongs to the whole history rather than
+        to two runs of it: an operator who created the same work area three
+        times and left Absolute Priority empty the first time has proved the
+        warehouse takes it empty, and a pair drawn from the two most recent
+        doings never sees that.
         """
         now = self._clock.now()
 
@@ -165,6 +177,21 @@ class InduceSkill:
             run_a = await uow.recordings.get(ctx.tenant_id, first)
             run_b = run_a if second is None else await uow.recordings.get(ctx.tenant_id, second)
             objective = _check_pairable(run_a, run_b, paired=second is not None)
+
+            # Read rather than checked. A doing that is not sealed, or that
+            # named a different objective, is simply not evidence about this
+            # task -- and refusing the whole induction over one would cost a
+            # demonstration for a recording nothing was going to be built from.
+            rest = [
+                await uow.recordings.get(ctx.tenant_id, other)
+                for other in others
+                if other not in (run_a.id, run_b.id)
+            ]
+            history = tuple(
+                other.frames
+                for other in rest
+                if other.status is RecordingStatus.SEALED and other.objective_key == objective
+            )
 
             # Two demonstrations that did the same block a different number of
             # times are two lengths of one looping task, not two tasks. Read
@@ -174,7 +201,7 @@ class InduceSkill:
             keep = looped.keep if looped is not None else None
             frames_a, frames_b = run_a.frames[:keep], run_b.frames[:keep]
 
-            parameterisation = parameterise(frames_a, frames_b)
+            parameterisation = parameterise(frames_a, frames_b, others=history)
 
             # An id the operator picked off a screen is not something to ask a
             # human for -- they picked it by reading a name, and the screen that
@@ -197,7 +224,9 @@ class InduceSkill:
                 tuple(c for c in parameterisation.choices if c.field not in resolvable),
             )
             if asked or resolvable:
-                parameterisation = parameterise(frames_a, frames_b, ask_for=asked | resolvable)
+                parameterisation = parameterise(
+                    frames_a, frames_b, ask_for=asked | resolvable, others=history
+                )
             if second is None:
                 # One demonstration cannot disagree with itself, so nothing it
                 # sent looked like a parameter -- including the values a person
@@ -214,6 +243,7 @@ class InduceSkill:
                         frames_b,
                         ask_for=frozenset(asked | resolvable | {c.field for c in typed}),
                         also=typed,
+                        others=history,
                     )
             if looped is not None:
                 parameterisation = _with_loop(parameterisation, looped)
@@ -285,7 +315,15 @@ class InduceSkill:
                 steps=steps,
                 parameters=parameters,
                 provenance=Provenance(
-                    recording_ids=(run_a.id, run_b.id) if second is not None else (run_a.id,),
+                    # Every doing the induction read, including those read
+                    # only for what somebody left empty: a reviewer asked why a
+                    # field is optional has to be able to go and look at the
+                    # doing that proves it.
+                    recording_ids=(
+                        (run_a.id, run_b.id, *(other.id for other in rest))
+                        if second is not None
+                        else (run_a.id,)
+                    ),
                     induced_at=now,
                     induced_by=ctx.principal_id,
                     note=_provenance_note(run_a, run_b, paired=second is not None),

@@ -7,6 +7,7 @@ they did is still here.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -134,6 +135,7 @@ class _Induces:
 
     def __init__(self) -> None:
         self.pairs: list[tuple[str, str | None]] = []
+        self.rest: list[tuple[str, ...]] = []
 
     async def execute(
         self,
@@ -142,8 +144,10 @@ class _Induces:
         first: object,
         second: object | None = None,
         name: str | None = None,
+        others: Sequence[object] = (),
     ) -> object:
         self.pairs.append((str(first), str(second) if second else None))
+        self.rest.append(tuple(str(other) for other in others))
 
         class _Induced:
             skill_id = SkillId("skl-induced")
@@ -406,6 +410,7 @@ async def test_a_task_watched_twice_is_learned_by_diffing_the_two_doings() -> No
     first, second = induce.pairs[0]
     assert second is not None, "the second doing was captured and not used"
     assert first != second, "one recording was diffed against itself"
+    assert induce.rest == [()], "a third doing appeared from a candidate seen twice"
 
 
 async def test_a_task_watched_once_is_read_rather_than_diffed() -> None:

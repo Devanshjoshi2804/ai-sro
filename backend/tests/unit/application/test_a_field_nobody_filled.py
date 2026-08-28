@@ -1257,6 +1257,21 @@ def test_the_absent_form_of_a_text_field_is_the_empty_string_not_two_quotes() ->
     )
 
 
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity"])
+def test_a_number_json_cannot_spell_is_not_a_number(value: str) -> None:
+    """A bare slot renders what it is given verbatim, and `json.loads` reads
+    these three because Python writes them. JSON has no such literals: the
+    write goes out as `{"deltaPriority":NaN}`, which a WMS that parses
+    strictly refuses whole and one that does not stores unreadably."""
+    delta = Parameter(
+        name="delta_priority", kind=ParameterKind.INPUT, absent_as="null", unquoted_as="number"
+    )
+
+    assert delta.rejects(value) == (
+        f"delta_priority is sent as a bare number and {value!r} is not one"
+    )
+
+
 async def test_a_value_a_response_produced_is_checked_where_it_is_rendered() -> None:
     """Not everything substituted was supplied by whoever asked for the run: a
     derived value comes out of the system's own earlier answer, and the thing

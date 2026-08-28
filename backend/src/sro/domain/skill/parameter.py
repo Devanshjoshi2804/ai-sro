@@ -17,6 +17,18 @@ string, the backslash that escapes whatever follows it, and the control
 characters JSON does not allow inside one unescaped."""
 
 
+def _not_json(constant: str) -> float:
+    """Refuse `NaN`, `Infinity` and `-Infinity`.
+
+    Python's `json` reads them and writes them; JSON has no such literals, and
+    neither does anything on the other end of the wire. Into a bare slot they
+    would go out unquoted -- `{"qty":NaN}` -- and a WMS that parses strictly
+    rejects the whole write, while one that does not stores a quantity nobody
+    can read back.
+    """
+    raise ValueError(f"{constant} is not JSON")
+
+
 def json_type_of(value: object) -> str:
     """What JSON calls this Python value: the vocabulary both the diff and the
     renderer use to say what a slot holds. `bool` before `int`, because in
@@ -186,7 +198,7 @@ class Parameter:
                 pass
             case wanted:
                 try:
-                    decoded = json.loads(value)
+                    decoded = json.loads(value, parse_constant=_not_json)
                 except ValueError:
                     return f"{self.name} is sent as a bare {wanted} and {value!r} is not one"
                 if json_type_of(decoded) != wanted:

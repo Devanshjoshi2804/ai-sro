@@ -1388,7 +1388,10 @@ async def _the_two_work_areas(uow: FakeUnitOfWork, blobs: FakeBlobStore) -> Task
     episodes = []
     for index, name in enumerate(("with_a_delta_priority", "without_a_delta_priority")):
         payload = (FIXTURES / f"{name}.ndjson").read_bytes()
-        key = f"acme/devansh/2026-08-27/{name}.ndjson"
+        # Tenant and principal from the factories, never a real person: this
+        # is shaped like the artifact bucket's own keys, and the repo owner's
+        # given name was in it.
+        key = f"{f.TENANT}/{f.OPERATOR}/2026-08-27/{name}.ndjson"
         blobs.objects[key] = payload
         batch_id = BatchId(f"bat-{name}")
         await uow.observations.add(

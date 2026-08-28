@@ -48,6 +48,7 @@ from sro.application.ports.token import TokenRefused, TokenSource
 from sro.application.ports.ui import ResolvedLocator, UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
 from sro.application.ports.vision import VisionUnavailable
+from sro.application.skill.repair_drift import RepairDrift
 from sro.domain.connection.connection import Connection
 from sro.domain.execution.escalation import FailureKind, next_medium
 from sro.domain.execution.run import (
@@ -1188,10 +1189,17 @@ class FinishRun:
     restart teaches the store the same thing as one that did not.
     """
 
-    def __init__(self, uow: UnitOfWork, clock: Clock, learn: LearnFromRun | None = None) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        clock: Clock,
+        learn: LearnFromRun | None = None,
+        repair: RepairDrift | None = None,
+    ) -> None:
         self._uow = uow
         self._clock = clock
         self._learn = learn
+        self._repair = repair
 
     async def execute(self, ctx: RequestContext, *, run_id: RunId) -> Run:
         async with self._uow as uow:
@@ -1235,6 +1243,13 @@ class FinishRun:
                 # with, and that lives on the version.
                 version=version,
             )
+        if self._repair is not None:
+            # Also after the commit, and after the knowledge write: a repair is
+            # this run's evidence adopted into a new version beside the old one,
+            # and a run that already happened must not be undone by it. The
+            # version this run was performing is untouched -- another run in
+            # flight against it goes on doing exactly what it started doing.
+            await self._repair.execute(ctx, run=run)
         return run
 
 
@@ -1256,11 +1271,12 @@ class ExecuteSkill:
         learn: LearnFromRun | None = None,
         vision: PerformWithVision | None = None,
         agents: AgentDrivers | None = None,
+        repair: RepairDrift | None = None,
     ) -> None:
         self._uow = uow
         self._start = StartRun(uow, clock, ids)
         self._step = ExecuteStep(uow, http, vault, ui, vision, agents=agents)
-        self._finish = FinishRun(uow, clock, learn)
+        self._finish = FinishRun(uow, clock, learn, repair)
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
         run = await self._start.execute(ctx, request)

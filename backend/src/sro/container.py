@@ -111,6 +111,7 @@ from sro.application.recording.start_recording import StartRecording
 from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
+from sro.application.skill.repair_drift import RepairDrift
 from sro.application.trigger.create_trigger import CreateTrigger
 from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
@@ -458,6 +459,9 @@ class Container:
     def learn_from_run(self) -> LearnFromRun:
         return LearnFromRun(self.record_claims())
 
+    def repair_drift(self) -> RepairDrift:
+        return RepairDrift(self.unit_of_work(), self.clock, self.ask_about())
+
     def perform_with_vision(self) -> PerformWithVision:
         return PerformWithVision(
             self.ui,
@@ -479,6 +483,7 @@ class Container:
             self.learn_from_run(),
             self.perform_with_vision(),
             self.agents(),
+            self.repair_drift(),
         )
 
     def start_run(self) -> StartRun:
@@ -526,7 +531,9 @@ class Container:
         )
 
     def finish_run(self) -> FinishRun:
-        return FinishRun(self.unit_of_work(), self.clock, self.learn_from_run())
+        return FinishRun(
+            self.unit_of_work(), self.clock, self.learn_from_run(), self.repair_drift()
+        )
 
     def record_claims(self) -> RecordClaims:
         return RecordClaims(self.unit_of_work(), self.clock, self.ids, self.embedder)

@@ -164,6 +164,25 @@ The costs, named rather than hidden:
   this more likely to occur, since more misalignment can now survive as far as
   emission, but it did not create the bug.
 
+- **A form that nulls a whole nested block refuses to induce.** Everything
+  above is written for leaves: what proves a field optional is a key both
+  writes send, one holding a value and the other holding nothing, and the
+  absent form is read off that leaf. An *ancestor* left empty --
+  `"lines": [{"sku": "ABC"}]` in one run against `"lines": null` in the other
+  -- is admitted by `same_shape`, and nothing here can say what comes out of
+  it. The group's `null` is not the absent form of the leaves under it: handed
+  down to each of them it emitted `{"lines":[{"sku":${sku},"qty":${qty}}]}`,
+  and a run supplying neither sent a blank line item neither demonstration
+  sent, which a WMS that accepts one turns into a blank order line. The honest
+  alternative is one optional parameter holding the whole group, whose value is
+  an object -- and every rule that keeps a supplied value from writing the rest
+  of the body, `Parameter.rejects` and `_check_runnable`, is written for
+  scalars. So the pair is refused, naming the pointer and asking for that group
+  filled in both runs. This is the more reachable of the two refusals recorded
+  here, because a form with a nested block nulls the block rather than each
+  leaf inside it; it costs a pair nobody has demonstrated yet, where guessing
+  costs a warehouse a record it never asked for.
+
 - **A loop and a skipped field in one pair is refused.** Built, the pair proved
   worse than the bounds question that prompted looking for it: a loop's
   substitutions are keyed by raw frame, the diff's by aligned step, and

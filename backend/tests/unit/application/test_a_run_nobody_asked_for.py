@@ -16,9 +16,11 @@ from sro.application.trigger.read_triggers import DeleteTrigger, SetTriggerEnabl
 from sro.application.trigger.receive_inbound import InboundRefused, ReceiveInbound
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, SkillId, TriggerId
+from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
 from sro.domain.trigger.trigger import Trigger, TriggerKind
+from sro.domain.trigger.watch import Term, TermField, ValueAt, Watch
 from tests import factories as f
 from tests.unit.fakes import (
     FakeClock,
@@ -572,3 +574,106 @@ async def test_a_message_that_names_no_order_is_not_a_run() -> None:
     assert fired.run_id is None
     assert fired.skipped == "nothing said order_id"
     assert durable.started == []
+
+
+# --- a watch is a trigger the operator's own browser evaluates --------------
+
+
+def _watch(*values: ValueAt) -> Watch:
+    return Watch(
+        host="mail.google.com",
+        terms=(Term(field=TermField.SUBJECT, contains="shipment status"),),
+        values=values,
+    )
+
+
+async def test_a_watch_for_a_task_nobody_has_taught_is_refused() -> None:
+    """Nothing untaught reaches the ladder. A watch is the one trigger that
+    fires on somebody else's schedule -- a mail arriving -- so a watch for a
+    skill that does not exist would be a proposal, in front of an operator,
+    for a task this system has never done."""
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+
+    with pytest.raises(NotFound):
+        await _create(uow, scheduler).execute(
+            CTX,
+            NewTrigger(
+                skill_id=SkillId("skl-nobody-taught"),
+                kind=TriggerKind.WATCH,
+                watch=_watch(),
+                device_id=DeviceId("dev-lena-laptop"),
+                parameters={"shipment_id": "1"},
+            ),
+        )
+
+    assert uow.triggers.rows == {}
+
+
+async def test_a_watch_for_a_skill_that_has_never_been_rehearsed_is_refused() -> None:
+    """The same rule one rung further in: taught is not the same as allowed to
+    run, and a mail is not a person deciding it is."""
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False, runnable=False)
+
+    with pytest.raises(TriggerRefused, match="rehearsed"):
+        await _create(uow, scheduler).execute(
+            CTX,
+            NewTrigger(
+                skill_id=skill_id,
+                kind=TriggerKind.WATCH,
+                watch=_watch(),
+                device_id=DeviceId("dev-lena-laptop"),
+                parameters={"shipment_id": "1"},
+            ),
+        )
+
+
+async def test_a_value_pointed_at_a_parameter_the_skill_does_not_have_is_refused() -> None:
+    """Silent otherwise: the mail's value is dropped for having the wrong name
+    and the trigger fires with nothing, every time, until somebody reads a run.
+    """
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False)
+    misnamed = ValueAt(
+        name="order_id",
+        where=ControlLocator(strategy=LocatorStrategy.CSS_PATH, query=Template("span.ref")),
+    )
+
+    with pytest.raises(TriggerRefused, match="no order_id"):
+        await _create(uow, scheduler).execute(
+            CTX,
+            NewTrigger(
+                skill_id=skill_id,
+                kind=TriggerKind.WATCH,
+                watch=_watch(misnamed),
+                device_id=DeviceId("dev-lena-laptop"),
+                parameters={"shipment_id": "1"},
+            ),
+        )
+
+
+async def test_the_mail_supplies_the_value_so_nobody_has_to_type_one() -> None:
+    """The point of the whole thing: the trigger is created without a shipment
+    id because every matching mail carries its own."""
+    uow, scheduler = FakeUnitOfWork(), FakeScheduler()
+    skill_id = await _skill(uow, writes=False)
+    from_the_mail = ValueAt(
+        name="shipment_id",
+        where=ControlLocator(strategy=LocatorStrategy.CSS_PATH, query=Template("span.ref")),
+    )
+
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(
+            skill_id=skill_id,
+            kind=TriggerKind.WATCH,
+            watch=_watch(from_the_mail),
+            device_id=DeviceId("dev-lena-laptop"),
+        ),
+    )
+
+    assert trigger.from_message == ("shipment_id",)
+    assert trigger.inbound_token is None
+    # Nothing on a clock and nothing on a relay: the browser holding it is the
+    # only thing that ever evaluates it.
+    assert scheduler.scheduled == {}

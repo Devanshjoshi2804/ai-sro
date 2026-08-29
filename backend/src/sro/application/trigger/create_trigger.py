@@ -19,6 +19,7 @@ from sro.domain.execution.run import Medium
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.domain.trigger.trigger import Trigger, TriggerKind
+from sro.domain.trigger.watch import Watch
 
 
 class TriggerRefused(DomainError):
@@ -39,6 +40,11 @@ class NewTrigger:
     """Parameters a message that fires this may name -- an order number in a
     mail. Everything not listed here is fixed at creation, so a relay cannot
     point a warehouse read at another facility."""
+
+    watch: Watch | None = None
+    """What makes a mail one of these, for a trigger the operator's own browser
+    evaluates. The names it reads are its `from_message`; there is no second
+    list to keep in step."""
 
     device_id: DeviceId | None = None
     medium: Medium = Medium.NETWORK
@@ -68,8 +74,13 @@ class CreateTrigger:
                     "this skill has no version that may run yet; it has never been rehearsed"
                 )
 
+            # A watch names the values it supplies by where it reads them out
+            # of the mail. One list, checked the same way -- a value pointed at
+            # a parameter this skill does not have is the same silent typo.
+            supplied = request.watch.reads if request.watch else request.from_message
+
             declared = {parameter.name for parameter in version.parameters}
-            if unknown := sorted(set(request.from_message) - declared):
+            if unknown := sorted(set(supplied) - declared):
                 # A typo here is silent otherwise: the mail's value is dropped
                 # for having the wrong name, and the trigger fires with nothing
                 # every time until somebody reads a run.
@@ -80,7 +91,7 @@ class CreateTrigger:
             missing = sorted(
                 parameter.name
                 for parameter in version.inputs
-                if parameter.name not in parameters and parameter.name not in request.from_message
+                if parameter.name not in parameters and parameter.name not in supplied
             )
             if missing:
                 # A trigger with a value missing fails every single time it
@@ -116,6 +127,7 @@ class CreateTrigger:
                 created_at=self._clock.now(),
                 parameters=parameters,
                 from_message=request.from_message,
+                watch=request.watch,
                 cron=request.cron,
                 timezone=request.timezone,
                 device_id=request.device_id,

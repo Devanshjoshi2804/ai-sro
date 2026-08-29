@@ -314,6 +314,7 @@ async def test_a_reported_match_offers_rather_than_running(
         "trigger_id": trigger_id,
         "skill_id": created.json()["skill_id"],
         "values": {"shipment_id": "SH-4471"},
+        "missing": [],
     }
     # Nothing started, and nothing was written down: the values came out of
     # somebody's mail and this is the boundary that keeps them out of storage.
@@ -407,3 +408,113 @@ async def test_a_match_on_a_watch_that_was_switched_off_does_nothing(
     assert matched.status_code == 404
     assert container.dispatcher.asked == []
     assert uow.runs.rows == {}
+
+
+async def test_an_offer_says_what_the_mail_did_not_say(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """A mail that matched the rule and named no shipment.
+
+    Every mailbox produces some of these -- an autoreply, a thread with the
+    number only in an attachment. `FireTrigger` already skips a fire whose
+    required inputs are empty, so pressing one produces nothing; the offer says
+    so first, because a card that turns out to do nothing is worse than a card
+    that says why it cannot.
+    """
+    created = await _create_watch(client, uow, device_id=LENA)
+
+    matched = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/matched",
+        json={},
+    )
+
+    assert matched.status_code == 200, matched.text
+    assert matched.json()["values"] == {}
+    assert matched.json()["missing"] == ["shipment_id"]
+    assert container.dispatcher.asked == []
+
+
+async def test_the_press_runs_with_the_values_the_mail_gave(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The operator pressed once, and a run started with what they were shown.
+
+    The values travel again rather than being looked up: nothing was written
+    down at the match, so the browser that holds the offer is the only place
+    they exist. What the run gets is the trigger's own reading of them -- the
+    names it declared, and nothing a page invented.
+    """
+    created = await _create_watch(client, uow, device_id=LENA)
+
+    fired = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/fire",
+        json={"shipment_id": "SH-4471", "facility": "another-warehouse"},
+    )
+
+    assert fired.status_code == 202, fired.text
+    assert fired.json()["run_id"] is not None
+    assert fired.json()["skipped"] is None
+    assert container.dispatcher.with_values == [{"shipment_id": "SH-4471"}]
+
+
+async def test_a_press_whose_required_value_is_missing_starts_nothing(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The press goes through `FireTrigger` like everything else, so the skip
+    is the skip that already existed -- reachable, legible, and not routed
+    around by a path that had the values in its hand."""
+    created = await _create_watch(client, uow, device_id=LENA)
+
+    fired = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/fire", json={}
+    )
+
+    assert fired.status_code == 202, fired.text
+    assert fired.json()["run_id"] is None
+    assert fired.json()["skipped"] == "nothing said shipment_id"
+    assert container.dispatcher.asked == []
+
+
+async def test_a_browser_cannot_press_a_watch_that_is_not_its_own(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The press is a way to start a run, so it is exactly as narrow as the
+    report: this tenant's, this device's, enabled, and a watch."""
+    created = await _create_watch(client, uow, device_id=LENA)
+    trigger_id = created.json()["id"]
+    _device(uow, SAM)
+
+    someone_elses = await client.post(
+        f"/v1/agents/{SAM.value}/watches/{trigger_id}/fire", json={"shipment_id": "SH-4471"}
+    )
+    another_tenants = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{trigger_id}/fire",
+        json={"shipment_id": "SH-4471"},
+        headers={"Authorization": f"Bearer {token_for(tenant='rival')}"},
+    )
+
+    assert someone_elses.status_code == 404
+    assert another_tenants.status_code == 404
+    assert container.dispatcher.asked == []
+    assert uow.runs.rows == {}
+
+
+async def test_a_press_on_a_watch_that_was_switched_off_does_nothing(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """An offer outlives the watch it came from: it is held in a browser, and
+    the operator may press it tomorrow. A watch switched off in the meantime is
+    one the press finds nothing for."""
+    created = await _create_watch(client, uow, device_id=LENA)
+    trigger_id = created.json()["id"]
+    paused = await client.patch(
+        f"/v1/triggers/{trigger_id}", json={"enabled": False, "reason": "she is on leave"}
+    )
+    assert paused.status_code == 200
+
+    fired = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{trigger_id}/fire", json={"shipment_id": "SH-4471"}
+    )
+
+    assert fired.status_code == 404
+    assert container.dispatcher.asked == []

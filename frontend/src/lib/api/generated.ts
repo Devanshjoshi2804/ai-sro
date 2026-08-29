@@ -128,7 +128,7 @@ export interface paths {
          *
          *     A match is an offer. The plan is explicit that at this stage the panel says
          *     what matched and the operator presses once, so what this answers with is
-         *     the offer itself -- and the press is a separate act, in a later slice.
+         *     the offer itself -- and the press is a separate act, at `/fire` below.
          *     Nothing is written down either: the values were read out of somebody's mail
          *     and `ValueAt` exists to keep exactly those out of storage, so a table of
          *     pending matches would be the one thing the domain went structural lengths
@@ -152,6 +152,42 @@ export interface paths {
          *     already produces.
          */
         post: operations["watch_matched_v1_agents__device_id__watches__trigger_id__matched_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{device_id}/watches/{trigger_id}/fire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Watch Fire
+         * @description The press. The operator saw the offer and said do it.
+         *
+         *     A sibling of `/matched` rather than a flag on it: the endpoint above
+         *     answers a question and starts nothing, which is the whole of what it
+         *     promises, and a `confirmed=true` that quietly made it start runs would make
+         *     that promise conditional on a parameter. Same path, same ownership check,
+         *     one answer each.
+         *
+         *     The body is the values again, because nothing was kept: the offer lives in
+         *     the browser that found it, so the press carries what the mail said the same
+         *     way the report did. `/v1/triggers/{id}/fire` is left alone -- it fires with
+         *     a trigger's own values and a schedule has no message to widen it for.
+         *
+         *     From here it is an ordinary fire. `FireTrigger` reads only the names this
+         *     trigger declared, re-reads the skill, and skips rather than starting a run
+         *     whose required inputs are empty -- the same `blank_inputs` the offer showed
+         *     before the press.
+         */
+        post: operations["watch_fire_v1_agents__device_id__watches__trigger_id__fire_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3016,6 +3052,12 @@ export interface components {
          *     There is no field here for why it matched, because the browser that asked
          *     is the one that decided, and a reason travelling back would be mail content
          *     that had to have crossed to be echoed.
+         *
+         *     `missing` is what the skill needs that this mail did not say. The same rule
+         *     the fire itself applies, asked before the press instead of after it: an
+         *     offer whose values are short of a required one is a card that says so,
+         *     rather than a button that starts a run which is skipped a moment later for
+         *     a reason nobody sees.
          */
         WatchMatchModel: {
             /** Trigger Id */
@@ -3026,6 +3068,8 @@ export interface components {
             values: {
                 [key: string]: string;
             };
+            /** Missing */
+            missing: string[];
         };
         /**
          * WatchModel
@@ -3506,6 +3550,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WatchMatchModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    watch_fire_v1_agents__device_id__watches__trigger_id__fire_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                device_id: string;
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiredModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

@@ -1495,11 +1495,18 @@ class WatchMatchModel(BaseModel):
     There is no field here for why it matched, because the browser that asked
     is the one that decided, and a reason travelling back would be mail content
     that had to have crossed to be echoed.
+
+    `missing` is what the skill needs that this mail did not say. The same rule
+    the fire itself applies, asked before the press instead of after it: an
+    offer whose values are short of a required one is a card that says so,
+    rather than a button that starts a run which is skipped a moment later for
+    a reason nobody sees.
     """
 
     trigger_id: str
     skill_id: str
     values: dict[str, str]
+    missing: list[str]
 
 
 class EpisodeModel(BaseModel):

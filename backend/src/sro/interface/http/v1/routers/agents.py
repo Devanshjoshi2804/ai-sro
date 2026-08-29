@@ -6,11 +6,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, status
 
+from sro.application.context import RequestContext
+from sro.application.trigger.fire_trigger import blank_inputs
+from sro.container import Container
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, TriggerId
+from sro.domain.trigger.trigger import Trigger
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     DeviceModel,
+    FiredModel,
     HeartbeatRequest,
     HeartbeatResponse,
     ObservationPolicyModel,
@@ -90,7 +95,7 @@ async def watch_matched(
 
     A match is an offer. The plan is explicit that at this stage the panel says
     what matched and the operator presses once, so what this answers with is
-    the offer itself -- and the press is a separate act, in a later slice.
+    the offer itself -- and the press is a separate act, at `/fire` below.
     Nothing is written down either: the values were read out of somebody's mail
     and `ValueAt` exists to keep exactly those out of storage, so a table of
     pending matches would be the one thing the domain went structural lengths
@@ -113,15 +118,68 @@ async def watch_matched(
     already tenant-scoped, so that check could only produce the 404 this
     already produces.
     """
+    watch = await _watch_of(container, ctx, device_id=device_id, trigger_id=trigger_id)
+    running_with = watch.values_from(values)
+    skill = await container.get_skill().execute(ctx, skill_id=watch.skill_id)
+    version = skill.runnable
+    return WatchMatchModel(
+        trigger_id=watch.id.value,
+        skill_id=watch.skill_id.value,
+        values=running_with,
+        # A skill with no runnable version is not a shortage of values, and
+        # saying "nothing said shipment_id" about one would send somebody
+        # looking in the mail for a value that was never the problem. The press
+        # answers that one, with the trigger's own words.
+        missing=[] if version is None else blank_inputs(version, running_with),
+    )
+
+
+@router.post("/{device_id}/watches/{trigger_id}/fire", status_code=status.HTTP_202_ACCEPTED)
+async def watch_fire(
+    device_id: str,
+    trigger_id: str,
+    container: ContainerDep,
+    ctx: ContextDep,
+    values: Annotated[dict[str, str], Body()] = {},  # noqa: B006
+) -> FiredModel:
+    """The press. The operator saw the offer and said do it.
+
+    A sibling of `/matched` rather than a flag on it: the endpoint above
+    answers a question and starts nothing, which is the whole of what it
+    promises, and a `confirmed=true` that quietly made it start runs would make
+    that promise conditional on a parameter. Same path, same ownership check,
+    one answer each.
+
+    The body is the values again, because nothing was kept: the offer lives in
+    the browser that found it, so the press carries what the mail said the same
+    way the report did. `/v1/triggers/{id}/fire` is left alone -- it fires with
+    a trigger's own values and a schedule has no message to widen it for.
+
+    From here it is an ordinary fire. `FireTrigger` reads only the names this
+    trigger declared, re-reads the skill, and skips rather than starting a run
+    whose required inputs are empty -- the same `blank_inputs` the offer showed
+    before the press.
+    """
+    watch = await _watch_of(container, ctx, device_id=device_id, trigger_id=trigger_id)
+    fired = await container.fire_trigger().execute(watch.id, message=values)
+    return FiredModel(
+        trigger_id=fired.trigger_id.value,
+        run_id=fired.run_id.value if fired.run_id else None,
+        skipped=fired.skipped,
+    )
+
+
+async def _watch_of(
+    container: Container, ctx: RequestContext, *, device_id: str, trigger_id: str
+) -> Trigger:
+    """This tenant's, this device's, enabled, and a watch. Anything else is
+    `NotFound`, so another device's watch, another tenant's, and one that never
+    existed are one answer."""
     watches = await container.read_triggers().watches(ctx, device_id=DeviceId(device_id))
     watch = next((trigger for trigger in watches if trigger.id == TriggerId(trigger_id)), None)
     if watch is None:
         raise NotFound("no such watch")
-    return WatchMatchModel(
-        trigger_id=watch.id.value,
-        skill_id=watch.skill_id.value,
-        values=watch.values_from(values),
-    )
+    return watch
 
 
 @router.get("")

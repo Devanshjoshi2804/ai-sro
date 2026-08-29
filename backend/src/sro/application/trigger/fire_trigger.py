@@ -100,7 +100,7 @@ class FireTrigger:
                 return Fired(trigger_id, skipped=trigger.disabled_reason)
 
             values = trigger.values_from(message or {})
-            if blank := _blank(version, values):
+            if blank := blank_inputs(version, values):
                 # A mail that matched the rule but named no order. Every relay
                 # sends some of these -- an autoreply, a thread with the number
                 # only in an attachment -- and each one would otherwise be a
@@ -169,8 +169,13 @@ class FireTrigger:
         await self._scheduler.unschedule(trigger_id)
 
 
-def _blank(version: SkillVersion, values: Mapping[str, str]) -> list[str]:
+def blank_inputs(version: SkillVersion, values: Mapping[str, str]) -> list[str]:
     """The values this skill needs that nothing supplied.
+
+    Public because the offer a watch turns into has to say the same thing
+    before the press rather than after it: a card that starts a run which then
+    fails teaches nobody. One definition, so the sentence on the card and the
+    reason for the skip cannot come to disagree.
 
     A parameter present but empty counts: a relay's template renders
     `{{order}}` to nothing at all when the mail did not hold one, and an empty

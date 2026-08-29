@@ -922,7 +922,7 @@
           "agents"
         ],
         "summary": "Watch Matched",
-        "description": "This browser recognised a mail. Nothing runs.\n\nA match is an offer. The plan is explicit that at this stage the panel says\nwhat matched and the operator presses once, so what this answers with is\nthe offer itself -- and the press is a separate act, in a later slice.\nNothing is written down either: the values were read out of somebody's mail\nand `ValueAt` exists to keep exactly those out of storage, so a table of\npending matches would be the one thing the domain went structural lengths\nto prevent. The offer's home is the browser that found it.\n\nThe body is only values. Not a subject, not a sender, not a screenshot, not\na sentence about why -- there is nowhere in this signature to put one, which\nis a stronger guarantee than a rule someone has to remember. A name the\nwatch never declared is dropped rather than refused, the same way an inbound\nrelay adding a field to its payload is not a reason for a working rule to\nstart failing.\n\nWhich watch this device may report on is `ReadTriggers.watches` -- this\ntenant's, this device's, enabled, and a watch. Anything else is `NotFound`,\nso another device's watch, another tenant's, and one that never existed are\none answer: a browser holding an id it should not have learns nothing from\nthe difference. No `ReadDevice` first, unlike the endpoint above, which\nneeds one because an empty list is otherwise the same answer for a browser\nwith no rules and a browser in another tenant. Here the trigger read is\nalready tenant-scoped, so that check could only produce the 404 this\nalready produces.",
+        "description": "This browser recognised a mail. Nothing runs.\n\nA match is an offer. The plan is explicit that at this stage the panel says\nwhat matched and the operator presses once, so what this answers with is\nthe offer itself -- and the press is a separate act, at `/fire` below.\nNothing is written down either: the values were read out of somebody's mail\nand `ValueAt` exists to keep exactly those out of storage, so a table of\npending matches would be the one thing the domain went structural lengths\nto prevent. The offer's home is the browser that found it.\n\nThe body is only values. Not a subject, not a sender, not a screenshot, not\na sentence about why -- there is nowhere in this signature to put one, which\nis a stronger guarantee than a rule someone has to remember. A name the\nwatch never declared is dropped rather than refused, the same way an inbound\nrelay adding a field to its payload is not a reason for a working rule to\nstart failing.\n\nWhich watch this device may report on is `ReadTriggers.watches` -- this\ntenant's, this device's, enabled, and a watch. Anything else is `NotFound`,\nso another device's watch, another tenant's, and one that never existed are\none answer: a browser holding an id it should not have learns nothing from\nthe difference. No `ReadDevice` first, unlike the endpoint above, which\nneeds one because an empty list is otherwise the same answer for a browser\nwith no rules and a browser in another tenant. Here the trigger read is\nalready tenant-scoped, so that check could only produce the 404 this\nalready produces.",
         "operationId": "watch_matched_v1_agents__device_id__watches__trigger_id__matched_post",
         "parameters": [
           {
@@ -981,6 +981,313 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WatchMatchModel"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one this deployment rejects.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such thing, or not yours.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The system's state says no, not the request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request cannot be processed as asked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Something this depends on is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{device_id}/watches/{trigger_id}/fire": {
+      "post": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Watch Fire",
+        "description": "The press. The operator saw the offer and said do it.\n\nA sibling of `/matched` rather than a flag on it: the endpoint above\nanswers a question and starts nothing, which is the whole of what it\npromises, and a `confirmed=true` that quietly made it start runs would make\nthat promise conditional on a parameter. Same path, same ownership check,\none answer each.\n\nThe body is the values again, because nothing was kept: the offer lives in\nthe browser that found it, so the press carries what the mail said the same\nway the report did. `/v1/triggers/{id}/fire` is left alone -- it fires with\na trigger's own values and a schedule has no message to widen it for.\n\nFrom here it is an ordinary fire. `FireTrigger` reads only the names this\ntrigger declared, re-reads the skill, and skips rather than starting a run\nwhose required inputs are empty -- the same `blank_inputs` the offer showed\nbefore the press.",
+        "operationId": "watch_fire_v1_agents__device_id__watches__trigger_id__fire_post",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "trigger_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Trigger Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "default": {},
+                "title": "Values"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiredModel"
                 }
               }
             }
@@ -23428,16 +23735,24 @@
             },
             "type": "object",
             "title": "Values"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
           }
         },
         "type": "object",
         "required": [
           "trigger_id",
           "skill_id",
-          "values"
+          "values",
+          "missing"
         ],
         "title": "WatchMatchModel",
-        "description": "The offer a recognised mail turns into. Not a run: nothing has started.\n\n`values` is what the task would run with -- the watch's own parameters with\nthe mail's on top, after the trigger dropped every name it never declared.\nThere is no field here for why it matched, because the browser that asked\nis the one that decided, and a reason travelling back would be mail content\nthat had to have crossed to be echoed."
+        "description": "The offer a recognised mail turns into. Not a run: nothing has started.\n\n`values` is what the task would run with -- the watch's own parameters with\nthe mail's on top, after the trigger dropped every name it never declared.\nThere is no field here for why it matched, because the browser that asked\nis the one that decided, and a reason travelling back would be mail content\nthat had to have crossed to be echoed.\n\n`missing` is what the skill needs that this mail did not say. The same rule\nthe fire itself applies, asked before the press instead of after it: an\noffer whose values are short of a required one is a card that says so,\nrather than a button that starts a run which is skipped a moment later for\na reason nobody sees."
       },
       "WatchModel": {
         "properties": {

@@ -107,11 +107,11 @@ async def watch_matched(
     tenant's, this device's, enabled, and a watch. Anything else is `NotFound`,
     so another device's watch, another tenant's, and one that never existed are
     one answer: a browser holding an id it should not have learns nothing from
-    the difference. No `ReadDevice` first, unlike the endpoint above: that one
-    needs it because a device with no watches and a device in another tenant
-    would otherwise both answer with an empty list, and here the trigger read
-    is already scoped to the credential's tenant, so an unknown device and a
-    stranger's are the same 404 the check would have produced.
+    the difference. No `ReadDevice` first, unlike the endpoint above, which
+    needs one because an empty list is otherwise the same answer for a browser
+    with no rules and a browser in another tenant. Here the trigger read is
+    already tenant-scoped, so that check could only produce the 404 this
+    already produces.
     """
     watches = await container.read_triggers().watches(ctx, device_id=DeviceId(device_id))
     watch = next((trigger for trigger in watches if trigger.id == TriggerId(trigger_id)), None)

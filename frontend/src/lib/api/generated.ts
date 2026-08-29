@@ -145,7 +145,11 @@ export interface paths {
          *     tenant's, this device's, enabled, and a watch. Anything else is `NotFound`,
          *     so another device's watch, another tenant's, and one that never existed are
          *     one answer: a browser holding an id it should not have learns nothing from
-         *     the difference.
+         *     the difference. No `ReadDevice` first, unlike the endpoint above, which
+         *     needs one because an empty list is otherwise the same answer for a browser
+         *     with no rules and a browser in another tenant. Here the trigger read is
+         *     already tenant-scoped, so that check could only produce the 404 this
+         *     already produces.
          */
         post: operations["watch_matched_v1_agents__device_id__watches__trigger_id__matched_post"];
         delete?: never;

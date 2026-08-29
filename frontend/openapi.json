@@ -23458,6 +23458,26 @@
             },
             "type": "array",
             "title": "Values"
+          },
+          "sender_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subject_at": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

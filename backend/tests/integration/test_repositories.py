@@ -454,6 +454,12 @@ class TestTriggers:
                     ),
                 ),
             ),
+            sender_at=ControlLocator(
+                strategy=LocatorStrategy.CSS_PATH, query=Template("span.from")
+            ),
+            subject_at=ControlLocator(
+                strategy=LocatorStrategy.CSS_PATH, query=Template("h1.subject")
+            ),
         )
         trigger = _trigger(
             kind=TriggerKind.WATCH, cron=None, watch=watch, device_id=DeviceId("dev-1")

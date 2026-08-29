@@ -37,6 +37,8 @@ ORDER_NUMBER = ValueAt(
         strategy=LocatorStrategy.CSS_PATH, query=Template("div.mail-body span.order-ref")
     ),
 )
+SENDER_IS_HERE = ControlLocator(strategy=LocatorStrategy.CSS_PATH, query=Template("span.gD[email]"))
+SUBJECT_IS_HERE = ControlLocator(strategy=LocatorStrategy.CSS_PATH, query=Template("h2.hP"))
 
 
 def _watch(**over: object) -> Watch:
@@ -44,6 +46,8 @@ def _watch(**over: object) -> Watch:
         "host": GMAIL,
         "terms": (FROM_THE_CUSTOMER, ASKING_FOR_STATUS),
         "values": (ORDER_NUMBER,),
+        "sender_at": SENDER_IS_HERE,
+        "subject_at": SUBJECT_IS_HERE,
     }
     return Watch(**{**defaults, **over})  # type: ignore[arg-type]
 
@@ -138,6 +142,40 @@ def test_a_pasted_mail_is_not_a_phrase_somebody_pointed_at() -> None:
     allowed to hold text."""
     with pytest.raises(InvariantViolation, match="capped"):
         Term(field=TermField.SUBJECT, contains="x" * (MAX_TERM + 1))
+
+
+def test_a_term_needs_somewhere_to_read_the_header_it_compares() -> None:
+    """The half a term cannot supply.
+
+    An operator's text is one side of the comparison; the other is a header on
+    a page, and there is no standard for where that is -- Gmail, Outlook Web
+    and a corporate webmail each render a mail their own way. A watch without
+    the mark would leave the browser guessing a selector, and a guess that is
+    wrong reads as a mail that never arrived: the watch sits in the list
+    looking armed and cannot fire. Refused here, where somebody finds out
+    while they are making it.
+    """
+    with pytest.raises(InvariantViolation, match="nowhere to read the sender"):
+        _watch(sender_at=None)
+
+
+def test_the_marks_are_not_values_and_are_never_sent_anywhere() -> None:
+    """Why these are locators on the watch rather than two more `ValueAt`s.
+
+    A value is a skill parameter and is uploaded on a match. The sender and
+    the subject are the two things this design is most careful never to send,
+    so a mechanism that carried them would put them in the body of the one
+    request a match makes.
+    """
+    assert _watch().reads == ("order_id",)
+
+
+def test_a_watch_that_matches_only_on_the_subject_needs_only_that_mark() -> None:
+    """The rule is per header, not both-or-nothing: an operator who matched on
+    the subject alone never pointed at a sender and should not have to."""
+    only_subject = _watch(terms=(ASKING_FOR_STATUS,), sender_at=None)
+
+    assert only_subject.matches(GMAIL, sender="anyone@anywhere.test", subject="order status")
 
 
 def test_a_value_is_a_location_and_has_nowhere_to_put_the_text() -> None:

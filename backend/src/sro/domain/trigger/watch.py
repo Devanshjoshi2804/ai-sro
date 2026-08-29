@@ -115,6 +115,24 @@ class Watch:
     terms: tuple[Term, ...]
     values: tuple[ValueAt, ...] = ()
 
+    sender_at: ControlLocator | None = None
+    subject_at: ControlLocator | None = None
+    """Where the two headers are on the client this operator actually uses.
+
+    A term is a comparison and a comparison needs both sides. The text is the
+    operator's; the other side is a header on a page, and there is no standard
+    for where that is -- Gmail, Outlook Web and a corporate webmail render a
+    mail three different ways, and none of them says which node is the sender.
+    A browser handed only the text would have to guess a selector, which is a
+    matcher that works on one client this quarter and silently stops.
+
+    So the operator marks them, in the same act and by the same mechanism they
+    mark the values: a ``ControlLocator``. Not a ``ValueAt`` -- a value is a
+    skill parameter and is uploaded on a match, and the sender and subject are
+    the two things this design is most careful never to send anywhere. These
+    are read in the browser, compared in the browser, and forgotten there.
+    """
+
     def __post_init__(self) -> None:
         if not self.host.strip():
             raise InvariantViolation("a watch names the host it runs on")
@@ -122,6 +140,13 @@ class Watch:
             raise InvariantViolation(
                 "a watch with nothing to match on fires on every mail that arrives"
             )
+        marks = {TermField.SENDER: self.sender_at, TermField.SUBJECT: self.subject_at}
+        for field in sorted({term.field for term in self.terms}):
+            if marks[field] is None:
+                raise InvariantViolation(
+                    f"a term on the {field} with nowhere to read the {field} from never "
+                    f"matches: mark it on the mail"
+                )
         names = [value.name for value in self.values]
         if len(set(names)) != len(names):
             raise InvariantViolation("two places to read the same parameter from is one too many")

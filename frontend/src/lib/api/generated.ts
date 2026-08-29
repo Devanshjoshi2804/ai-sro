@@ -3038,6 +3038,8 @@ export interface components {
             terms: components["schemas"]["TermModel"][];
             /** Values */
             values?: components["schemas"]["ValueAtModel"][];
+            sender_at?: components["schemas"]["LocatorModel"] | null;
+            subject_at?: components["schemas"]["LocatorModel"] | null;
         };
         /** WatchingModel */
         WatchingModel: {

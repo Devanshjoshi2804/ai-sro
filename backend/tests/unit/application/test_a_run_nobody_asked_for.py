@@ -584,6 +584,7 @@ def _watch(*values: ValueAt) -> Watch:
         host="mail.google.com",
         terms=(Term(field=TermField.SUBJECT, contains="shipment status"),),
         values=values,
+        subject_at=ControlLocator(strategy=LocatorStrategy.CSS_PATH, query=Template("h2.hP")),
     )
 
 

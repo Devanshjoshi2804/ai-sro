@@ -1350,6 +1350,13 @@ class WatchModel(BaseModel):
     terms: list[TermModel]
     values: list[ValueAtModel] = Field(default_factory=list)
 
+    sender_at: LocatorModel | None = None
+    subject_at: LocatorModel | None = None
+    """Where the two headers are, on the client this operator uses. Marked in
+    the same act as the values and carried in the same four fields, because
+    where a sender is on a page is not derivable -- and a browser that had to
+    guess a selector would work on one mail client this quarter."""
+
     def to_domain(self) -> Watch:
         return Watch(
             host=self.host,
@@ -1357,6 +1364,8 @@ class WatchModel(BaseModel):
             values=tuple(
                 ValueAt(name=value.name, where=value.where.to_domain()) for value in self.values
             ),
+            sender_at=self.sender_at.to_domain() if self.sender_at else None,
+            subject_at=self.subject_at.to_domain() if self.subject_at else None,
         )
 
     @classmethod
@@ -1368,6 +1377,8 @@ class WatchModel(BaseModel):
                 ValueAtModel(name=value.name, where=LocatorModel.of(value.where))
                 for value in watch.values
             ],
+            sender_at=None if watch.sender_at is None else LocatorModel.of(watch.sender_at),
+            subject_at=None if watch.subject_at is None else LocatorModel.of(watch.subject_at),
         )
 
 

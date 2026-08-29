@@ -54,6 +54,21 @@ WATCH = {
             },
         }
     ],
+    # Where the two headers are on this operator's mail client, marked in the
+    # same act as the value above. Nothing about a mail is derivable: the
+    # browser has to be told which node is the sender, or it is guessing.
+    "sender_at": {
+        "strategy": "css_path",
+        "query": "span.from-address",
+        "within": None,
+        "visible_only": True,
+    },
+    "subject_at": {
+        "strategy": "css_path",
+        "query": "h1.subject",
+        "within": None,
+        "visible_only": True,
+    },
 }
 
 
@@ -242,7 +257,15 @@ async def test_the_rules_a_browser_holds_carry_no_mail(
     text = {term["contains"] for term in only["watch"]["terms"]}
     assert text == {"dispatch@supplier.test", "Short ship"}
     assert all(set(value) == {"name", "where"} for value in only["watch"]["values"])
-    assert set(only["watch"]) == {"host", "terms", "values"}
+    assert set(only["watch"]) == {"host", "terms", "values", "sender_at", "subject_at"}
+    # The two marks are locators and nothing else -- the same four fields a
+    # value's `where` carries. A sender is read where one of these points and
+    # compared in the browser; what a mail actually said is not here, and there
+    # is no field on this shape it could arrive in.
+    assert all(
+        set(only["watch"][mark]) == {"strategy", "query", "within", "visible_only"}
+        for mark in ("sender_at", "subject_at")
+    )
 
 
 async def test_a_watch_read_back_matches_the_mail_it_was_written_for(

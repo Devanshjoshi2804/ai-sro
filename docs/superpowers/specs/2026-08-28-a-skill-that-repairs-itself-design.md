@@ -179,6 +179,48 @@ failures — and a step nothing checked contributes no evidence about where a
 control is. The gesture landed on something. That the something was the right
 control is what the assertions were for.
 
+**Evidence that never agrees with itself is a third answer, not a smaller
+version of the first two.** The rule above settles a drift and refuses a guess,
+and between them sits the case neither reaches: a control found the taught way
+on some runs and another way on others. Nothing ever settles, so no version is
+ever written, so every run rediscovers it and pays the escalation again — and
+because a run that went to the browser is `DEGRADED` and `DEGRADED` clears the
+streak, that skill **can never reach `AUTONOMOUS`, however many hundred times it
+runs**. It works every time. The operator sees only a skill that never gets
+faster, and nobody is ever told why.
+
+The fix is not to adopt on the majority. `SETTLED = 3` exists so that one
+escalation cannot rewrite a skill, and "the fallback matched more often" is the
+same weak evidence with a bigger sample: a locator that only ever matches when
+the taught one failed has not proved itself, it has proved the taught one
+unreliable, and those are different facts. So it is the third case for
+`EntryKind.QUESTION` — beside the vision rung and the un-nameable strategy —
+asked once, keyed by the control the way the store already is, and carrying what
+makes it answerable: which locator, how many verified runs behind each, and the
+cost, that this step falls through its plan on *n* runs in *m* and the clean
+streak unattended running needs will never start. Nobody can answer "which
+locator should this use?"; somebody who works in that warehouse can answer that.
+
+The answer adopts through `RepairDrift` exactly as an evidence-settled drift
+does — same new version, same empty record, same inherited rung, same audit —
+so there is one way a locator changes rather than two. Silence stays the
+fallback: unanswered, the runs go on working and go on escalating, which is what
+they did before. What was broken was nobody being told.
+
+**When it is called contested: both readings clear `SETTLED`, inside a window of
+`REQUIRED_CLEAN_RUNS`.** Symmetry with the adoption bar, and for the same
+reason — one observation is a slow page and three is a fact, so a control is
+contested only when there are two facts. Three claims that it drifted and one
+that it did not is *not* a contest; it is a settled drift with a flake in it,
+and the next agreeing run adopts it, which is why asking there would leave a
+question on somebody's screen that nothing needed. A control with two
+observations and no pattern is asked nothing at all. The window is the streak
+the drift is denying: if inside the last ten claims about a control both
+readings have three separate runs behind them, this skill has spent an entire
+climb unable to start one and will go on doing that forever, because neither
+reading will ever outlast the other. Settled is checked first, so a drift that
+took a few flaky runs to establish itself is adopted and never asked about.
+
 **Where the evidence cannot name a locator, nobody guesses.** What a run records
 is a *strategy*. A step carrying two CSS paths cannot say which of them resolved,
 and promoting the first of them put a destructive control ahead of the one that
@@ -230,7 +272,11 @@ it is.
 - A run that did not verify writes nothing, and a step nothing checked did not
   verify.
 - One run writes nothing. Corroborated evidence writes, or nothing does.
+- Evidence that contradicts itself writes nothing either, and is never resolved
+  by which side of it is larger.
 - A repair that cannot say which locator matched asks rather than guesses.
+- A contested control is asked about once, by the control, however many skills
+  are contesting it — and not at all until both readings are corroborated.
 - A repair never invents a step that no run performed.
 - A vision-proposed gesture never becomes a skill without a person.
 - A repaired version never inherits the track record of the one it replaces.
@@ -253,5 +299,13 @@ it is.
   inherits the stage it repaired — `SHADOW` from `SHADOW`, `ASSISTED` from
   `ASSISTED`, `ASSISTED` from `AUTONOMOUS` — with an empty streak, and is in every
   case the version `Skill.runnable` then serves.
+- **The contested control** — unit: two readings each corroborated inside the
+  window raise exactly one question, carrying both counts and what the drift is
+  costing; the same control contested again asks nothing more, and asks once
+  however many skills reach it; three claims of drift against one of the taught
+  way settle and adopt rather than asking, because that is a flake and not a
+  contest; two observations and no pattern ask nothing; an answered question
+  adopts through `RepairDrift`, producing the version an evidence-settled drift
+  would have produced.
 - **Part 2** — not yet. It starts with the argument about capturing during a
   repair run, and that belongs in an ADR before any code.

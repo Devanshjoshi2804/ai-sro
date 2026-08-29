@@ -24,6 +24,7 @@ from sro.domain.recording.artifact import MediaArtifact
 from sro.domain.recording.events import ActionFrame
 from sro.domain.recording.narration import NarrationSegment
 from sro.domain.skill.skill import SkillVersion
+from sro.domain.trigger.watch import Watch
 
 _FRAMES = TypeAdapter(tuple[ActionFrame, ...])
 _ARTIFACTS = TypeAdapter(tuple[MediaArtifact, ...])
@@ -34,6 +35,7 @@ _REJECTED = TypeAdapter(tuple[RejectedEvent, ...])
 _POLICY = TypeAdapter(ObservationPolicy)
 _EPISODES = TypeAdapter(tuple[Episode, ...])
 _JOINS = TypeAdapter(tuple[Join, ...])
+_WATCH: TypeAdapter[Watch | None] = TypeAdapter(Watch | None)
 
 
 def _dump[T](adapter: TypeAdapter[T], value: T) -> Any:
@@ -113,3 +115,12 @@ def dump_joins(joins: tuple[Join, ...]) -> Any:
 
 def load_joins(raw: Any) -> tuple[Join, ...]:
     return _JOINS.validate_python(raw or [])
+
+
+def dump_watch(watch: Watch | None) -> Any:
+    return _dump(_WATCH, watch)
+
+
+def load_watch(raw: Any) -> Watch | None:
+    watch: Watch | None = _WATCH.validate_python(raw)
+    return watch

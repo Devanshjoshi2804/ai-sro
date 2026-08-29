@@ -382,6 +382,11 @@ class TriggerRow(Base):
     # opposite directions: one is what the trigger knows, the other is what it
     # is allowed to be told.
     from_message: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    # What makes a mail one of these, for a trigger the operator's browser
+    # evaluates. Terms and locators only: a term names a header and carries the
+    # operator's own phrase, a value carries a place to read and no text, so
+    # there is no field here a mail body would fit in.
+    watch: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     device_id: Mapped[str | None] = mapped_column(String(64))
     medium: Mapped[str] = mapped_column(String(16), nullable=False, default="network")

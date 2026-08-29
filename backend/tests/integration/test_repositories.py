@@ -23,8 +23,11 @@ from sro.domain.shared.identifiers import (
     TenantId,
     TriggerId,
 )
+from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.template import Template
 from sro.domain.trigger.trigger import Trigger, TriggerKind
+from sro.domain.trigger.watch import Term, TermField, ValueAt, Watch
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests import factories as f
 
@@ -424,17 +427,72 @@ class TestTriggers:
         assert found.tenant_id == trigger.tenant_id
         assert missing is None
 
+    async def test_a_watch_comes_back_with_its_terms_and_its_places_to_read(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A rule an operator wrote by pointing at one mail, over a laptop reboot.
 
-def _trigger() -> Trigger:
+        Both halves have to survive intact, and they are different halves: the
+        terms are the operator's own text and are the only thing that decides
+        whether a mail is one of these, while the values are locations and carry
+        no text at all. A round trip that lost the terms would leave a trigger
+        that fires on every mail that arrives.
+        """
+        watch = Watch(
+            host="mail.example.com",
+            terms=(
+                Term(field=TermField.SENDER, contains="orders@supplier.test"),
+                Term(field=TermField.SUBJECT, contains="Dispatch note"),
+            ),
+            values=(
+                ValueAt(
+                    name="order",
+                    where=ControlLocator(
+                        strategy=LocatorStrategy.CSS_PATH,
+                        query=Template("span.order-ref"),
+                        within="div.mail-body",
+                    ),
+                ),
+            ),
+        )
+        trigger = _trigger(
+            kind=TriggerKind.WATCH, cron=None, watch=watch, device_id=DeviceId("dev-1")
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.triggers.add(trigger)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            loaded = await uow.triggers.get(trigger.tenant_id, trigger.id)
+
+        assert loaded.watch == watch
+        assert loaded.watch is not None
+        assert loaded.watch.matches(
+            "mail.example.com", sender="orders@supplier.test", subject="Dispatch note 41"
+        )
+        # Derived from the watch on the way out, not stored twice.
+        assert loaded.from_message == ("order",)
+
+
+def _trigger(
+    *,
+    kind: TriggerKind = TriggerKind.SCHEDULE,
+    cron: str | None = "0 7 * * 1-5",
+    watch: Watch | None = None,
+    device_id: DeviceId | None = None,
+) -> Trigger:
     return Trigger(
         id=TriggerId("trg-1"),
         tenant_id=TenantId("acme"),
         skill_id=SkillId("skill-1"),
-        kind=TriggerKind.SCHEDULE,
+        kind=kind,
         created_by=f.OPERATOR,
         created_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
         parameters={"facility": "SG"},
-        cron="0 7 * * 1-5",
+        watch=watch,
+        device_id=device_id,
+        cron=cron,
         timezone="Asia/Kolkata",
         writes=True,
         authorized_by=f.OPERATOR,

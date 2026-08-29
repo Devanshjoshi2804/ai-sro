@@ -55,6 +55,7 @@ from sro.infrastructure.db.codec import (
     dump_policy,
     dump_rejected,
     dump_versions,
+    dump_watch,
     load_artifacts,
     load_episodes,
     load_frames,
@@ -64,6 +65,7 @@ from sro.infrastructure.db.codec import (
     load_policy,
     load_rejected,
     load_versions,
+    load_watch,
 )
 from sro.infrastructure.db.models import (
     AgentDeviceRow,
@@ -555,7 +557,11 @@ def update_trigger_row(row: TriggerRow, trigger: Trigger) -> None:
     row.cron = trigger.cron
     row.timezone = trigger.timezone
     row.parameters = dict(trigger.parameters)
-    row.from_message = list(trigger.from_message)
+    # A watch derives its `from_message` from the places it reads, so storing
+    # that list too would be the same names written down twice -- and two
+    # lists of the same names are two lists that can disagree.
+    row.from_message = [] if trigger.watch else list(trigger.from_message)
+    row.watch = dump_watch(trigger.watch)
     row.device_id = trigger.device_id.value if trigger.device_id else None
     row.medium = trigger.medium.value
     row.enabled = trigger.enabled
@@ -581,6 +587,7 @@ def row_to_trigger(row: TriggerRow) -> Trigger:
         created_at=row.created_at,
         parameters=dict(row.parameters),
         from_message=tuple(row.from_message or ()),
+        watch=load_watch(row.watch),
         cron=row.cron,
         timezone=row.timezone,
         device_id=DeviceId(row.device_id) if row.device_id else None,

@@ -13,6 +13,7 @@ from sro.interface.http.schemas import (
     ObservationPolicyModel,
     RegisterDeviceRequest,
     RegisteredDeviceResponse,
+    TriggerModel,
 )
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -50,6 +51,27 @@ async def heartbeat(
         policy=None if beat.policy is None else ObservationPolicyModel.of(beat.policy),
         pause=beat.pause,
     )
+
+
+@router.get("/{device_id}/watches")
+async def list_watches(
+    device_id: str, container: ContainerDep, ctx: ContextDep
+) -> list[TriggerModel]:
+    """What this browser is watching its operator's mail for.
+
+    Asked by the extension, because a watch is evaluated in the browser that
+    already has the mailbox open and nowhere else: nothing about the mail is
+    sent here, so the rule has to go there.
+
+    The device is read first, which is the ownership check the command channel
+    does for the same reason: a credential proves who is asking, never which
+    browser they may ask about, so a device id that leaked would otherwise be
+    somebody else's mail rules. Scoped to the device after that -- one operator
+    never sees another's, even inside the same tenant.
+    """
+    device = await container.read_device().execute(ctx, device_id=DeviceId(device_id))
+    watches = await container.read_triggers().watches(ctx, device_id=device.id)
+    return [TriggerModel.of(trigger) for trigger in watches]
 
 
 @router.get("")

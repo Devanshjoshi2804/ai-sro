@@ -5,7 +5,7 @@ from __future__ import annotations
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
-from sro.domain.shared.identifiers import SkillId, TriggerId
+from sro.domain.shared.identifiers import DeviceId, SkillId, TriggerId
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 
 
@@ -22,6 +22,33 @@ class ReadTriggers:
     async def one(self, ctx: RequestContext, *, trigger_id: TriggerId) -> Trigger:
         async with self._uow as uow:
             return await uow.triggers.get(ctx.tenant_id, trigger_id)
+
+    async def watches(self, ctx: RequestContext, *, device_id: DeviceId) -> tuple[Trigger, ...]:
+        """What this one browser is watching for.
+
+        A watch is evaluated nowhere else -- the browser that already has the
+        mailbox open applies the rule locally, and nothing about the mail ever
+        leaves it -- so the browser has to be able to ask what its rules are.
+
+        Scoped to the device as well as the tenant, and that is the point: two
+        operators in the same tenant have their own mailboxes, and a rule about
+        one person's mail handed to another person's browser is that mail being
+        read by somebody who was never offered it. Disabled ones are left out
+        rather than sent with a flag, because a browser that had to remember to
+        check the flag is a browser that one day does not.
+        """
+        async with self._uow as uow:
+            # ponytail: filtered here rather than in SQL -- a tenant has tens of
+            # triggers, not thousands. A `device_id` clause on `list_for_tenant`
+            # is the move the first time that stops being true.
+            triggers = await uow.triggers.list_for_tenant(ctx.tenant_id)
+        return tuple(
+            trigger
+            for trigger in triggers
+            if trigger.kind is TriggerKind.WATCH
+            and trigger.enabled
+            and trigger.device_id == device_id
+        )
 
 
 class SetTriggerEnabled:

@@ -38,6 +38,7 @@ async def create_trigger(
             timezone=body.timezone,
             parameters=body.parameters,
             from_message=tuple(body.from_message),
+            watch=body.watch.to_domain() if body.watch else None,
             device_id=DeviceId(body.device_id) if body.device_id else None,
             medium=body.medium,
             authorized_by=body.authorized_by,

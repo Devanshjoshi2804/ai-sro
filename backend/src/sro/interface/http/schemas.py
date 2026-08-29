@@ -31,10 +31,13 @@ from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
+from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
+from sro.domain.skill.template import Template
 from sro.domain.skill.track_record import why_not_autonomous
 from sro.domain.trigger.trigger import Trigger, TriggerKind
+from sro.domain.trigger.watch import MAX_TERM, Term, TermField, ValueAt, Watch
 
 
 class ObjectiveKeyModel(BaseModel):
@@ -1281,6 +1284,93 @@ class ForgottenResponse(BaseModel):
     artifacts: int = 0
 
 
+class LocatorModel(BaseModel):
+    """Where a control is, in the four fields the extension already speaks.
+
+    Not a new shape: this is exactly what a step handed down the command
+    channel carries, so the side that resolves it needs no second parser.
+    ``query`` is a plain string here and a template underneath -- a locator may
+    name the very record a run is about.
+    """
+
+    strategy: LocatorStrategy
+    query: str
+    within: str | None = None
+    """Component query the match must sit inside. The same screen is often
+    loaded several times over and only one instance is visible."""
+
+    visible_only: bool = True
+
+    def to_domain(self) -> ControlLocator:
+        return ControlLocator(
+            strategy=self.strategy,
+            query=Template(self.query),
+            within=self.within,
+            visible_only=self.visible_only,
+        )
+
+    @classmethod
+    def of(cls, locator: ControlLocator) -> LocatorModel:
+        return cls(
+            strategy=locator.strategy,
+            query=locator.query.raw,
+            within=locator.within,
+            visible_only=locator.visible_only,
+        )
+
+
+class TermModel(BaseModel):
+    """A header, and the operator's own text to find in it.
+
+    Both halves, always. A matcher that knew only which header to look at would
+    match every mail that has one, which is all of them.
+    """
+
+    field: TermField
+    contains: str = Field(max_length=MAX_TERM)
+    """Capped for the reason the domain caps it: a paragraph in a term is a
+    pasted mail body whatever field it claims to be."""
+
+
+class ValueAtModel(BaseModel):
+    """A parameter, and where in a matching mail to read it.
+
+    A location and nothing else. The order number is different in every mail,
+    so there is nothing to compare against and nothing to store.
+    """
+
+    name: str
+    where: LocatorModel
+
+
+class WatchModel(BaseModel):
+    """What makes a mail one of these, and where to read the values out of it."""
+
+    host: str
+    terms: list[TermModel]
+    values: list[ValueAtModel] = Field(default_factory=list)
+
+    def to_domain(self) -> Watch:
+        return Watch(
+            host=self.host,
+            terms=tuple(Term(field=term.field, contains=term.contains) for term in self.terms),
+            values=tuple(
+                ValueAt(name=value.name, where=value.where.to_domain()) for value in self.values
+            ),
+        )
+
+    @classmethod
+    def of(cls, watch: Watch) -> WatchModel:
+        return cls(
+            host=watch.host,
+            terms=[TermModel(field=term.field, contains=term.contains) for term in watch.terms],
+            values=[
+                ValueAtModel(name=value.name, where=LocatorModel.of(value.where))
+                for value in watch.values
+            ],
+        )
+
+
 class NewTriggerRequest(BaseModel):
     skill_id: str
     kind: TriggerKind = TriggerKind.SCHEDULE
@@ -1298,6 +1388,11 @@ class NewTriggerRequest(BaseModel):
     number in a mail. Inbound only, and everything left out of it stays the
     value the trigger was created with, so a relay cannot redirect a read at a
     facility nobody authorised."""
+
+    watch: WatchModel | None = None
+    """What makes a mail one of these, for a trigger the operator's own browser
+    evaluates. A watch names the values it supplies by where it reads them, so
+    `from_message` stays empty for one: there is no second list."""
 
     device_id: str | None = None
     """Run it in this operator's browser. Such a run happens only while that
@@ -1330,6 +1425,7 @@ class TriggerModel(BaseModel):
     timezone: str
     parameters: dict[str, str]
     from_message: list[str]
+    watch: WatchModel | None
     device_id: str | None
     medium: str
     enabled: bool
@@ -1357,6 +1453,7 @@ class TriggerModel(BaseModel):
             timezone=trigger.timezone,
             parameters=dict(trigger.parameters),
             from_message=list(trigger.from_message),
+            watch=None if trigger.watch is None else WatchModel.of(trigger.watch),
             device_id=trigger.device_id.value if trigger.device_id else None,
             medium=trigger.medium.value,
             enabled=trigger.enabled,

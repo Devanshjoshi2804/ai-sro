@@ -83,6 +83,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agents/{device_id}/watches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Watches
+         * @description What this browser is watching its operator's mail for.
+         *
+         *     Asked by the extension, because a watch is evaluated in the browser that
+         *     already has the mailbox open and nowhere else: nothing about the mail is
+         *     sent here, so the rule has to go there.
+         *
+         *     The device is read first, which is the ownership check the command channel
+         *     does for the same reason: a credential proves who is asking, never which
+         *     browser they may ask about, so a device id that leaked would otherwise be
+         *     somebody else's mail rules. Scoped to the device after that -- one operator
+         *     never sees another's, even inside the same tenant.
+         */
+        get: operations["list_watches_v1_agents__device_id__watches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents": {
         parameters: {
             query?: never;
@@ -1790,6 +1820,32 @@ export interface components {
             live_view_url: string | null;
         };
         /**
+         * LocatorModel
+         * @description Where a control is, in the four fields the extension already speaks.
+         *
+         *     Not a new shape: this is exactly what a step handed down the command
+         *     channel carries, so the side that resolves it needs no second parser.
+         *     ``query`` is a plain string here and a template underneath -- a locator may
+         *     name the very record a run is about.
+         */
+        LocatorModel: {
+            strategy: components["schemas"]["LocatorStrategy"];
+            /** Query */
+            query: string;
+            /** Within */
+            within?: string | null;
+            /**
+             * Visible Only
+             * @default true
+             */
+            visible_only: boolean;
+        };
+        /**
+         * LocatorStrategy
+         * @enum {string}
+         */
+        LocatorStrategy: "component" | "test_id" | "role_and_name" | "text" | "css_path";
+        /**
          * LoopModel
          * @description A block of steps done once for each thing an earlier step's answer listed.
          */
@@ -1899,6 +1955,7 @@ export interface components {
             };
             /** From Message */
             from_message?: string[];
+            watch?: components["schemas"]["WatchModel"] | null;
             /** Device Id */
             device_id?: string | null;
             /** @default network */
@@ -2727,6 +2784,29 @@ export interface components {
             /** Other Id */
             other_id: string;
         };
+        /**
+         * TermField
+         * @description What a term may be compared against.
+         *
+         *     Two headers, deliberately. Both are things an operator can point at in an
+         *     open mail, both are short, and neither is the message. There is no `BODY`
+         *     and adding one is not a small change: it would move correspondence into the
+         *     control plane, which is the line ADR 008 draws.
+         * @enum {string}
+         */
+        TermField: "sender" | "subject";
+        /**
+         * TermModel
+         * @description A header, and the operator's own text to find in it.
+         *
+         *     Both halves, always. A matcher that knew only which header to look at would
+         *     match every mail that has one, which is all of them.
+         */
+        TermModel: {
+            field: components["schemas"]["TermField"];
+            /** Contains */
+            contains: string;
+        };
         /** ThreadDetail */
         ThreadDetail: {
             /** Id */
@@ -2806,6 +2886,7 @@ export interface components {
             };
             /** From Message */
             from_message: string[];
+            watch: components["schemas"]["WatchModel"] | null;
             /** Device Id */
             device_id: string | null;
             /** Medium */
@@ -2868,6 +2949,30 @@ export interface components {
             proposed_parameter_count: number;
             /** Caveat */
             caveat: string;
+        };
+        /**
+         * ValueAtModel
+         * @description A parameter, and where in a matching mail to read it.
+         *
+         *     A location and nothing else. The order number is different in every mail,
+         *     so there is nothing to compare against and nothing to store.
+         */
+        ValueAtModel: {
+            /** Name */
+            name: string;
+            where: components["schemas"]["LocatorModel"];
+        };
+        /**
+         * WatchModel
+         * @description What makes a mail one of these, and where to read the values out of it.
+         */
+        WatchModel: {
+            /** Host */
+            host: string;
+            /** Terms */
+            terms: components["schemas"]["TermModel"][];
+            /** Values */
+            values?: components["schemas"]["ValueAtModel"][];
         };
         /** WatchingModel */
         WatchingModel: {
@@ -3079,6 +3184,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HeartbeatResponse"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    list_watches_v1_agents__device_id__watches_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerModel"][];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

@@ -628,6 +628,294 @@
         }
       }
     },
+    "/v1/agents/{device_id}/watches": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "List Watches",
+        "description": "What this browser is watching its operator's mail for.\n\nAsked by the extension, because a watch is evaluated in the browser that\nalready has the mailbox open and nowhere else: nothing about the mail is\nsent here, so the rule has to go there.\n\nThe device is read first, which is the ownership check the command channel\ndoes for the same reason: a credential proves who is asking, never which\nbrowser they may ask about, so a device id that leaked would otherwise be\nsomebody else's mail rules. Scoped to the device after that -- one operator\nnever sees another's, even inside the same tenant.",
+        "operationId": "list_watches_v1_agents__device_id__watches_get",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TriggerModel"
+                  },
+                  "title": "Response List Watches V1 Agents  Device Id  Watches Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one this deployment rejects.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such thing, or not yours.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The system's state says no, not the request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request cannot be processed as asked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Something this depends on is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/agents": {
       "get": {
         "tags": [
@@ -19654,6 +19942,51 @@
         ],
         "title": "LiveViewResponse"
       },
+      "LocatorModel": {
+        "properties": {
+          "strategy": {
+            "$ref": "#/components/schemas/LocatorStrategy"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "within": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Within"
+          },
+          "visible_only": {
+            "type": "boolean",
+            "title": "Visible Only",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "strategy",
+          "query"
+        ],
+        "title": "LocatorModel",
+        "description": "Where a control is, in the four fields the extension already speaks.\n\nNot a new shape: this is exactly what a step handed down the command\nchannel carries, so the side that resolves it needs no second parser.\n``query`` is a plain string here and a template underneath -- a locator may\nname the very record a run is about."
+      },
+      "LocatorStrategy": {
+        "type": "string",
+        "enum": [
+          "component",
+          "test_id",
+          "role_and_name",
+          "text",
+          "css_path"
+        ],
+        "title": "LocatorStrategy"
+      },
       "LoopModel": {
         "properties": {
           "over_step_index": {
@@ -19935,6 +20268,16 @@
             },
             "type": "array",
             "title": "From Message"
+          },
+          "watch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WatchModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "device_id": {
             "anyOf": [
@@ -22280,6 +22623,34 @@
         "title": "TeachTogetherRequest",
         "description": "The other half of a job a person has said is one job."
       },
+      "TermField": {
+        "type": "string",
+        "enum": [
+          "sender",
+          "subject"
+        ],
+        "title": "TermField",
+        "description": "What a term may be compared against.\n\nTwo headers, deliberately. Both are things an operator can point at in an\nopen mail, both are short, and neither is the message. There is no `BODY`\nand adding one is not a small change: it would move correspondence into the\ncontrol plane, which is the line ADR 008 draws."
+      },
+      "TermModel": {
+        "properties": {
+          "field": {
+            "$ref": "#/components/schemas/TermField"
+          },
+          "contains": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Contains"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "contains"
+        ],
+        "title": "TermModel",
+        "description": "A header, and the operator's own text to find in it.\n\nBoth halves, always. A matcher that knew only which header to look at would\nmatch every mail that has one, which is all of them."
+      },
       "ThreadDetail": {
         "properties": {
           "id": {
@@ -22465,6 +22836,16 @@
             "type": "array",
             "title": "From Message"
           },
+          "watch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WatchModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "device_id": {
             "anyOf": [
               {
@@ -22571,6 +22952,7 @@
           "timezone",
           "parameters",
           "from_message",
+          "watch",
           "device_id",
           "medium",
           "enabled",
@@ -22704,6 +23086,53 @@
           "caveat"
         ],
         "title": "UnderstoodResponse"
+      },
+      "ValueAtModel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "where": {
+            "$ref": "#/components/schemas/LocatorModel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "where"
+        ],
+        "title": "ValueAtModel",
+        "description": "A parameter, and where in a matching mail to read it.\n\nA location and nothing else. The order number is different in every mail,\nso there is nothing to compare against and nothing to store."
+      },
+      "WatchModel": {
+        "properties": {
+          "host": {
+            "type": "string",
+            "title": "Host"
+          },
+          "terms": {
+            "items": {
+              "$ref": "#/components/schemas/TermModel"
+            },
+            "type": "array",
+            "title": "Terms"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ValueAtModel"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "host",
+          "terms"
+        ],
+        "title": "WatchModel",
+        "description": "What makes a mail one of these, and where to read the values out of it."
       },
       "WatchingModel": {
         "properties": {

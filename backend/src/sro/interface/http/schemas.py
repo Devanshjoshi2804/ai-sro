@@ -1476,6 +1476,21 @@ class FiredModel(BaseModel):
     skipped: str | None
 
 
+class WatchMatchModel(BaseModel):
+    """The offer a recognised mail turns into. Not a run: nothing has started.
+
+    `values` is what the task would run with -- the watch's own parameters with
+    the mail's on top, after the trigger dropped every name it never declared.
+    There is no field here for why it matched, because the browser that asked
+    is the one that decided, and a reason travelling back would be mail content
+    that had to have crossed to be echoed.
+    """
+
+    trigger_id: str
+    skill_id: str
+    values: dict[str, str]
+
+
 class EpisodeModel(BaseModel):
     started_at: datetime
     ended_at: datetime

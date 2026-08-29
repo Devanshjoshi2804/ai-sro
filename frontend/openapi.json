@@ -916,6 +916,313 @@
         }
       }
     },
+    "/v1/agents/{device_id}/watches/{trigger_id}/matched": {
+      "post": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Watch Matched",
+        "description": "This browser recognised a mail. Nothing runs.\n\nA match is an offer. The plan is explicit that at this stage the panel says\nwhat matched and the operator presses once, so what this answers with is\nthe offer itself -- and the press is a separate act, in a later slice.\nNothing is written down either: the values were read out of somebody's mail\nand `ValueAt` exists to keep exactly those out of storage, so a table of\npending matches would be the one thing the domain went structural lengths\nto prevent. The offer's home is the browser that found it.\n\nThe body is only values. Not a subject, not a sender, not a screenshot, not\na sentence about why -- there is nowhere in this signature to put one, which\nis a stronger guarantee than a rule someone has to remember. A name the\nwatch never declared is dropped rather than refused, the same way an inbound\nrelay adding a field to its payload is not a reason for a working rule to\nstart failing.\n\nWhich watch this device may report on is `ReadTriggers.watches` -- this\ntenant's, this device's, enabled, and a watch. Anything else is `NotFound`,\nso another device's watch, another tenant's, and one that never existed are\none answer: a browser holding an id it should not have learns nothing from\nthe difference.",
+        "operationId": "watch_matched_v1_agents__device_id__watches__trigger_id__matched_post",
+        "parameters": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Device Id"
+            }
+          },
+          {
+            "name": "trigger_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Trigger Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "default": {},
+                "title": "Values"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchMatchModel"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one this deployment rejects.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such thing, or not yours.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The system's state says no, not the request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request cannot be processed as asked.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Something this depends on is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "An RFC 9457 problem document, as `errors.py` writes them.\n\nDeclared so the generated client knows the shape. It did not: every failure\nreached the browser as whatever the success model said it should be, and a\n404 was read as a RecordingDetail with every field missing.",
+                  "properties": {
+                    "type": {
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Instance"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail"
+                  ],
+                  "title": "ProblemModel",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/agents": {
       "get": {
         "tags": [
@@ -23104,6 +23411,33 @@
         ],
         "title": "ValueAtModel",
         "description": "A parameter, and where in a matching mail to read it.\n\nA location and nothing else. The order number is different in every mail,\nso there is nothing to compare against and nothing to store."
+      },
+      "WatchMatchModel": {
+        "properties": {
+          "trigger_id": {
+            "type": "string",
+            "title": "Trigger Id"
+          },
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id"
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trigger_id",
+          "skill_id",
+          "values"
+        ],
+        "title": "WatchMatchModel",
+        "description": "The offer a recognised mail turns into. Not a run: nothing has started.\n\n`values` is what the task would run with -- the watch's own parameters with\nthe mail's on top, after the trigger dropped every name it never declared.\nThere is no field here for why it matched, because the browser that asked\nis the one that decided, and a reason travelling back would be mail content\nthat had to have crossed to be echoed."
       },
       "WatchModel": {
         "properties": {

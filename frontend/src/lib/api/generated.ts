@@ -113,6 +113,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agents/{device_id}/watches/{trigger_id}/matched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Watch Matched
+         * @description This browser recognised a mail. Nothing runs.
+         *
+         *     A match is an offer. The plan is explicit that at this stage the panel says
+         *     what matched and the operator presses once, so what this answers with is
+         *     the offer itself -- and the press is a separate act, in a later slice.
+         *     Nothing is written down either: the values were read out of somebody's mail
+         *     and `ValueAt` exists to keep exactly those out of storage, so a table of
+         *     pending matches would be the one thing the domain went structural lengths
+         *     to prevent. The offer's home is the browser that found it.
+         *
+         *     The body is only values. Not a subject, not a sender, not a screenshot, not
+         *     a sentence about why -- there is nowhere in this signature to put one, which
+         *     is a stronger guarantee than a rule someone has to remember. A name the
+         *     watch never declared is dropped rather than refused, the same way an inbound
+         *     relay adding a field to its payload is not a reason for a working rule to
+         *     start failing.
+         *
+         *     Which watch this device may report on is `ReadTriggers.watches` -- this
+         *     tenant's, this device's, enabled, and a watch. Anything else is `NotFound`,
+         *     so another device's watch, another tenant's, and one that never existed are
+         *     one answer: a browser holding an id it should not have learns nothing from
+         *     the difference.
+         */
+        post: operations["watch_matched_v1_agents__device_id__watches__trigger_id__matched_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents": {
         parameters: {
             query?: never;
@@ -2963,6 +3004,26 @@ export interface components {
             where: components["schemas"]["LocatorModel"];
         };
         /**
+         * WatchMatchModel
+         * @description The offer a recognised mail turns into. Not a run: nothing has started.
+         *
+         *     `values` is what the task would run with -- the watch's own parameters with
+         *     the mail's on top, after the trigger dropped every name it never declared.
+         *     There is no field here for why it matched, because the browser that asked
+         *     is the one that decided, and a reason travelling back would be mail content
+         *     that had to have crossed to be echoed.
+         */
+        WatchMatchModel: {
+            /** Trigger Id */
+            trigger_id: string;
+            /** Skill Id */
+            skill_id: string;
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+        };
+        /**
          * WatchModel
          * @description What makes a mail one of these, and where to read the values out of it.
          */
@@ -3308,6 +3369,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TriggerModel"][];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    watch_matched_v1_agents__device_id__watches__trigger_id__matched_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                device_id: string;
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchMatchModel"];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

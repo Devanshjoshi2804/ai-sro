@@ -7,6 +7,10 @@ locators are the only interesting part, and it resolves them today from the
 command channel. And the endpoint that hands the rules back has to hand each
 browser only its own, because a rule about one person's mail in another
 person's browser is that mail being read by somebody nobody offered it to.
+
+The third thing is the way back in: a browser saying one matched. It carries
+values and nothing else, it may only speak for its own watches, and what it
+gets is an offer -- the values the task would run with -- rather than a run.
 """
 
 from __future__ import annotations
@@ -257,3 +261,126 @@ async def test_a_watch_read_back_matches_the_mail_it_was_written_for(
     assert not trigger.watch.matches(
         "mail.acme.test", sender="hr@acme.test", subject="Short ship on PO 4471"
     )
+
+
+def _without_instance(response: httpx.Response) -> dict[str, object]:
+    problem: dict[str, object] = response.json()
+    return {"status": response.status_code, **{k: v for k, v in problem.items() if k != "instance"}}
+
+
+async def test_a_reported_match_offers_rather_than_running(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """The operator presses once. Recognising a mail is not that press.
+
+    A watch that started a run the moment a mail arrived would be an autonomous
+    system that nobody opted into, on the strength of a substring somebody
+    typed once -- so what comes back is the offer, and the browser holds it
+    until a person acts on it.
+    """
+    created = await _create_watch(client, uow, device_id=LENA)
+    trigger_id = created.json()["id"]
+
+    matched = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{trigger_id}/matched",
+        json={"shipment_id": "SH-4471"},
+    )
+
+    assert matched.status_code == 200, matched.text
+    assert matched.json() == {
+        "trigger_id": trigger_id,
+        "skill_id": created.json()["skill_id"],
+        "values": {"shipment_id": "SH-4471"},
+    }
+    # Nothing started, and nothing was written down: the values came out of
+    # somebody's mail and this is the boundary that keeps them out of storage.
+    assert container.dispatcher.asked == []
+    assert uow.runs.rows == {}
+
+
+async def test_a_browser_cannot_report_a_match_on_a_watch_that_is_not_its_own(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """Sam's browser reporting on Lena's watch reads exactly like a watch that
+    never existed. Telling the two apart would confirm the id is real
+    somewhere, which is the whole of what a leaked id is worth.
+    """
+    created = await _create_watch(client, uow, device_id=LENA)
+    trigger_id = created.json()["id"]
+    _device(uow, SAM)
+
+    someone_elses = await client.post(
+        f"/v1/agents/{SAM.value}/watches/{trigger_id}/matched",
+        json={"shipment_id": "SH-4471"},
+    )
+    invented = await client.post(
+        f"/v1/agents/{SAM.value}/watches/trg-nothing-like-this/matched",
+        json={"shipment_id": "SH-4471"},
+    )
+
+    assert someone_elses.status_code == 404
+    # `instance` is the path that was asked for and so differs by construction.
+    # Everything a caller could read a difference out of -- the status, the
+    # code, the sentence -- is one answer.
+    assert _without_instance(someone_elses) == _without_instance(invented)
+    assert container.dispatcher.asked == []
+
+
+async def test_another_tenant_cannot_report_a_match_on_a_browser_it_does_not_own(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The same ownership check the command channel and the rules endpoint do:
+    a credential proves who is asking, never which browser they may ask about."""
+    created = await _create_watch(client, uow, device_id=LENA)
+
+    theirs = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/matched",
+        json={"shipment_id": "SH-4471"},
+        headers={"Authorization": f"Bearer {token_for(tenant='rival')}"},
+    )
+
+    assert theirs.status_code == 404
+
+
+async def test_a_value_the_watch_never_declared_is_dropped_rather_than_refused(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """A name the watch was never pointed at could name the facility a
+    warehouse read runs against, so it does not survive. It is dropped and not
+    refused for the reason an inbound relay's extra field is: a rule that has
+    worked for a year must not start failing because something upstream added a
+    line to its payload.
+    """
+    created = await _create_watch(client, uow, device_id=LENA)
+
+    matched = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/matched",
+        json={"shipment_id": "SH-4471", "facility": "another-warehouse", "subject": "Short ship"},
+    )
+
+    assert matched.status_code == 200, matched.text
+    assert matched.json()["values"] == {"shipment_id": "SH-4471"}
+
+
+async def test_a_match_on_a_watch_that_was_switched_off_does_nothing(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    """A browser holds its rules and a paused watch is one it should already
+    have dropped. Reporting one anyway is the stale copy, not a second way in.
+    """
+    created = await _create_watch(client, uow, device_id=LENA)
+    trigger_id = created.json()["id"]
+    paused = await client.patch(
+        f"/v1/triggers/{trigger_id}",
+        json={"enabled": False, "reason": "she is on leave"},
+    )
+    assert paused.status_code == 200
+
+    matched = await client.post(
+        f"/v1/agents/{LENA.value}/watches/{trigger_id}/matched",
+        json={"shipment_id": "SH-4471"},
+    )
+
+    assert matched.status_code == 404
+    assert container.dispatcher.asked == []
+    assert uow.runs.rows == {}

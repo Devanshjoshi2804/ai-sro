@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+from typing import Annotated
 
-from sro.domain.shared.identifiers import DeviceId
+from fastapi import APIRouter, Body, status
+
+from sro.domain.shared.errors import NotFound
+from sro.domain.shared.identifiers import DeviceId, TriggerId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     DeviceModel,
@@ -14,6 +17,7 @@ from sro.interface.http.schemas import (
     RegisterDeviceRequest,
     RegisteredDeviceResponse,
     TriggerModel,
+    WatchMatchModel,
 )
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -72,6 +76,52 @@ async def list_watches(
     device = await container.read_device().execute(ctx, device_id=DeviceId(device_id))
     watches = await container.read_triggers().watches(ctx, device_id=device.id)
     return [TriggerModel.of(trigger) for trigger in watches]
+
+
+@router.post("/{device_id}/watches/{trigger_id}/matched")
+async def watch_matched(
+    device_id: str,
+    trigger_id: str,
+    container: ContainerDep,
+    ctx: ContextDep,
+    values: Annotated[dict[str, str], Body()] = {},  # noqa: B006
+) -> WatchMatchModel:
+    """This browser recognised a mail. Nothing runs.
+
+    A match is an offer. The plan is explicit that at this stage the panel says
+    what matched and the operator presses once, so what this answers with is
+    the offer itself -- and the press is a separate act, in a later slice.
+    Nothing is written down either: the values were read out of somebody's mail
+    and `ValueAt` exists to keep exactly those out of storage, so a table of
+    pending matches would be the one thing the domain went structural lengths
+    to prevent. The offer's home is the browser that found it.
+
+    The body is only values. Not a subject, not a sender, not a screenshot, not
+    a sentence about why -- there is nowhere in this signature to put one, which
+    is a stronger guarantee than a rule someone has to remember. A name the
+    watch never declared is dropped rather than refused, the same way an inbound
+    relay adding a field to its payload is not a reason for a working rule to
+    start failing.
+
+    Which watch this device may report on is `ReadTriggers.watches` -- this
+    tenant's, this device's, enabled, and a watch. Anything else is `NotFound`,
+    so another device's watch, another tenant's, and one that never existed are
+    one answer: a browser holding an id it should not have learns nothing from
+    the difference. No `ReadDevice` first, unlike the endpoint above: that one
+    needs it because a device with no watches and a device in another tenant
+    would otherwise both answer with an empty list, and here the trigger read
+    is already scoped to the credential's tenant, so an unknown device and a
+    stranger's are the same 404 the check would have produced.
+    """
+    watches = await container.read_triggers().watches(ctx, device_id=DeviceId(device_id))
+    watch = next((trigger for trigger in watches if trigger.id == TriggerId(trigger_id)), None)
+    if watch is None:
+        raise NotFound("no such watch")
+    return WatchMatchModel(
+        trigger_id=watch.id.value,
+        skill_id=watch.skill_id.value,
+        values=watch.values_from(values),
+    )
 
 
 @router.get("")

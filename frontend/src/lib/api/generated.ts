@@ -2787,7 +2787,7 @@ export interface components {
          * TriggerKind
          * @enum {string}
          */
-        TriggerKind: "manual" | "schedule" | "inbound";
+        TriggerKind: "manual" | "schedule" | "inbound" | "watch";
         /** TriggerModel */
         TriggerModel: {
             /** Id */

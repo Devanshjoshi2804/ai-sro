@@ -13,6 +13,7 @@ from sro.domain.execution.run import Medium, RunId
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId, TriggerId
 from sro.domain.trigger.cron import why_not
+from sro.domain.trigger.watch import Watch
 
 
 class TriggerKind(StrEnum):
@@ -25,6 +26,13 @@ class TriggerKind(StrEnum):
     INBOUND = "inbound"
     """A mail or a chat message. Not built; named so that the shape it will take
     is decided once rather than invented under time pressure."""
+
+    WATCH = "watch"
+    """A mail the operator's own browser recognised. The same message as
+    INBOUND arriving the other way round: nobody relays it, nothing is posted,
+    the browser that already has the mailbox open evaluates the rule locally and
+    speaks only when it matches. There is no server-side evaluation of one, by
+    design -- which is why a watch without a device is refused."""
 
 
 @dataclass(eq=False)
@@ -56,6 +64,11 @@ class Trigger:
     A message that could name any parameter could name the facility, and a read
     somebody authorised for one warehouse would answer about another.
     """
+
+    watch: Watch | None = None
+    """What makes a mail one of these, and where to read the values out of it.
+    A watch trigger's ``from_message`` is derived from it rather than given
+    separately: two lists of the same names are two lists that disagree."""
 
     cron: str | None = None
     timezone: str = "UTC"
@@ -118,11 +131,32 @@ class Trigger:
         elif self.inbound_token is not None:
             raise InvariantViolation(f"a {self.kind} trigger is not reached by a token")
 
+        if self.kind is TriggerKind.WATCH:
+            if self.watch is None:
+                raise InvariantViolation("a watch trigger needs something to watch for")
+            if self.device_id is None:
+                # Nothing evaluates a watch except the browser that holds it.
+                # One without a device is not a trigger that fires rarely, it
+                # is a trigger that cannot fire at all.
+                raise InvariantViolation("a watch with no browser watches nothing: name a device")
+            if self.from_message:
+                raise InvariantViolation(
+                    "a watch names its values by where it reads them; there is no second list"
+                )
+        elif self.watch is not None:
+            raise InvariantViolation(f"a {self.kind} trigger has nothing to watch for")
+
         if self.from_message and self.kind is not TriggerKind.INBOUND:
             raise InvariantViolation(
                 f"a {self.kind} trigger fires with the values it was created with; "
                 "only an inbound one is told anything"
             )
+        if self.watch is not None:
+            # After the check above, not instead of it: a watch is told things
+            # by the mail it matched, and the names it may be told are exactly
+            # the ones it was pointed at. `values_from` then needs to know
+            # nothing about watches.
+            self.from_message = self.watch.reads
 
         if self.writes and self.authorized_by is None:
             # The whole point of the record. Refused here, weeks before it

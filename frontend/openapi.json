@@ -22417,7 +22417,8 @@
         "enum": [
           "manual",
           "schedule",
-          "inbound"
+          "inbound",
+          "watch"
         ],
         "title": "TriggerKind"
       },

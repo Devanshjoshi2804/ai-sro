@@ -493,6 +493,45 @@ a durable worker — a run whose browser is a laptop cannot be resumed after a
 restart into a Chrome that may be closed, on a page that has moved, halfway
 through a task. `RunModel.device_id` says which browser it went through.
 
+### Watches — a mail rule the browser evaluates
+
+A watch is the one trigger nothing on the server can evaluate: the mail is
+never uploaded, so the rule goes to the browser that has the mailbox open.
+
+```jsonc
+// GET /v1/agents/{device_id}/watches   → the triggers this browser holds
+[{ "id": "trg_…", "skill_id": "skl_…", "kind": "watch",
+   "watch": {
+     "host": "mail.acme.test",
+     "terms": [{"field": "sender",  "contains": "dispatch@supplier.test"},
+               {"field": "subject", "contains": "Short ship"}],
+     // Where the two headers are on this operator's client. Marked by them,
+     // because there is no standard for where a sender is on a page.
+     "sender_at":  {"strategy": "css_path", "query": "span.from-address", …},
+     "subject_at": {"strategy": "css_path", "query": "h1.subject", …},
+     // Where each parameter is read, on a mail that matched.
+     "values": [{"name": "shipment_id", "where": {"strategy": "css_path", …}}]
+   }}]
+
+// POST /v1/agents/{device_id}/watches/{trigger_id}/matched
+{ "shipment_id": "SH-4471" }              // the values, and only the values
+→ { "trigger_id": "trg_…", "skill_id": "skl_…", "values": {…} }   // an offer
+```
+
+Every term must match, case-insensitively, as a substring, and the host is a
+domain-match rather than a suffix test — `Watch.matches` in the backend is the
+definition of record and `src/content/watch.js` is the second implementation of
+it; `watch.test.mjs` runs the domain's own cases against the browser's.
+
+Two rules the extension holds to, and ADR 008 is why:
+
+- The watch script is registered on the watched hosts and nowhere else, under
+  its own id, so a policy change cannot withdraw it and a mailbox with no watch
+  on it has nothing of ours in it. A mail host stays excluded from capture.
+- Nothing about a mail is stored, queued or uploaded unless it matches, and on
+  a match what leaves is the watch id and the values. There is no field in that
+  request for a subject, a sender, a body or a screenshot.
+
 ---
 
 ## 5. Fixtures — how the two halves are proved to fit

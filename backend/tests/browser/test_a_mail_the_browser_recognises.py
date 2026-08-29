@@ -278,3 +278,107 @@ def test_signing_out_stops_the_watching(
     mail.close()
 
     assert matched == [], json.dumps(matched)
+
+
+def _panel(context: Any, worker: Any) -> Any:
+    """The side panel, opened as a page. Chrome docks it beside a tab in real
+    use; a test cannot dock it, and the panel finds the ordinary page in its
+    window either way."""
+    page = context.new_page()
+    page.goto(f"{worker.url.rsplit('/src/', 1)[0]}/src/panel/panel.html")
+    return page
+
+
+def test_a_recognised_mail_is_a_card_naming_the_task_and_what_it_read(
+    browser: Any, stub: Any, armed: Any, matched: list[dict[str, Any]], fired: list[dict[str, Any]]
+) -> None:
+    """The offer, made visible. Until this card existed a match was a POST that
+    happened and a person who never heard about it.
+
+    What it has to say is what somebody needs in order to decide: which task,
+    which values, and where each came from. And it says it in the browser that
+    read the mail -- nothing on this card has been anywhere else, and the panel
+    is docked beside the mail it is about.
+    """
+    api_url, _ = stub
+    mail = browser.new_page()
+    mail.goto(f"{api_url}/mail")
+    _wait_for(matched)
+
+    panel = _panel(browser, armed)
+    panel.locator("#cards .card", has_text="A mail matched").first.wait_for(timeout=15_000)
+    said = panel.locator("#cards .card", has_text="A mail matched").first.text_content()
+    panel.close()
+    mail.close()
+
+    assert "Resolve a short ship" in said, said
+    # The value, and that it came out of the mail rather than off the task.
+    assert f"shipment_id: {SHIPMENT} — read from the mail" in said, said
+    # Which of the operator's own terms caught it. Not the subject and not the
+    # sender: those were compared in the frame and forgotten there.
+    assert f"sender contains “{SENDER}”" in said, said
+    assert SUBJECT not in said, said
+    assert fired == [], "a card offered a run and started one"
+
+
+def test_pressing_the_card_starts_a_run_with_the_values_the_mail_gave(
+    browser: Any, stub: Any, armed: Any, matched: list[dict[str, Any]], fired: list[dict[str, Any]]
+) -> None:
+    """One press, and the values travel again because nothing was kept.
+
+    The press is the whole of the operator's involvement and the whole of what
+    makes this not an autonomous system. What it carries is what the card
+    showed, and the offer goes when the run starts.
+    """
+    api_url, _ = stub
+    mail = browser.new_page()
+    mail.goto(f"{api_url}/mail")
+    _wait_for(matched)
+
+    panel = _panel(browser, armed)
+    panel.get_by_role("button", name="Run it").wait_for(timeout=15_000)
+    panel.get_by_role("button", name="Run it").click()
+    _wait_for(fired)
+    panel.wait_for_timeout(2500)
+    still_offered = panel.locator("#cards .card", has_text="A mail matched").count()
+    panel.close()
+    mail.close()
+
+    assert len(fired) == 1, fired
+    [press] = fired
+    assert press["path"] == "/v1/agents/dev_browsertest/watches/trg-short-ship/fire"
+    assert press["values"] == {"shipment_id": SHIPMENT}
+    # The mail decided this and is still not on the wire.
+    assert SENDER not in press["raw"], press["raw"]
+    assert "Short shipment" not in press["raw"], press["raw"]
+    assert still_offered == 0, "an offer that was taken is still being offered"
+
+
+def test_a_match_that_is_short_of_a_required_value_says_so_and_starts_nothing(
+    browser: Any, stub: Any, armed: Any, matched: list[dict[str, Any]], fired: list[dict[str, Any]]
+) -> None:
+    """The same rule, matched by a mail that named no shipment.
+
+    `FireTrigger` would skip this one -- "nothing said shipment_id" -- so
+    pressing produces a run that never happens and a person who watches nothing
+    occur. The card says which value is missing instead, before the press, and
+    there is nothing to press.
+    """
+    api_url, _ = stub
+    mail = browser.new_page()
+    mail.goto(f"{api_url}/mail-vague")
+    _wait_for(matched)
+
+    panel = _panel(browser, armed)
+    card = panel.locator("#cards .card", has_text="A mail matched").first
+    card.wait_for(timeout=15_000)
+    said = card.text_content()
+    press = panel.get_by_role("button", name="Run it")
+    disabled = press.is_disabled()
+    panel.close()
+    mail.close()
+
+    assert matched and matched[0]["values"] == {}, matched
+    assert "Nothing said shipment_id, so this one cannot run" in said, said
+    assert disabled, "a run that would be skipped was offered anyway"
+    assert fired == [], fired

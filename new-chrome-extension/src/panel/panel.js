@@ -71,7 +71,7 @@ function clock(since) {
  * reading, so a card that has an action carries it; one that does not says why
  * in a sentence somebody can act on elsewhere.
  */
-function card({ title, says, metrics, stage, progress, tone, actions = [] }) {
+function card({ title, says, metrics, notes, stage, progress, tone, actions = [] }) {
   const holder = document.createElement("section");
   holder.className = "card";
   if (tone) holder.dataset.tone = tone;
@@ -90,6 +90,14 @@ function card({ title, says, metrics, stage, progress, tone, actions = [] }) {
     const line = document.createElement("p");
     line.className = "metrics";
     line.textContent = metrics;
+    holder.append(line);
+  }
+  // A line each, for a card that has several small facts rather than one --
+  // the values a mail gave up, where each of them came from.
+  for (const note of notes || []) {
+    const line = document.createElement("p");
+    line.className = "metrics";
+    line.textContent = note;
     holder.append(line);
   }
   if (progress) {
@@ -146,6 +154,11 @@ function render(status) {
   } else {
     cards.push(watching(status));
   }
+
+  // Before the run and after the state card: it is the only thing here waiting
+  // on the person. Not while teaching, because then the panel is about the
+  // demonstration and nothing else -- the offer keeps.
+  if (!status.teaching) for (const offer of status.offers || []) cards.push(offering(offer));
 
   if (status.performing) cards.push(performing(status));
   for (const trouble of troubles(status)) cards.push(trouble);
@@ -310,6 +323,83 @@ function performing(status) {
         },
       },
       { label: "Details in console", act: () => openConsole(`/runs/${run.runId}`) },
+    ],
+  });
+}
+
+/** A mail this browser recognised, and the one press that acts on it.
+ *
+ * Nothing runs unasked, so this card is the whole of what a watch does by
+ * itself: it says what it found and waits. What a person needs in order to
+ * decide is which task, what was read out of the mail as against what was
+ * already on the task, and what recognised it.
+ *
+ * The rule, not the mail. The sender and the subject that decided this were
+ * read in the frame and forgotten there -- and the operator can see the mail,
+ * because this panel is docked beside it. What they cannot see is which of
+ * their own terms caught it, so that is what is written here.
+ *
+ * Everything on this card was read in this browser and has been nowhere else.
+ * The values went up once, to be told what the task would run with; nothing
+ * was stored there and nothing is stored by pressing beyond the run's own
+ * parameters, which is where a run's values have always lived.
+ */
+function offering(offer) {
+  const named = offer.skill || offer.skillId;
+  const read = offer.read || {};
+  const missing = offer.missing || [];
+  const because = (offer.terms || [])
+    .map((term) => `${term.field} contains “${term.contains}”`)
+    .join(" and ");
+  return card({
+    title: `A mail matched “${named}”`,
+    says: because
+      ? `Recognised in ${offer.host}: ${because}.`
+      : `Recognised in ${offer.host}.`,
+    // Which value came from the mail and which was already on the task. The
+    // difference is the decision: one of them is what somebody just wrote to
+    // this operator, and the other is what they set up themselves.
+    notes: Object.entries(offer.values || {}).map(
+      ([name, value]) =>
+        `${name}: ${value} — ${name in read ? "read from the mail" : "already on the task"}`,
+    ),
+    metrics: `${clock(offer.at)} ago`,
+    // Said before the press rather than after it. The same names the fire
+    // itself would skip on, so a card that cannot run says so instead of
+    // starting a run that stops a moment later where nobody is looking.
+    stage: missing.length
+      ? `Nothing said ${missing.join(", ")}, so this one cannot run.`
+      : offer.skipped || null,
+    tone: missing.length ? "attention" : null,
+    actions: [
+      {
+        label: "Run it",
+        primary: true,
+        disabled: Boolean(missing.length),
+        act: async (button) => {
+          button.disabled = true;
+          try {
+            const fired = await ask({ kind: "watch-fire", offerId: offer.id });
+            said(
+              fired.run_id
+                ? `started — “${named}” is running`
+                : `nothing started: ${fired.skipped}`,
+            );
+          } catch (error) {
+            said(error.message);
+          }
+          await refresh();
+        },
+      },
+      {
+        label: "Not now",
+        act: async (button) => {
+          button.disabled = true;
+          await ask({ kind: "drop-offer", offerId: offer.id });
+          said("dismissed — the mail is untouched and nothing ran");
+          await refresh();
+        },
+      },
     ],
   });
 }

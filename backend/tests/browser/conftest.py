@@ -141,6 +141,18 @@ extension resolves is the marks the watch carries, and a page shaped like
 Gmail would suggest it knows something about Gmail, which it must not."""
 
 
+MAIL_WITH_NO_REFERENCE = MAIL.replace(
+    'Reference <span class="shipment-ref">SH-4471</span>, please advise.',
+    "Two cartons short, details to follow.",
+)
+"""The same mail from the same supplier, with the number nobody typed in.
+
+Every mailbox produces these -- an autoreply, a thread with the reference only
+in an attachment. The rule matches, the mark finds nothing, and the offer is a
+run that would start and be skipped a moment later.
+"""
+
+
 _CANDIDATES = [
     {
         "id": "cnd-here",
@@ -241,6 +253,11 @@ class _Stub(BaseHTTPRequestHandler):
     """What the browser posted when it recognised a mail, as bytes and as
     parsed. The bytes are the point: a subject that reached the wire would be
     in them."""
+
+    fired: ClassVar[list[dict[str, Any]]] = []
+    """The presses. One per offer an operator acted on, carrying the values it
+    was offered with -- nothing was stored at the match, so these are the only
+    copy there is."""
     """Answer this many artifact uploads with a 503 before taking any. A lost
     reply from the blob store is the ordinary way one of these fails."""
 
@@ -265,8 +282,22 @@ class _Stub(BaseHTTPRequestHandler):
         if self.path.startswith("/v1/agents/") and self.path.endswith("/watches"):
             self._send(200, json.dumps(_Stub.watches).encode())
             return
+        if self.path.startswith("/mail-vague"):
+            self._send(200, MAIL_WITH_NO_REFERENCE.encode(), "text/html; charset=utf-8")
+            return
         if self.path.startswith("/mail"):
             self._send(200, MAIL.encode(), "text/html; charset=utf-8")
+            return
+        if self.path.startswith("/v1/skills/"):
+            # Enough of a skill for the panel to name the task on the card. A
+            # card that named an id would be asking somebody to decide about
+            # `skl-short-ship`.
+            self._send(
+                200,
+                json.dumps(
+                    {"id": self.path.split("/")[3], "name": "Resolve a short ship", "versions": []}
+                ).encode(),
+            )
             return
         if self.path.startswith("/v1/candidates"):
             _Stub.candidate_queries.append(self.path)
@@ -393,6 +424,23 @@ class _Stub(BaseHTTPRequestHandler):
                         "trigger_id": self.path.split("/")[5],
                         "skill_id": "skl-short-ship",
                         "values": json.loads(raw),
+                        # The real endpoint asks the skill; this asks the rule,
+                        # which for one watch is the same question: a name the
+                        # watch reads and the mail did not give up.
+                        "missing": _missing(json.loads(raw)),
+                    }
+                ).encode(),
+            )
+            return
+        if self.path.endswith("/fire"):
+            _Stub.fired.append({"path": self.path, "raw": raw.decode(), "values": json.loads(raw)})
+            self._send(
+                202,
+                json.dumps(
+                    {
+                        "trigger_id": self.path.split("/")[5],
+                        "run_id": "run-from-a-mail",
+                        "skipped": None,
                     }
                 ).encode(),
             )
@@ -495,6 +543,12 @@ class _Stub(BaseHTTPRequestHandler):
         self._send(200, json.dumps({"ok": True}).encode())
 
 
+def _missing(values: dict[str, str]) -> list[str]:
+    """What the watches this browser holds read that the mail did not give up."""
+    reads = {name for rule in _Stub.watches for name in rule.get("from_message", [])}
+    return sorted(name for name in reads if not values.get(name, "").strip())
+
+
 def _parts(content_type: str, raw: bytes) -> dict[str, Any]:
     """One multipart body, as the fields it carries.
 
@@ -527,6 +581,7 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.sealed = []
     _Stub.watches = []
     _Stub.matched = []
+    _Stub.fired = []
     # Threading, because the command channel holds its connection open for the
     # length of the test: on a single-threaded server that one socket is the
     # whole server, and every upload behind it waits forever.
@@ -595,6 +650,12 @@ def watching(
 def matched(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     """What this browser posted when it recognised a mail, as sent."""
     return _Stub.matched
+
+
+@pytest.fixture
+def fired(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """The presses this browser made, as sent."""
+    return _Stub.fired
 
 
 @pytest.fixture

@@ -550,17 +550,95 @@ async function handle(message, sender) {
         const given = message.values?.[declared.name];
         if (typeof given === "string" && given) values[declared.name] = given.slice(0, MAX_VALUE);
       }
-      // The offer comes back and stops here for now: the card that shows it
-      // and the press that starts a run are the next slice. Nothing is
-      // written down -- the values came out of a mail, and a table of pending
-      // matches is the one thing `ValueAt` exists to prevent.
-      return { ok: true, offer: await api.watchMatched(deviceId, watch.id, values) };
+      const offer = await api.watchMatched(deviceId, watch.id, values);
+      await hold(watch, values, offer);
+      return { ok: true, offer };
+    }
+    case "watch-fire": {
+      // The press. The values go up again because nothing was kept: this
+      // browser is the only place they exist, which is the whole shape of a
+      // watch. From there it is an ordinary fire -- the trigger reads only the
+      // names it declared, and a run whose required inputs are empty is
+      // skipped with the reason legible rather than started.
+      const deviceId = await state.deviceId();
+      const offers = await state.offers();
+      const offer = offers.find((each) => each.id === message.offerId);
+      if (!deviceId || !offer) return { error: "that offer is gone" };
+      const fired = await api.watchFire(deviceId, offer.triggerId, offer.read);
+      // Kept when nothing started, so the card can say why. A laptop that was
+      // closed is the ordinary one of these, and it is worth pressing again.
+      await state.setOffers(
+        fired.run_id
+          ? offers.filter((each) => each.id !== offer.id)
+          : offers.map((each) => (each.id === offer.id ? { ...each, skipped: fired.skipped } : each)),
+      );
+      return fired;
+    }
+    case "drop-offer": {
+      // ponytail: an ignored offer is evidence about whether the watch is any
+      // good, and this records nothing -- it drops it here and the control
+      // plane never hears. The taken half is already history (the trigger's
+      // `last_fired_at` and the run under it); the ignored half needs somewhere
+      // to count it and a definition of ignored that tells a person saying no
+      // apart from a laptop that was asleep. A counter on the trigger and one
+      // endpoint, the day somebody reviews watches.
+      const offers = await state.offers();
+      await state.setOffers(offers.filter((each) => each.id !== message.offerId));
+      return { ok: true };
     }
     case "status":
       return status();
     default:
       return { error: `no such message: ${message?.kind}` };
   }
+}
+
+/** How many offers this browser holds: enough that the morning's mail is still
+ * there after lunch, few enough that a watch somebody wrote badly cannot fill
+ * the disk with what it read. */
+const MAX_OFFERS = 20;
+
+/** Keep an offer where the panel can find it.
+ *
+ * With the one thing the panel needs that the offer does not carry: what the
+ * task is called. Read once, here, rather than by a panel polling for it every
+ * two seconds -- and a name that could not be read leaves the card naming the
+ * skill's id, which is uglier and still true.
+ *
+ * The watch's own terms travel with it, because they are what the card says
+ * the mail was recognised by. They are the operator's own words and are
+ * already in this browser; the sender and the subject that actually decided it
+ * were read in the frame and forgotten there, and the mail is on the screen
+ * the panel is docked beside.
+ */
+async function hold(watch, read, offer) {
+  const held = await state.offers();
+  // The same mail seen again -- open in a second tab, or the page reloaded.
+  // `watch.js` offers once per frame; this is the frame after that one.
+  const same = (each) =>
+    each.triggerId === watch.id && JSON.stringify(each.read) === JSON.stringify(read);
+  if (held.some(same)) return;
+  const skill = await api.skill(offer.skill_id).catch(() => null);
+  await state.setOffers(
+    [
+      {
+        id: crypto.randomUUID(),
+        at: Date.now(),
+        triggerId: watch.id,
+        skillId: offer.skill_id,
+        skill: skill?.name || "",
+        host: watch.host,
+        terms: watch.terms || [],
+        // What this browser read out of the mail, and what the task would run
+        // with -- the trigger's own values under the mail's. Both, because
+        // which is which is what somebody deciding needs to see.
+        read,
+        values: offer.values || {},
+        missing: offer.missing || [],
+      },
+      ...held,
+    ].slice(0, MAX_OFFERS),
+  );
 }
 
 /** What one value read out of a mail may be, mirroring the domain's `MAX_TERM`.
@@ -786,6 +864,9 @@ async function status() {
     lastBeat,
     lastError,
     watched: await watchedTabs(),
+    // The mails this browser recognised and nobody has answered yet. Held
+    // here and nowhere else -- the panel is the same browser that read them.
+    offers: await state.offers(),
     version: VERSION,
   };
 }

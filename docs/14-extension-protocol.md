@@ -515,8 +515,21 @@ never uploaded, so the rule goes to the browser that has the mailbox open.
 
 // POST /v1/agents/{device_id}/watches/{trigger_id}/matched
 { "shipment_id": "SH-4471" }              // the values, and only the values
-→ { "trigger_id": "trg_…", "skill_id": "skl_…", "values": {…} }   // an offer
+→ { "trigger_id": "trg_…", "skill_id": "skl_…", "values": {…},    // an offer
+    "missing": [] }        // required inputs the mail did not say; nothing ran
+
+// POST /v1/agents/{device_id}/watches/{trigger_id}/fire   → the press
+{ "shipment_id": "SH-4471" }              // the same values, because none were kept
+→ { "trigger_id": "trg_…", "run_id": "run_…", "skipped": null }
 ```
+
+The offer is held in the browser — `sro.offers` in `chrome.storage.local` —
+because the values on it came out of a mail and the server has nowhere to put
+them. `/matched` stores nothing and answers; the panel draws the card; the
+press sends the values back up. A `missing` that is not empty is a card that
+says which value the mail did not give up and offers no button: `FireTrigger`
+would skip that fire anyway, and a run that is skipped where nobody is looking
+teaches nobody.
 
 Every term must match, case-insensitively, as a substring, and the host is a
 domain-match rather than a suffix test — `Watch.matches` in the backend is the

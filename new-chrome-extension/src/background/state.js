@@ -12,6 +12,7 @@ const KEYS = {
   consoleUrl: "sro.consoleUrl",
   policy: "sro.policy",
   watches: "sro.watches",
+  offers: "sro.offers",
   watched: "sro.watched",
   paused: "sro.paused",
   serverPaused: "sro.serverPaused",
@@ -81,6 +82,21 @@ export const state = {
    * operator signs out. */
   watches: () => read(KEYS.watches, []),
   setWatches: (watches) => write(KEYS.watches, watches),
+
+  /** The mails this browser recognised and has not been answered about yet.
+   *
+   * This is the one thing here that came out of a mailbox, and this machine is
+   * as far as it goes. It is not sent anywhere, and the backend has nowhere to
+   * put it if it were: `POST .../matched` stores nothing and answers, which is
+   * the whole reason the offer lives here. It goes when the operator presses
+   * or dismisses, and `forget()` takes it with everything else at sign-out.
+   *
+   * In storage rather than the worker's memory for the ordinary reason: MV3
+   * evicts the worker between the mail arriving and the operator looking at
+   * the panel, and an offer that did not survive that is a mail nobody was
+   * ever told about. */
+  offers: () => read(KEYS.offers, []),
+  setOffers: (offers) => write(KEYS.offers, offers),
 
   // Two pauses, deliberately separate. This one is the operator's and lives
   // only here; theirs is theirs to hold. The other arrives on a heartbeat and

@@ -75,6 +75,15 @@ export const api = {
       { method: "POST", body: values },
     ),
 
+  /** The press. The operator saw the offer and said do it, so the values go up
+   * again -- nothing was kept at the match, and this browser is where they
+   * live. What comes back is the run, or why none started. */
+  watchFire: (deviceId, triggerId, values) =>
+    call(
+      `/v1/agents/${encodeURIComponent(deviceId)}/watches/${encodeURIComponent(triggerId)}/fire`,
+      { method: "POST", body: values },
+    ),
+
   /** Start a demonstration this browser will fill. Nothing is opened on the
    * server: the operator is already in front of the system. */
   startRecording: (deviceId, label) =>

@@ -257,7 +257,11 @@ class TestObservation:
             await uow.commit()
 
         async with SqlUnitOfWork(session_factory) as uow:
-            assert (await uow.devices.get(device.tenant_id, device.id)).label == "laptop"
+            stored = await uow.devices.get(device.tenant_id, device.id)
+            assert stored.label == "laptop"
+            # The one column a device is refused without. A round trip that
+            # dropped it would lock every browser out on its next heartbeat.
+            assert stored.secret == device.secret
             with pytest.raises(NotFound):
                 await uow.devices.get(OTHER_TENANT, device.id)
             assert await uow.devices.list_for_tenant(OTHER_TENANT) == ()
@@ -360,6 +364,7 @@ def _device(*, device_id: str = "dev-1") -> AgentDevice:
         extension_version="0.1.0",
         registered_at=at,
         last_seen_at=at,
+        secret="what-this-browser-proves-it-is-itself-with",  # noqa: S106
     )
 
 

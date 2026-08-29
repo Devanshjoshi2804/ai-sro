@@ -356,6 +356,7 @@ async function handle(message, sender) {
       // operator's batch id.
       await state.setPendingBatch(null);
       await state.setDeviceId("");
+      await state.setDeviceSecret("");
       await state.setPolicy(null);
       await state.setApiUrl(message.apiUrl);
       await state.setConsoleUrl(message.consoleUrl || "");
@@ -743,6 +744,11 @@ async function register(label) {
   // guard against here -- and nothing that survives this call failing.
   const registered = await api.register(label || defaultLabel(), VERSION);
   await state.setDeviceId(registered.device_id);
+  // After the id, so a worker evicted between the two leaves a device that
+  // re-registers on its next beat rather than one that has no id and has to be
+  // signed in again. Registration is idempotent on the label and hands the
+  // secret back every time, so doing it twice costs a request.
+  await state.setDeviceSecret(registered.device_secret || "");
   await state.setPolicy(registered.policy);
   await state.setLastError("");
   // Before `settle`, which is what registers the script that evaluates them.
@@ -754,6 +760,21 @@ async function register(label) {
 async function beat() {
   const deviceId = await state.deviceId();
   if (!deviceId) return;
+
+  // A browser registered before devices had secrets has an id and nothing to
+  // prove it with, and every device-scoped call refuses it. Registering again
+  // is the whole migration: idempotent on the label, so it comes back as the
+  // same device -- same watches, same command channel, same row in the device
+  // list -- now holding a secret. The operator sees a minute of "still here"
+  // and nothing else.
+  if (!(await state.deviceSecret())) {
+    try {
+      await register();
+    } catch (error) {
+      await state.setLastError(error instanceof ApiError ? error.message : String(error));
+      return;
+    }
+  }
 
   try {
     const policy = await state.policy();

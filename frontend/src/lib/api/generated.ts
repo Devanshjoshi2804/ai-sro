@@ -55,6 +55,13 @@ export interface paths {
         /**
          * Register Device
          * @description Idempotent on the label: a reinstalled extension comes back as itself.
+         *
+         *     The one device-scoped-ish route with no device secret on it, because it is
+         *     where a secret comes from and there is no device yet to have one. What
+         *     stands in its place is the idempotency key: (tenant, principal, label). A
+         *     colleague holding another tenant credential registering the same label gets
+         *     their own device under their own principal, never this one -- so the answer
+         *     only ever hands a secret to the operator whose device it is.
          */
         post: operations["register_device_v1_agents_register_post"];
         delete?: never;
@@ -75,6 +82,12 @@ export interface paths {
         /**
          * Heartbeat
          * @description Still here, this much is queued, and this is the policy I hold.
+         *
+         *     Also where a browser finds out it has been left behind. A device from
+         *     before secrets is refused here first, once a minute, and the extension
+         *     answers a refusal by registering again -- which is idempotent on its label,
+         *     so it comes back as the same device holding a secret. That is the whole
+         *     migration, and it costs one operator nothing and one heartbeat.
          */
         post: operations["heartbeat_v1_agents__device_id__heartbeat_post"];
         delete?: never;
@@ -101,8 +114,10 @@ export interface paths {
          *     The device is read first, which is the ownership check the command channel
          *     does for the same reason: a credential proves who is asking, never which
          *     browser they may ask about, so a device id that leaked would otherwise be
-         *     somebody else's mail rules. Scoped to the device after that -- one operator
-         *     never sees another's, even inside the same tenant.
+         *     somebody else's mail rules. That check is now the device's own secret and
+         *     not only its tenant -- a colleague's extension holds a perfectly valid
+         *     tenant credential. Scoped to the device after that -- one operator never
+         *     sees another's, even inside the same tenant.
          */
         get: operations["list_watches_v1_agents__device_id__watches_get"];
         put?: never;
@@ -145,11 +160,10 @@ export interface paths {
          *     tenant's, this device's, enabled, and a watch. Anything else is `NotFound`,
          *     so another device's watch, another tenant's, and one that never existed are
          *     one answer: a browser holding an id it should not have learns nothing from
-         *     the difference. No `ReadDevice` first, unlike the endpoint above, which
-         *     needs one because an empty list is otherwise the same answer for a browser
-         *     with no rules and a browser in another tenant. Here the trigger read is
-         *     already tenant-scoped, so that check could only produce the 404 this
-         *     already produces.
+         *     the difference. `ReadDevice` runs first all the same, which it did not need
+         *     to when tenant scoping was the whole check: the device id names a browser
+         *     and the secret is what says the caller is that browser, so the device has
+         *     to be read to have a secret to compare against.
          */
         post: operations["watch_matched_v1_agents__device_id__watches__trigger_id__matched_post"];
         delete?: never;
@@ -2372,6 +2386,8 @@ export interface components {
         RegisteredDeviceResponse: {
             /** Device Id */
             device_id: string;
+            /** Device Secret */
+            device_secret: string;
             policy: components["schemas"]["ObservationPolicyModel"];
             /** Policy Version */
             policy_version: number;
@@ -3275,6 +3291,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path: {
@@ -3403,6 +3420,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path: {
@@ -3527,6 +3545,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path: {
@@ -3658,6 +3677,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path: {

@@ -11,7 +11,11 @@ export class ApiError extends Error {
 }
 
 async function call(path, { method = "GET", body, form, signal } = {}) {
-  const [base, token] = await Promise.all([state.apiUrl(), state.token()]);
+  const [base, token, secret] = await Promise.all([
+    state.apiUrl(),
+    state.token(),
+    state.deviceSecret(),
+  ]);
   // A multipart body names its own content type, boundary and all, and a
   // Content-Type set here would replace it with one the boundary is missing
   // from -- which every parser reads as a body with no parts in it.
@@ -20,6 +24,13 @@ async function call(path, { method = "GET", body, form, signal } = {}) {
     signal,
     headers: {
       Authorization: `Bearer ${token}`,
+      // Two things, because they answer two questions. The credential says
+      // which tenant is asking; it cannot say which browser, and every
+      // device-scoped path is `/v1/agents/{device_id}/...` -- one of which
+      // fires a run in a live warehouse. Sent on every call rather than on the
+      // four that check it: it goes to the same backend either way, and a list
+      // of which endpoints are allowed to see it is a list that goes stale.
+      ...(secret ? { "X-Device-Secret": secret } : {}),
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
     body: form !== undefined ? form : body === undefined ? undefined : JSON.stringify(body),

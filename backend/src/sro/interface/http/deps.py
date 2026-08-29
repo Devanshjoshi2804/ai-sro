@@ -59,3 +59,17 @@ def get_context(
 
 ContainerDep = Annotated[Container, Depends(get_container)]
 ContextDep = Annotated[RequestContext, Depends(get_context)]
+
+DeviceSecretDep = Annotated[str, Header(alias="X-Device-Secret")]
+"""What a browser proves it is *itself* with, on every device-scoped path.
+
+The credential above says which tenant is asking and can never say which
+browser: `/v1/agents/{device_id}/...` is a namespace, not a credential, and one
+of those paths fires a run in a live warehouse. Both, always -- drop the
+credential and a leaked secret reaches across tenants, drop the secret and a
+colleague's extension is any device it can name.
+
+Declared with a default of `""` at every use rather than as required, because a
+422 naming a missing header is itself an answer: absent, wrong, and belonging
+to somebody else must all be the one 404.
+"""

@@ -304,6 +304,11 @@ class AgentDeviceRow(Base):
     queued_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     uploads: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
+    secret: Mapped[str | None] = mapped_column(String(64))
+    """What this browser proves it is itself with. Nullable only for a device
+    registered before it existed; that one is refused until its extension
+    re-registers, which is idempotent on the label."""
+
     __table_args__ = (
         Index("ix_agent_devices_tenant_seen", "tenant_id", "last_seen_at"),
         Index(

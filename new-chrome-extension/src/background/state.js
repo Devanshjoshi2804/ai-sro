@@ -8,6 +8,7 @@
 const KEYS = {
   token: "sro.token",
   deviceId: "sro.deviceId",
+  deviceSecret: "sro.deviceSecret",
   apiUrl: "sro.apiUrl",
   consoleUrl: "sro.consoleUrl",
   policy: "sro.policy",
@@ -41,6 +42,22 @@ export const state = {
 
   deviceId: () => read(KEYS.deviceId, ""),
   setDeviceId: (id) => write(KEYS.deviceId, id),
+
+  /** What this browser proves it is *itself* with, minted at registration.
+   *
+   * Beside the credential rather than anywhere cleverer, because there is
+   * nowhere cleverer: `chrome.storage.local` is the extension's own origin and
+   * no page can reach it -- a content script runs in the page's world but with
+   * the extension's `chrome.storage`, and nothing here is ever handed to one
+   * (`in-page.js` is given locators and gives back values). A page that could
+   * read this could already read the credential, and the credential is the
+   * larger loss: it is the whole tenant, this is one browser.
+   *
+   * Goes with everything else at sign-out -- it is in `KEYS`, so `forget()`
+   * takes it -- which matters on a shared machine: left behind, it would be
+   * the previous operator's device the next one's browser could speak as. */
+  deviceSecret: () => read(KEYS.deviceSecret, ""),
+  setDeviceSecret: (secret) => write(KEYS.deviceSecret, secret),
 
   apiUrl: () => read(KEYS.apiUrl, DEFAULT_API_URL),
   setApiUrl: (url) => write(KEYS.apiUrl, url.replace(/\/+$/, "")),

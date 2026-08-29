@@ -54,19 +54,24 @@ export function status() {
  * nobody can schedule work on.
  */
 export async function settle() {
-  const [token, deviceId, serverPaused, apiUrl] = await Promise.all([
+  const [token, deviceId, secret, serverPaused, apiUrl] = await Promise.all([
     state.token(),
     state.deviceId(),
+    state.deviceSecret(),
     state.serverPaused(),
     state.apiUrl(),
   ]);
 
-  if (!token || !deviceId || serverPaused) {
+  // No secret is no channel, deliberately: the backend would close it anyway,
+  // and dialling once a second at a door that will not open is how a device
+  // that has fallen behind becomes a device that is hammering the backend. The
+  // heartbeat is what re-registers and gets one; the next tick dials.
+  if (!token || !deviceId || !secret || serverPaused) {
     close();
     return;
   }
   if (socket) return;
-  open(apiUrl, deviceId, token);
+  open(apiUrl, deviceId, token, secret);
 }
 
 export function close() {
@@ -93,15 +98,17 @@ export function close() {
   }
 }
 
-function open(apiUrl, deviceId, token) {
+function open(apiUrl, deviceId, token, secret) {
   const url = `${apiUrl.replace(/^http/, "ws")}/v1/agents/${encodeURIComponent(deviceId)}/commands`;
 
-  // The credential rides in the subprotocol, not the query string: a browser
-  // cannot set a header on a WebSocket, and a token in the URL is a token in
-  // every access log and every referrer.
+  // The credential and the device's secret both ride in the subprotocol, not
+  // the query string: a browser cannot set a header on a WebSocket, and a
+  // token in the URL is a token in every access log and every referrer. Two of
+  // them because a tenant credential says which tenant and never which
+  // browser, and this socket is how work is handed to one.
   let opening;
   try {
-    opening = new WebSocket(url, ["bearer", token]);
+    opening = new WebSocket(url, ["bearer", token, secret]);
   } catch (error) {
     void state.setLastError(`the command channel could not be opened: ${error}`);
     retryLater();

@@ -70,6 +70,7 @@ async def test_two_registrations_racing_the_same_label_both_come_back_as_one_dev
         extension_version="0.1.0",
         registered_at=datetime(2026, 3, 1, tzinfo=UTC),
         last_seen_at=datetime(2026, 3, 1, tzinfo=UTC),
+        secret="the-winner-was-minted-one",  # noqa: S106 -- not a credential
     )
     uow.devices = _RacyDevices(uow.devices, winner)  # type: ignore[assignment]
 
@@ -78,6 +79,9 @@ async def test_two_registrations_racing_the_same_label_both_come_back_as_one_dev
     )
 
     assert registered.device_id == winner.id
+    # And with the winner's secret, not a freshly minted one the row does not
+    # hold: the loser is the browser that will present it.
+    assert registered.secret == winner.secret
 
 
 class _RacyDevices:
@@ -111,9 +115,15 @@ async def test_a_heartbeat_carries_the_policy_only_when_the_device_is_behind() -
     device_id = await _register(uow, ACME)
     beat = RecordHeartbeat(uow, FakeClock())
 
-    behind = await beat.execute(ACME, device_id=DeviceId(device_id), policy_version=0)
+    secret = uow.devices.rows[device_id].secret
+    behind = await beat.execute(
+        ACME, device_id=DeviceId(device_id), secret=secret, policy_version=0
+    )
     current = await beat.execute(
-        ACME, device_id=DeviceId(device_id), policy_version=behind.policy_version
+        ACME,
+        device_id=DeviceId(device_id),
+        secret=secret,
+        policy_version=behind.policy_version,
     )
 
     assert behind.policy is not None
@@ -126,7 +136,11 @@ async def test_a_backlog_the_device_cannot_send_is_visible_before_the_day_is_los
     device_id = await _register(uow, ACME)
 
     await RecordHeartbeat(uow, FakeClock()).execute(
-        ACME, device_id=DeviceId(device_id), queued_events=4102, queued_bytes=9_000_000
+        ACME,
+        device_id=DeviceId(device_id),
+        secret=uow.devices.rows[device_id].secret,
+        queued_events=4102,
+        queued_bytes=9_000_000,
     )
 
     assert uow.devices.rows[device_id].queued_events == 4102

@@ -479,6 +479,7 @@ def update_device_row(row: AgentDeviceRow, device: AgentDevice) -> None:
     row.queued_events = device.queued_events
     row.queued_bytes = device.queued_bytes
     row.uploads = device.uploads
+    row.secret = device.secret
 
 
 def row_to_device(row: AgentDeviceRow) -> AgentDevice:
@@ -495,6 +496,7 @@ def row_to_device(row: AgentDeviceRow) -> AgentDevice:
         queued_events=row.queued_events,
         queued_bytes=row.queued_bytes,
         uploads=row.uploads,
+        secret=row.secret,
     )
 
 

@@ -25,7 +25,12 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 
 _BEARER = "bearer"
 """Same reason as the live view: a browser cannot set a header on a websocket,
-and a token in the query string is a token in every access log."""
+and a token in the query string is a token in every access log.
+
+Three parts, not two: `bearer`, the tenant credential, and the device's own
+secret. The header the HTTP routes carry it in is not available here for the
+same reason the credential is not, so it rides beside it. The subprotocol
+answered with is still `bearer` -- a browser matches on the first part."""
 
 
 @router.websocket("/{device_id}/commands")
@@ -34,15 +39,21 @@ async def commands(websocket: WebSocket, device_id: str) -> None:
     protocols = [
         part.strip() for part in websocket.headers.get("sec-websocket-protocol", "").split(",")
     ]
-    token = protocols[1] if len(protocols) > 1 and protocols[0] == _BEARER else ""
+    named = protocols[0] == _BEARER
+    token = protocols[1] if named and len(protocols) > 1 else ""
+    secret = protocols[2] if named and len(protocols) > 2 else ""
 
     try:
         caller = container.credentials.verify(f"Bearer {token}")
         ctx = RequestContext(tenant_id=caller.tenant_id, principal_id=caller.principal_id)
         # A valid credential is not ownership. The device has to be this
-        # tenant's, and a device that is not is closed exactly like one that
-        # does not exist.
-        device = await container.read_device().execute(ctx, device_id=DeviceId(device_id))
+        # tenant's and has to prove it is itself, and one that is neither is
+        # closed exactly like one that does not exist -- a socket that closed
+        # differently for a wrong secret would be a way to enumerate devices
+        # without ever holding one.
+        device = await container.read_device().execute(
+            ctx, device_id=DeviceId(device_id), secret=secret
+        )
     except (CredentialRejected, Unconfigured, NotFound):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return

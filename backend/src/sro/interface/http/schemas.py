@@ -1186,6 +1186,16 @@ class RegisterDeviceRequest(BaseModel):
 
 class RegisteredDeviceResponse(BaseModel):
     device_id: str
+    device_secret: str
+    """What this browser presents on every device-scoped call after this one.
+
+    Said here and nowhere else: it is not on `DeviceModel`, so the screen that
+    lists whose browsers are observed cannot hand one browser another's. Said
+    on every registration rather than only the first, because registration is
+    idempotent on (tenant, principal, label) and a reinstall that could not get
+    its secret back would be a device somebody had to delete by hand.
+    """
+
     policy: ObservationPolicyModel
     policy_version: int
 

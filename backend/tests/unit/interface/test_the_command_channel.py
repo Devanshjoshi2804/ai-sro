@@ -41,6 +41,9 @@ def wired() -> tuple[TestClient, _FakeContainer]:
     return TestClient(app), container
 
 
+SECRET = "what-this-browser-was-minted-at-registration"  # noqa: S105 -- not a credential
+
+
 def _register(container: _FakeContainer, *, tenant: TenantId = f.TENANT) -> None:
     at = f.at(0)
     container.unit_of_work().devices.rows[LAPTOP.value] = AgentDevice(  # type: ignore[attr-defined]
@@ -51,6 +54,7 @@ def _register(container: _FakeContainer, *, tenant: TenantId = f.TENANT) -> None
         extension_version="0.1.0",
         registered_at=at,
         last_seen_at=at,
+        secret=SECRET,
     )
 
 
@@ -71,7 +75,7 @@ def test_a_connected_browser_is_reachable_and_a_closed_one_is_not(
     _register(container)
 
     with client.websocket_connect(
-        f"/v1/agents/{LAPTOP}/commands", subprotocols=["bearer", token_for()]
+        f"/v1/agents/{LAPTOP}/commands", subprotocols=["bearer", token_for(), SECRET]
     ):
         assert _eventually(lambda: container.agent_sockets.online(f.TENANT) == (LAPTOP,))
 
@@ -107,7 +111,7 @@ def test_another_tenants_device_is_closed_exactly_like_one_that_is_not_there(
     with (
         pytest.raises(WebSocketDisconnect),
         client.websocket_connect(
-            f"/v1/agents/{LAPTOP}/commands", subprotocols=["bearer", token_for()]
+            f"/v1/agents/{LAPTOP}/commands", subprotocols=["bearer", token_for(), SECRET]
         ),
     ):
         pass
@@ -124,7 +128,7 @@ def test_a_device_nobody_registered_cannot_open_a_channel(
     with (
         pytest.raises(WebSocketDisconnect),
         client.websocket_connect(
-            f"/v1/agents/{LAPTOP}/commands", subprotocols=["bearer", token_for()]
+            f"/v1/agents/{LAPTOP}/commands", subprotocols=["bearer", token_for(), SECRET]
         ),
     ):
         pass
@@ -135,9 +139,11 @@ def test_a_device_nobody_registered_cannot_open_a_channel(
 def test_a_credential_for_another_principal_of_the_same_tenant_may_connect(
     wired: tuple[TestClient, _FakeContainer],
 ) -> None:
-    """Deliberate, and worth stating: authorisation here is per tenant, because
-    that is the only boundary this system has. A per-principal one would need a
-    role model, and inventing half of one here would read as more than it is.
+    """Deliberate, and worth stating: authorisation here is per tenant and per
+    device, never per principal -- a per-principal boundary would need a role
+    model, and inventing half of one here would read as more than it is. What
+    stops a colleague reaching this browser is not who they are, it is that
+    they do not hold what it was minted at registration.
     """
     client, container = wired
     _register(container)
@@ -145,6 +151,33 @@ def test_a_credential_for_another_principal_of_the_same_tenant_may_connect(
 
     with client.websocket_connect(
         f"/v1/agents/{LAPTOP}/commands",
-        subprotocols=["bearer", token_for(principal=other.value)],
+        subprotocols=["bearer", token_for(principal=other.value), SECRET],
     ):
         assert _eventually(lambda: container.agent_sockets.online(f.TENANT) == (LAPTOP,))
+
+
+def test_a_browser_that_cannot_prove_it_is_itself_is_closed_like_one_that_is_not_there(
+    wired: tuple[TestClient, _FakeContainer],
+) -> None:
+    """A valid tenant credential is not this browser.
+
+    It is the whole of the gap this secret closes: every device-scoped path is
+    `/v1/agents/{device_id}/...`, so without it a colleague's extension -- a
+    perfectly good credential, the wrong browser -- is any device it can name,
+    and this socket is how work is handed to one.
+
+    Refused identically whether nothing was presented, something wrong was, or
+    the device never existed. A close code that differed would let a caller
+    holding no secret at all learn which ids are real.
+    """
+    client, container = wired
+    _register(container)
+
+    for presented in ([], ["bearer", token_for()], ["bearer", token_for(), "not-the-secret"]):
+        with (
+            pytest.raises(WebSocketDisconnect),
+            client.websocket_connect(f"/v1/agents/{LAPTOP}/commands", subprotocols=presented),
+        ):
+            pass
+
+    assert container.agent_sockets.online(f.TENANT) == ()

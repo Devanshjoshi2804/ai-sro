@@ -30,8 +30,17 @@ this document's scope.
   by `make token tenant=<t> principal=<p>` and pasted into the extension by the
   operator, exactly as the console does it. There is no login endpoint and no
   refresh; an expired token means paste a new one.
+- Every request to a `/v1/agents/{device_id}/…` path *also* carries
+  `X-Device-Secret: <secret>`, minted at registration and stored beside the
+  token. Two credentials because they answer two questions: the token says which
+  **tenant** is asking and can never say which **browser**, and the device id in
+  the path is a namespace, not a credential — one of those paths fires a run in
+  a live warehouse. A missing, wrong, or another browser's secret is `404`, word
+  for word the answer for a device that was never registered.
 - The websocket authenticates with the subprotocol list, not a header:
-  `new WebSocket(url, ["bearer", token])`. The server accepts with
+  `new WebSocket(url, ["bearer", token, deviceSecret])` — three parts, because a
+  browser cannot set a header on a WebSocket and the secret is needed here for
+  the same reason it is needed everywhere else. The server accepts with
   `subprotocol: "bearer"` or closes with `1008` **before** accepting.
 - The backend must list `chrome-extension://<extension id>` in its CORS origins
   (`SRO_CORS_ORIGINS`). Until it does, every request from the extension fails at
@@ -46,6 +55,7 @@ this document's scope.
 | Name | Shape | Minted by |
 |---|---|---|
 | `device_id` | `dev_<32 hex>` | backend, at registration |
+| `device_secret` | 43-char base64url | backend, at registration; never listed anywhere else |
 | `batch_id` | `bat_<32 hex>` | **extension**, so a retry is idempotent |
 | `command_id` | `cmd_<32 hex>` | backend |
 | `episode_id`, `candidate_id`, `trigger_id` | `epi_`/`cnd_`/`trg_` + 32 hex | backend |
@@ -71,14 +81,25 @@ and what `capture.decode.epoch_to_datetime` parses.
 // 201
 {
   "device_id": "dev_…",
+  "device_secret": "…",                       // present it on every device-scoped call
   "policy": { /* Policy, below */ },
   "policy_version": 7
 }
 ```
 
-Registration is per browser profile. The extension stores `device_id` in
-`chrome.storage.local` and reuses it; registering again with the same token and
-label returns the same device.
+Registration is per browser profile. The extension stores `device_id` and
+`device_secret` in `chrome.storage.local` and reuses them; registering again
+with the same token and label returns the same device **and the same secret**.
+This is the only route under `/v1/agents/` with no device secret on it, because
+it is where one comes from: what stands in its place is the idempotency key,
+(tenant, principal, label), so a colleague's credential registering the same
+label gets their own device under their own principal and never this one.
+
+A device registered before secrets existed holds none, proves nothing, and is
+refused everywhere. Its extension notices on its next heartbeat — no stored
+secret — registers again, and comes back as the same device holding one. That
+is the whole migration: one minute, no re-paste, no second row in the device
+list.
 
 ### `POST /v1/agents/{device_id}/heartbeat`
 

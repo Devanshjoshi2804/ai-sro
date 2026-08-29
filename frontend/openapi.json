@@ -55,7 +55,7 @@
           "agents"
         ],
         "summary": "Register Device",
-        "description": "Idempotent on the label: a reinstalled extension comes back as itself.",
+        "description": "Idempotent on the label: a reinstalled extension comes back as itself.\n\nThe one device-scoped-ish route with no device secret on it, because it is\nwhere a secret comes from and there is no device yet to have one. What\nstands in its place is the idempotency key: (tenant, principal, label). A\ncolleague holding another tenant credential registering the same label gets\ntheir own device under their own principal, never this one -- so the answer\nonly ever hands a secret to the operator whose device it is.",
         "operationId": "register_device_v1_agents_register_post",
         "parameters": [
           {
@@ -340,7 +340,7 @@
           "agents"
         ],
         "summary": "Heartbeat",
-        "description": "Still here, this much is queued, and this is the policy I hold.",
+        "description": "Still here, this much is queued, and this is the policy I hold.\n\nAlso where a browser finds out it has been left behind. A device from\nbefore secrets is refused here first, once a minute, and the extension\nanswers a refusal by registering again -- which is idempotent on its label,\nso it comes back as the same device holding a secret. That is the whole\nmigration, and it costs one operator nothing and one heartbeat.",
         "operationId": "heartbeat_v1_agents__device_id__heartbeat_post",
         "parameters": [
           {
@@ -350,6 +350,16 @@
             "schema": {
               "type": "string",
               "title": "Device Id"
+            }
+          },
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
             }
           },
           {
@@ -634,7 +644,7 @@
           "agents"
         ],
         "summary": "List Watches",
-        "description": "What this browser is watching its operator's mail for.\n\nAsked by the extension, because a watch is evaluated in the browser that\nalready has the mailbox open and nowhere else: nothing about the mail is\nsent here, so the rule has to go there.\n\nThe device is read first, which is the ownership check the command channel\ndoes for the same reason: a credential proves who is asking, never which\nbrowser they may ask about, so a device id that leaked would otherwise be\nsomebody else's mail rules. Scoped to the device after that -- one operator\nnever sees another's, even inside the same tenant.",
+        "description": "What this browser is watching its operator's mail for.\n\nAsked by the extension, because a watch is evaluated in the browser that\nalready has the mailbox open and nowhere else: nothing about the mail is\nsent here, so the rule has to go there.\n\nThe device is read first, which is the ownership check the command channel\ndoes for the same reason: a credential proves who is asking, never which\nbrowser they may ask about, so a device id that leaked would otherwise be\nsomebody else's mail rules. That check is now the device's own secret and\nnot only its tenant -- a colleague's extension holds a perfectly valid\ntenant credential. Scoped to the device after that -- one operator never\nsees another's, even inside the same tenant.",
         "operationId": "list_watches_v1_agents__device_id__watches_get",
         "parameters": [
           {
@@ -644,6 +654,16 @@
             "schema": {
               "type": "string",
               "title": "Device Id"
+            }
+          },
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
             }
           },
           {
@@ -922,7 +942,7 @@
           "agents"
         ],
         "summary": "Watch Matched",
-        "description": "This browser recognised a mail. Nothing runs.\n\nA match is an offer. The plan is explicit that at this stage the panel says\nwhat matched and the operator presses once, so what this answers with is\nthe offer itself -- and the press is a separate act, at `/fire` below.\nNothing is written down either: the values were read out of somebody's mail\nand `ValueAt` exists to keep exactly those out of storage, so a table of\npending matches would be the one thing the domain went structural lengths\nto prevent. The offer's home is the browser that found it.\n\nThe body is only values. Not a subject, not a sender, not a screenshot, not\na sentence about why -- there is nowhere in this signature to put one, which\nis a stronger guarantee than a rule someone has to remember. A name the\nwatch never declared is dropped rather than refused, the same way an inbound\nrelay adding a field to its payload is not a reason for a working rule to\nstart failing.\n\nWhich watch this device may report on is `ReadTriggers.watches` -- this\ntenant's, this device's, enabled, and a watch. Anything else is `NotFound`,\nso another device's watch, another tenant's, and one that never existed are\none answer: a browser holding an id it should not have learns nothing from\nthe difference. No `ReadDevice` first, unlike the endpoint above, which\nneeds one because an empty list is otherwise the same answer for a browser\nwith no rules and a browser in another tenant. Here the trigger read is\nalready tenant-scoped, so that check could only produce the 404 this\nalready produces.",
+        "description": "This browser recognised a mail. Nothing runs.\n\nA match is an offer. The plan is explicit that at this stage the panel says\nwhat matched and the operator presses once, so what this answers with is\nthe offer itself -- and the press is a separate act, at `/fire` below.\nNothing is written down either: the values were read out of somebody's mail\nand `ValueAt` exists to keep exactly those out of storage, so a table of\npending matches would be the one thing the domain went structural lengths\nto prevent. The offer's home is the browser that found it.\n\nThe body is only values. Not a subject, not a sender, not a screenshot, not\na sentence about why -- there is nowhere in this signature to put one, which\nis a stronger guarantee than a rule someone has to remember. A name the\nwatch never declared is dropped rather than refused, the same way an inbound\nrelay adding a field to its payload is not a reason for a working rule to\nstart failing.\n\nWhich watch this device may report on is `ReadTriggers.watches` -- this\ntenant's, this device's, enabled, and a watch. Anything else is `NotFound`,\nso another device's watch, another tenant's, and one that never existed are\none answer: a browser holding an id it should not have learns nothing from\nthe difference. `ReadDevice` runs first all the same, which it did not need\nto when tenant scoping was the whole check: the device id names a browser\nand the secret is what says the caller is that browser, so the device has\nto be read to have a secret to compare against.",
         "operationId": "watch_matched_v1_agents__device_id__watches__trigger_id__matched_post",
         "parameters": [
           {
@@ -941,6 +961,16 @@
             "schema": {
               "type": "string",
               "title": "Trigger Id"
+            }
+          },
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
             }
           },
           {
@@ -1248,6 +1278,16 @@
             "schema": {
               "type": "string",
               "title": "Trigger Id"
+            }
+          },
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
             }
           },
           {
@@ -21750,6 +21790,10 @@
             "type": "string",
             "title": "Device Id"
           },
+          "device_secret": {
+            "type": "string",
+            "title": "Device Secret"
+          },
           "policy": {
             "$ref": "#/components/schemas/ObservationPolicyModel"
           },
@@ -21761,6 +21805,7 @@
         "type": "object",
         "required": [
           "device_id",
+          "device_secret",
           "policy",
           "policy_version"
         ],

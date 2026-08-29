@@ -34,6 +34,17 @@ from tests.unit.interface.test_http import _FakeContainer, token_for
 LENA = DeviceId("dev-lena-laptop")
 SAM = DeviceId("dev-sam-laptop")
 
+
+def _proving(device_id: DeviceId) -> dict[str, str]:
+    """The secret that browser was minted at registration.
+
+    Every device-scoped path takes one: the tenant credential the client
+    already carries says which tenant is asking and can never say which
+    browser, and one of these paths starts a run in a live warehouse.
+    """
+    return {"X-Device-Secret": f"secret-for-{device_id.value}"}
+
+
 WATCH = {
     "host": "mail.acme.test",
     "terms": [
@@ -122,6 +133,7 @@ def _device(
         extension_version="0.1.0",
         registered_at=f.at(0),
         last_seen_at=f.at(0),
+        secret=f"secret-for-{device_id.value}",
     )
 
 
@@ -196,8 +208,8 @@ async def test_a_browser_is_never_handed_another_devices_watches(
     assert created.status_code == 201, created.text
     _device(uow, SAM)
 
-    hers = await client.get(f"/v1/agents/{LENA.value}/watches")
-    his = await client.get(f"/v1/agents/{SAM.value}/watches")
+    hers = await client.get(f"/v1/agents/{LENA.value}/watches", headers=_proving(LENA))
+    his = await client.get(f"/v1/agents/{SAM.value}/watches", headers=_proving(SAM))
 
     assert [trigger["id"] for trigger in hers.json()] == [created.json()["id"]]
     assert his.status_code == 200
@@ -216,7 +228,10 @@ async def test_another_tenant_is_refused_the_browser_it_does_not_own(
 
     theirs = await client.get(
         f"/v1/agents/{LENA.value}/watches",
-        headers={"Authorization": f"Bearer {token_for(tenant='rival')}"},
+        headers={
+            "Authorization": f"Bearer {token_for(tenant='rival')}",
+            **_proving(LENA),
+        },
     )
 
     assert theirs.status_code == 404
@@ -235,7 +250,7 @@ async def test_a_watch_switched_off_is_left_out_rather_than_sent_with_a_flag(
     )
     assert paused.status_code == 200
 
-    remaining = await client.get(f"/v1/agents/{LENA.value}/watches")
+    remaining = await client.get(f"/v1/agents/{LENA.value}/watches", headers=_proving(LENA))
 
     assert remaining.json() == []
 
@@ -251,7 +266,7 @@ async def test_the_rules_a_browser_holds_carry_no_mail(
     """
     await _create_watch(client, uow, device_id=LENA)
 
-    watches = (await client.get(f"/v1/agents/{LENA.value}/watches")).json()
+    watches = (await client.get(f"/v1/agents/{LENA.value}/watches", headers=_proving(LENA))).json()
 
     [only] = watches
     text = {term["contains"] for term in only["watch"]["terms"]}
@@ -307,6 +322,7 @@ async def test_a_reported_match_offers_rather_than_running(
     matched = await client.post(
         f"/v1/agents/{LENA.value}/watches/{trigger_id}/matched",
         json={"shipment_id": "SH-4471"},
+        headers=_proving(LENA),
     )
 
     assert matched.status_code == 200, matched.text
@@ -336,10 +352,12 @@ async def test_a_browser_cannot_report_a_match_on_a_watch_that_is_not_its_own(
     someone_elses = await client.post(
         f"/v1/agents/{SAM.value}/watches/{trigger_id}/matched",
         json={"shipment_id": "SH-4471"},
+        headers=_proving(SAM),
     )
     invented = await client.post(
         f"/v1/agents/{SAM.value}/watches/trg-nothing-like-this/matched",
         json={"shipment_id": "SH-4471"},
+        headers=_proving(SAM),
     )
 
     assert someone_elses.status_code == 404
@@ -360,7 +378,7 @@ async def test_another_tenant_cannot_report_a_match_on_a_browser_it_does_not_own
     theirs = await client.post(
         f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/matched",
         json={"shipment_id": "SH-4471"},
-        headers={"Authorization": f"Bearer {token_for(tenant='rival')}"},
+        headers={"Authorization": f"Bearer {token_for(tenant='rival')}", **_proving(LENA)},
     )
 
     assert theirs.status_code == 404
@@ -380,6 +398,7 @@ async def test_a_value_the_watch_never_declared_is_dropped_rather_than_refused(
     matched = await client.post(
         f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/matched",
         json={"shipment_id": "SH-4471", "facility": "another-warehouse", "subject": "Short ship"},
+        headers=_proving(LENA),
     )
 
     assert matched.status_code == 200, matched.text
@@ -403,6 +422,7 @@ async def test_a_match_on_a_watch_that_was_switched_off_does_nothing(
     matched = await client.post(
         f"/v1/agents/{LENA.value}/watches/{trigger_id}/matched",
         json={"shipment_id": "SH-4471"},
+        headers=_proving(LENA),
     )
 
     assert matched.status_code == 404
@@ -426,6 +446,7 @@ async def test_an_offer_says_what_the_mail_did_not_say(
     matched = await client.post(
         f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/matched",
         json={},
+        headers=_proving(LENA),
     )
 
     assert matched.status_code == 200, matched.text
@@ -449,6 +470,7 @@ async def test_the_press_runs_with_the_values_the_mail_gave(
     fired = await client.post(
         f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/fire",
         json={"shipment_id": "SH-4471", "facility": "another-warehouse"},
+        headers=_proving(LENA),
     )
 
     assert fired.status_code == 202, fired.text
@@ -466,7 +488,9 @@ async def test_a_press_whose_required_value_is_missing_starts_nothing(
     created = await _create_watch(client, uow, device_id=LENA)
 
     fired = await client.post(
-        f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/fire", json={}
+        f"/v1/agents/{LENA.value}/watches/{created.json()['id']}/fire",
+        json={},
+        headers=_proving(LENA),
     )
 
     assert fired.status_code == 202, fired.text
@@ -485,12 +509,14 @@ async def test_a_browser_cannot_press_a_watch_that_is_not_its_own(
     _device(uow, SAM)
 
     someone_elses = await client.post(
-        f"/v1/agents/{SAM.value}/watches/{trigger_id}/fire", json={"shipment_id": "SH-4471"}
+        f"/v1/agents/{SAM.value}/watches/{trigger_id}/fire",
+        json={"shipment_id": "SH-4471"},
+        headers=_proving(SAM),
     )
     another_tenants = await client.post(
         f"/v1/agents/{LENA.value}/watches/{trigger_id}/fire",
         json={"shipment_id": "SH-4471"},
-        headers={"Authorization": f"Bearer {token_for(tenant='rival')}"},
+        headers={"Authorization": f"Bearer {token_for(tenant='rival')}", **_proving(LENA)},
     )
 
     assert someone_elses.status_code == 404
@@ -513,7 +539,9 @@ async def test_a_press_on_a_watch_that_was_switched_off_does_nothing(
     assert paused.status_code == 200
 
     fired = await client.post(
-        f"/v1/agents/{LENA.value}/watches/{trigger_id}/fire", json={"shipment_id": "SH-4471"}
+        f"/v1/agents/{LENA.value}/watches/{trigger_id}/fire",
+        json={"shipment_id": "SH-4471"},
+        headers=_proving(LENA),
     )
 
     assert fired.status_code == 404

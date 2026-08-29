@@ -12,7 +12,7 @@ from sro.container import Container
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, TriggerId
 from sro.domain.trigger.trigger import Trigger
-from sro.interface.http.deps import ContainerDep, ContextDep
+from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
     DeviceModel,
     FiredModel,
@@ -32,12 +32,21 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 async def register_device(
     body: RegisterDeviceRequest, container: ContainerDep, ctx: ContextDep
 ) -> RegisteredDeviceResponse:
-    """Idempotent on the label: a reinstalled extension comes back as itself."""
+    """Idempotent on the label: a reinstalled extension comes back as itself.
+
+    The one device-scoped-ish route with no device secret on it, because it is
+    where a secret comes from and there is no device yet to have one. What
+    stands in its place is the idempotency key: (tenant, principal, label). A
+    colleague holding another tenant credential registering the same label gets
+    their own device under their own principal, never this one -- so the answer
+    only ever hands a secret to the operator whose device it is.
+    """
     registered = await container.register_device().execute(
         ctx, label=body.label, extension_version=body.extension_version
     )
     return RegisteredDeviceResponse(
         device_id=registered.device_id.value,
+        device_secret=registered.secret,
         policy=ObservationPolicyModel.of(registered.policy),
         policy_version=registered.policy.version,
     )
@@ -45,12 +54,24 @@ async def register_device(
 
 @router.post("/{device_id}/heartbeat")
 async def heartbeat(
-    device_id: str, body: HeartbeatRequest, container: ContainerDep, ctx: ContextDep
+    device_id: str,
+    body: HeartbeatRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+    x_device_secret: DeviceSecretDep = "",
 ) -> HeartbeatResponse:
-    """Still here, this much is queued, and this is the policy I hold."""
+    """Still here, this much is queued, and this is the policy I hold.
+
+    Also where a browser finds out it has been left behind. A device from
+    before secrets is refused here first, once a minute, and the extension
+    answers a refusal by registering again -- which is idempotent on its label,
+    so it comes back as the same device holding a secret. That is the whole
+    migration, and it costs one operator nothing and one heartbeat.
+    """
     beat = await container.record_heartbeat().execute(
         ctx,
         device_id=DeviceId(device_id),
+        secret=x_device_secret,
         queued_events=body.queued_events,
         queued_bytes=body.queued_bytes,
         policy_version=body.policy_version,
@@ -64,7 +85,10 @@ async def heartbeat(
 
 @router.get("/{device_id}/watches")
 async def list_watches(
-    device_id: str, container: ContainerDep, ctx: ContextDep
+    device_id: str,
+    container: ContainerDep,
+    ctx: ContextDep,
+    x_device_secret: DeviceSecretDep = "",
 ) -> list[TriggerModel]:
     """What this browser is watching its operator's mail for.
 
@@ -75,10 +99,14 @@ async def list_watches(
     The device is read first, which is the ownership check the command channel
     does for the same reason: a credential proves who is asking, never which
     browser they may ask about, so a device id that leaked would otherwise be
-    somebody else's mail rules. Scoped to the device after that -- one operator
-    never sees another's, even inside the same tenant.
+    somebody else's mail rules. That check is now the device's own secret and
+    not only its tenant -- a colleague's extension holds a perfectly valid
+    tenant credential. Scoped to the device after that -- one operator never
+    sees another's, even inside the same tenant.
     """
-    device = await container.read_device().execute(ctx, device_id=DeviceId(device_id))
+    device = await container.read_device().execute(
+        ctx, device_id=DeviceId(device_id), secret=x_device_secret
+    )
     watches = await container.read_triggers().watches(ctx, device_id=device.id)
     return [TriggerModel.of(trigger) for trigger in watches]
 
@@ -90,6 +118,7 @@ async def watch_matched(
     container: ContainerDep,
     ctx: ContextDep,
     values: Annotated[dict[str, str], Body()] = {},  # noqa: B006
+    x_device_secret: DeviceSecretDep = "",
 ) -> WatchMatchModel:
     """This browser recognised a mail. Nothing runs.
 
@@ -112,13 +141,14 @@ async def watch_matched(
     tenant's, this device's, enabled, and a watch. Anything else is `NotFound`,
     so another device's watch, another tenant's, and one that never existed are
     one answer: a browser holding an id it should not have learns nothing from
-    the difference. No `ReadDevice` first, unlike the endpoint above, which
-    needs one because an empty list is otherwise the same answer for a browser
-    with no rules and a browser in another tenant. Here the trigger read is
-    already tenant-scoped, so that check could only produce the 404 this
-    already produces.
+    the difference. `ReadDevice` runs first all the same, which it did not need
+    to when tenant scoping was the whole check: the device id names a browser
+    and the secret is what says the caller is that browser, so the device has
+    to be read to have a secret to compare against.
     """
-    watch = await _watch_of(container, ctx, device_id=device_id, trigger_id=trigger_id)
+    watch = await _watch_of(
+        container, ctx, device_id=device_id, trigger_id=trigger_id, secret=x_device_secret
+    )
     running_with = watch.values_from(values)
     skill = await container.get_skill().execute(ctx, skill_id=watch.skill_id)
     version = skill.runnable
@@ -141,6 +171,7 @@ async def watch_fire(
     container: ContainerDep,
     ctx: ContextDep,
     values: Annotated[dict[str, str], Body()] = {},  # noqa: B006
+    x_device_secret: DeviceSecretDep = "",
 ) -> FiredModel:
     """The press. The operator saw the offer and said do it.
 
@@ -160,7 +191,9 @@ async def watch_fire(
     whose required inputs are empty -- the same `blank_inputs` the offer showed
     before the press.
     """
-    watch = await _watch_of(container, ctx, device_id=device_id, trigger_id=trigger_id)
+    watch = await _watch_of(
+        container, ctx, device_id=device_id, trigger_id=trigger_id, secret=x_device_secret
+    )
     fired = await container.fire_trigger().execute(watch.id, message=values)
     return FiredModel(
         trigger_id=fired.trigger_id.value,
@@ -170,12 +203,16 @@ async def watch_fire(
 
 
 async def _watch_of(
-    container: Container, ctx: RequestContext, *, device_id: str, trigger_id: str
+    container: Container, ctx: RequestContext, *, device_id: str, trigger_id: str, secret: str
 ) -> Trigger:
-    """This tenant's, this device's, enabled, and a watch. Anything else is
-    `NotFound`, so another device's watch, another tenant's, and one that never
-    existed are one answer."""
-    watches = await container.read_triggers().watches(ctx, device_id=DeviceId(device_id))
+    """This browser proving it is itself, then: this tenant's, this device's,
+    enabled, and a watch. Anything else is `NotFound`, so a wrong secret,
+    another device's watch, another tenant's, and one that never existed are
+    one answer."""
+    device = await container.read_device().execute(
+        ctx, device_id=DeviceId(device_id), secret=secret
+    )
+    watches = await container.read_triggers().watches(ctx, device_id=device.id)
     watch = next((trigger for trigger in watches if trigger.id == TriggerId(trigger_id)), None)
     if watch is None:
         raise NotFound("no such watch")

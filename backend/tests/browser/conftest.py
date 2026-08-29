@@ -227,6 +227,12 @@ _CANDIDATES = [
 ]
 
 
+DEVICE_SECRET = "the-secret-this-browser-was-minted-at-registration"  # noqa: S105
+"""What the stub mints for `dev_browsertest`, and refuses every device-scoped
+call without. The real backend mints a random one per device; a fixed one here
+is what lets a test say which browser is asking."""
+
+
 class _Stub(BaseHTTPRequestHandler):
     """The frozen contract, answered with canned replies. See docs/14."""
 
@@ -264,6 +270,21 @@ class _Stub(BaseHTTPRequestHandler):
     def log_message(self, *args: Any) -> None:
         pass
 
+    def _proved_it_is_itself(self) -> bool:
+        """The real backend's rule, because this stub has to be the real other
+        half of it: a device-scoped path is refused, indistinguishably from a
+        device that never existed, unless the browser presents what
+        registration minted for it. Checked here rather than merely recorded --
+        an extension that stopped sending it would otherwise go on passing
+        every test in this suite while being locked out of a real deployment.
+        """
+        if not self.path.startswith("/v1/agents/") or self.path == "/v1/agents/register":
+            return True
+        if self.headers.get("X-Device-Secret") == DEVICE_SECRET:
+            return True
+        self._send(404, json.dumps({"detail": "device dev_browsertest was not found"}).encode())
+        return False
+
     def _send(self, code: int, body: bytes, kind: str = "application/json") -> None:
         self.send_response(code)
         self.send_header("Content-Type", kind)
@@ -279,6 +300,8 @@ class _Stub(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if "websocket" in self.headers.get("Upgrade", "").lower():
             return self._upgrade()
+        if not self._proved_it_is_itself():
+            return None
         if self.path.startswith("/v1/agents/") and self.path.endswith("/watches"):
             self._send(200, json.dumps(_Stub.watches).encode())
             return
@@ -353,6 +376,14 @@ class _Stub(BaseHTTPRequestHandler):
         extension that never dialled.
         """
         offered = [p.strip() for p in self.headers.get("Sec-WebSocket-Protocol", "").split(",")]
+        # `bearer`, the tenant credential, and the device's own secret. A
+        # browser cannot set a header on a WebSocket, so the secret rides here
+        # beside the credential -- and a socket that opened without it would be
+        # the one device-scoped path this suite left unproved.
+        if len(offered) < 3 or offered[2] != DEVICE_SECRET:
+            self.send_response(403)
+            self.end_headers()
+            return
         self.send_response(101)
         self.send_header("Upgrade", "websocket")
         self.send_header("Connection", "Upgrade")
@@ -382,12 +413,18 @@ class _Stub(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length)
+        if not self._proved_it_is_itself():
+            return
         if self.path == "/v1/agents/register":
             self._send(
                 200,
                 json.dumps(
                     {
                         "device_id": "dev_browsertest",
+                        # What this browser proves it is itself with from here
+                        # on. The tenant credential says which tenant and can
+                        # never say which browser, and `.../fire` starts a run.
+                        "device_secret": DEVICE_SECRET,
                         "policy_version": 1,
                         "policy": {
                             "version": 1,

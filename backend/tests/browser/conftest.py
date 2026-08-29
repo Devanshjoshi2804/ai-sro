@@ -124,6 +124,23 @@ CONSOLE = """<!doctype html>
 </body></html>
 """
 
+MAIL = """<!doctype html>
+<html><body>
+  <div class="mail">
+    <span class="from-address">dispatch@supplier.test</span>
+    <h1 class="subject">Short shipment on PO 4471</h1>
+    <div class="mail-body">
+      Two cartons short. Reference <span class="shipment-ref">SH-4471</span>, please advise.
+    </div>
+  </div>
+</body></html>
+"""
+"""One mail, in the shape an operator marked one: a sender, a subject and the
+value they pointed at. Deliberately not any real client's markup -- what the
+extension resolves is the marks the watch carries, and a page shaped like
+Gmail would suggest it knows something about Gmail, which it must not."""
+
+
 _CANDIDATES = [
     {
         "id": "cnd-here",
@@ -215,6 +232,15 @@ class _Stub(BaseHTTPRequestHandler):
     merged: ClassVar[list[dict[str, Any]]] = []
     recordings: ClassVar[list[str]] = []
     sealed: ClassVar[list[str]] = []
+    watches: ClassVar[list[dict[str, Any]]] = []
+    """The mail rules this browser is handed. Empty by default, so every other
+    test here is a browser with no watch on it and nothing of ours in a
+    mailbox."""
+
+    matched: ClassVar[list[dict[str, Any]]] = []
+    """What the browser posted when it recognised a mail, as bytes and as
+    parsed. The bytes are the point: a subject that reached the wire would be
+    in them."""
     """Answer this many artifact uploads with a 503 before taking any. A lost
     reply from the blob store is the ordinary way one of these fails."""
 
@@ -236,6 +262,12 @@ class _Stub(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if "websocket" in self.headers.get("Upgrade", "").lower():
             return self._upgrade()
+        if self.path.startswith("/v1/agents/") and self.path.endswith("/watches"):
+            self._send(200, json.dumps(_Stub.watches).encode())
+            return
+        if self.path.startswith("/mail"):
+            self._send(200, MAIL.encode(), "text/html; charset=utf-8")
+            return
         if self.path.startswith("/v1/candidates"):
             _Stub.candidate_queries.append(self.path)
             # Filtered here the way the real endpoint filters: the panel's whole
@@ -346,6 +378,21 @@ class _Stub(BaseHTTPRequestHandler):
                             "daily_budget_bytes": 524288000,
                             "retention_days": 30,
                         },
+                    }
+                ).encode(),
+            )
+            return
+        if self.path.endswith("/matched"):
+            _Stub.matched.append(
+                {"path": self.path, "raw": raw.decode(), "values": json.loads(raw)}
+            )
+            self._send(
+                200,
+                json.dumps(
+                    {
+                        "trigger_id": self.path.split("/")[5],
+                        "skill_id": "skl-short-ship",
+                        "values": json.loads(raw),
                     }
                 ).encode(),
             )
@@ -478,6 +525,8 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _CANDIDATES[0]["joins"][0].update(answered=None, answered_by=None)
     _Stub.recordings = []
     _Stub.sealed = []
+    _Stub.watches = []
+    _Stub.matched = []
     # Threading, because the command channel holds its connection open for the
     # length of the test: on a single-threaded server that one socket is the
     # whole server, and every upload behind it waits forever.
@@ -523,6 +572,29 @@ def merged(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
 def answered_joins(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
     """What the panel said two candidates are to each other."""
     return _Stub.answered_joins
+
+
+@pytest.fixture
+def watching(
+    stub: tuple[str, list[dict[str, Any]]],
+) -> Callable[[list[dict[str, Any]]], None]:
+    """Give this browser its operator's mail rules, before it registers.
+
+    Empty unless a test says otherwise: a watch registers a content script on
+    a mailbox, and every other test in this file is entitled to a browser with
+    nothing of ours anywhere near one.
+    """
+
+    def hand_over(rules: list[dict[str, Any]]) -> None:
+        _Stub.watches = rules
+
+    return hand_over
+
+
+@pytest.fixture
+def matched(stub: tuple[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """What this browser posted when it recognised a mail, as sent."""
+    return _Stub.matched
 
 
 @pytest.fixture

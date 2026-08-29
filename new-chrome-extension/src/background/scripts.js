@@ -7,6 +7,7 @@
 
 const ID = "sro-observe";
 const MAIN_ID = "sro-observe-main";
+const WATCH_ID = "sro-watch";
 
 const ALL = ["http://*/*", "https://*/*"];
 
@@ -29,14 +30,46 @@ const MAIN = [
   "src/content/network.main.js",
 ];
 
+/** What the operator's own browser evaluates a mail rule with.
+ *
+ * Registered separately from the two above and on the watch hosts only, which
+ * is the whole of its permission: a mail host is excluded from capture on
+ * purpose (ADR 008) and stays excluded. This reads a sender, a subject and the
+ * values the operator marked, decides in the page, and forgets. Nothing about
+ * a mail is queued, uploaded or screenshotted -- `watch.js` never touches the
+ * queue and has no way to.
+ */
+const WATCH = ["src/content/watch.js"];
+
 /** `*.example.com` and `example.com` both mean the host and its subdomains. */
 function patternsFor(host) {
   const bare = host.replace(/^\*?\./, "");
   return [`*://${bare}/*`, `*://*.${bare}/*`];
 }
 
+/** RFC 6265 domain-match, the one the backend's `domain_matches` makes: the
+ * host itself or a subdomain of it, never a suffix test. One definition,
+ * because `allowsHost` and the watch host check are the same question and
+ * three copies of this rule disagreed once. */
+export function hostMatches(hostname, pattern) {
+  const bare = String(pattern || "")
+    .replace(/^\*?\./, "")
+    .replace(/\.+$/, "")
+    .toLowerCase();
+  const host = String(hostname || "")
+    .replace(/\.+$/, "")
+    .toLowerCase();
+  if (!host || !bare) return false;
+  return host === bare || host.endsWith(`.${bare}`);
+}
+
 export async function applyPolicy(policy, { on }) {
-  await unregister();
+  // Only the two ids this function owns. `unregister()` defaults to all three
+  // because sign-out means stop everything, and a policy change is not that:
+  // withdrawing the watch script here would have every heartbeat that carried
+  // a new policy version quietly stop the watching, and nothing says so --
+  // the panel keeps listing the watch, and the mails simply stop matching.
+  await unregister([ID, MAIN_ID]);
   if (!on || !policy) return;
 
   const matches = policy.include_hosts?.length
@@ -80,8 +113,36 @@ export async function applyPolicy(policy, { on }) {
   ]);
 }
 
-export async function unregister() {
-  const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [ID, MAIN_ID] });
+/** Registers the watch script on exactly the hosts that have a watch.
+ *
+ * Its own id, its own call: watches change when a trigger is created and the
+ * policy changes on a heartbeat, and neither may take the other's script down.
+ */
+export async function applyWatches(hosts) {
+  await unregister([WATCH_ID]);
+  const wanted = [...new Set((hosts || []).filter(Boolean))];
+  if (!wanted.length) return;
+  await chrome.scripting.registerContentScripts([
+    {
+      id: WATCH_ID,
+      js: WATCH,
+      matches: wanted.flatMap(patternsFor),
+      // `document_idle`, not `document_start`: there is no page of ours to get
+      // in front of here, and a mail client has rendered nothing to read at
+      // document_start. Isolated world, because reading a marked node is a DOM
+      // question and the page's own globals are not wanted anywhere near it.
+      runAt: "document_idle",
+      // ponytail: the top document only. A client that renders the message
+      // body in an iframe needs allFrames, and with it a match in two frames
+      // is two offers -- worth the dedup only once a real client needs it.
+      allFrames: false,
+      persistAcrossSessions: false,
+    },
+  ]);
+}
+
+export async function unregister(ids = [ID, MAIN_ID, WATCH_ID]) {
+  const registered = await chrome.scripting.getRegisteredContentScripts({ ids });
   if (registered.length) {
     await chrome.scripting.unregisterContentScripts({ ids: registered.map((s) => s.id) });
   }
@@ -110,10 +171,7 @@ export function allowsHost(url, policy) {
   // on pages where no content script of ours has ever run.
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
   const hostname = parsed.hostname;
-  const matchesHost = (pattern) => {
-    const bare = pattern.replace(/^\*?\./, "");
-    return hostname === bare || hostname.endsWith(`.${bare}`);
-  };
+  const matchesHost = (pattern) => hostMatches(hostname, pattern);
   const included = !policy.include_hosts?.length || policy.include_hosts.some(matchesHost);
   const excluded = (policy.exclude_hosts || []).some(matchesHost);
   return included && !excluded;

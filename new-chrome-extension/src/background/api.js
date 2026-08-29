@@ -60,6 +60,21 @@ export const api = {
 
   policy: () => call("/v1/agents/policy"),
 
+  /** What this browser is watching its operator's mail for. Asked for here
+   * because a watch is evaluated in the browser that has the mailbox open and
+   * nowhere else -- no mail is ever sent to the backend, so the rule comes
+   * the other way. */
+  watches: (deviceId) => call(`/v1/agents/${encodeURIComponent(deviceId)}/watches`),
+
+  /** A mail was recognised. The body is the values the operator marked and
+   * nothing else -- not the subject, not the sender, not why. What comes back
+   * is the offer; nothing has started. */
+  watchMatched: (deviceId, triggerId, values) =>
+    call(
+      `/v1/agents/${encodeURIComponent(deviceId)}/watches/${encodeURIComponent(triggerId)}/matched`,
+      { method: "POST", body: values },
+    ),
+
   /** Start a demonstration this browser will fill. Nothing is opened on the
    * server: the operator is already in front of the system. */
   startRecording: (deviceId, label) =>

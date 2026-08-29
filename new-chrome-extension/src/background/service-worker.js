@@ -8,7 +8,7 @@ import * as channel from "./channel.js";
 import { abort, isDriving, performing } from "./commands.js";
 import * as queue from "./queue.js";
 import { redactUrl } from "../content/sensitivity.module.js";
-import { allowsHost, applyPolicy, injectInto, unregister } from "./scripts.js";
+import { allowsHost, applyPolicy, applyWatches, hostMatches, injectInto, unregister } from "./scripts.js";
 import { capture } from "./shots.js";
 import { capturing, state } from "./state.js";
 import * as teaching from "./teaching.js";
@@ -524,11 +524,99 @@ async function handle(message, sender) {
       if (tabId === null) return { error: "no tab to stop watching" };
       return { watched: await unwatch(tabId) };
     }
+    case "watches": {
+      // Only the rules for the host the asking frame is on. A page never
+      // learns that this operator watches anything anywhere else, and the
+      // host rule is the extension's one copy of it rather than a second one
+      // in a content script.
+      const host = hostOf(sender?.url || "");
+      const held = await state.watches();
+      return { watches: host ? held.filter((watch) => hostMatches(host, watch.host)) : [] };
+    }
+    case "watch-matched": {
+      // The one place a value read out of somebody's mail leaves this
+      // machine, so the checks are here rather than only in the page: the
+      // watch has to be one this browser holds, the frame has to be on that
+      // watch's host, and what goes is the names the watch declared and
+      // nothing else. A page that made this message up gets nowhere.
+      const deviceId = await state.deviceId();
+      const host = hostOf(sender?.url || "");
+      const watch = (await state.watches()).find((each) => each.id === message.triggerId);
+      if (!deviceId || !watch || !hostMatches(host, watch.host)) {
+        return { error: "no such watch" };
+      }
+      const values = {};
+      for (const declared of watch.values || []) {
+        const given = message.values?.[declared.name];
+        if (typeof given === "string" && given) values[declared.name] = given.slice(0, MAX_VALUE);
+      }
+      // The offer comes back and stops here for now: the card that shows it
+      // and the press that starts a run are the next slice. Nothing is
+      // written down -- the values came out of a mail, and a table of pending
+      // matches is the one thing `ValueAt` exists to prevent.
+      return { ok: true, offer: await api.watchMatched(deviceId, watch.id, values) };
+    }
     case "status":
       return status();
     default:
       return { error: `no such message: ${message?.kind}` };
   }
+}
+
+/** What one value read out of a mail may be, mirroring the domain's `MAX_TERM`.
+ * An order number is short; a hundred kilobytes under a parameter name is a
+ * mail body that arrived through a sloppy mark. `watch.js` caps it where it is
+ * read and this caps it where it would leave. */
+const MAX_VALUE = 200;
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
+/** The mail rules this browser holds, from the backend that keeps them.
+ *
+ * The rule only, and only the parts a page needs to evaluate one. A failure
+ * leaves the last list standing: a backend that cannot be reached is not a
+ * watch being withdrawn, and an operator whose laptop is on a train should
+ * still be offered the mail in front of them.
+ */
+async function refreshWatches() {
+  const deviceId = await state.deviceId();
+  if (!deviceId) return state.setWatches([]);
+  try {
+    const triggers = await api.watches(deviceId);
+    await state.setWatches(
+      (triggers || [])
+        .filter((trigger) => trigger.watch)
+        .map((trigger) => ({ id: trigger.id, ...trigger.watch })),
+    );
+  } catch (error) {
+    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+  }
+}
+
+/** The hosts a watch script may run on: the ones with a watch, and only while
+ * this browser is doing anything at all.
+ *
+ * Not gated on `capturing()`, deliberately. A watch is not observation -- it
+ * reads a mail and forgets it, and the tenant's capture switch is about the
+ * evidence plane. It *is* gated on both pauses, because those mean this
+ * browser is quiet, and a script of ours running in a mailbox while the
+ * operator believes everything is paused is the badge lying.
+ */
+async function watchHosts() {
+  const [deviceId, paused, serverPaused, watches] = await Promise.all([
+    state.deviceId(),
+    state.paused(),
+    state.serverPaused(),
+    state.watches(),
+  ]);
+  if (!deviceId || paused || serverPaused) return [];
+  return watches.map((watch) => watch.host);
 }
 
 /** How many batches one drain will send before giving the alarm its turn back.
@@ -579,6 +667,8 @@ async function register(label) {
   await state.setDeviceId(registered.device_id);
   await state.setPolicy(registered.policy);
   await state.setLastError("");
+  // Before `settle`, which is what registers the script that evaluates them.
+  await refreshWatches();
   await settle();
   return status();
 }
@@ -624,6 +714,10 @@ async function beat() {
     // capturing -- the queue is what capture is for. It is a reason to say so.
     await state.setLastError(error instanceof ApiError ? error.message : String(error));
   }
+  // A watch created in the console this morning reaches the browser here. The
+  // heartbeat is already the tick that asks what changed, and a mail rule is
+  // not urgent to the minute.
+  await refreshWatches();
   await settle();
 }
 
@@ -632,6 +726,10 @@ async function beat() {
 async function settle() {
   const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
   await applyPolicy(policy, allowed);
+  // After `applyPolicy` and by its own id: the watch script must survive a
+  // policy change, and `applyPolicy` withdrawing all three ids is how the
+  // watching would stop the first time a heartbeat carried a new policy.
+  await applyWatches(await watchHosts());
   await channel.settle();
   await badge();
   return status();

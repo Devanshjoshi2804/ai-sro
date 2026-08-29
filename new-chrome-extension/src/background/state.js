@@ -11,6 +11,7 @@ const KEYS = {
   apiUrl: "sro.apiUrl",
   consoleUrl: "sro.consoleUrl",
   policy: "sro.policy",
+  watches: "sro.watches",
   watched: "sro.watched",
   paused: "sro.paused",
   serverPaused: "sro.serverPaused",
@@ -66,6 +67,20 @@ export const state = {
 
   policy: () => read(KEYS.policy, null),
   setPolicy: (policy) => write(KEYS.policy, policy),
+
+  /** The mail rules this browser holds, each `{ id, host, terms, values,
+   * sender_at, subject_at }`.
+   *
+   * The rule, never a match. A watch is evaluated in the page and what it saw
+   * is forgotten there; a list of mails this browser recognised would be the
+   * one thing `ValueAt` went structural lengths to keep out of storage.
+   *
+   * Written here rather than kept in the worker because the watch content
+   * script reads the change through `chrome.storage.onChanged` -- a page open
+   * all day picks up a watch created this morning, and drops the lot when the
+   * operator signs out. */
+  watches: () => read(KEYS.watches, []),
+  setWatches: (watches) => write(KEYS.watches, watches),
 
   // Two pauses, deliberately separate. This one is the operator's and lives
   // only here; theirs is theirs to hold. The other arrives on a heartbeat and

@@ -137,5 +137,6 @@ test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/queue.test.mjs
 	node new-chrome-extension/src/background/queue.upgrade.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs
+	node new-chrome-extension/src/content/watch.test.mjs
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

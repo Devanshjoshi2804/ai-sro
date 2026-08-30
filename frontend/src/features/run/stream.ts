@@ -95,9 +95,7 @@ export function useRunStream(runId: string | null | undefined, live: boolean) {
             // says the operator stopped typing rather than an empty one.
             if (kind === "waiting") {
               hold(
-                payload.held_ms === null
-                  ? null
-                  : { index: payload.index, heldMs: payload.held_ms },
+                payload.held_ms === null ? null : { index: payload.index, heldMs: payload.held_ms },
               );
             }
             // The run is not ours or never existed. Nothing to watch, and

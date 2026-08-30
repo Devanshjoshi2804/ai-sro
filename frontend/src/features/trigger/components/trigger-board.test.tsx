@@ -70,6 +70,18 @@ function aTrigger(over: Partial<triggerApi.TriggerModel> = {}): triggerApi.Trigg
 afterEach(() => vi.restoreAllMocks());
 
 describe("putting a skill on a clock", () => {
+  it("says the schedule could not be read rather than that nothing is scheduled", async () => {
+    // The two are not the same claim, and the second one is the sort a person
+    // acts on: they would go and create a trigger that already exists.
+    vi.spyOn(triggerApi, "listTriggers").mockRejectedValue(new Error("503 service unavailable"));
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([] as never);
+
+    show();
+
+    expect(await screen.findByText(/could not be read/i)).toBeInTheDocument();
+    expect(screen.queryByText(/nothing runs on a clock yet/i)).not.toBeInTheDocument();
+  });
+
   it("says what it is still waiting for rather than only greying the button", async () => {
     // A disabled control that does not name what it wants is a control people
     // work around, and this one starts a warehouse write on a schedule.
@@ -237,7 +249,6 @@ describe("what is already on a clock", () => {
   });
 });
 
-
 describe("a permission that could not reach anything", () => {
   it("cannot be given to a schedule that runs on the server", async () => {
     // It was ticked, stored and displayed, and never reached a run: a trigger
@@ -281,7 +292,6 @@ describe("a permission that could not reach anything", () => {
   });
 });
 
-
 describe("a skill that touches two systems", () => {
   it("cannot be put on a clock with nowhere to run", async () => {
     // The server holds one system's credentials at most, so this schedule would
@@ -290,7 +300,11 @@ describe("a skill that touches two systems", () => {
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
     vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
     vi.spyOn(skillApi, "listSkills").mockResolvedValue([
-      { id: "skl-1", name: "Close waves, then record the receipt", systems: ["blue_yonder", "sap"] },
+      {
+        id: "skl-1",
+        name: "Close waves, then record the receipt",
+        systems: ["blue_yonder", "sap"],
+      },
     ] as never);
 
     show();
@@ -307,7 +321,11 @@ describe("a skill that touches two systems", () => {
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
     vi.spyOn(triggerApi, "listDevices").mockResolvedValue([DEVICE]);
     vi.spyOn(skillApi, "listSkills").mockResolvedValue([
-      { id: "skl-1", name: "Close waves, then record the receipt", systems: ["blue_yonder", "sap"] },
+      {
+        id: "skl-1",
+        name: "Close waves, then record the receipt",
+        systems: ["blue_yonder", "sap"],
+      },
     ] as never);
     const created = vi.spyOn(triggerApi, "createTrigger").mockResolvedValue(aTrigger());
 
@@ -325,4 +343,3 @@ describe("a skill that touches two systems", () => {
     expect(created.mock.calls[0][0]).toMatchObject({ device_id: "dev-1", medium: "network" });
   });
 });
-

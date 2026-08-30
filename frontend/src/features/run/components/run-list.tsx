@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { listRuns, runKeys, type RunModel } from "@/features/run/api";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { DataView } from "@/components/data-view";
 import {
   Table,
   TableBody,
@@ -44,69 +44,80 @@ export function RunList() {
       (query.state.data ?? []).some((run: RunModel) => run.status === "running") ? 2000 : false,
   });
 
-  if (runs.isLoading) return <Skeleton className="h-64 w-full" />;
-  if (runs.error) return <p className="text-destructive">{String(runs.error)}</p>;
-
-  const rows = runs.data ?? [];
-
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Runs</h1>
-        <p className="text-muted-foreground text-sm">
-          Every attempt to perform a skill against a live system, and what each step actually did.
-        </p>
-      </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Started</TableHead>
-            <TableHead>Skill</TableHead>
-            <TableHead>Stage</TableHead>
-            <TableHead>Rung</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Authorised by</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((run) => (
-            <TableRow key={run.id}>
-              <TableCell>
-                <Link href={`/runs/${run.id}`} className="hover:underline">
-                  {new Date(run.started_at).toLocaleString()}
-                </Link>
-              </TableCell>
-              <TableCell className="font-mono text-xs">
-                {run.skill_id.slice(0, 12)} v{run.skill_version}
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline">{run.stage}</Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">{run.medium}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={STATUS_VARIANT[run.status] ?? "outline"}
-                  className={STATUS_WEIGHT[run.status]}
-                >
-                  {run.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {/* Blank is meaningful: a shadow run had nothing to authorise. */}
-                {run.authorized_by ?? "—"}
-              </TableCell>
-            </TableRow>
-          ))}
-          {rows.length === 0 && (
+    <DataView
+      title="Runs"
+      description="Every attempt to perform a skill against a live system, and what each step actually did."
+      loading={runs.isLoading}
+      error={runs.error}
+      rows={runs.data ?? []}
+      // The skill and who stood behind it: the two things somebody looking for
+      // a particular run actually remembers about it.
+      matches={(run: RunModel, term) =>
+        `${run.skill_id} ${run.stage} ${run.medium} ${run.authorized_by ?? ""}`
+          .toLowerCase()
+          .includes(term)
+      }
+      // The question this page exists to answer is "did anything fail", so the
+      // filter that answers it is one press away.
+      facet={{ name: "status", of: (run: RunModel) => run.status }}
+      empty={{
+        line: "Nothing has run yet.",
+        hint: (
+          <>
+            A run happens when somebody asks for a taught task.{" "}
+            <Link href="/console" className="text-brand underline">
+              Ask for one in the console
+            </Link>
+            .
+          </>
+        ),
+      }}
+    >
+      {(shown) => (
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={6} className="text-muted-foreground py-12 text-center">
-                Nothing has run yet. Ask for a task in the console.
-              </TableCell>
+              <TableHead>Started</TableHead>
+              <TableHead>Skill</TableHead>
+              <TableHead>Stage</TableHead>
+              <TableHead>Rung</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Authorised by</TableHead>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {shown.map((run) => (
+              <TableRow key={run.id}>
+                <TableCell>
+                  <Link href={`/runs/${run.id}`} className="hover:underline">
+                    {new Date(run.started_at).toLocaleString()}
+                  </Link>
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  {run.skill_id.slice(0, 12)} v{run.skill_version}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{run.stage}</Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">{run.medium}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={STATUS_VARIANT[run.status] ?? "outline"}
+                    className={STATUS_WEIGHT[run.status]}
+                  >
+                    {run.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">
+                  {/* Blank is meaningful: a shadow run had nothing to authorise. */}
+                  {run.authorized_by ?? "—"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </DataView>
   );
 }

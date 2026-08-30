@@ -17,7 +17,7 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { DataView } from "@/components/data-view";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -101,8 +101,7 @@ export function CandidateReview() {
   });
 
   const dismiss = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      dismissCandidate(id, reason),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => dismissCandidate(id, reason),
     onSuccess: () => {
       toast.success("Dismissed.");
       setDismissing(null);
@@ -115,103 +114,106 @@ export function CandidateReview() {
     },
   });
 
-  if (candidates.isLoading) return <Skeleton className="h-64 w-full" />;
-  if (candidates.error) return <p className="text-destructive">{String(candidates.error)}</p>;
-
   const rows = candidates.data ?? [];
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Candidates</h1>
-        <p className="text-muted-foreground text-sm">
-          Tasks seen at least {SEEN_AT_LEAST} times, watched rather than taught. Teach one to
-          induce a skill from what was already captured, or dismiss it.
-        </p>
-      </div>
+    <>
+      <DataView
+        title="Candidates"
+        description={`Tasks seen at least ${SEEN_AT_LEAST} times, watched rather than taught. Teach one to induce a skill from what was already captured, or dismiss it.`}
+        loading={candidates.isLoading}
+        error={candidates.error}
+        rows={rows}
+        matches={(candidate: TaskCandidateModel, term) =>
+          `${candidate.title} ${candidate.host}`.toLowerCase().includes(term)
+        }
+        facet={{ name: "status", of: (candidate: TaskCandidateModel) => candidate.status }}
+        empty={{
+          line: "Nothing has been noticed yet.",
+          hint: `A task appears here once the same piece of work has been seen ${SEEN_AT_LEAST} times in somebody's browser.`,
+        }}
+      >
+        {(shown) => (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Task</TableHead>
+                <TableHead>Host</TableHead>
+                <TableHead className="text-right">Seen</TableHead>
+                <TableHead className="text-right">Each takes</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shown.map((candidate) => (
+                <TableRow key={candidate.id}>
+                  <TableCell>
+                    {candidate.skill_id ? (
+                      <Link href={`/skills/${candidate.skill_id}`} className="hover:underline">
+                        {candidate.title}
+                      </Link>
+                    ) : (
+                      candidate.title
+                    )}
+                    {(candidate.joins ?? []).map((join) => (
+                      <Suggestion
+                        key={`${join.kind}:${join.other_id}`}
+                        candidate={candidate}
+                        join={join}
+                        onAnswer={(said) =>
+                          answer.mutate({
+                            id: candidate.id,
+                            otherId: join.other_id,
+                            kind: join.kind,
+                            answer: said,
+                          })
+                        }
+                        onMerge={() => merge.mutate({ id: candidate.id, otherId: join.other_id })}
+                        busy={answer.isPending || merge.isPending}
+                      />
+                    ))}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{candidate.host}</TableCell>
+                  <TableCell className="text-right tabular-nums">{candidate.times_seen}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {Math.round(candidate.median_duration_ms / 1000)}s
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={candidate.status === "new" ? "default" : "outline"}>
+                      {candidate.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {candidate.status === "new" && (
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          disabled={teach.isPending}
+                          onClick={() => teach.mutate(candidate.id)}
+                        >
+                          Teach
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setDismissing(candidate.id)}
+                        >
+                          Dismiss
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </DataView>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Task</TableHead>
-            <TableHead>Host</TableHead>
-            <TableHead className="text-right">Seen</TableHead>
-            <TableHead className="text-right">Each takes</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((candidate) => (
-            <TableRow key={candidate.id}>
-              <TableCell>
-                {candidate.skill_id ? (
-                  <Link href={`/skills/${candidate.skill_id}`} className="hover:underline">
-                    {candidate.title}
-                  </Link>
-                ) : (
-                  candidate.title
-                )}
-                {(candidate.joins ?? []).map((join) => (
-                  <Suggestion
-                    key={`${join.kind}:${join.other_id}`}
-                    candidate={candidate}
-                    join={join}
-                    onAnswer={(said) =>
-                      answer.mutate({
-                        id: candidate.id,
-                        otherId: join.other_id,
-                        kind: join.kind,
-                        answer: said,
-                      })
-                    }
-                    onMerge={() => merge.mutate({ id: candidate.id, otherId: join.other_id })}
-                    busy={answer.isPending || merge.isPending}
-                  />
-                ))}
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">{candidate.host}</TableCell>
-              <TableCell className="text-right tabular-nums">{candidate.times_seen}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {Math.round(candidate.median_duration_ms / 1000)}s
-              </TableCell>
-              <TableCell>
-                <Badge variant={candidate.status === "new" ? "default" : "outline"}>
-                  {candidate.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                {candidate.status === "new" && (
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      size="sm"
-                      disabled={teach.isPending}
-                      onClick={() => teach.mutate(candidate.id)}
-                    >
-                      Teach
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setDismissing(candidate.id)}
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-          {rows.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={6} className="text-muted-foreground py-12 text-center">
-                Nothing offered yet. Give it a few days of watching.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-
+      {/* Outside the shell, not inside its render prop: dismissing asks why,
+          and that question belongs to the page rather than to whichever rows
+          happen to be on screen. */}
       <Dialog
         open={dismissing !== null}
         onOpenChange={(open) => {
@@ -240,7 +242,7 @@ export function CandidateReview() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 

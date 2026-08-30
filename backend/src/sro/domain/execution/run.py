@@ -32,6 +32,19 @@ class Medium(StrEnum):
     """Which rung of the ladder performed a step."""
 
     NETWORK = "network"
+
+    TOOL = "tool"
+    """A call through a connector the tenant configured, rather than a replay
+    of one a demonstration produced.
+
+    Its own word rather than NETWORK, though both are calls. A run record is
+    read back months later to answer what actually happened, and one word
+    meaning "the request the operator's own click made" in some records and
+    "whatever a third party's connector decided to send" in others is a word
+    that answers nothing. What they have in common -- deterministic, and
+    checkable against a result -- is why `judge` treats them alike; what they
+    do not is why a reader can tell them apart."""
+
     UI = "ui"
     VISION = "vision"
 

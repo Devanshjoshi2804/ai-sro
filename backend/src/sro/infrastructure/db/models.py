@@ -477,3 +477,20 @@ class TaskCandidateRow(Base):
             unique=True,
         ),
     )
+
+
+class ToolCallRow(Base):
+    """One key, claimed before a connector was called with it.
+
+    A row rather than a JSONB list on something: two runs claiming the same key
+    at once is exactly the race this exists to lose, and a primary key is the
+    only thing that loses it reliably.
+    """
+
+    __tablename__ = "tool_calls"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    idempotency_key: Mapped[str] = mapped_column(String(200), primary_key=True)
+
+    tool: Mapped[str] = mapped_column(String(200), nullable=False)
+    claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

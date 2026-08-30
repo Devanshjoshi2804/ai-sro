@@ -2157,7 +2157,7 @@ export interface components {
          * @description Which rung of the ladder performed a step.
          * @enum {string}
          */
-        Medium: "network" | "ui" | "vision";
+        Medium: "network" | "tool" | "ui" | "vision";
         /** MessageModel */
         MessageModel: {
             /** Id */
@@ -2856,6 +2856,7 @@ export interface components {
             when: string | null;
             network_plan: components["schemas"]["NetworkPlanModel"] | null;
             ui_plan: components["schemas"]["UiPlanModel"] | null;
+            tool_plan?: components["schemas"]["ToolPlanModel"] | null;
             /** Assertions */
             assertions: components["schemas"]["AssertionModel"][];
         };
@@ -3135,6 +3136,19 @@ export interface components {
             target_system: string;
             /** Held */
             held: boolean;
+        };
+        /** ToolPlanModel */
+        ToolPlanModel: {
+            /** Server */
+            server: string;
+            /** Tool */
+            tool: string;
+            /** Arguments */
+            arguments: {
+                [key: string]: string;
+            };
+            /** Writes */
+            writes: boolean;
         };
         /** TrackRecordModel */
         TrackRecordModel: {

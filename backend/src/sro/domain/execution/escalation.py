@@ -44,6 +44,10 @@ class FailureKind(StrEnum):
     """Nothing was there to answer: a closed laptop, no tab open on the system,
     a connection that died before a response. Not a claim about the skill, which
     is why a run that ends this way is not held against it."""
+    TOOL_UNAVAILABLE = "tool_unavailable"
+    """The connector is not configured, is unreachable, or does not offer the
+    tool this step names. Not a claim about the skill."""
+
     CONTROL_NOT_FOUND = "control_not_found"
     """A UI rung could not find the control. The skill has drifted from the
     system it was taught on."""
@@ -99,6 +103,48 @@ _POLICY: tuple[EscalationRule, ...] = (
         at=Medium.NETWORK,
         then=None,
         because="the system did not answer at all, and a browser would ask it again harder",
+    ),
+    EscalationRule(
+        when=FailureKind.TOOL_UNAVAILABLE,
+        at=Medium.TOOL,
+        then=None,
+        because=(
+            "the connector this step was mapped onto is not there to answer, and "
+            "the gesture it replaced was mapped away on purpose -- falling back to it "
+            "would perform by clicking a step somebody decided should be a call"
+        ),
+    ),
+    EscalationRule(
+        when=FailureKind.STATUS_MISMATCH,
+        at=Medium.TOOL,
+        then=None,
+        because=(
+            "a tool answered and said no. There is no lower rung that knows better: "
+            "the connector is the system's own door, and clicking at it instead would "
+            "be doing again what it just refused"
+        ),
+    ),
+    EscalationRule(
+        when=FailureKind.ASSERTION_FAILED,
+        at=Medium.TOOL,
+        then=None,
+        because=(
+            "the tool answered something the mapping did not expect. Nobody "
+            "demonstrated this call, so there is no recorded gesture behind it to "
+            "fall back to -- this is a question for whoever mapped it"
+        ),
+    ),
+    EscalationRule(
+        when=FailureKind.UNREACHABLE,
+        at=Medium.TOOL,
+        then=None,
+        because="the connector did not answer at all, and a browser would ask it again harder",
+    ),
+    EscalationRule(
+        when=FailureKind.CREDENTIAL_MISSING,
+        at=Medium.TOOL,
+        then=None,
+        because="a browser cannot invent a connector's credential either; configure it instead",
     ),
     EscalationRule(
         when=FailureKind.CONTROL_NOT_FOUND,

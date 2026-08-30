@@ -22079,6 +22079,7 @@
         "type": "string",
         "enum": [
           "network",
+          "tool",
           "ui",
           "vision"
         ],
@@ -24001,6 +24002,16 @@
               }
             ]
           },
+          "tool_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolPlanModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "assertions": {
             "items": {
               "$ref": "#/components/schemas/AssertionModel"
@@ -24769,6 +24780,37 @@
           "held"
         ],
         "title": "TokenEstablishedResponse"
+      },
+      "ToolPlanModel": {
+        "properties": {
+          "server": {
+            "type": "string",
+            "title": "Server"
+          },
+          "tool": {
+            "type": "string",
+            "title": "Tool"
+          },
+          "arguments": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Arguments"
+          },
+          "writes": {
+            "type": "boolean",
+            "title": "Writes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "server",
+          "tool",
+          "arguments",
+          "writes"
+        ],
+        "title": "ToolPlanModel"
       },
       "TrackRecordModel": {
         "properties": {

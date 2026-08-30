@@ -99,6 +99,7 @@ from sro.application.ports.schedule import Scheduler
 from sro.application.ports.sign_in import SignInDriver
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.token import TokenSource
+from sro.application.ports.tools import ToolCaller
 from sro.application.ports.transcription import Transcriber
 from sro.application.ports.ui import UiDriver
 from sro.application.ports.vault import CredentialVault, VaultUnavailable
@@ -136,6 +137,7 @@ from sro.infrastructure.gemini.null_interpreter import NoInterpreter
 from sro.infrastructure.http.api_runs import ApiRunDispatcher
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
+from sro.infrastructure.mcp.client import McpServer, McpToolCaller
 from sro.infrastructure.mcp.server import SkillToolServer
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.sign_in import PlaywrightSignIn
@@ -170,6 +172,7 @@ class Container:
     intent_parser: IntentParser
     vault: CredentialVault
     http: HttpCaller
+    tools: ToolCaller
     ui: UiDriver
     sign_in_driver: SignInDriver
     tokens: TokenSource | None
@@ -505,6 +508,7 @@ class Container:
             self.agents(),
             self.repair_drift(),
             self.stops,
+            self.tools,
         )
 
     def start_run(self) -> StartRun:
@@ -549,6 +553,8 @@ class Container:
             self.self_heal(),
             self.tokens,
             self.agents(),
+            self.tools,
+            self.clock,
         )
 
     def finish_run(self) -> FinishRun:
@@ -740,6 +746,7 @@ def build_container(settings: Settings | None = None) -> Container:
         intent_parser=_build_intent_parser(settings),
         vault=(built_vault := _build_vault(settings)),
         http=HttpxCaller(),
+        tools=McpToolCaller(_servers(settings.mcp_servers)),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
         sign_in_driver=PlaywrightSignIn(),
         tokens=(
@@ -776,3 +783,21 @@ def build_container(settings: Settings | None = None) -> Container:
         redact_secrets=settings.capture_redact_secret_values,
     )
     return container
+
+
+def _servers(configured: str) -> tuple[McpServer, ...]:
+    """`name=url#token, name=url` into connectors.
+
+    A malformed entry is skipped rather than raising: one typo in a
+    comma-separated setting must not stop a deployment whose other connectors
+    are fine, and a connector that is absent is already an answer this system
+    knows how to give.
+    """
+    found: list[McpServer] = []
+    for entry in configured.split(","):
+        name, sep, rest = entry.strip().partition("=")
+        if not sep or not name.strip() or not rest.strip():
+            continue
+        url, _, token = rest.partition("#")
+        found.append(McpServer(name=name.strip(), url=url.strip(), token=token.strip()))
+    return tuple(found)

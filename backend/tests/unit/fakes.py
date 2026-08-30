@@ -40,12 +40,14 @@ from sro.application.ports.repositories import (
     RunRepository,
     SkillRepository,
     ThreadRepository,
+    ToolCallRepository,
     TriggerRepository,
     UnitOfWork,
 )
 from sro.application.ports.schedule import Scheduler, SchedulerUnavailable
 from sro.application.ports.sign_in import SignInDriver, SignInFailed, SignInResult
 from sro.application.ports.system import Clock, IdFactory
+from sro.application.ports.tools import ToolOffered, ToolResult, ToolsUnavailable
 from sro.application.ports.transcription import TranscribedSegment, Transcriber
 from sro.application.ports.ui import ResolvedLocator, UiDriver, UiOutcome, UiUnavailable
 from sro.application.ports.vault import CredentialVault
@@ -1130,6 +1132,19 @@ class FakeRunDispatcher:
         return RunId(f"run-dispatched-{len(self.asked)}")
 
 
+class FakeToolCallRepository:
+    """A set, which is what the real one is: a key is claimed or it is not."""
+
+    def __init__(self) -> None:
+        self.claimed: dict[tuple[str, str], str] = {}
+
+    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
+        if (tenant_id.value, key) in self.claimed:
+            return False
+        self.claimed[(tenant_id.value, key)] = tool
+        return True
+
+
 class FakeUnitOfWork:
     """Counts commits. Does not simulate rollback -- the repositories hold the
     same objects the use case mutated. Transactions are proved in
@@ -1149,6 +1164,7 @@ class FakeUnitOfWork:
     observation_policies: ObservationPolicyRepository
     candidates: CandidateRepository
     triggers: TriggerRepository
+    tool_calls: ToolCallRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
@@ -1164,6 +1180,7 @@ class FakeUnitOfWork:
         self.observation_policies = FakeObservationPolicyRepository()
         self.candidates = FakeCandidateRepository()
         self.triggers = FakeTriggerRepository()
+        self.tool_calls = FakeToolCallRepository()
         self.commits = 0
         self.rollbacks = 0
         self.commit_raises: Exception | None = None
@@ -1240,4 +1257,39 @@ _agents: AgentDrivers = FakeAgentDrivers()
 _scheduler: Scheduler = FakeScheduler()
 _dispatcher: RunDispatcher = FakeRunDispatcher()
 _triggers: TriggerRepository = FakeTriggerRepository()
+_tool_calls: ToolCallRepository = FakeToolCallRepository()
 _candidates: CandidateRepository = FakeCandidateRepository()
+
+
+class FakeToolCaller:
+    """A connector that answers whatever the test told it to."""
+
+    def __init__(
+        self,
+        answers: dict[str, ToolResult] | None = None,
+        *,
+        offers: dict[str, tuple[ToolOffered, ...]] | None = None,
+        available: bool = True,
+    ) -> None:
+        self._answers = answers or {}
+        self._offers = offers or {}
+        self._available = available
+        self.calls: list[tuple[str, str, dict[str, str]]] = []
+
+    @property
+    def available(self) -> bool:
+        return self._available
+
+    async def list_tools(self, server: str) -> tuple[ToolOffered, ...]:
+        if server not in self._offers:
+            raise ToolsUnavailable(f"no connector called {server}")
+        return self._offers[server]
+
+    async def call(self, server: str, tool: str, arguments: Mapping[str, str]) -> ToolResult:
+        if not self._available:
+            raise ToolsUnavailable("no connectors are configured")
+        self.calls.append((server, tool, dict(arguments)))
+        answer = self._answers.get(tool)
+        if answer is None:
+            raise ToolsUnavailable(f"{server} offers no tool called {tool}")
+        return answer

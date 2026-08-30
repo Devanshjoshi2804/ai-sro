@@ -11,6 +11,7 @@ import re
 from datetime import datetime
 
 from sqlalchemy import delete, or_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm.exc import StaleDataError
@@ -28,6 +29,7 @@ from sro.application.ports.repositories import (
     RunRepository,
     SkillRepository,
     ThreadRepository,
+    ToolCallRepository,
     TriggerRepository,
     UnitOfWork,
 )
@@ -106,6 +108,7 @@ from sro.infrastructure.db.models import (
     SkillRow,
     TaskCandidateRow,
     ThreadRow,
+    ToolCallRow,
     TriggerRow,
 )
 
@@ -780,6 +783,33 @@ class SqlObservationPolicyRepository(ObservationPolicyRepository):
         row.policy = dump_policy(policy)
 
 
+class SqlToolCallRepository(ToolCallRepository):
+    """The claim is the insert. Two writers racing for one key both try it, the
+    primary key refuses one of them, and that refusal is the answer."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def remember(self, tenant_id: TenantId, key: str, *, tool: str, at: datetime) -> bool:
+        # `ON CONFLICT DO NOTHING` rather than a read followed by a write:
+        # between the two of those, the other run inserts.
+        claimed = await self._session.execute(
+            pg_insert(ToolCallRow)
+            .values(
+                tenant_id=tenant_id.value,
+                idempotency_key=key,
+                tool=tool,
+                claimed_at=at,
+            )
+            .on_conflict_do_nothing(index_elements=["tenant_id", "idempotency_key"])
+            # What came back rather than how many rows: `rowcount` is the
+            # driver's, and asking the statement to return the key it wrote
+            # answers the same question in one shape everywhere.
+            .returning(ToolCallRow.idempotency_key)
+        )
+        return claimed.scalar_one_or_none() is not None
+
+
 class SqlTriggerRepository(TriggerRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -846,6 +876,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.observation_policies = SqlObservationPolicyRepository(self._session)
         self.candidates = SqlCandidateRepository(self._session)
         self.triggers = SqlTriggerRepository(self._session)
+        self.tool_calls = SqlToolCallRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

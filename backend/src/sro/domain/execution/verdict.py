@@ -13,6 +13,21 @@ from sro.domain.skill.track_record import Verdict
 
 __all__ = ["Verdict", "judge"]
 
+_CLEAN_MEDIA = frozenset({Medium.NETWORK, Medium.TOOL})
+"""The rungs a run can be clean at.
+
+Both are calls whose result comes back to be checked. A gesture is not among
+them because a gesture means the recorded call no longer works: the skill has
+drifted from the system it was taught on, and a run that got there by clicking
+has not shown that the skill still holds.
+
+A tool call carries no such signal, which is the argument for it being here.
+What it also carries is no demonstration -- nobody watched `send_message` work,
+so its post-conditions are somebody's writing rather than two runs agreeing.
+That is not answered here. It is answered by the rule every other step meets:
+a write with no assertion makes the version unverifiable, and an unverifiable
+version never reaches the top of the ladder however clean its runs are."""
+
 
 def judge(run: Run) -> Verdict:
     if run.status is not RunStatus.SUCCEEDED:
@@ -25,7 +40,7 @@ def judge(run: Run) -> Verdict:
     for step in run.steps:
         if step.assertion_failures:
             return Verdict.FAILED
-        if step.medium is not Medium.NETWORK or step.escalated_from is not None:
+        if step.medium not in _CLEAN_MEDIA or step.escalated_from is not None:
             return Verdict.DEGRADED
     return Verdict.CLEAN
 

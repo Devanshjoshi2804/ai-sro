@@ -75,6 +75,16 @@ class Settings(BaseSettings):
     client is a server-rendered console.
     """
 
+    mcp_servers: str = ""
+    """Connectors a skill step may be mapped onto, as
+    ``name=url[#token]``, comma separated.
+
+    Empty is not a degraded mode. A deployment with no connectors runs every
+    skill the way it always did; what it cannot do is promote a mail step past
+    assisted, and `why_not_autonomous` says so rather than leaving somebody
+    waiting on a streak that cannot move.
+    """
+
     steel_base_url: str = "http://localhost:3010"
     steel_cdp_url: str = "http://localhost:9223"
     """Chrome DevTools endpoint Steel publishes. Playwright connects over it."""

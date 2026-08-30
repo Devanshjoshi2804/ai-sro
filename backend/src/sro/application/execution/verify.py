@@ -55,6 +55,44 @@ def check(
     return tuple(failures)
 
 
+def check_text(
+    assertions: tuple[Assertion, ...], text: str, *, values: dict[str, str]
+) -> tuple[str, ...]:
+    """The same post-conditions against a body with no status code behind it.
+
+    What a connector answers is a document, not an HTTP exchange, so the two
+    assertions that read a document are checked and the two that read something
+    else are reported as unmet rather than skipped. A `http_status` assertion
+    on a tool step is a mistake in the mapping, and a mistake nothing mentions
+    is a step that verified less than whoever wrote it believed.
+    """
+    document: JsonValue = _parse(text)
+    failures: list[str] = []
+
+    for assertion in assertions:
+        expected = assertion.expected.render(values)
+        pointer = assertion.pointer or ""
+
+        match assertion.kind:
+            case AssertionKind.RESPONSE_FIELD_PRESENT:
+                if not _has(document, pointer):
+                    failures.append(f"the answer has no {pointer}")
+
+            case AssertionKind.RESPONSE_FIELD_EQUALS:
+                if not _has(document, pointer):
+                    failures.append(f"the answer has no {pointer}, expected {expected!r}")
+                elif (actual := jsonutil.as_text(jsonutil.get(document, pointer))) != expected:
+                    failures.append(f"{pointer} is {actual!r}, expected {expected!r}")
+
+            case _:
+                failures.append(
+                    f"a {assertion.kind.value} assertion cannot be checked against a tool's "
+                    "answer, which has no status code and no screen"
+                )
+
+    return tuple(failures)
+
+
 def check_on_screen(
     assertions: tuple[Assertion, ...], text_digest: str, *, values: dict[str, str]
 ) -> tuple[tuple[str, ...], tuple[str, ...]]:

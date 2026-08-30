@@ -40,6 +40,7 @@ from tests.unit.fakes import (
     FakeRunDispatcher,
     FakeScheduler,
     FakeSignInDriver,
+    FakeToolCaller,
     FakeTranscriber,
     FakeUiDriver,
     FakeUnitOfWork,
@@ -77,6 +78,10 @@ class _FakeContainer(Container):
         # Here nothing is reachable and nothing is stored, so the answer is "no"
         # and the endpoint's own refusal is what the tests see.
         self.http = FakeHttpCaller()
+        # No connectors, which is what a deployment that configured none has.
+        # A skill with a tool step then records that there was nothing to call,
+        # which is the answer, rather than pretending the step is impossible.
+        self.tools = FakeToolCaller(available=False)
         self.http.unreachable = True
         self.sign_in_driver = FakeSignInDriver()
         # Real credential checking, with a key that lives for the length of the

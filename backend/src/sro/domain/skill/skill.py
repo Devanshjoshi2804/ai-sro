@@ -12,7 +12,7 @@ from sro.domain.skill.assertion import Assertion
 from sro.domain.skill.earned import earned_stage
 from sro.domain.skill.loop import Loop
 from sro.domain.skill.parameter import Parameter, ParameterKind
-from sro.domain.skill.plan import NetworkPlan, UiPlan
+from sro.domain.skill.plan import NetworkPlan, ToolPlan, UiPlan
 from sro.domain.skill.promotion import PromotionStage, check_promotion
 from sro.domain.skill.track_record import TrackRecord, Verdict, why_not_autonomous
 
@@ -23,6 +23,11 @@ class SkillStep:
     intent: str
     network_plan: NetworkPlan | None = None
     ui_plan: UiPlan | None = None
+    tool_plan: ToolPlan | None = None
+    """Somebody mapped this step onto a connector's tool. Beside the other two
+    rather than instead of them: a step that can be a call, a gesture *and* a
+    tool call is one a run can perform three ways, and which it took is what
+    the medium on the outcome says."""
     assertions: tuple[Assertion, ...] = ()
     requires_human: bool = False
 
@@ -51,9 +56,9 @@ class SkillStep:
             raise InvariantViolation("SkillStep.index must be non-negative")
         if not self.intent.strip():
             raise InvariantViolation("SkillStep requires an intent")
-        if self.network_plan is None and self.ui_plan is None:
+        if self.network_plan is None and self.ui_plan is None and self.tool_plan is None:
             raise InvariantViolation(
-                f"step {self.index} has neither a network plan nor a UI plan; "
+                f"step {self.index} has no network plan, UI plan or tool plan; "
                 "there is no way to perform it"
             )
 
@@ -64,6 +69,8 @@ class SkillStep:
             names |= self.network_plan.placeholders
         if self.ui_plan is not None:
             names |= self.ui_plan.placeholders
+        if self.tool_plan is not None:
+            names |= self.tool_plan.placeholders
         for assertion in self.assertions:
             names |= assertion.expected.placeholders
         return frozenset(names)
@@ -197,10 +204,14 @@ class SkillVersion:
 
     @property
     def changes_the_system(self) -> bool:
-        """Whether performing this version writes anything."""
-        return any(
-            step.network_plan is not None and step.network_plan.is_mutation for step in self.steps
-        )
+        """Whether performing this version writes anything.
+
+        A tool call counts when whoever mapped it said it writes. Nothing else
+        can say: MCP declares no such thing and a tool named `send_message` is
+        a name, not a promise -- so this reads the decision rather than the
+        word.
+        """
+        return any(_writes(step) for step in self.steps)
 
     @property
     def from_one_demonstration(self) -> bool:
@@ -232,7 +243,7 @@ class SkillVersion:
         watching the streak sit at zero deserves to be told which one they are
         looking at.
         """
-        return any(step.network_plan is None for step in self.steps)
+        return any(step.network_plan is None and step.tool_plan is None for step in self.steps)
 
     @property
     def unchecked_writes(self) -> tuple[int, ...]:
@@ -244,13 +255,7 @@ class SkillVersion:
         warehouse can reject it, ignore it, or do something else entirely, and
         the run says the step was fine.
         """
-        return tuple(
-            step.index
-            for step in self.steps
-            if step.network_plan is not None
-            and step.network_plan.is_mutation
-            and not step.assertions
-        )
+        return tuple(step.index for step in self.steps if _writes(step) and not step.assertions)
 
     @property
     def not_ready_for_autonomy(self) -> str | None:
@@ -498,3 +503,15 @@ class Skill:
         if version.stage is not PromotionStage.RECORDED:
             raise InvariantViolation("a new version always starts at RECORDED")
         self._versions.append(version)
+
+
+def _writes(step: SkillStep) -> bool:
+    """Whether performing this step changes something outside this system.
+
+    One definition, because three rules read it -- whether a version writes at
+    all, which of its steps go unchecked, and what a run below the assisted
+    rung is allowed to send. They disagreed once already.
+    """
+    if step.network_plan is not None and step.network_plan.is_mutation:
+        return True
+    return step.tool_plan is not None and step.tool_plan.writes

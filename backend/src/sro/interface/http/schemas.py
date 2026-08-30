@@ -563,6 +563,13 @@ class UiPlanModel(BaseModel):
     wait_for: str | None
 
 
+class ToolPlanModel(BaseModel):
+    server: str
+    tool: str
+    arguments: dict[str, str]
+    writes: bool
+
+
 class StepModel(BaseModel):
     index: int
     intent: str
@@ -572,6 +579,7 @@ class StepModel(BaseModel):
     when: str | None
     network_plan: NetworkPlanModel | None
     ui_plan: UiPlanModel | None
+    tool_plan: ToolPlanModel | None = None
     assertions: list[AssertionModel]
 
 
@@ -715,6 +723,18 @@ class SkillVersionModel(BaseModel):
                             ),
                         )
                         if step.ui_plan
+                        else None
+                    ),
+                    tool_plan=(
+                        ToolPlanModel(
+                            server=step.tool_plan.server,
+                            tool=step.tool_plan.tool,
+                            arguments={
+                                name: str(value) for name, value in step.tool_plan.arguments
+                            },
+                            writes=step.tool_plan.writes,
+                        )
+                        if step.tool_plan
                         else None
                     ),
                     assertions=[

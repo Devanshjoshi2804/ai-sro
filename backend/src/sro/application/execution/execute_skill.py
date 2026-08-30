@@ -30,7 +30,7 @@ from sro.application.execution.paging import MOST_PAGES, how_it_pages, next_page
 from sro.application.execution.plan import next_step
 from sro.application.execution.self_heal import HealBudget, Healed, SelfHeal
 from sro.application.execution.stops import Stops
-from sro.application.execution.verify import check, check_on_screen, extract
+from sro.application.execution.verify import check, check_on_screen, check_text, extract
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction import jsonutil
 from sro.application.induction.sites import parse_json as _parse_json
@@ -46,6 +46,7 @@ from sro.application.ports.http import (
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.token import TokenRefused, TokenSource
+from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.ports.ui import ResolvedLocator, UiDriver, UiUnavailable
 from sro.application.ports.vault import CredentialVault
 from sro.application.ports.vision import VisionUnavailable
@@ -284,9 +285,13 @@ class ExecuteStep:
         heal: SelfHeal | None = None,
         tokens: TokenSource | None = None,
         agents: AgentDrivers | None = None,
+        tools: ToolCaller | None = None,
+        clock: Clock | None = None,
         settles_within: float = SCREEN_SETTLES_WITHIN,
     ) -> None:
         self._uow = uow
+        self._tools = tools
+        self._clock = clock
         self._http = http
         self._vault = vault
         self._ui = ui
@@ -332,6 +337,22 @@ class ExecuteStep:
             )
         step = version.steps[nxt.step_index]
         values = nxt.values
+
+        if step.tool_plan is not None and run.medium is not Medium.UI:
+            # Chosen by the step, not by the run. A run's medium says which rung
+            # it is being performed at; a tool plan says this particular step
+            # goes through a connector, and the two are different questions. A
+            # run asked for in the interface still clicks, because that is
+            # somebody deliberately watching it happen.
+            outcome = await self._perform_with_tool(run, step, values=values)
+            outcome = replace(
+                outcome, index=index, plan_step=nxt.step_index, iteration=nxt.iteration
+            )
+            run.record(outcome)
+            async with self._uow as uow:
+                await uow.runs.save(run)
+                await uow.commit()
+            return outcome
 
         if run.medium is Medium.UI:
             outcome = await self._perform_in_ui(run, step, values=values, version=version)
@@ -1180,6 +1201,89 @@ class ExecuteStep:
                 break
         return merge(tuple(pages)) or first
 
+    async def _perform_with_tool(
+        self, run: Run, step: SkillStep, *, values: dict[str, str]
+    ) -> StepOutcome:
+        """Call the connector this step was mapped onto.
+
+        The one kind of step nobody demonstrated, so there is no recorded call
+        to replay and no recorded gesture to fall back to -- `escalation.py`
+        says as much, and every failure here stops rather than trying a lower
+        rung at a door the connector already answered.
+        """
+        plan = step.tool_plan
+        assert plan is not None  # noqa: S101 -- the caller checked; this is for the reader
+        key = f"{run.id}:{step.index}"
+
+        if self._tools is None or not self._tools.available:
+            return self._failed(
+                step,
+                None,
+                f"no connector is configured, so {plan.tool} on {plan.server} cannot be called",
+                medium=Medium.TOOL,
+                unreachable=True,
+            )
+
+        try:
+            arguments = {name: value.render(values) for name, value in plan.arguments}
+        except KeyError as missing:
+            return self._failed(
+                step,
+                None,
+                f"no value for {missing.args[0]}",
+                medium=Medium.TOOL,
+            )
+
+        if plan.writes:
+            # Claimed before the call and kept whatever it answers. A key
+            # released on failure would let a timeout -- the one case where the
+            # send may well have landed -- be retried into a second send, which
+            # is the thing this exists to prevent.
+            async with self._uow as uow:
+                first = await uow.tool_calls.remember(
+                    run.tenant_id,
+                    key,
+                    tool=f"{plan.server}/{plan.tool}",
+                    at=self._clock.now() if self._clock else run.started_at,
+                )
+                await uow.commit()
+            if not first:
+                return self._failed(
+                    step,
+                    key,
+                    f"{plan.tool} was already called for this step, and it may have "
+                    "landed. Nothing is sent twice on a guess -- start a new run if "
+                    "it did not",
+                    medium=Medium.TOOL,
+                )
+
+        try:
+            answered = await self._tools.call(plan.server, plan.tool, arguments)
+        except ToolsUnavailable as gone:
+            return self._failed(step, key, str(gone), medium=Medium.TOOL, unreachable=True)
+
+        failures = check_text(step.assertions, answered.text, values=values)
+        if answered.failed:
+            return self._failed(
+                step,
+                key,
+                answered.detail or f"{plan.tool} refused",
+                medium=Medium.TOOL,
+            )
+
+        return StepOutcome(
+            index=step.index,
+            medium=Medium.TOOL,
+            disposition=StepDisposition.PERFORMED,
+            intent=step.intent,
+            url=f"{plan.server}/{plan.tool}",
+            idempotency_key=key if plan.writes else None,
+            request_body=json.dumps(arguments) if plan.writes else None,
+            assertion_failures=failures,
+            unchecked=() if step.assertions else (NOTHING_ASSERTED,),
+            detail=answered.detail,
+        )
+
     @staticmethod
     def _failed(
         step: SkillStep,
@@ -1312,10 +1416,13 @@ class ExecuteSkill:
         agents: AgentDrivers | None = None,
         repair: RepairDrift | None = None,
         stops: Stops | None = None,
+        tools: ToolCaller | None = None,
     ) -> None:
         self._uow = uow
         self._start = StartRun(uow, clock, ids)
-        self._step = ExecuteStep(uow, http, vault, ui, vision, agents=agents)
+        self._step = ExecuteStep(
+            uow, http, vault, ui, vision, agents=agents, tools=tools, clock=clock
+        )
         self._finish = FinishRun(uow, clock, learn, repair)
         self._stops = stops or Stops()
 

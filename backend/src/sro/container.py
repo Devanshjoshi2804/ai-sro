@@ -119,6 +119,11 @@ from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.repair_drift import RepairDrift
+from sro.application.trigger.answer_confirmation import (
+    AnswerConfirmation,
+    ExpireConfirmations,
+    ReadConfirmations,
+)
 from sro.application.trigger.create_trigger import CreateTrigger
 from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
@@ -292,6 +297,15 @@ class Container:
             dispatcher=self.dispatcher,
             scheduler=self.scheduler,
         )
+
+    def answer_confirmation(self) -> AnswerConfirmation:
+        return AnswerConfirmation(self.unit_of_work(), self.clock, self.ids, self.durable)
+
+    def read_confirmations(self) -> ReadConfirmations:
+        return ReadConfirmations(self.unit_of_work())
+
+    def expire_confirmations(self) -> ExpireConfirmations:
+        return ExpireConfirmations(self.unit_of_work(), self.clock)
 
     def receive_inbound(self) -> ReceiveInbound:
         return ReceiveInbound(self.unit_of_work(), self.fire_trigger())

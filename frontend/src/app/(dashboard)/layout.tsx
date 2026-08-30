@@ -15,6 +15,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <TopBar>
         <BarGroup label="Do">
           <BarLink href="/console">Threads</BarLink>
+          {/* Beside Threads rather than under Watch: a card here is a decision
+              somebody has to make, not a thing to look at. */}
+          <BarLink href="/waiting">Waiting on you</BarLink>
         </BarGroup>
         <BarGroup label="Review">
           <BarLink href="/candidates">Candidates</BarLink>

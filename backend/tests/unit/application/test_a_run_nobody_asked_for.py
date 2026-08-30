@@ -78,22 +78,26 @@ async def test_a_scheduled_write_with_nobody_behind_it_is_refused_at_creation() 
     assert uow.triggers.rows == {}
 
 
-async def test_a_scheduled_write_has_nowhere_to_ask_so_it_says_so() -> None:
-    """The confirmation queue does not exist yet. The honest options are
-    auto-approve, chosen by a named person, or start it by hand."""
+async def test_a_scheduled_write_may_be_created_and_asks_before_it_runs() -> None:
+    """This used to be refused outright, because a write firing with nobody
+    there had nowhere to ask. There is somewhere now, and the trigger says so
+    about itself: it is created, and `requires_confirmation` is what turns each
+    fire into a card rather than a run."""
     uow, scheduler = FakeUnitOfWork(), FakeScheduler()
     skill_id = await _skill(uow, writes=True)
 
-    with pytest.raises(TriggerRefused, match="confirmation"):
-        await _create(uow, scheduler).execute(
-            CTX,
-            NewTrigger(
-                skill_id=skill_id,
-                cron=EVERY_WEEKDAY,
-                parameters={"shipment_id": "1"},
-                authorized_by=True,
-            ),
-        )
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(
+            skill_id=skill_id,
+            cron=EVERY_WEEKDAY,
+            parameters={"shipment_id": "1"},
+            authorized_by=True,
+        ),
+    )
+
+    assert trigger.requires_confirmation is True
+    assert trigger.auto_approves is False
 
 
 async def test_auto_approve_lets_a_write_go_on_a_clock_with_a_name_on_it() -> None:
@@ -340,23 +344,23 @@ async def test_an_inbound_trigger_is_minted_with_its_own_token() -> None:
     assert scheduler.scheduled == {}
 
 
-async def test_an_inbound_write_has_nowhere_to_ask_so_it_says_so() -> None:
-    # The same gap a scheduled write has: nobody is there when the message
-    # arrives, so auto_approve, a named person, or waiting are the only honest
-    # options -- exactly like a schedule, and unlike a manual "fire now".
+async def test_an_inbound_write_asks_before_it_runs_too() -> None:
+    # The same gap a scheduled write had, closed the same way: nobody is there
+    # when the message arrives, so the fire becomes a card.
     uow, scheduler = FakeUnitOfWork(), FakeScheduler()
     skill_id = await _skill(uow, writes=True)
 
-    with pytest.raises(TriggerRefused, match="confirmation"):
-        await _create(uow, scheduler).execute(
-            CTX,
-            NewTrigger(
-                skill_id=skill_id,
-                kind=TriggerKind.INBOUND,
-                parameters={"shipment_id": "1"},
-                authorized_by=True,
-            ),
-        )
+    trigger = await _create(uow, scheduler).execute(
+        CTX,
+        NewTrigger(
+            skill_id=skill_id,
+            kind=TriggerKind.INBOUND,
+            parameters={"shipment_id": "1"},
+            authorized_by=True,
+        ),
+    )
+
+    assert trigger.requires_confirmation is True
 
 
 async def test_auto_approve_lets_an_inbound_write_through() -> None:

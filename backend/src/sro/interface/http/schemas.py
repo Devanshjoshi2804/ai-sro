@@ -40,6 +40,7 @@ from sro.domain.skill.track_record import (
     DEMOTE_AFTER_FAILURES,
     REQUIRED_CLEAN_RUNS,
 )
+from sro.domain.trigger.confirmation import Confirmation
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.domain.trigger.watch import MAX_TERM, Term, TermField, ValueAt, Watch
 
@@ -572,6 +573,44 @@ class ToolOfferedModel(BaseModel):
     name: str
     description: str
     arguments: list[str]
+
+
+class ConfirmationModel(BaseModel):
+    """A fire waiting for somebody to say yes."""
+
+    id: str
+    trigger_id: str
+    skill_id: str
+    skill_name: str
+    asked_at: datetime
+    expires_at: datetime
+    values: dict[str, str]
+    because: str
+    answer: str
+
+    @classmethod
+    def of(cls, confirmation: Confirmation, *, skill_name: str = "") -> ConfirmationModel:
+        return cls(
+            id=confirmation.id.value,
+            trigger_id=confirmation.trigger_id.value,
+            skill_id=confirmation.skill_id.value,
+            skill_name=skill_name,
+            asked_at=confirmation.asked_at,
+            expires_at=confirmation.expires_at,
+            values=dict(confirmation.values),
+            because=confirmation.because,
+            answer=confirmation.answer.value,
+        )
+
+
+class DeclineRequest(BaseModel):
+    note: str = ""
+
+
+class AnsweredModel(BaseModel):
+    confirmation_id: str
+    answer: str
+    run_id: str | None = None
 
 
 class AssertRequest(BaseModel):

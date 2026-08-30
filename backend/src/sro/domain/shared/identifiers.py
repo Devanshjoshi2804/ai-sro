@@ -50,5 +50,9 @@ class TriggerId(Identifier):
     """What starts a run when nobody typed a sentence."""
 
 
+class ConfirmationId(Identifier):
+    """A fire waiting for somebody to say yes."""
+
+
 class BrowserSessionId(Identifier):
     """Session in the browser provider. Owned by them, referenced by us."""

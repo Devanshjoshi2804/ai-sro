@@ -30,6 +30,7 @@ from sro.application.ports.intent import Extraction, Reading
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
     CandidateRepository,
+    ConfirmationRepository,
     ConnectionRepository,
     DeviceRepository,
     KnowledgeRepository,
@@ -78,6 +79,7 @@ from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
     CandidateId,
+    ConfirmationId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -88,6 +90,7 @@ from sro.domain.shared.identifiers import (
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
 
 
@@ -114,6 +117,7 @@ class FakeIdFactory:
         self._messages = count(1)
         self._devices = count(1)
         self._triggers = count(1)
+        self._confirmations = count(1)
         self._candidates = count(1)
 
     def new_recording_id(self) -> RecordingId:
@@ -139,6 +143,9 @@ class FakeIdFactory:
 
     def new_trigger_id(self) -> TriggerId:
         return TriggerId(f"trg-{next(self._triggers)}")
+
+    def new_confirmation_id(self) -> ConfirmationId:
+        return ConfirmationId(f"cnf-{next(self._confirmations)}")
 
     def new_candidate_id(self) -> CandidateId:
         return CandidateId(f"cnd-{next(self._candidates)}")
@@ -330,6 +337,11 @@ class FakeDurableExecution:
         given -- so a test can prove a caller asked not to be blocked, not
         just that a run id came back."""
 
+        self.authorised: list[str | None] = []
+        """One entry per call, whose name is on the write. A trigger's author
+        and the person who approved one of its fires are different people, and
+        which of them a run carries is the point of the confirmation queue."""
+
     async def induce_skill(
         self,
         ctx: RequestContext,
@@ -357,6 +369,7 @@ class FakeDurableExecution:
         self.started.append(str(skill_id))
         self.with_values.append(dict(parameters))
         self.waited.append(wait)
+        self.authorised.append(authorized_by)
         if self._execute is None:
             # A caller that only needs to know a run was started -- a trigger,
             # say -- rather than what it did.
@@ -1132,6 +1145,35 @@ class FakeRunDispatcher:
         return RunId(f"run-dispatched-{len(self.asked)}")
 
 
+class FakeConfirmationRepository:
+    def __init__(self) -> None:
+        self.rows: dict[str, Confirmation] = {}
+
+    async def add(self, confirmation: Confirmation) -> None:
+        self.rows[confirmation.id.value] = confirmation
+
+    async def get(self, tenant_id: TenantId, confirmation_id: ConfirmationId) -> Confirmation:
+        found = self.rows.get(confirmation_id.value)
+        if found is None or found.tenant_id != tenant_id:
+            raise NotFound(f"confirmation {confirmation_id} not found")
+        return found
+
+    async def save(self, confirmation: Confirmation) -> None:
+        self.rows[confirmation.id.value] = confirmation
+
+    async def waiting(self, tenant_id: TenantId) -> tuple[Confirmation, ...]:
+        return tuple(
+            sorted(
+                (
+                    row
+                    for row in self.rows.values()
+                    if row.tenant_id == tenant_id and row.answer is Answer.WAITING
+                ),
+                key=lambda row: row.asked_at,
+            )
+        )
+
+
 class FakeToolCallRepository:
     """A set, which is what the real one is: a key is claimed or it is not."""
 
@@ -1165,6 +1207,7 @@ class FakeUnitOfWork:
     candidates: CandidateRepository
     triggers: TriggerRepository
     tool_calls: ToolCallRepository
+    confirmations: ConfirmationRepository
 
     def __init__(self) -> None:
         self.recordings = FakeRecordingRepository()
@@ -1181,6 +1224,7 @@ class FakeUnitOfWork:
         self.candidates = FakeCandidateRepository()
         self.triggers = FakeTriggerRepository()
         self.tool_calls = FakeToolCallRepository()
+        self.confirmations = FakeConfirmationRepository()
         self.commits = 0
         self.rollbacks = 0
         self.commit_raises: Exception | None = None
@@ -1258,6 +1302,7 @@ _scheduler: Scheduler = FakeScheduler()
 _dispatcher: RunDispatcher = FakeRunDispatcher()
 _triggers: TriggerRepository = FakeTriggerRepository()
 _tool_calls: ToolCallRepository = FakeToolCallRepository()
+_confirmations: ConfirmationRepository = FakeConfirmationRepository()
 _candidates: CandidateRepository = FakeCandidateRepository()
 
 

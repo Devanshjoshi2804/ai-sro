@@ -494,3 +494,31 @@ class ToolCallRow(Base):
 
     tool: Mapped[str] = mapped_column(String(200), nullable=False)
     claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ConfirmationRow(Base):
+    """A fire waiting for somebody to say yes, and what they said."""
+
+    __tablename__ = "confirmations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    trigger_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    skill_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    asked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    values: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
+    because: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    answer: Mapped[str] = mapped_column(String(16), nullable=False, default="waiting")
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    answered_by: Mapped[str | None] = mapped_column(String(64))
+    run_id: Mapped[str | None] = mapped_column(String(64))
+    note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    __table_args__ = (
+        # What the console asks for: this tenant's, oldest first, waiting ones.
+        Index("ix_confirmations_tenant_answer", "tenant_id", "answer", "asked_at"),
+    )

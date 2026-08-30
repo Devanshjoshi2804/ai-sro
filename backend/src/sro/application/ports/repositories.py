@@ -24,6 +24,7 @@ from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
     CandidateId,
+    ConfirmationId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -33,6 +34,7 @@ from sro.domain.shared.identifiers import (
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.confirmation import Confirmation
 from sro.domain.trigger.trigger import Trigger
 
 
@@ -403,6 +405,23 @@ class TriggerRepository(Protocol):
         ...
 
 
+class ConfirmationRepository(Protocol):
+    async def add(self, confirmation: Confirmation) -> None: ...
+
+    async def get(self, tenant_id: TenantId, confirmation_id: ConfirmationId) -> Confirmation: ...
+
+    async def save(self, confirmation: Confirmation) -> None: ...
+
+    async def waiting(self, tenant_id: TenantId) -> tuple[Confirmation, ...]:
+        """Everything this tenant has not answered, oldest first.
+
+        Including the ones that have run out: a card that vanished from a
+        screen is not the same as one somebody can see was never answered, and
+        the second is what tells a team its queue is not being read.
+        """
+        ...
+
+
 class ToolCallRepository(Protocol):
     """What has already been sent through a connector, so it is not sent twice.
 
@@ -443,6 +462,7 @@ class UnitOfWork(Protocol):
     candidates: CandidateRepository
     triggers: TriggerRepository
     tool_calls: ToolCallRepository
+    confirmations: ConfirmationRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
 

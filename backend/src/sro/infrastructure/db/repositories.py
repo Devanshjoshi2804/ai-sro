@@ -19,6 +19,7 @@ from sqlalchemy.orm.exc import StaleDataError
 from sro.application.ports.repositories import (
     BrowserSessionRepository,
     CandidateRepository,
+    ConfirmationRepository,
     ConnectionRepository,
     DeviceRepository,
     KnowledgeRepository,
@@ -48,6 +49,7 @@ from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
     CandidateId,
+    ConfirmationId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -57,11 +59,13 @@ from sro.domain.shared.identifiers import (
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger
 from sro.infrastructure.db.codec import dump_policy
 from sro.infrastructure.db.mappers import (
     batch_to_row,
     candidate_to_row,
+    confirmation_to_row,
     connection_to_row,
     device_to_row,
     knowledge_to_row,
@@ -71,6 +75,7 @@ from sro.infrastructure.db.mappers import (
     recording_to_row,
     row_to_batch,
     row_to_candidate,
+    row_to_confirmation,
     row_to_connection,
     row_to_device,
     row_to_knowledge,
@@ -86,6 +91,7 @@ from sro.infrastructure.db.mappers import (
     thread_to_row,
     trigger_to_row,
     update_candidate_row,
+    update_confirmation_row,
     update_connection_row,
     update_device_row,
     update_knowledge_row,
@@ -98,6 +104,7 @@ from sro.infrastructure.db.mappers import (
 from sro.infrastructure.db.models import (
     AgentDeviceRow,
     BrowserSessionRow,
+    ConfirmationRow,
     ConnectionRow,
     KnowledgeRow,
     ModelCallRow,
@@ -783,6 +790,48 @@ class SqlObservationPolicyRepository(ObservationPolicyRepository):
         row.policy = dump_policy(policy)
 
 
+class SqlConfirmationRepository(ConfirmationRepository):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, confirmation: Confirmation) -> None:
+        self._session.add(confirmation_to_row(confirmation))
+
+    async def get(self, tenant_id: TenantId, confirmation_id: ConfirmationId) -> Confirmation:
+        return row_to_confirmation(await self._row(tenant_id, confirmation_id))
+
+    async def save(self, confirmation: Confirmation) -> None:
+        update_confirmation_row(
+            await self._row(confirmation.tenant_id, confirmation.id), confirmation
+        )
+
+    async def waiting(self, tenant_id: TenantId) -> tuple[Confirmation, ...]:
+        rows = (
+            await self._session.execute(
+                select(ConfirmationRow)
+                .where(
+                    ConfirmationRow.tenant_id == tenant_id.value,
+                    ConfirmationRow.answer == Answer.WAITING.value,
+                )
+                .order_by(ConfirmationRow.asked_at)
+            )
+        ).scalars()
+        return tuple(row_to_confirmation(row) for row in rows)
+
+    async def _row(self, tenant_id: TenantId, confirmation_id: ConfirmationId) -> ConfirmationRow:
+        row = (
+            await self._session.execute(
+                select(ConfirmationRow).where(
+                    ConfirmationRow.id == confirmation_id.value,
+                    ConfirmationRow.tenant_id == tenant_id.value,
+                )
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            raise NotFound(f"confirmation {confirmation_id} not found")
+        return row
+
+
 class SqlToolCallRepository(ToolCallRepository):
     """The claim is the insert. Two writers racing for one key both try it, the
     primary key refuses one of them, and that refusal is the answer."""
@@ -877,6 +926,7 @@ class SqlUnitOfWork(UnitOfWork):
         self.candidates = SqlCandidateRepository(self._session)
         self.triggers = SqlTriggerRepository(self._session)
         self.tool_calls = SqlToolCallRepository(self._session)
+        self.confirmations = SqlConfirmationRepository(self._session)
         return self
 
     async def __aexit__(self, *exc: object) -> None:

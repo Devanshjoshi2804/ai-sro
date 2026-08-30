@@ -11,6 +11,7 @@ from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import KnowledgeId
 from sro.domain.shared.identifiers import (
     CandidateId,
+    ConfirmationId,
     DeviceId,
     RecordingId,
     SkillId,
@@ -49,6 +50,9 @@ class UuidFactory(IdFactory):
 
     def new_trigger_id(self) -> TriggerId:
         return TriggerId(f"trg_{uuid.uuid4().hex}")
+
+    def new_confirmation_id(self) -> ConfirmationId:
+        return ConfirmationId(f"cnf_{uuid.uuid4().hex}")
 
     def new_candidate_id(self) -> CandidateId:
         return CandidateId(f"cnd_{uuid.uuid4().hex}")

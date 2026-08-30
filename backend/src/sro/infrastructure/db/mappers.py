@@ -34,6 +34,7 @@ from sro.domain.shared.identifiers import (
     BatchId,
     BrowserSessionId,
     CandidateId,
+    ConfirmationId,
     DeviceId,
     PrincipalId,
     RecordingId,
@@ -44,6 +45,7 @@ from sro.domain.shared.identifiers import (
 from sro.domain.shared.objective import Direction, ObjectiveKey
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill
+from sro.domain.trigger.confirmation import Answer, Confirmation
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.infrastructure.db.codec import (
     dump_artifacts,
@@ -71,6 +73,7 @@ from sro.infrastructure.db.codec import (
 )
 from sro.infrastructure.db.models import (
     AgentDeviceRow,
+    ConfirmationRow,
     ConnectionRow,
     KnowledgeRow,
     ModelCallRow,
@@ -653,4 +656,43 @@ def row_to_candidate(row: TaskCandidateRow) -> TaskCandidate:
         named_by_model=row.named_by_model,
         learned_from=row.learned_from or 0,
         learned_under=row.learned_under or 0,
+    )
+
+
+def confirmation_to_row(confirmation: Confirmation) -> ConfirmationRow:
+    row = ConfirmationRow(id=confirmation.id.value)
+    update_confirmation_row(row, confirmation)
+    return row
+
+
+def update_confirmation_row(row: ConfirmationRow, confirmation: Confirmation) -> None:
+    row.tenant_id = confirmation.tenant_id.value
+    row.trigger_id = confirmation.trigger_id.value
+    row.skill_id = confirmation.skill_id.value
+    row.asked_at = confirmation.asked_at
+    row.expires_at = confirmation.expires_at
+    row.values = dict(confirmation.values)
+    row.because = confirmation.because
+    row.answer = confirmation.answer.value
+    row.answered_at = confirmation.answered_at
+    row.answered_by = confirmation.answered_by.value if confirmation.answered_by else None
+    row.run_id = confirmation.run_id.value if confirmation.run_id else None
+    row.note = confirmation.note
+
+
+def row_to_confirmation(row: ConfirmationRow) -> Confirmation:
+    return Confirmation(
+        id=ConfirmationId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        trigger_id=TriggerId(row.trigger_id),
+        skill_id=SkillId(row.skill_id),
+        asked_at=row.asked_at,
+        expires_at=row.expires_at,
+        values=dict(row.values or {}),
+        because=row.because,
+        answer=Answer(row.answer),
+        answered_at=row.answered_at,
+        answered_by=PrincipalId(row.answered_by) if row.answered_by else None,
+        run_id=RunId(row.run_id) if row.run_id else None,
+        note=row.note,
     )

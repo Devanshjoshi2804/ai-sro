@@ -10,6 +10,7 @@ from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import KnowledgeId
 from sro.domain.shared.identifiers import (
     CandidateId,
+    ConfirmationId,
     DeviceId,
     RecordingId,
     SkillId,
@@ -39,5 +40,7 @@ class IdFactory(Protocol):
     def new_device_id(self) -> DeviceId: ...
 
     def new_trigger_id(self) -> TriggerId: ...
+
+    def new_confirmation_id(self) -> ConfirmationId: ...
 
     def new_candidate_id(self) -> CandidateId: ...

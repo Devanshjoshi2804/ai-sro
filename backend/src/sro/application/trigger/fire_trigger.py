@@ -19,9 +19,10 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.execution.run import RunId
-from sro.domain.shared.identifiers import TriggerId
+from sro.domain.shared.identifiers import ConfirmationId, TriggerId
 from sro.domain.skill.parameter import ParameterKind
 from sro.domain.skill.skill import SkillVersion
+from sro.domain.trigger.confirmation import ANSWER_WITHIN, Confirmation
 from sro.domain.trigger.trigger import Trigger
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,13 @@ logger = logging.getLogger(__name__)
 class Fired:
     trigger_id: TriggerId
     run_id: RunId | None = None
+    confirmation_id: ConfirmationId | None = None
+    """Set where nothing was started because somebody has to say yes first.
+
+    Beside ``run_id`` rather than instead of it, and neither is a failure: a
+    fire that became a card is the trigger working exactly as its author asked
+    it to."""
+
     skipped: str | None = None
     """Why nothing was started. Not an error: a disabled trigger and a skill
     that has stopped being runnable are both ordinary, and a scheduler that
@@ -99,6 +107,7 @@ class FireTrigger:
                 await uow.commit()
                 return Fired(trigger_id, skipped=trigger.disabled_reason)
 
+            now = self._clock.now()
             values = trigger.values_from(message or {})
             if blank := blank_inputs(version, values):
                 # A mail that matched the rule but named no order. Every relay
@@ -108,6 +117,28 @@ class FireTrigger:
                 # Skipped here, where the reason is still legible.
                 return Fired(trigger_id, skipped="nothing said " + ", ".join(blank))
 
+            if trigger.requires_confirmation:
+                # Nobody is here. The fire becomes a card instead of a run, and
+                # the values on it are frozen now rather than re-read when
+                # somebody answers -- what they approve has to be what is
+                # written in front of them, and a trigger edited in between
+                # would turn a yes to one thing into a yes to another.
+                asked = Confirmation(
+                    id=self._ids.new_confirmation_id(),
+                    tenant_id=trigger.tenant_id,
+                    trigger_id=trigger.id,
+                    skill_id=trigger.skill_id,
+                    asked_at=now,
+                    expires_at=now + ANSWER_WITHIN,
+                    values=values,
+                    because=_because(trigger, message),
+                )
+                await uow.confirmations.add(asked)
+                trigger.fired(now, None)
+                await uow.triggers.save(trigger)
+                await uow.commit()
+                return Fired(trigger_id, confirmation_id=asked.id)
+
             try:
                 run_id = await self._start(ctx, trigger, version=version.version, values=values)
             except DispatchFailed as unreachable:
@@ -116,7 +147,7 @@ class FireTrigger:
                 logger.info("trigger %s could not reach its browser: %s", trigger_id, unreachable)
                 return Fired(trigger_id, skipped=str(unreachable))
 
-            trigger.fired(self._clock.now(), run_id)
+            trigger.fired(now, run_id)
             await uow.triggers.save(trigger)
             await uow.commit()
 
@@ -186,3 +217,18 @@ def blank_inputs(version: SkillVersion, values: Mapping[str, str]) -> list[str]:
         for p in version.parameters
         if p.kind is ParameterKind.INPUT and not values.get(p.name, "").strip()
     )
+
+
+def _because(trigger: Trigger, message: Mapping[str, str] | None) -> str:
+    """The one sentence somebody reads before deciding.
+
+    A subject where a mail carried one, because that is what the person
+    approving actually recognises. Otherwise what kind of trigger this was --
+    which is thin, and thin is better than a sentence this code invented about
+    a message it did not read.
+    """
+    said = dict(message or {})
+    for name in ("subject", "title", "summary"):
+        if said.get(name):
+            return said[name][:200]
+    return f"a {trigger.kind} trigger fired"

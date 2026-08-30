@@ -540,10 +540,23 @@ class CaptureSession:
         if not raw:
             return None
 
+        # Before the size branch, not inside it. A body too large to inline was
+        # written to object storage exactly as it arrived, so the one response
+        # big enough to be interesting was the one whose credentials were kept
+        # -- and a response CDP had base64-encoded skipped redaction outright,
+        # then reported no fields removed, which reads as "there were none".
+        redacted: tuple[str, ...] = ()
+        if self._redact_secrets:
+            readable = _as_text(raw) if base64_encoded else text
+            if readable is not None:
+                cleaned, redacted = redact_body(readable, content_type=pending.mime_type)
+                if redacted:
+                    # Rewritten, so it is text now whatever it arrived as.
+                    # Nothing is gained by re-encoding a document we have just
+                    # had to parse, and a reviewer can read this one.
+                    text, raw, base64_encoded = cleaned, cleaned.encode(), False
+
         if len(raw) <= self._inline_limit:
-            redacted: tuple[str, ...] = ()
-            if self._redact_secrets and not base64_encoded:
-                text, redacted = redact_body(text, content_type=pending.mime_type)
             return Body(
                 text=text,
                 size_bytes=len(raw),
@@ -562,6 +575,7 @@ class CaptureSession:
             size_bytes=len(raw),
             mime_type=pending.mime_type,
             encoding="base64" if base64_encoded else None,
+            redacted_fields=redacted,
         )
 
     def _emit(
@@ -693,3 +707,17 @@ def _addressed(cookie: dict[str, Any]) -> dict[str, Any]:
         return cookie
     scheme = "https" if cookie.get("secure", True) else "http"
     return {**cookie, "url": f"{scheme}://{domain}{cookie.get('path', '/')}"}
+
+
+def _as_text(raw: bytes) -> str | None:
+    """A base64 body read back as text, or ``None`` when it is really binary.
+
+    CDP base64-encodes whatever it cannot hand back as a UTF-8 string, which is
+    a screenshot *and* a JSON document served with a charset it would not guess
+    at. The second kind has field names in it, and a credential in one was
+    stored verbatim and reported as nothing removed.
+    """
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None

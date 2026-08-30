@@ -14,11 +14,11 @@ skill nobody can trust.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sro.application.capture.assemble import assemble_frames
+from sro.application.capture.assemble import AssemblyResult, assemble_frames
 from sro.application.capture.decode import (
     epoch_to_datetime,
     to_captured_request,
@@ -31,10 +31,12 @@ from sro.application.induction.errors import InductionFailed
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.observation.propose import occurrences
+from sro.application.observation.shots import ShotRef, pictures
 from sro.application.ports.blob import BlobStore
 from sro.application.ports.interpretation import WorkflowInterpreter
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import (
     CandidateStatus,
     Episode,
@@ -44,7 +46,7 @@ from sro.domain.observation.candidate import (
 )
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import DomainError
-from sro.domain.shared.identifiers import CandidateId, RecordingId, SkillId
+from sro.domain.shared.identifiers import BatchId, CandidateId, RecordingId, SkillId
 
 
 class NothingToTeach(DomainError):
@@ -180,8 +182,8 @@ class TeachCandidate:
         """One doing of the task, read back out of the evidence plane as a
         recording. `None` where that doing cannot be replayed at all -- its
         batches have aged out, or nothing in it changed anything."""
-        events = await self._evidence(ctx, episode)
-        assembled = assemble_frames(list(events))
+        read = await self._evidence(ctx, episode)
+        assembled = assemble_frames(read.events)
         if not assembled.frames:
             return None
 
@@ -201,27 +203,22 @@ class TeachCandidate:
         if objective is None:
             return None
         recording.name_objective(objective)
+        # The pictures of the very gestures these frames describe. Attached
+        # before the seal, because a sealed recording is evidence nobody may
+        # add to afterwards.
+        for artifact in await pictures(
+            self._blobs,
+            batches=read.batches,
+            sources=assembled.sources,
+            refs=read.shots,
+            now=self._clock.now(),
+        ):
+            recording.attach_artifact(artifact)
         recording.seal(self._clock.now())
         return recording
 
-    async def _evidence(self, ctx: RequestContext, episode: Episode) -> Iterator[CaptureEvent]:
-        """The events of one episode, read back out of the evidence plane.
-
-        Addressed by time rather than by offsets: an episode spans several
-        uploads and part of each, and the timestamps already say which part.
-        """
-        events: list[CaptureEvent] = []
-        async with self._uow as uow:
-            for batch_id in episode.batch_ids:
-                batch = await uow.observations.get(ctx.tenant_id, batch_id)
-                if batch is None:
-                    continue
-                try:
-                    payload = await self._blobs.read(batch.uri)
-                except (KeyError, OSError):
-                    continue
-                events.extend(_within(payload, episode))
-        return iter(events)
+    async def _evidence(self, ctx: RequestContext, episode: Episode) -> _Evidence:
+        return await _read_episode(self._uow, self._blobs, ctx, episode)
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,9 +371,9 @@ class TeachWorkflow:
         window across both: the gap between the halves is where the operator
         answered an email.
         """
-        events = list(await self._evidence(ctx, earlier))
-        events.extend(await self._evidence(ctx, later))
-        assembled = assemble_frames(events)
+        read = await self._evidence(ctx, earlier)
+        read.extend(await self._evidence(ctx, later))
+        assembled = assemble_frames(read.events)
         if not assembled.frames:
             return None
 
@@ -397,8 +394,21 @@ class TeachWorkflow:
         if objective is None:
             return None
         recording.name_objective(objective)
+        await self._illustrate(recording, read, assembled)
         recording.seal(self._clock.now())
         return recording
+
+    async def _illustrate(
+        self, recording: Recording, read: _Evidence, assembled: AssemblyResult
+    ) -> None:
+        for artifact in await pictures(
+            self._blobs,
+            batches=read.batches,
+            sources=assembled.sources,
+            refs=read.shots,
+            now=self._clock.now(),
+        ):
+            recording.attach_artifact(artifact)
 
     async def _name(self, first: TaskCandidate, second: TaskCandidate) -> str:
         """What to call the merged skill.
@@ -420,19 +430,8 @@ class TeachWorkflow:
         )
         return answer.title.strip() or plain
 
-    async def _evidence(self, ctx: RequestContext, episode: Episode) -> Sequence[CaptureEvent]:
-        events: list[CaptureEvent] = []
-        async with self._uow as uow:
-            for batch_id in episode.batch_ids:
-                batch = await uow.observations.get(ctx.tenant_id, batch_id)
-                if batch is None:
-                    continue
-                try:
-                    payload = await self._blobs.read(batch.uri)
-                except (KeyError, OSError):
-                    continue
-                events.extend(_within(payload, episode))
-        return events
+    async def _evidence(self, ctx: RequestContext, episode: Episode) -> _Evidence:
+        return await _read_episode(self._uow, self._blobs, ctx, episode)
 
 
 def _said_different(candidate: TaskCandidate, other: TaskCandidate) -> bool:
@@ -483,8 +482,63 @@ class ReadCandidates:
             return await uow.candidates.get(ctx.tenant_id, candidate_id)
 
 
-def _within(payload: bytes, episode: Episode) -> Sequence[CaptureEvent]:
-    kept: list[CaptureEvent] = []
+@dataclass(frozen=True, slots=True)
+class _Evidence:
+    """One episode, read back out of the evidence plane.
+
+    Addressed by time rather than by offsets: an episode spans several uploads
+    and part of each, and the timestamps already say which part.
+    """
+
+    events: list[CaptureEvent]
+    shots: dict[int, ShotRef]
+    """Where each gesture's picture would be, keyed by ``id()`` of the event
+    it belongs to. Identity, because `assemble_frames` hands back the very
+    objects it was given and two gestures can share a timestamp."""
+
+    batches: list[ObservationBatch]
+
+    def extend(self, other: _Evidence) -> None:
+        self.events.extend(other.events)
+        self.shots.update(other.shots)
+        self.batches.extend(other.batches)
+
+
+async def _read_episode(
+    uow: UnitOfWork, blobs: BlobStore, ctx: RequestContext, episode: Episode
+) -> _Evidence:
+    read = _Evidence(events=[], shots={}, batches=[])
+    async with uow as work:
+        for batch_id in episode.batch_ids:
+            batch = await work.observations.get(ctx.tenant_id, batch_id)
+            if batch is None:
+                continue
+            try:
+                payload = await blobs.read(batch.uri)
+            except (KeyError, OSError):
+                continue
+            read.batches.append(batch)
+            for event, ref in _within(payload, episode, batch_id):
+                read.events.append(event)
+                if ref is not None:
+                    read.shots[id(event)] = ref
+    return read
+
+
+def _within(
+    payload: bytes, episode: Episode, batch_id: BatchId
+) -> list[tuple[CaptureEvent, ShotRef | None]]:
+    """This episode's slice of one batch, each gesture carrying where its
+    picture would be.
+
+    The ordinal counts every gesture line in the batch, including the ones
+    this episode does not want and the ones `_capture` cannot read -- because
+    that is what the recorder counted when it numbered the pictures
+    (`upload.js`, ``framesOf``). Counting only the surviving gestures would
+    slide every later picture onto the wrong one.
+    """
+    kept: list[tuple[CaptureEvent, ShotRef | None]] = []
+    ordinal = -1
     for line in payload.splitlines():
         if not line.strip():
             continue
@@ -494,9 +548,12 @@ def _within(payload: bytes, episode: Episode) -> Sequence[CaptureEvent]:
             continue
         if not isinstance(event, Mapping):
             continue
+        gesture = event.get("kind") == "gesture"
+        if gesture:
+            ordinal += 1
         capture = _capture(event, episode)
         if capture is not None:
-            kept.append(capture)
+            kept.append((capture, ShotRef(batch_id, ordinal) if gesture else None))
     return kept
 
 

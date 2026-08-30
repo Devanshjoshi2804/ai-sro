@@ -37,18 +37,27 @@ its own change because the two URL site kinds store values differently:
 correct there, while `url_path_segments` never unquotes, so the same rule yields
 `ATTN%2520ALI`. One rule cannot serve both. Recorded in ADR 010.
 
-**Loop bounds count raw frames; step indices count aligned steps.** Reproducible
-on `main` before any of this week's work, with two non-evidential unmatched
-frames and no conditional step:
-`InvariantViolation: a loop covers steps 3-3, and this version has 2`. It fails
-loudly rather than shipping a wrong skill, which is why it was walled off behind
-a refusal rather than fixed under time pressure.
+**~~Loop bounds count raw frames; step indices count aligned steps.~~ Fixed
+2026-08-30.** `loops.detect` reads the frames as they were recorded, and has to
+-- the runs differ in length precisely because one iterated more times, so
+aligning first would destroy the signal a loop is found by. Everything
+downstream counts the steps the two runs share. The two spaces now meet at one
+seam, `loops.in_step_space`, called immediately after detection; the conversion
+refuses rather than approximates where a frame of the block did not survive
+alignment. Both halves are held by tests that reproduce the original failures
+when the conversion is removed.
 
 **Two shapes refuse rather than guess.** A form that nulls a whole nested block,
-and a loop task whose optional field is filled by its own keystroke. Both are
-deliberate and both are capabilities the operator does not have. The second is
-the one that will be met first, because a loop over order lines with an optional
-field per line is an ordinary warehouse task.
+and a loop whose optional field is filled *inside* the body -- on some
+iterations and not others. Both are deliberate and both are capabilities the
+operator does not have.
+
+The second is now much narrower than it was. It used to refuse any loop paired
+with any skipped field, because the index spaces disagreed; a field typed once
+before the block now induces normally, which is the ordinary case. What is left
+is the genuinely ambiguous one: a gesture between `first_step` and `last_step`
+that only one run made is either one block with an optional step in it or two
+different blocks, and the two runs do not decide which.
 
 **Teaching reads every episode of a candidate.** Fifty sightings means fifty
 blob reads and fifty stored recordings in one teach. Bounded in practice today,

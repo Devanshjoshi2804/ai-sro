@@ -278,7 +278,15 @@ class _Stub(BaseHTTPRequestHandler):
         an extension that stopped sending it would otherwise go on passing
         every test in this suite while being locked out of a real deployment.
         """
-        if not self.path.startswith("/v1/agents/") or self.path == "/v1/agents/register":
+        device_scoped = self.path.startswith("/v1/agents/") or any(
+            # The evidence paths take their device id from a request body
+            # rather than the URL, so the shape does not say they are
+            # device-scoped -- but they are, and the same secret is what says
+            # which browser is filing under whose name.
+            self.path.split("?")[0] == each
+            for each in ("/v1/observations", "/v1/observations/artifacts", "/v1/recordings")
+        )
+        if not device_scoped or self.path == "/v1/agents/register":
             return True
         if self.headers.get("X-Device-Secret") == DEVICE_SECRET:
             return True

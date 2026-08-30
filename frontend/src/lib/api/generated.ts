@@ -6555,6 +6555,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path?: never;
@@ -6806,6 +6807,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path?: never;
@@ -7062,6 +7064,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path?: never;

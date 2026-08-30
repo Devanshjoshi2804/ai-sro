@@ -276,6 +276,7 @@ async def _stored(uow: FakeUnitOfWork, blobs: FakeBlobStore, doings: list[dateti
         extension_version="0.1.0",
         registered_at=START,
         last_seen_at=START,
+        secret="what-this-browser-proves-itself-with",  # noqa: S106 -- not a credential
     )
     await uow.devices.add(device)
 
@@ -284,6 +285,7 @@ async def _stored(uow: FakeUnitOfWork, blobs: FakeBlobStore, doings: list[dateti
         await ingest.execute(
             CTX,
             device_id=device.id,
+            secret=device.secret,
             batch_id=BatchId(f"bat_{index}"),
             started_at=at,
             ended_at=at + timedelta(minutes=1),

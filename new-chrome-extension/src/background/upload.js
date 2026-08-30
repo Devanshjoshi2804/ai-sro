@@ -70,6 +70,15 @@ function isoFrom(ms) {
 export async function flush(deviceId) {
   if (!deviceId) return { uploaded: 0 };
 
+  // A browser registered before devices had secrets has an id and nothing to
+  // prove it with, and the evidence paths now refuse it the way every other
+  // device-scoped path does -- with the 404 a stranger gets. `isPermanent`
+  // reads a 404 as "waiting will not fix this" and drops the batch, so trying
+  // would throw away the operator's morning a minute before the heartbeat
+  // re-registers and hands this browser a secret. The queue holds; the next
+  // tick sends.
+  if (!(await state.deviceSecret())) return { uploaded: 0 };
+
   const batch = await sendBatch(deviceId);
   const shots = await drainShots(deviceId);
 

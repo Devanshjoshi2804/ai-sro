@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from sro.application.capture.identity import host_of, system_of
 from sro.application.connection.browsers import Browsers
 from sro.application.context import RequestContext
+from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.browser import BrowserProvider
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -81,12 +82,17 @@ class StartRecording:
         label: str | None = None,
         attach_to: str | None = None,
         device_id: DeviceId | None = None,
+        device_secret: str = "",
     ) -> StartedRecording:
         if attach_to:
             self._refuse_unless_allowed(attach_to)
         if device_id is not None:
             return await self._in_their_own_browser(
-                ctx, device_id=device_id, objective_key=objective_key, label=label
+                ctx,
+                device_id=device_id,
+                secret=device_secret,
+                objective_key=objective_key,
+                label=label,
             )
 
         async with self._uow as uow:
@@ -137,6 +143,7 @@ class StartRecording:
         ctx: RequestContext,
         *,
         device_id: DeviceId,
+        secret: str,
         objective_key: ObjectiveKey | None,
         label: str | None,
     ) -> StartedRecording:
@@ -150,6 +157,11 @@ class StartRecording:
         """
         async with self._uow as uow:
             device = await uow.devices.get(ctx.tenant_id, device_id)
+        # A demonstration is the strongest evidence this system has -- it is
+        # what a skill is induced from -- so naming somebody else's browser as
+        # the one about to perform it is refused the way every device-scoped
+        # path refuses it.
+        refuse_unless_itself(device, secret, device_id)
 
         recording = Recording(
             id=self._ids.new_recording_id(),

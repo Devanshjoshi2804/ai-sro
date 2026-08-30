@@ -32,6 +32,7 @@ from tests import factories as f
 from tests.unit.fakes import FakeBlobStore, FakeClock, FakeUnitOfWork
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
+SECRET = "what-this-browser-proves-itself-with"  # noqa: S105 -- not a credential
 LAPTOP = DeviceId("dev-1")
 OTHER = DeviceId("dev-2")
 
@@ -63,6 +64,7 @@ async def _device(uow: FakeUnitOfWork, device_id: DeviceId = LAPTOP) -> None:
             extension_version="0.1.0",
             registered_at=datetime(2020, 1, 1, tzinfo=UTC),
             last_seen_at=datetime(2020, 1, 1, tzinfo=UTC),
+            secret=SECRET,
         )
     )
     await SetObservationPolicy(uow).execute(CTX, policy=ObservationPolicy().enabled())
@@ -92,6 +94,7 @@ async def test_a_teaching_batch_is_filed_against_the_demonstration_it_shows() ->
     await _ingest(uow, blobs).execute(
         CTX,
         device_id=LAPTOP,
+        secret=SECRET,
         batch_id=BatchId("bat-1"),
         started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
         ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
@@ -114,6 +117,7 @@ async def test_teaching_evidence_that_names_no_demonstration_is_refused() -> Non
         await _ingest(uow, blobs).execute(
             CTX,
             device_id=LAPTOP,
+            secret=SECRET,
             batch_id=BatchId("bat-1"),
             started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
             ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
@@ -133,6 +137,7 @@ async def test_ordinary_browsing_cannot_be_filed_as_a_demonstration() -> None:
         await _ingest(uow, blobs).execute(
             CTX,
             device_id=LAPTOP,
+            secret=SECRET,
             batch_id=BatchId("bat-1"),
             started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
             ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
@@ -153,6 +158,10 @@ async def test_another_browser_cannot_upload_into_your_demonstration() -> None:
         await _ingest(uow, blobs).execute(
             CTX,
             device_id=OTHER,
+            # Its own secret: this browser is who it says it is, and is still
+            # refused. Proving you are yourself is not ownership of somebody
+            # else's demonstration.
+            secret=SECRET,
             batch_id=BatchId("bat-1"),
             started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
             ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
@@ -177,6 +186,7 @@ async def test_a_sealed_demonstration_takes_nothing_more() -> None:
         await _ingest(uow, blobs).execute(
             CTX,
             device_id=LAPTOP,
+            secret=SECRET,
             batch_id=BatchId("bat-2"),
             started_at=datetime(2026, 8, 25, 9, 31, tzinfo=UTC),
             ended_at=datetime(2026, 8, 25, 9, 32, tzinfo=UTC),
@@ -199,6 +209,7 @@ async def test_what_was_uploaded_becomes_the_recording_s_frames() -> None:
         await ingest.execute(
             CTX,
             device_id=LAPTOP,
+            secret=SECRET,
             batch_id=BatchId(f"bat-{index}"),
             started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
             ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
@@ -239,6 +250,7 @@ async def test_an_upload_that_cannot_be_read_does_not_lose_the_rest() -> None:
         await ingest.execute(
             CTX,
             device_id=LAPTOP,
+            secret=SECRET,
             batch_id=BatchId(f"bat-{index}"),
             started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
             ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),
@@ -268,6 +280,7 @@ async def test_assembling_twice_does_not_teach_every_step_twice() -> None:
     await _ingest(uow, blobs).execute(
         CTX,
         device_id=LAPTOP,
+        secret=SECRET,
         batch_id=BatchId("bat-1"),
         started_at=datetime(2026, 8, 25, 9, 1, tzinfo=UTC),
         ended_at=datetime(2026, 8, 25, 9, 2, tzinfo=UTC),

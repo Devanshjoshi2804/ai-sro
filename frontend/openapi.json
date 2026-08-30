@@ -7638,6 +7638,16 @@
         "operationId": "ingest_observations_v1_observations_post",
         "parameters": [
           {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
+            }
+          },
+          {
             "name": "authorization",
             "in": "header",
             "required": false,
@@ -8208,6 +8218,16 @@
         "operationId": "store_artifact_v1_observations_artifacts_post",
         "parameters": [
           {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
+            }
+          },
+          {
             "name": "authorization",
             "in": "header",
             "required": false,
@@ -8491,6 +8511,16 @@
         "summary": "Start Recording",
         "operationId": "start_recording_v1_recordings_post",
         "parameters": [
+          {
+            "name": "X-Device-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Device-Secret"
+            }
+          },
           {
             "name": "authorization",
             "in": "header",

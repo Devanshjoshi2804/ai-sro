@@ -11,7 +11,7 @@ from sro.application.recording.start_recording import NoSessionForSystem
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.shared.identifiers import DeviceId, RecordingId
 from sro.domain.shared.objective import Direction, ObjectiveKey
-from sro.interface.http.deps import ContainerDep, ContextDep
+from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
     ArtifactModel,
     FinishRecordingRequest,
@@ -28,7 +28,10 @@ router = APIRouter(prefix="/recordings", tags=["recordings"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def start_recording(
-    body: StartRecordingRequest, container: ContainerDep, ctx: ContextDep
+    body: StartRecordingRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+    x_device_secret: DeviceSecretDep = "",
 ) -> StartRecordingResponse:
     objective = body.objective_key.to_domain() if body.objective_key else None
 
@@ -42,6 +45,7 @@ async def start_recording(
             objective_key=objective,
             label=body.label,
             device_id=DeviceId(body.device_id),
+            device_secret=x_device_secret,
         )
         return StartRecordingResponse(
             recording_id=started.recording_id.value, live_view_url=started.live_view_url

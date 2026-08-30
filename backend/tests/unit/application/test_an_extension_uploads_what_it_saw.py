@@ -307,10 +307,13 @@ async def _ingest(
     ctx: RequestContext = ACME,
     batch_id: str = "bat_one",
     events: list[dict[str, object]] | None = None,
+    secret: str | None = None,
 ) -> Ingested:
     return await IngestObservation(uow, blobs, FakeClock()).execute(
         ctx,
         device_id=DeviceId(device_id),
+        # The browser's own, unless a test is deliberately presenting another's.
+        secret=uow.devices.rows[device_id].secret if secret is None else secret,
         batch_id=BatchId(batch_id),
         started_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
         ended_at=datetime(2026, 3, 1, 9, 5, tzinfo=UTC),

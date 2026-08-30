@@ -9,7 +9,7 @@ from fastapi import APIRouter, File, Form, Query, UploadFile, status
 
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.shared.identifiers import BatchId, DeviceId, RecordingId
-from sro.interface.http.deps import ContainerDep, ContextDep
+from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
     ForgottenResponse,
     ObservationAcceptedResponse,
@@ -23,7 +23,10 @@ router = APIRouter(prefix="/observations", tags=["observations"])
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def ingest_observations(
-    body: ObservationBatchRequest, container: ContainerDep, ctx: ContextDep
+    body: ObservationBatchRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+    x_device_secret: DeviceSecretDep = "",
 ) -> ObservationAcceptedResponse:
     """Accepted, not processed: the evidence is stored and read later.
 
@@ -35,6 +38,7 @@ async def ingest_observations(
     ingested = await container.ingest_observation().execute(
         ctx,
         device_id=DeviceId(body.device_id),
+        secret=x_device_secret,
         batch_id=BatchId(body.batch_id),
         started_at=body.started_at,
         ended_at=body.ended_at,
@@ -62,6 +66,7 @@ async def store_artifact(
     file: Annotated[UploadFile, File()],
     frame_index: Annotated[int | None, Form()] = None,
     label: Annotated[str | None, Form()] = None,
+    x_device_secret: DeviceSecretDep = "",
 ) -> ObservationArtifactResponse:
     """Screenshots and oversized bodies. No row: the key says which batch and
     which frame, so a miner finds them by prefix and a retention rule expires
@@ -69,6 +74,7 @@ async def store_artifact(
     stored = await container.store_observation_artifact().execute(
         ctx,
         device_id=DeviceId(device_id),
+        secret=x_device_secret,
         batch_id=BatchId(batch_id),
         kind=kind,
         data=await file.read(),

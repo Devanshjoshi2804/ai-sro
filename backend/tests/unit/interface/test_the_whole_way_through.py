@@ -199,6 +199,40 @@ class TestTeachAskRun:
         # point of shadow: an operator can read the request before it is real.
         assert any(step["method"] == "POST" for step in performed)
 
+    async def test_a_run_in_your_own_browser_answers_before_it_finishes(
+        self, taught: httpx.AsyncClient, container: _FakeContainer
+    ) -> None:
+        """The id has to arrive while there is still something to watch.
+
+        A device run used to be performed inside the request and returned when
+        the last step landed, so `/runs/{id}/stream` had nothing to subscribe to
+        until there was nothing left to see. The row now exists, and says it is
+        running, before the caller is answered.
+        """
+        induced = await taught.post(
+            "/v1/skills/induct",
+            json={"first_recording_id": "rec-a", "second_recording_id": "rec-b"},
+        )
+        skill_id = induced.json()["skill_id"]
+        await _connected(container)
+
+        run = await taught.post(
+            f"/v1/skills/{skill_id}/runs",
+            json={
+                "parameters": {"supplier_number": "NEW"},
+                "medium": "network",
+                "device_id": "dev-1",
+            },
+        )
+
+        assert run.status_code == 201, run.text
+        answered = run.json()
+        assert answered["id"]
+        assert answered["status"] == "running"
+        # And the row it names is readable straight away, which is the whole
+        # point: the console asks for it the moment it is told the id.
+        assert (await taught.get(f"/v1/runs/{answered['id']}")).status_code == 200
+
     async def test_a_write_run_records_the_caller_rather_than_a_typed_name(
         self, taught: httpx.AsyncClient, container: _FakeContainer
     ) -> None:

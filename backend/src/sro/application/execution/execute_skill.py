@@ -1217,11 +1217,25 @@ class FinishRun:
         self._learn = learn
         self._repair = repair
 
-    async def execute(self, ctx: RequestContext, *, run_id: RunId) -> Run:
+    async def execute(
+        self, ctx: RequestContext, *, run_id: RunId, stopped: str | None = None
+    ) -> Run:
+        """End the run, and let the ladder read what happened.
+
+        `stopped` is for a run that could not continue rather than one that ran
+        and failed its checks -- a detached performer that raised, and in time a
+        person who pressed stop. Both are FAILED, and both count against the
+        skill: three in a row demote it. That is defensible for a real fault and
+        arguable for a deliberate stop, and the alternative is a fourth verdict,
+        a migration, and a rewrite of promotion. Not yet.
+        """
         async with self._uow as uow:
             run = await uow.runs.get(ctx.tenant_id, run_id)
             now = self._clock.now()
-            run.finish(now)
+            if stopped is None:
+                run.finish(now)
+            else:
+                run.fail(now, stopped)
             await uow.runs.save(run)
 
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
@@ -1295,7 +1309,27 @@ class ExecuteSkill:
         self._finish = FinishRun(uow, clock, learn, repair)
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
-        run = await self._start.execute(ctx, request)
+        """Start it and see it through, in one call."""
+        return await self.resume(ctx, await self.begin(ctx, request))
+
+    async def begin(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
+        """Write the row, refuse it here if it is going to be refused.
+
+        Everything that says no -- the circuit breaker, the blast radius, a
+        stage that may not send a write, a version that does not exist -- says
+        so from here, so a caller that means to perform the run detached still
+        gets its answer as a `4xx` rather than in a task nobody is awaiting.
+        """
+        return await self._start.execute(ctx, request)
+
+    async def resume(self, ctx: RequestContext, run: Run) -> Run:
+        """Perform a run whose row already exists.
+
+        Split out so a caller can be told the run's id before the last step
+        rather than after it. A run in an operator's own browser is watched
+        while it happens, and a console cannot watch a run whose id arrives with
+        the answer.
+        """
         async with self._uow as uow:
             skill = await uow.skills.get(ctx.tenant_id, run.skill_id)
         version = skill.version(run.skill_version)

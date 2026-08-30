@@ -13247,7 +13247,7 @@
           "runs"
         ],
         "summary": "Stream Run",
-        "description": "Server-sent events: one per step as it completes, then the finished run.\n\nEvents are `step` and `done`. A client that arrives late gets every step so\nfar immediately, because what is sent is derived from the row rather than\nfrom what happened to be published while it was connected.",
+        "description": "Server-sent events: one per step as it completes, then the finished run.\n\nEvents are `step`, `waiting` and `done`. A client that arrives late gets\nevery step so far immediately, because what is sent is derived from the row\nrather than from what happened to be published while it was connected.\n\n`waiting` is the exception: it is a fact about right now rather than about\nthe row, and it is sent only when it changes. A client that arrives during a\npause is told about it on the next tick.",
         "operationId": "stream_run_v1_runs__run_id__stream_get",
         "parameters": [
           {

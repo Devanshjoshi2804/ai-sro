@@ -1053,9 +1053,13 @@ export interface paths {
          * Stream Run
          * @description Server-sent events: one per step as it completes, then the finished run.
          *
-         *     Events are `step` and `done`. A client that arrives late gets every step so
-         *     far immediately, because what is sent is derived from the row rather than
-         *     from what happened to be published while it was connected.
+         *     Events are `step`, `waiting` and `done`. A client that arrives late gets
+         *     every step so far immediately, because what is sent is derived from the row
+         *     rather than from what happened to be published while it was connected.
+         *
+         *     `waiting` is the exception: it is a fact about right now rather than about
+         *     the row, and it is sent only when it changes. A client that arrives during a
+         *     pause is told about it on the next tick.
          */
         get: operations["stream_run_v1_runs__run_id__stream_get"];
         put?: never;

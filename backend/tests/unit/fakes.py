@@ -261,6 +261,13 @@ class FakeBlobStore:
         if uri.startswith(prefix):
             self.objects.pop(uri[len(prefix) :], None)
 
+    async def list_prefix(self, prefix: str) -> dict[str, int]:
+        return {
+            f"s3://sro-artifacts/{key}": len(data)
+            for key, data in self.objects.items()
+            if key.startswith(prefix)
+        }
+
     async def forget_prefix(self, prefix: str) -> int:
         doomed = [key for key in self.objects if key.startswith(prefix)]
         for key in doomed:
@@ -1008,6 +1015,7 @@ class FakeAgentDrivers:
         self.connected = connected
         self.asked_for: list[tuple[str, str]] = []
         self.told: tuple[str | None, bool] = (None, False)
+        self.held: float | None = None
 
     def ui(
         self,
@@ -1032,6 +1040,11 @@ class FakeAgentDrivers:
 
     async def online(self, tenant_id: TenantId) -> tuple[DeviceId, ...]:
         return (DeviceId("dev-1"),) if self.connected else ()
+
+    async def held_for(self, tenant_id: TenantId, device_id: DeviceId) -> float | None:
+        """Whatever a test set. `None` unless it says otherwise, because a
+        browser that is not typing is the ordinary case."""
+        return self.held
 
 
 class FakeTriggerRepository:

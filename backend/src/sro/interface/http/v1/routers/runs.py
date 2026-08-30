@@ -7,12 +7,15 @@ rather than starting a second attempt at a warehouse it has already changed.
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
+from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecutionRequest
-from sro.domain.execution.run import Medium, RunId
+from sro.container import Container
+from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -23,6 +26,8 @@ from sro.interface.http.schemas import (
     RunSkillRequest,
 )
 from sro.interface.http.v1.routers.authorising import authorising
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["runs"])
 
@@ -57,7 +62,15 @@ async def run_skill(
         # resuming into a Chrome that may be closed, on a page that has moved,
         # halfway through a task -- and a step that has already been recorded as
         # sent must never be sent again to find out.
-        return RunModel.of(await container.execute_skill().execute(ctx, request))
+        #
+        # Answered as soon as the row exists, though, rather than when the last
+        # step lands. A run in somebody's own browser is the one a person sits
+        # and watches, and they could not: the id arrived with the result, so
+        # `/runs/{id}/stream` had nothing to subscribe to until there was
+        # nothing left to see.
+        started = await container.execute_skill().begin(ctx, request)
+        container.pursuits.spawn(_perform(container, ctx, started))
+        return RunModel.of(started)
 
     run_id = await container.durable.execute_skill(
         ctx,
@@ -128,3 +141,21 @@ async def list_runs(
 async def get_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> RunModel:
     run = await container.get_run().execute(ctx, run_id=RunId(run_id))
     return RunModel.of(run)
+
+
+async def _perform(container: Container, ctx: RequestContext, run: Run) -> None:
+    """Drive a run whose caller has already been answered.
+
+    Nobody is awaiting this, so nobody would see it raise. A `DomainError` mid-
+    run would leave the row saying `running` for as long as the process lived,
+    and the console watching it would count the seconds forever. Whatever goes
+    wrong, the run is ended saying so.
+    """
+    try:
+        await container.execute_skill().resume(ctx, run)
+    except Exception as error:
+        logger.exception("a run in an operator's browser could not be finished")
+        try:
+            await container.finish_run().execute(ctx, run_id=run.id, stopped=str(error))
+        except Exception:
+            logger.exception("and its row could not be closed either")

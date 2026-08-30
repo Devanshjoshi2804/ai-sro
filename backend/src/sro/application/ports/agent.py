@@ -56,6 +56,20 @@ class AgentDrivers(Protocol):
         """Devices of this tenant with a channel open right now."""
         ...
 
+    async def held_for(self, tenant_id: TenantId, device_id: DeviceId) -> float | None:
+        """Seconds this browser has asked to be left alone, or `None`.
+
+        The operator is typing. The extension says so unprompted and the backend
+        holds its commands for a moment, and until now that politeness happened
+        entirely out of sight -- a run simply appeared to stall. It is the one
+        state that shows the machine deferring to the person, which is worth
+        more on screen than most of what the run reports.
+
+        Absence is not a claim that nobody is typing: a tenant with capture
+        switched off has a channel that never says it is busy.
+        """
+        ...
+
 
 class DeviceUnreachable(Exception):
     """No channel to that browser. Not a ``DomainError``: the plan was fine.

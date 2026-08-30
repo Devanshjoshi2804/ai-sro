@@ -29,6 +29,7 @@ from sro.application.execution.headers import client_headers, resolve_headers
 from sro.application.execution.paging import MOST_PAGES, how_it_pages, next_page
 from sro.application.execution.plan import next_step
 from sro.application.execution.self_heal import HealBudget, Healed, SelfHeal
+from sro.application.execution.stops import Stops
 from sro.application.execution.verify import check, check_on_screen, extract
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction import jsonutil
@@ -1302,11 +1303,13 @@ class ExecuteSkill:
         vision: PerformWithVision | None = None,
         agents: AgentDrivers | None = None,
         repair: RepairDrift | None = None,
+        stops: Stops | None = None,
     ) -> None:
         self._uow = uow
         self._start = StartRun(uow, clock, ids)
         self._step = ExecuteStep(uow, http, vault, ui, vision, agents=agents)
         self._finish = FinishRun(uow, clock, learn, repair)
+        self._stops = stops or Stops()
 
     async def execute(self, ctx: RequestContext, request: ExecutionRequest) -> Run:
         """Start it and see it through, in one call."""
@@ -1339,14 +1342,27 @@ class ExecuteSkill:
         # through. The run itself is the record of where this has got to, so it
         # is re-read each time rather than counted here.
         position = 0
+        stopped: str | None = None
         while True:
+            # Between steps, never mid-command. A gesture already sent cannot be
+            # recalled from a warehouse, and a stop that ended the run while one
+            # was in flight would report a write as not having happened when it
+            # had. The cost is that stopping takes until the current step's
+            # deadline, which the console says rather than hides.
+            if self._stops.asked(run.id):
+                stopped = "a person stopped this run"
+                break
             async with self._uow as uow:
                 current = await uow.runs.get(ctx.tenant_id, run.id)
             if next_step(version, current) is None:
                 break
             await self._step.execute(ctx, run_id=run.id, index=position)
             position += 1
-        return await self._finish.execute(ctx, run_id=run.id)
+        try:
+            return await self._finish.execute(ctx, run_id=run.id, stopped=stopped)
+        finally:
+            # A run id is never reused, so nothing else would ever clear this.
+            self._stops.forget(run.id)
 
 
 def _origin_of(version: SkillVersion | None, step: SkillStep | None = None) -> str | None:

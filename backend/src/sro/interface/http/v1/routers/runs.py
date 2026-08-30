@@ -83,6 +83,23 @@ async def run_skill(
     return RunModel.of(await container.get_run().execute(ctx, run_id=run_id))
 
 
+@router.post("/runs/{run_id}/stop", status_code=status.HTTP_202_ACCEPTED)
+async def stop_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> RunModel:
+    """Ask a run in your own browser to stop.
+
+    Accepted rather than done: it takes effect at the next step, because a
+    gesture already sent cannot be recalled from a warehouse and a stop that
+    ended the run mid-command would report a write as not having happened when
+    it had. So this can wait as long as the current step's deadline, and the
+    console says so rather than showing a button that appears to do nothing.
+
+    Refused for a run this process is not performing. Answering "stopping" for
+    a durable run the worker will finish anyway would be the one thing a stop
+    control must never do.
+    """
+    return RunModel.of(await container.stop_run().execute(ctx, run_id=RunId(run_id)))
+
+
 @router.post("/skills/{skill_id}/batch", status_code=status.HTTP_201_CREATED)
 async def run_batch(
     skill_id: str, body: BatchRequest, container: ContainerDep, ctx: ContextDep

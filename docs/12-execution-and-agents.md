@@ -647,6 +647,25 @@ shadow with the reason attached. `demote()` is a separate method from `promote()
 precisely because it happens without a human — `promoted_by` is cleared, since
 nobody authorised it.
 
+**A run a person stopped counts as one of those failures, for now.** The operator
+watching a run in their own browser can ask it to stop
+(`POST /v1/runs/{id}/stop`); it ends at the next step, and it ends `FAILED` with
+a reason saying a person stopped it. So three stops in a row demote the version.
+That is defensible — an operator who stops the same skill three times running is
+telling you something — but it is a decision made by not making one: the
+alternative is a fourth `Verdict`, a migration, and a rewrite of promotion.
+Revisit it the first time somebody is surprised by it.
+
+The stop lands **between steps**, never mid-command. A gesture already sent
+cannot be recalled from a warehouse, and a control that ended the run while one
+was in flight would report a write as not having happened when it had. The cost
+is that stopping takes up to the current command's deadline, which the console
+says on the button rather than hiding.
+
+A run performed durably by the worker is refused rather than stopped: the
+intention lives in the process driving the socket, and answering "stopping" for
+a run that will finish anyway is the one thing a stop control must never do.
+
 **A run that reached nothing is not one of those failures.** The operator's
 browser had no tab open on the system, or the laptop was shut, so the call never
 left the machine. `judge()` returns `Verdict.UNREACHABLE`, which moves neither

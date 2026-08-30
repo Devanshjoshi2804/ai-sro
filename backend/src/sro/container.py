@@ -43,8 +43,9 @@ from sro.application.execution.execute_skill import (
 )
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
-from sro.application.execution.read_runs import GetRun, ListRuns
+from sro.application.execution.read_runs import GetRun, ListRuns, StopRun
 from sro.application.execution.self_heal import SelfHeal
+from sro.application.execution.stops import Stops
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.induction.induce_skill import InduceSkill
 from sro.application.induction.seed_from_flow import SeedSkillFromFlow
@@ -110,6 +111,7 @@ from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
 from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.promote_skill import PromoteSkill
+from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.repair_drift import RepairDrift
 from sro.application.trigger.create_trigger import CreateTrigger
@@ -181,6 +183,13 @@ class Container:
     In memory for the same reason as the pursuits below: a socket does not
     survive a restart, so a durable record of which browser was connected would
     only ever be a record of which browser used to be."""
+
+    stops: Stops = field(default_factory=Stops)
+
+    """Runs somebody has asked to stop. In memory beside the pursuits and the
+    sockets, and for the same reason: the task that would honour it is in this
+    process, so an intention that outlived the process would outlive the only
+    thing able to act on it."""
 
     pursuits: Pursuits = field(default_factory=Pursuits)
 
@@ -428,6 +437,9 @@ class Container:
     def get_skill(self) -> GetSkill:
         return GetSkill(self.unit_of_work())
 
+    def read_doings(self) -> ReadDoings:
+        return ReadDoings(self.unit_of_work())
+
     def get_live_view(self) -> GetLiveView:
         return GetLiveView(self.unit_of_work(), self.browser)
 
@@ -484,6 +496,7 @@ class Container:
             self.perform_with_vision(),
             self.agents(),
             self.repair_drift(),
+            self.stops,
         )
 
     def start_run(self) -> StartRun:
@@ -594,6 +607,9 @@ class Container:
 
     def get_run(self) -> GetRun:
         return GetRun(self.unit_of_work())
+
+    def stop_run(self) -> StopRun:
+        return StopRun(self.unit_of_work(), self.stops)
 
     def mcp_server(self) -> SkillToolServer:
         """A tool per runnable skill. One server per process: tenant comes from

@@ -149,6 +149,58 @@ describe("watching a run in your own browser", () => {
 
     expect(screen.getByText(/by label/i)).toBeInTheDocument();
   });
+  it("offers a stop that names when it happens, not when it was pressed", () => {
+    // It lands at the run's next step, because a gesture already sent cannot be
+    // recalled from a warehouse. A button that looked instant would be lying
+    // about one.
+    render(
+      <InYourBrowser
+        steps={[step()]}
+        waiting={null}
+        of={8}
+        where="wms.acme.test"
+        browser={null}
+        finished={false}
+        onStop={() => {}}
+        stopping
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /stopping at the next step/i })).toBeInTheDocument();
+  });
+
+  it("does not offer to stop a run this console cannot stop", () => {
+    // A durable run belongs to the worker and would finish anyway. Drawing the
+    // control and refusing the press is worse than not drawing it.
+    render(
+      <InYourBrowser
+        steps={[step()]}
+        waiting={null}
+        of={8}
+        where="wms.acme.test"
+        browser={null}
+        finished={false}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /stop/i })).not.toBeInTheDocument();
+  });
+
+  it("does not offer to stop a run that has already ended", () => {
+    render(
+      <InYourBrowser
+        steps={[step()]}
+        waiting={null}
+        of={1}
+        where="wms.acme.test"
+        browser={null}
+        finished
+        onStop={() => {}}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /stop/i })).not.toBeInTheDocument();
+  });
 });
 
 describe("where a run is acting", () => {

@@ -11,8 +11,14 @@ from __future__ import annotations
 import pytest
 
 from sro.application.context import RequestContext
-from sro.application.execution.execute_skill import ExecuteStep, ExecutionRequest, StartRun
-from sro.domain.execution.run import Medium, Run, StepDisposition
+from sro.application.execution.execute_skill import (
+    ExecuteSkill,
+    ExecuteStep,
+    ExecutionRequest,
+    StartRun,
+)
+from sro.application.execution.stops import Stops
+from sro.domain.execution.run import Medium, Run, RunStatus, StepDisposition
 from sro.domain.shared.identifiers import DeviceId
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.promotion import PromotionStage
@@ -169,3 +175,76 @@ async def test_a_shadow_run_in_somebodys_browser_still_withholds_its_writes(
 
     assert outcome.disposition is StepDisposition.WITHHELD
     assert agents.asked_for == []
+
+
+async def test_a_stopped_run_says_a_person_stopped_it_rather_than_that_it_failed_a_check() -> None:
+    """Both are FAILED, and a reviewer has to be able to tell them apart.
+
+    A run that failed its post-conditions is the skill being wrong. A run
+    somebody stopped is a person changing their mind, and reading the second as
+    the first is how a working skill gets distrusted.
+    """
+    uow, agents = FakeUnitOfWork(), FakeAgentDrivers()
+    await _assisted_skill(uow)
+    stops = Stops()
+    executor = ExecuteSkill(
+        uow,
+        FakeHttpCaller(),
+        FakeCredentialVault(),
+        FakeClock(),
+        FakeIdFactory(),
+        FakeUiDriver(),
+        agents=agents,
+        stops=stops,
+    )
+
+    started = await executor.begin(
+        CTX,
+        ExecutionRequest(
+            skill_id=f.skill().id,
+            parameters={"shipment_id": "12345"},
+            medium=Medium.UI,
+            device_id=LAPTOP,
+            authorized_by=str(f.OPERATOR),
+        ),
+    )
+    # Asked before the first step, so nothing is sent at all -- which is the
+    # only moment a stop can be honoured without a warehouse having been
+    # touched.
+    stops.ask(started.id)
+    finished = await executor.resume(CTX, started)
+
+    assert finished.status is RunStatus.FAILED
+    assert finished.failure == "a person stopped this run"
+    assert list(finished.steps) == []
+
+
+async def test_a_run_nobody_stopped_is_not_treated_as_stopped() -> None:
+    """The set is cleared when a run ends, and a run id is never reused -- but a
+    stale entry would end the next run before its first step."""
+    uow, agents = FakeUnitOfWork(), FakeAgentDrivers()
+    await _assisted_skill(uow)
+    stops = Stops()
+    executor = ExecuteSkill(
+        uow,
+        FakeHttpCaller(),
+        FakeCredentialVault(),
+        FakeClock(),
+        FakeIdFactory(),
+        FakeUiDriver(),
+        agents=agents,
+        stops=stops,
+    )
+
+    request = ExecutionRequest(
+        skill_id=f.skill().id,
+        parameters={"shipment_id": "12345"},
+        medium=Medium.UI,
+        device_id=LAPTOP,
+        authorized_by=str(f.OPERATOR),
+    )
+    first = await executor.begin(CTX, request)
+    stops.ask(first.id)
+    await executor.resume(CTX, first)
+
+    assert not stops.asked(first.id), "the stop outlived the run it was for"

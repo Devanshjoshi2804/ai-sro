@@ -245,6 +245,70 @@ class TestTheStreamSaysWhenTheOperatorIsTyping:
         assert events["waiting"]["held_ms"] is None
 
 
+class TestStoppingARunYouAreWatching:
+    """A run in an operator's own browser is the one they sit and watch, so it
+    is the one they will want to interrupt -- and every other way a run ends
+    belongs to the system rather than to a person changing their mind."""
+
+    async def test_a_run_this_process_is_not_performing_cannot_be_stopped(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
+    ) -> None:
+        """Answering "stopping" for a durable run the worker will finish anyway
+        is the one thing a stop control must never do."""
+        run = _running(device_id=None)
+        await uow.runs.add(run)
+
+        refused = await client.post(f"/v1/runs/{run.id.value}/stop")
+
+        assert refused.status_code == 409
+        assert "browser this process is driving" in refused.json()["detail"]
+
+    async def test_a_run_that_has_already_ended_cannot_be_stopped(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
+    ) -> None:
+        run = _running(device_id=DeviceId("dev-1"))
+        run.fail(f.at(900), "the system answered with its login page")
+        await uow.runs.add(run)
+
+        refused = await client.post(f"/v1/runs/{run.id.value}/stop")
+
+        assert refused.status_code == 409
+
+    async def test_another_tenant_cannot_stop_this_one_s_run(
+        self, client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork
+    ) -> None:
+        run = _running(device_id=DeviceId("dev-1"))
+        await uow.runs.add(run)
+
+        app = create_app()
+        app.dependency_overrides[get_container] = lambda: container
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={"Authorization": f"Bearer {token_for(tenant='rival')}"},
+        ) as rival:
+            theirs = await rival.post(f"/v1/runs/{run.id.value}/stop")
+
+        assert theirs.status_code == 404
+        assert not container.stops.asked(run.id)
+
+    async def test_a_stop_is_accepted_and_the_run_is_asked_rather_than_ended(
+        self, client: httpx.AsyncClient, container: _FakeContainer, uow: FakeUnitOfWork
+    ) -> None:
+        """202, not 200. It takes effect at the next step: a gesture already
+        sent cannot be recalled from a warehouse, so a stop that ended the run
+        mid-command would report a write as not having happened when it had."""
+        run = _running(device_id=DeviceId("dev-1"))
+        await uow.runs.add(run)
+
+        accepted = await client.post(f"/v1/runs/{run.id.value}/stop")
+
+        assert accepted.status_code == 202
+        assert container.stops.asked(run.id)
+        # Still running, because nothing has reached a step boundary yet.
+        assert accepted.json()["status"] == "running"
+
+
 class TestTheKnowledgeBaseIngestPathIsReal:
     """`make ingest-kb` pointed at `knowledge-base/blue-yonder-sce/`, a
     directory that has never existed -- the real files sit directly under

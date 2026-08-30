@@ -9,6 +9,7 @@ import { runInThread, threadKeys } from "@/features/console/chat-api";
 import { listDevices } from "@/features/trigger/api";
 import { useRunStream } from "@/features/run/stream";
 import { InYourBrowser, whereItIsActing } from "@/features/run/components/in-your-browser";
+import { stopRun } from "@/features/run/api";
 import { ApiError } from "@/lib/api/client";
 import { whoAmI } from "@/lib/api/credential";
 import { ChoiceField } from "@/features/console/choice-field";
@@ -460,6 +461,16 @@ function RunButton({
   // written to twice for one instruction.
   const [sent, setSent] = useState(false);
   const streamed = useRunStream(watching ?? answeredBy, Boolean(watching) || still);
+  // Asked, not done: it lands at the run's next step. The card keeps saying so
+  // until the run actually ends, or the operator presses a button that appears
+  // to have done nothing.
+  const stop = useMutation({
+    mutationFn: (runId: string) => stopRun(runId),
+    onError: (error) =>
+      toast.error("Could not stop it", {
+        description: error instanceof ApiError ? error.problem.detail : String(error),
+      }),
+  });
   // Already answered when the question was asked. Fetched rather than passed:
   // the reply is stored, and reopening the thread tomorrow should show what
   // the run found, not an empty card.
@@ -561,6 +572,8 @@ function RunButton({
           where={whereItIsActing(landed)}
           browser={(browsers.data ?? []).find((each) => each.id === on)?.label ?? null}
           finished={Boolean(streamed.run && streamed.run.status !== "running")}
+          onStop={() => stop.mutate((watching ?? answeredBy) as string)}
+          stopping={stop.isPending || stop.isSuccess}
         />
       );
     }

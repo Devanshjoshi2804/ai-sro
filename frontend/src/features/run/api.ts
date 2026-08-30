@@ -13,6 +13,16 @@ export const listRuns = () => api.get<RunModel[]>("/v1/runs");
 export const getRun = (id: string) => api.get<RunModel>(`/v1/runs/${id}`);
 
 /**
+ * Ask a run in your own browser to stop.
+ *
+ * Accepted rather than done: it takes effect at the run's next step, because a
+ * gesture already sent cannot be recalled from a warehouse. Refused with a 409
+ * for a run the deployment is performing on its own — answering "stopping" for
+ * a run that will finish anyway is the one thing a stop control must not do.
+ */
+export const stopRun = (id: string) => api.post<RunModel>(`/v1/runs/${id}/stop`, {});
+
+/**
  * Starts a run. `authorizedBy` is the operator confirming — above shadow the
  * backend refuses a run that names nobody, because a run that changed a
  * warehouse has to say who allowed it.

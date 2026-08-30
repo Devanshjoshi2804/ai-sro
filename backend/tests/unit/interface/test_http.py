@@ -14,6 +14,7 @@ from httpx import ASGITransport
 
 from sro.application.context import RequestContext
 from sro.application.execution.pursuits import Pursuits
+from sro.application.execution.stops import Stops
 from sro.application.ports.auth import Caller
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
@@ -86,6 +87,9 @@ class _FakeContainer(Container):
         self.tokens = None
         self.intent_parser = FakeIntentParser()
         self.pursuits = Pursuits()
+        # Hand-set beside the pursuits: this container writes its own
+        # `__init__`, so the dataclass defaults never run for it.
+        self.stops = Stops()
         self.agent_sockets = DeviceSockets()
         self.scheduler = FakeScheduler()
         self.dispatcher = FakeRunDispatcher()

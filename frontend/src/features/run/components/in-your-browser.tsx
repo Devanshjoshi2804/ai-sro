@@ -25,6 +25,8 @@ export function InYourBrowser({
   where,
   browser,
   finished,
+  onStop,
+  stopping,
 }: {
   steps: RunStep[];
   waiting: Waiting | null;
@@ -35,6 +37,10 @@ export function InYourBrowser({
   /** What the operator calls the machine this is happening on. */
   browser: string | null;
   finished: boolean;
+  /** Absent for a run this console cannot stop, so the control is not drawn
+   * rather than drawn and refused. */
+  onStop?: () => void;
+  stopping?: boolean;
 }) {
   return (
     <div
@@ -55,17 +61,44 @@ export function InYourBrowser({
           <li style={{ fontSize: 11.5, color: ink.textMuted }}>Opening the connection…</li>
         )}
       </ol>
-      <p
+      <div
         style={{
-          margin: 0,
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 10,
           padding: "8px 12px",
           borderTop: `1px solid ${ink.lineSoft}`,
           fontSize: 11,
           color: ink.textMuted,
         }}
       >
-        No screen is kept — this is happening in the tab in front of you.
-      </p>
+        <span>No screen is kept — this is happening in the tab in front of you.</span>
+        {onStop && !finished && (
+          <button
+            type="button"
+            onClick={onStop}
+            disabled={stopping}
+            style={{
+              marginLeft: "auto",
+              padding: "4px 10px",
+              borderRadius: 6,
+              border: `1px solid ${ink.danger}`,
+              background: "transparent",
+              color: ink.danger,
+              font: "inherit",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: stopping ? "default" : "pointer",
+            }}
+          >
+            {/* Named for when it happens, not for the press. It ends at the
+                next step -- a gesture already sent cannot be recalled -- and a
+                button that looked instant would be lying about a warehouse. */}
+            {stopping ? "Stopping at the next step…" : "Stop this run"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -82,6 +115,10 @@ function Header({
   where: string | null;
   browser: string | null;
   finished: boolean;
+  /** Absent for a run this console cannot stop, so the control is not drawn
+   * rather than drawn and refused. */
+  onStop?: () => void;
+  stopping?: boolean;
 }) {
   return (
     <div
@@ -157,9 +194,7 @@ function Held({ waiting }: { waiting: Waiting }) {
       }}
     >
       <span style={{ color: ink.text, fontWeight: 600 }}>Held — you are typing.</span>{" "}
-      {left > 0
-        ? `Resuming in ${(left / 1000).toFixed(1)}s, or the moment you stop.`
-        : "Resuming."}
+      {left > 0 ? `Resuming in ${(left / 1000).toFixed(1)}s, or the moment you stop.` : "Resuming."}
     </p>
   );
 }

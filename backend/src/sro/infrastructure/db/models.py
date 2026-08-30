@@ -309,6 +309,13 @@ class AgentDeviceRow(Base):
     registered before it existed; that one is refused until its extension
     re-registers, which is idempotent on the label."""
 
+    grants: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default="[]"
+    )
+    """Hosts this operator said may be watched after all, each with an expiry.
+    A list rather than a table: they are read only with the device, only ever
+    all at once, and there are a handful at a time."""
+
     __table_args__ = (
         Index("ix_agent_devices_tenant_seen", "tenant_id", "last_seen_at"),
         Index(

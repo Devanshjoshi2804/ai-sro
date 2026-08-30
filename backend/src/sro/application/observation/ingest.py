@@ -125,7 +125,10 @@ class IngestObservation:
                     already_had_it=True,
                 )
 
-            admission = admit(events, policy)
+            # What this operator said may be watched after all, on top of
+            # what the tenant agreed to by default. Read from the device
+            # already loaded above, and expired grants simply are not in it.
+            admission = admit(events, policy, device.granted_hosts(now))
             if not admission.accepted:
                 return Ingested(
                     batch_id=batch_id,

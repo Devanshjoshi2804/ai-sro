@@ -11,7 +11,22 @@
 // closed channel; a demonstration in progress outranks all of them, because
 // while one is running the panel is about that and nothing else.
 
+import { hostMatches } from "../background/scripts.js";
+
 const $ = (id) => document.getElementById(id);
+
+/** Whether the tenant excludes this host by default.
+ *
+ * The rule is imported rather than restated: `hostMatches` is the one
+ * definition of it, and this file having its own copy is how the panel would
+ * come to disagree with the worker about whether a page is being recorded.
+ */
+function excludedByDefault(status) {
+  if (!tabHere.host) return false;
+  return (status.policy?.exclude_hosts || []).some((pattern) =>
+    hostMatches(tabHere.host, pattern),
+  );
+}
 
 async function ask(message) {
   const answer = await chrome.runtime.sendMessage(message);
@@ -228,15 +243,27 @@ function watching(status) {
   // every tab and sorting it out later -- is what put a console's own polling
   // into the evidence and a mail client one policy edit away from it.
   if (!mine) {
+    // A host the tenant excludes by default -- webmail, a sign-in page -- can
+    // still be watched, because a task that involves the operator's mail
+    // cannot be demonstrated otherwise. What it must never be is quiet: this
+    // is the one place somebody agrees to their own mailbox being recorded,
+    // and a button that said the same thing here as on the WMS would be
+    // consent nobody gave.
+    const excluded = excludedByDefault(status);
     return card({
-      title: "Not watching this tab",
-      says:
-        (tabHere.host
-          ? `Nothing in ${tabHere.host} is being recorded.`
-          : "Open the system you work in.") +
-        " Watch a tab and everything in it is evidence -- its calls, its screens," +
-        " wherever it navigates." +
-        elsewhere,
+      title: excluded ? `${tabHere.host} is not normally recorded` : "Not watching this tab",
+      says: excluded
+        ? `${tabHere.host} is excluded for everyone in this tenant by default.` +
+          " You can watch it anyway, for this tab: everything in it becomes evidence" +
+          " -- its calls, its screens, wherever it navigates -- until you close the tab" +
+          " or stop watching. Nobody else can turn this on for you." +
+          elsewhere
+        : (tabHere.host
+            ? `Nothing in ${tabHere.host} is being recorded.`
+            : "Open the system you work in.") +
+          " Watch a tab and everything in it is evidence -- its calls, its screens," +
+          " wherever it navigates." +
+          elsewhere,
       // No tone. Not watching is the resting state of this panel, not a fault,
       // and it wore the same amber as "not observing", "this browser cannot be
       // reached" and "last error" -- so when something is actually wrong it
@@ -244,7 +271,7 @@ function watching(status) {
       // what makes this the card to deal with.
       actions: [
         {
-          label: "Watch this tab",
+          label: excluded ? `Watch ${tabHere.host} anyway` : "Watch this tab",
           primary: true,
           disabled: !status.capturing || !tabHere.tabId,
           act: (button) => setWatch(button, true),
@@ -254,12 +281,16 @@ function watching(status) {
     });
   }
 
+  const granted = excludedByDefault(status);
   return card({
-    title: "Watching this tab",
-    says:
-      `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
-      " becomes a task worth offering; teach one deliberately at any time." +
-      elsewhere,
+    title: granted ? `Watching ${mine.host}, which is normally excluded` : "Watching this tab",
+    says: granted
+      ? `You turned this on for ${mine.host}. Everything you do here is evidence,` +
+        " until you close the tab or stop watching." +
+        elsewhere
+      : `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
+        " becomes a task worth offering; teach one deliberately at any time." +
+        elsewhere,
     metrics: `since ${clock(mine.since)}`,
     actions: [
       {

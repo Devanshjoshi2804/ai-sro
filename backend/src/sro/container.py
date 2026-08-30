@@ -69,10 +69,12 @@ from sro.application.observation.mine import MineEverything, MineObservations
 from sro.application.observation.policy import ReadObservationPolicy, SetObservationPolicy
 from sro.application.observation.propose import AnswerJoin, ProposeAboutCandidates
 from sro.application.observation.register import (
+    GrantHost,
     ReadDevice,
     ReadDevices,
     RecordHeartbeat,
     RegisterDevice,
+    RevokeHost,
 )
 from sro.application.observation.retain import SweepRetention
 from sro.application.observation.teach import (
@@ -439,6 +441,12 @@ class Container:
 
     def read_doings(self) -> ReadDoings:
         return ReadDoings(self.unit_of_work())
+
+    def grant_host(self) -> GrantHost:
+        return GrantHost(self.unit_of_work(), self.clock)
+
+    def revoke_host(self) -> RevokeHost:
+        return RevokeHost(self.unit_of_work())
 
     def get_live_view(self) -> GetLiveView:
         return GetLiveView(self.unit_of_work(), self.browser)

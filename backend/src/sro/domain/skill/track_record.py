@@ -135,7 +135,9 @@ class TrackRecord:
         return self.consecutive_failures >= DEMOTE_AFTER_FAILURES
 
 
-def why_not_autonomous(record: TrackRecord, *, verifiable: bool) -> str | None:
+def why_not_autonomous(
+    record: TrackRecord, *, verifiable: bool, needs_a_person: bool = False
+) -> str | None:
     """The reason autonomy is refused, or ``None`` when it is earned.
 
     A reason rather than a boolean because this is shown to whoever asked, and
@@ -147,6 +149,18 @@ def why_not_autonomous(record: TrackRecord, *, verifiable: bool) -> str | None:
             "no step of this skill has an assertion, so a run of it cannot be checked; "
             "a skill that cannot be verified may run assisted indefinitely and never "
             "unattended"
+        )
+    if needs_a_person:
+        # Not "not yet" -- not ever. A step with no call behind it is performed
+        # as a gesture, `judge` calls any run that performs one degraded, and a
+        # degraded run resets the streak. So this version cannot accumulate the
+        # ten it would need, and reporting only the count would leave somebody
+        # waiting for a number that is never going to move.
+        return (
+            "a step of this skill can only be performed by clicking, so every run of it "
+            "is degraded and the streak below can never reach "
+            f"{REQUIRED_CLEAN_RUNS}; it may run assisted with a person pressing the "
+            "button, and never unattended"
         )
     if record.clean_streak < REQUIRED_CLEAN_RUNS:
         return f"{record.clean_streak} clean runs in a row, {REQUIRED_CLEAN_RUNS} needed" + (

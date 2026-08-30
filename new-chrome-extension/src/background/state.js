@@ -12,6 +12,7 @@ const KEYS = {
   apiUrl: "sro.apiUrl",
   consoleUrl: "sro.consoleUrl",
   policy: "sro.policy",
+  grants: "sro.grants",
   watches: "sro.watches",
   offers: "sro.offers",
   watched: "sro.watched",
@@ -85,6 +86,19 @@ export const state = {
 
   policy: () => read(KEYS.policy, null),
   setPolicy: (policy) => write(KEYS.policy, policy),
+
+  /** Hosts this operator said may be watched after all, each `{ host,
+   * expires_at }`.
+   *
+   * The tenant's exclusion list is what is observed by default, and webmail is
+   * on it deliberately. A grant is the person in front of the screen deciding
+   * otherwise about one host for one tab. Mirrored here from the server rather
+   * than owned here: the backend refuses an excluded host whatever this says,
+   * so the copy exists to keep the browser from queueing what would be thrown
+   * away, not to decide anything.
+   */
+  grants: () => read(KEYS.grants, []),
+  setGrants: (grants) => write(KEYS.grants, grants),
 
   /** The mail rules this browser holds, each `{ id, host, terms, values,
    * sender_at, subject_at }`.

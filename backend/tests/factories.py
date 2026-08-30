@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sro.domain.observation.device import AgentDevice
 from sro.domain.recording.artifact import ArtifactKind, MediaArtifact
 from sro.domain.recording.axgraph import AxGraph
 from sro.domain.recording.element import ElementFingerprint
@@ -22,6 +23,7 @@ from sro.domain.recording.network import (
 )
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.identifiers import (
+    DeviceId,
     PrincipalId,
     RecordingId,
     SkillId,
@@ -184,6 +186,20 @@ def parameter(**overrides: Any) -> Parameter:
         "observed_values": ("12345", "67890"),
     }
     return Parameter(**{**defaults, **overrides})
+
+
+def device(**overrides: Any) -> AgentDevice:
+    defaults: dict[str, Any] = {
+        "id": DeviceId("dev-1"),
+        "tenant_id": TENANT,
+        "principal_id": OPERATOR,
+        "label": "laptop",
+        "extension_version": "0.1.0",
+        "registered_at": at(0),
+        "last_seen_at": at(0),
+        "secret": "what-this-browser-proves-itself-with",
+    }
+    return AgentDevice(**{**defaults, **overrides})
 
 
 def provenance(**overrides: Any) -> Provenance:

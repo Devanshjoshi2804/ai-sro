@@ -482,6 +482,45 @@ class ParameterModel(BaseModel):
     the skill and a proven one is not."""
 
 
+class GrantRequest(BaseModel):
+    host: str
+    seconds: int = 0
+    """How long to watch it for. Zero means as long as a grant may last; the
+    server caps whatever is asked for, so a browser cannot ask for forever."""
+
+
+class GrantModel(BaseModel):
+    host: str
+    granted_by: str
+    granted_at: datetime
+    expires_at: datetime
+
+
+class GrantsResponse(BaseModel):
+    """What this browser may watch beyond the tenant's default, now.
+
+    The whole live list rather than the one just changed: the panel draws from
+    it, and a screen that showed only the last answer would go stale the first
+    time a grant expired underneath it.
+    """
+
+    grants: list[GrantModel]
+
+    @classmethod
+    def of(cls, device: AgentDevice) -> GrantsResponse:
+        return cls(
+            grants=[
+                GrantModel(
+                    host=grant.host,
+                    granted_by=str(grant.granted_by),
+                    granted_at=grant.granted_at,
+                    expires_at=grant.expires_at,
+                )
+                for grant in device.grants
+            ]
+        )
+
+
 class DemonstrationModel(BaseModel):
     """One demonstration behind a version, and what it put in each field.
 
@@ -617,7 +656,9 @@ class SkillVersionModel(BaseModel):
                 unreachable_runs=version.track_record.unreachable_runs,
             ),
             ready_for_autonomy=why_not_autonomous(
-                version.track_record, verifiable=version.verifiable
+                version.track_record,
+                verifiable=version.verifiable,
+                needs_a_person=version.needs_a_person,
             ),
             demotion_reason=version.demotion_reason,
             induced_at=version.provenance.induced_at,

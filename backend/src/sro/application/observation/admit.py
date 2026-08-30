@@ -39,11 +39,15 @@ class Admission:
         return len(self.accepted)
 
 
-def admit(events: Sequence[Event], policy: ObservationPolicy) -> Admission:
+def admit(
+    events: Sequence[Event],
+    policy: ObservationPolicy,
+    granted: frozenset[str] = frozenset(),
+) -> Admission:
     kept: list[Event] = []
     refused: list[RejectedEvent] = []
     for index, event in enumerate(events):
-        reason = _why_not(event, policy)
+        reason = _why_not(event, policy, granted)
         if reason is None:
             kept.append(event)
         else:
@@ -51,7 +55,7 @@ def admit(events: Sequence[Event], policy: ObservationPolicy) -> Admission:
     return Admission(accepted=tuple(kept), rejected=tuple(refused))
 
 
-def _why_not(event: Event, policy: ObservationPolicy) -> str | None:
+def _why_not(event: Event, policy: ObservationPolicy, granted: frozenset[str]) -> str | None:
     kind = event.get("kind")
     if kind not in KINDS:
         return f"the protocol declares no event kind {kind!r}"
@@ -67,7 +71,7 @@ def _why_not(event: Event, policy: ObservationPolicy) -> str | None:
         target = _mapping(gesture.get("target"))
         if target is not None and not any(target.get(signal) for signal in _SIGNALS):
             return "the element carries no signal it could be found by again"
-        return _url_refusal(gesture.get("url"), policy)
+        return _url_refusal(gesture.get("url"), policy, granted)
 
     if kind == "request":
         request = _mapping(event.get("request"))
@@ -77,26 +81,26 @@ def _why_not(event: Event, policy: ObservationPolicy) -> str | None:
             return "a request with no method"
         if request.get("started_at") is None:
             return "a request with no start time cannot be attributed to an action"
-        return _url_refusal(request.get("url"), policy)
+        return _url_refusal(request.get("url"), policy, granted)
 
     if kind == "snapshot":
         if _mapping(event.get("snapshot")) is None:
             return "a snapshot event with no snapshot in it"
         if event.get("taken_at") is None:
             return "a snapshot with no time on it"
-        return _url_refusal(event.get("url"), policy)
+        return _url_refusal(event.get("url"), policy, granted)
 
     if not event.get("page_kind"):
         return "a page event that does not say what happened"
     if event.get("at") is None:
         return "a page event with no time on it"
-    return _url_refusal(event.get("url"), policy)
+    return _url_refusal(event.get("url"), policy, granted)
 
 
-def _url_refusal(url: object, policy: ObservationPolicy) -> str | None:
+def _url_refusal(url: object, policy: ObservationPolicy, granted: frozenset[str]) -> str | None:
     if not isinstance(url, str) or not url.strip():
         return "an event with no URL cannot be checked against the policy"
-    if not policy.allows(url):
+    if not policy.allows(url, granted):
         # Never the URL itself: this refusal is logged and read, and the point
         # of an exclusion is that the excluded page leaves no trace here.
         return "this page is outside what the tenant agreed to observe"

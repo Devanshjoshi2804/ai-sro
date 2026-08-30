@@ -19,6 +19,7 @@ from pydantic import TypeAdapter
 from sro.domain.chat.thread import Message
 from sro.domain.observation.batch import RejectedEvent
 from sro.domain.observation.candidate import Episode, Join
+from sro.domain.observation.grant import HostGrant
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.artifact import MediaArtifact
 from sro.domain.recording.events import ActionFrame
@@ -33,6 +34,7 @@ _MESSAGES = TypeAdapter(tuple[Message, ...])
 _VERSIONS = TypeAdapter(tuple[SkillVersion, ...])
 _REJECTED = TypeAdapter(tuple[RejectedEvent, ...])
 _POLICY = TypeAdapter(ObservationPolicy)
+_GRANTS = TypeAdapter(tuple[HostGrant, ...])
 _EPISODES = TypeAdapter(tuple[Episode, ...])
 _JOINS = TypeAdapter(tuple[Join, ...])
 _WATCH: TypeAdapter[Watch | None] = TypeAdapter(Watch | None)
@@ -91,6 +93,14 @@ def dump_rejected(rejected: tuple[RejectedEvent, ...]) -> Any:
 
 def load_rejected(raw: Any) -> tuple[RejectedEvent, ...]:
     return _REJECTED.validate_python(raw or [])
+
+
+def dump_grants(grants: tuple[HostGrant, ...]) -> Any:
+    return _dump(_GRANTS, grants)
+
+
+def load_grants(raw: Any) -> tuple[HostGrant, ...]:
+    return _GRANTS.validate_python(raw or [])
 
 
 def dump_policy(policy: ObservationPolicy) -> Any:

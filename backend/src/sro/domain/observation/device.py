@@ -6,6 +6,7 @@ import hmac
 from dataclasses import dataclass
 from datetime import datetime
 
+from sro.domain.observation.grant import HostGrant
 from sro.domain.shared.errors import InvariantViolation
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 
@@ -32,6 +33,15 @@ class AgentDevice:
     queued_events: int = 0
     queued_bytes: int = 0
     uploads: int = 0
+
+    grants: tuple[HostGrant, ...] = ()
+    """Pages this operator said, in this browser, may be watched after all.
+
+    Held on the device rather than on the tenant because that is what a grant
+    is: one person's decision about one of their own tabs, not a change to what
+    the tenant agreed to. It also costs nothing to check -- ingest reads this
+    device already.
+    """
 
     secret: str | None = None
     """What this browser proves it is itself with, minted at registration.
@@ -77,6 +87,31 @@ class AgentDevice:
         if self.secret is None:
             return False
         return hmac.compare_digest(self.secret.encode(), presented.encode())
+
+    def granted_hosts(self, now: datetime) -> frozenset[str]:
+        """The hosts this browser may watch beyond the tenant's default.
+
+        Expiry is applied on read rather than by a sweep: a grant that has run
+        out must stop admitting the moment it does, and a job that has not run
+        yet is not a thing to base that on.
+        """
+        return frozenset(grant.host for grant in self.grants if grant.live_at(now))
+
+    def grant(self, host: str, *, by: PrincipalId, at: datetime, until: datetime) -> None:
+        """Watch this host too, until it expires or the tab closes.
+
+        Re-granting replaces rather than adds: the operator pressing the button
+        again means "keep watching", and a device that accumulated one row per
+        press would expire on the oldest.
+        """
+        self.revoke(host)
+        self.grants = (
+            *self.grants,
+            HostGrant(host=host, granted_by=by, granted_at=at, expires_at=until),
+        )
+
+    def revoke(self, host: str) -> None:
+        self.grants = tuple(grant for grant in self.grants if grant.host != host)
 
     def seen(self, at: datetime, *, queued_events: int = 0, queued_bytes: int = 0) -> None:
         """A heartbeat. Backlog is recorded because a device whose queue only

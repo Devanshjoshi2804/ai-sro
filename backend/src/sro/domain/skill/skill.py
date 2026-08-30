@@ -218,6 +218,23 @@ class SkillVersion:
         return len(self.provenance.recording_ids) == 1
 
     @property
+    def needs_a_person(self) -> bool:
+        """Whether some step can only be performed as a gesture.
+
+        A step with no network plan is a click or a keystroke, and `judge`
+        makes any run that performs one DEGRADED -- a medium that is not
+        NETWORK, by the rule that a gesture means the recorded call no longer
+        works. DEGRADED resets the clean streak, so such a version cannot
+        accumulate one and can never reach the top of the ladder.
+
+        That is a fact about the skill rather than about how it has been going,
+        and it is the difference between "not yet" and "not ever". Somebody
+        watching the streak sit at zero deserves to be told which one they are
+        looking at.
+        """
+        return any(step.network_plan is None for step in self.steps)
+
+    @property
     def verifiable(self) -> bool:
         """Whether a run of this can be checked at all.
 

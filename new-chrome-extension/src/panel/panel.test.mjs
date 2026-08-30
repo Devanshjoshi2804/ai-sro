@@ -19,7 +19,17 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const SOURCE = readFileSync(path.join(here, "panel.js"), "utf-8");
+// The panel is an ES module and `vm.runInContext` evaluates a script, so the
+// import is lifted out and the one symbol it names is put in the sandbox
+// instead. Imported in the real file rather than restated there: `hostMatches`
+// is the single definition of the host rule, and a second copy in the panel is
+// how it would come to disagree with the worker about whether a page is being
+// recorded.
+const SOURCE = readFileSync(path.join(here, "panel.js"), "utf-8").replace(
+  /^import .*?;$/m,
+  "",
+);
+const { hostMatches } = await import("../background/scripts.js");
 
 const OFFER = {
   id: "off-1",
@@ -108,6 +118,7 @@ function panel(status) {
       tabs: { query: async () => [] },
     },
   };
+  sandbox.hostMatches = hostMatches;
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(SOURCE, sandbox);

@@ -76,20 +76,39 @@ class ObservationPolicy:
             if value < 0:
                 raise InvariantViolation(f"{name} cannot be negative")
 
-    def allows(self, url: str) -> bool:
+    def allows(self, url: str, granted: frozenset[str] = frozenset()) -> bool:
         """Whether a page at this URL may be observed.
 
         The extension enforces this by not registering a content script on an
         excluded host, so an excluded page is never touched. This is the second
         check: an extension that is wrong, old or lying does not get to write
         into the evidence plane anyway.
+
+        ``granted`` are hosts the operator chose in their own panel, for a tab
+        in front of them (`domain/observation/grant.py`). They widen the
+        exclusion list and nothing else, which is where the three answers
+        below differ:
+
+        - ``capture_enabled`` is the tenant's agreement that any of this
+          happens. No operator's button overrides it.
+        - ``exclude_hosts`` is what the tenant agreed to *by default*, and a
+          default is the kind of thing the person in front of the screen may
+          decide otherwise about for one page.
+        - ``include_hosts`` is an administrator naming the only hosts that may
+          ever be observed. That is not a default, and an operator does not get
+          to widen it from a side panel.
         """
         if not self.capture_enabled:
             return False
         host = urlsplit(url).hostname or ""
         if not host:
             return False
-        if any(domain_matches(host, excluded) for excluded in self.exclude_hosts):
+        excluded_by_default = any(domain_matches(host, excluded) for excluded in self.exclude_hosts)
+        # Exactly the host, never a subdomain of it: a grant is what somebody
+        # pressed a button about while looking at one page, and reading it as
+        # a whole domain would let a click on one mailbox admit every host
+        # under it.
+        if excluded_by_default and host not in granted:
             return False
         if not self.include_hosts:
             return True

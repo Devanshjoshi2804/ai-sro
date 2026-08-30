@@ -63,7 +63,7 @@ export function hostMatches(hostname, pattern) {
   return host === bare || host.endsWith(`.${bare}`);
 }
 
-export async function applyPolicy(policy, { on }) {
+export async function applyPolicy(policy, { on, granted = [] }) {
   // Only the two ids this function owns. `unregister()` defaults to all three
   // because sign-out means stop everything, and a policy change is not that:
   // withdrawing the watch script here would have every heartbeat that carried
@@ -75,7 +75,14 @@ export async function applyPolicy(policy, { on }) {
   const matches = policy.include_hosts?.length
     ? policy.include_hosts.flatMap(patternsFor)
     : ALL;
-  const excludeMatches = (policy.exclude_hosts || []).flatMap(patternsFor);
+  // A granted host is one the operator asked to watch, so it must actually
+  // get a script. Its patterns come out of the exclusion rather than being
+  // added to `matches`: an `include_hosts` tenant has named the only hosts
+  // that may be observed, and a grant does not widen that list -- the same
+  // line the backend's `ObservationPolicy.allows` draws.
+  const excludeMatches = (policy.exclude_hosts || [])
+    .flatMap(patternsFor)
+    .filter((pattern) => !granted.some((host) => patternsFor(host).includes(pattern)));
 
   await chrome.scripting.registerContentScripts([
     {
@@ -156,7 +163,7 @@ export async function registeredOn() {
 /** Same include/exclude rule as the content-script registration above, for
  * events (webNavigation) that never go through a registered script to enforce
  * it by absence. An excluded host must produce zero rows of every kind. */
-export function allowsHost(url, policy) {
+export function allowsHost(url, policy, granted = []) {
   if (!policy) return false;
   let parsed;
   try {
@@ -173,7 +180,12 @@ export function allowsHost(url, policy) {
   const hostname = parsed.hostname;
   const matchesHost = (pattern) => hostMatches(hostname, pattern);
   const included = !policy.include_hosts?.length || policy.include_hosts.some(matchesHost);
-  const excluded = (policy.exclude_hosts || []).some(matchesHost);
+  // Exactly the host somebody pressed the button about, never a subdomain of
+  // it: `hostMatches` is right for a policy pattern an administrator wrote and
+  // wrong for a grant, where reading one mailbox as a whole domain would admit
+  // every host under it. The backend compares the same way.
+  const excluded =
+    (policy.exclude_hosts || []).some(matchesHost) && !granted.includes(hostname);
   return included && !excluded;
 }
 
@@ -190,8 +202,8 @@ export function allowsHost(url, policy) {
  * frame -- pressing "watch" twice records one copy of a gesture, which
  * `test_watching_a_tab_that_was_already_open_needs_no_reload` holds to.
  */
-export async function injectInto(tabId, url, policy) {
-  if (!allowsHost(url, policy)) return false;
+export async function injectInto(tabId, url, policy, granted = []) {
+  if (!allowsHost(url, policy, granted)) return false;
   const into = { tabId, allFrames: true };
   try {
     await chrome.scripting.executeScript({ target: into, files: ISOLATED });

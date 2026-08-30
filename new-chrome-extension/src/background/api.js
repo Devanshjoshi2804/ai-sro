@@ -62,6 +62,19 @@ export const api = {
       body: beat,
     }),
 
+  /** Watch this host too, beyond what the tenant excludes by default. */
+  grantHost: (deviceId, host) =>
+    call(`/v1/agents/${encodeURIComponent(deviceId)}/grants`, {
+      method: "POST",
+      body: { host },
+    }),
+
+  revokeHost: (deviceId, host) =>
+    call(
+      `/v1/agents/${encodeURIComponent(deviceId)}/grants/${encodeURIComponent(host)}`,
+      { method: "DELETE" },
+    ),
+
   observations: (batch) => call("/v1/observations", { method: "POST", body: batch }),
 
   /** A screenshot or an oversized body, uploaded beside the batch it

@@ -109,6 +109,21 @@ async function watchedTabs() {
   return kept;
 }
 
+/** Hosts this operator granted, minus the ones that have run out.
+ *
+ * Expiry is applied here as well as on the server, and for the same reason it
+ * is applied there rather than swept: a grant that has run out must stop
+ * admitting the moment it does. A browser that kept queueing against an
+ * expired one would fill the queue with events the backend then refuses.
+ */
+async function grantedHosts() {
+  const grants = await state.grants();
+  const now = Date.now();
+  return grants
+    .filter((grant) => Date.parse(grant.expires_at || "") > now)
+    .map((grant) => grant.host);
+}
+
 async function isWatched(tabId) {
   if (tabId === null || tabId === undefined) return false;
   return (await watchedTabs()).some((entry) => entry.tabId === tabId);
@@ -124,19 +139,70 @@ function watch(tabId, url) {
     } catch {
       host = "";
     }
+    // Pressing "watch" on a page the tenant excludes by default is the
+    // operator saying it may be watched after all. Asked of the server before
+    // the tab is recorded as watched, because the server is what actually
+    // admits the evidence: a browser that recorded the watch and failed to get
+    // the grant would show a watching panel over a queue being thrown away.
+    if (host && (await isExcluded(host))) await grant(host);
+
     const next = [{ tabId, host, since: Date.now() }, ...watched];
     await state.setWatched(next);
     return next;
   });
 }
 
+/** Whether the tenant's policy excludes this host by default. */
+async function isExcluded(host) {
+  const policy = await state.policy();
+  return (policy?.exclude_hosts || []).some((pattern) => hostMatches(host, pattern));
+}
+
+/** Ask the server to watch this host too, and remember what it answered.
+ *
+ * The server's list is the one that counts and it caps the duration, so what
+ * comes back is stored rather than what was asked for.
+ */
+async function grant(host) {
+  const deviceId = await state.deviceId();
+  if (!deviceId) return;
+  try {
+    const answer = await api.grantHost(deviceId, host);
+    await state.setGrants(answer.grants || []);
+  } catch (error) {
+    // Said out loud rather than swallowed: the panel will claim to be watching
+    // a tab whose evidence the backend is about to refuse, and the operator
+    // has no other way to find that out.
+    await state.setLastError(error instanceof ApiError ? error.message : String(error));
+  }
+}
+
+/** Give the host back, so a closed tab does not leave a mailbox observed. */
+async function ungrant(host) {
+  const deviceId = await state.deviceId();
+  if (!deviceId || !host) return;
+  // Only when no other watched tab is still on it: two mail tabs and closing
+  // one is not the operator withdrawing anything.
+  const watched = await watchedTabs();
+  if (watched.some((entry) => entry.host === host)) return;
+  try {
+    const answer = await api.revokeHost(deviceId, host);
+    await state.setGrants(answer.grants || []);
+  } catch {
+    // The grant expires on its own, so a revoke that could not be delivered
+    // costs a window rather than leaving the page observed forever.
+  }
+}
+
 function unwatch(tabId) {
   return serially(async () => {
     const watched = await watchedTabs();
+    const leaving = watched.find((entry) => entry.tabId === tabId);
     const next = watched.filter((entry) => entry.tabId !== tabId);
     // A tab nobody was watching closes all day long. Writing the same list
     // back for each one is how a watch set meanwhile gets overwritten.
     if (next.length !== watched.length) await state.setWatched(next);
+    if (leaving?.host && (await isExcluded(leaving.host))) await ungrant(leaving.host);
     return next;
   });
 }
@@ -823,8 +889,12 @@ async function beat() {
 /** Make the browser match what is stored: scripts registered, badge honest,
  * and the command channel open or closed to match the credential. */
 async function settle() {
-  const [policy, allowed] = await Promise.all([state.policy(), capturing()]);
-  await applyPolicy(policy, allowed);
+  const [policy, allowed, granted] = await Promise.all([
+    state.policy(),
+    capturing(),
+    grantedHosts(),
+  ]);
+  await applyPolicy(policy, { ...allowed, granted });
   // After `applyPolicy` and by its own id: the watch script must survive a
   // policy change, and `applyPolicy` withdrawing all three ids is how the
   // watching would stop the first time a heartbeat carried a new policy.

@@ -49,6 +49,7 @@ from sro.infrastructure.db.codec import (
     dump_artifacts,
     dump_episodes,
     dump_frames,
+    dump_grants,
     dump_joins,
     dump_messages,
     dump_narration,
@@ -59,6 +60,7 @@ from sro.infrastructure.db.codec import (
     load_artifacts,
     load_episodes,
     load_frames,
+    load_grants,
     load_joins,
     load_messages,
     load_narration,
@@ -480,6 +482,7 @@ def update_device_row(row: AgentDeviceRow, device: AgentDevice) -> None:
     row.queued_bytes = device.queued_bytes
     row.uploads = device.uploads
     row.secret = device.secret
+    row.grants = dump_grants(device.grants)
 
 
 def row_to_device(row: AgentDeviceRow) -> AgentDevice:
@@ -497,6 +500,7 @@ def row_to_device(row: AgentDeviceRow) -> AgentDevice:
         queued_bytes=row.queued_bytes,
         uploads=row.uploads,
         secret=row.secret,
+        grants=load_grants(row.grants),
     )
 
 

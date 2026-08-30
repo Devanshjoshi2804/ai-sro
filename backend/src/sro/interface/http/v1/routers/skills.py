@@ -10,6 +10,7 @@ from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
     ChoiceModel,
+    DemonstrationModel,
     DescribeRequest,
     InduceSkillRequest,
     InductionResponse,
@@ -110,6 +111,31 @@ async def list_skills(
 async def get_skill(skill_id: str, container: ContainerDep, ctx: ContextDep) -> SkillDetail:
     skill = await container.get_skill().execute(ctx, skill_id=SkillId(skill_id))
     return SkillDetail.of_skill(skill)
+
+
+@router.get("/{skill_id}/doings")
+async def get_doings(
+    skill_id: str, container: ContainerDep, ctx: ContextDep, version: int | None = None
+) -> list[DemonstrationModel]:
+    """Every demonstration this version was learned from, and what each one filled in.
+
+    The version stores the values of the two doings it diffed; the rest are
+    read back out of their own recorded traffic here. A skill demonstrated ten
+    times has ten of these, and a reviewer asked why a field is optional can
+    see the doing that left it out.
+    """
+    doings = await container.read_doings().execute(ctx, skill_id=SkillId(skill_id), version=version)
+    return [
+        DemonstrationModel(
+            recording_id=str(doing.recording_id),
+            started_at=doing.started_at,
+            demonstrator=str(doing.demonstrator),
+            frames=doing.frames,
+            diffed=doing.diffed,
+            values=doing.values,
+        )
+        for doing in doings
+    ]
 
 
 @router.post("/{skill_id}/describe")

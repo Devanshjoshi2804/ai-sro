@@ -131,6 +131,38 @@ describe("SkillDetail", () => {
     expect(await screen.findByText(/0 clean runs in a row, 10 needed/)).toBeInTheDocument();
   });
 
+  it("refuses the unattended rung on the page rather than on the click", async () => {
+    // The button used to be fully enabled here, with the refusal only in a
+    // `title` — invisible on a touchscreen and to a screen reader. Inviting a
+    // click the backend will turn down is how a reviewer stops trusting the
+    // gate.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      latest_stage: "assisted",
+      versions: [{ ...version, stage: "assisted" }],
+    } as never);
+    const promote = vi.spyOn(api, "promoteSkill");
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    const button = await screen.findByRole("button", { name: /promote to autonomous/i });
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+    expect(promote).not.toHaveBeenCalled();
+  });
+
+  it("offers the unattended rung once the record allows it", async () => {
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      latest_stage: "assisted",
+      versions: [{ ...version, stage: "assisted", ready_for_autonomy: null }],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    expect(await screen.findByRole("button", { name: /promote to autonomous/i })).toBeEnabled();
+  });
+
   it("promotes the version the reviewer is looking at", async () => {
     vi.spyOn(api, "getSkill").mockResolvedValue(skill as never);
     const promote = vi

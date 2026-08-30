@@ -14,10 +14,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+/**
+ * Failure is the heavy mark, success the quiet one.
+ *
+ * The reverse shipped first — `succeeded` as a filled pill and `failed` as a
+ * pale tint — and on the one page whose question is "is this still going well?"
+ * the eye landed on every success and slid past every failure. A run that
+ * worked is the expected case and does not need to be seen.
+ */
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  succeeded: "default",
+  succeeded: "outline",
   running: "secondary",
   failed: "destructive",
+};
+
+const STATUS_WEIGHT: Record<string, string> = {
+  failed: "bg-destructive text-background border-destructive font-semibold",
 };
 
 export function RunList() {
@@ -70,7 +82,12 @@ export function RunList() {
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">{run.medium}</TableCell>
               <TableCell>
-                <Badge variant={STATUS_VARIANT[run.status] ?? "outline"}>{run.status}</Badge>
+                <Badge
+                  variant={STATUS_VARIANT[run.status] ?? "outline"}
+                  className={STATUS_WEIGHT[run.status]}
+                >
+                  {run.status}
+                </Badge>
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {/* Blank is meaningful: a shadow run had nothing to authorise. */}

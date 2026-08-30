@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkillDoings } from "@/features/skill/components/skill-doings";
 
 /**
  * The whole ladder is reachable. What refuses the last rung is the version's
@@ -70,6 +71,11 @@ export function SkillDetail({ skillId }: { skillId: string }) {
 
   const latest = skill.data.versions.at(-1);
   const nextStage = latest ? NEXT_STAGE[latest.stage] : undefined;
+  // The version's own record already says why the last rung is refused. Asking
+  // for it anyway put a full-weight primary button on a skill the backend would
+  // turn down, with the reason in a `title` nobody on a touchscreen or a screen
+  // reader ever sees.
+  const refused = nextStage === "autonomous" ? (latest?.ready_for_autonomy ?? null) : null;
 
   return (
     <div className="space-y-6">
@@ -90,15 +96,13 @@ export function SkillDetail({ skillId }: { skillId: string }) {
             <Badge variant={latest.stage === "shadow" ? "default" : "outline"}>
               v{latest.version} · {latest.stage}
             </Badge>
+            {/* The reason is already on the page, in Track record below. Saying
+                it twice is what a reviewer reads as noise; what was missing was
+                the button agreeing with it. */}
             <Button
-              disabled={!nextStage || promote.isPending}
+              disabled={!nextStage || promote.isPending || refused !== null}
               onClick={() =>
                 nextStage && promote.mutate({ version: latest.version, to: nextStage })
-              }
-              title={
-                nextStage === "autonomous" && latest.ready_for_autonomy
-                  ? latest.ready_for_autonomy
-                  : undefined
               }
             >
               {nextStage ? `Promote to ${nextStage}` : "At the top of the ladder"}
@@ -149,6 +153,8 @@ export function SkillDetail({ skillId }: { skillId: string }) {
               <p>{latest.provenance_note}</p>
             </CardContent>
           </Card>
+
+          <SkillDoings skillId={skillId} version={latest} />
 
           <section className="space-y-2">
             <h2 className="text-lg font-medium">Parameters</h2>

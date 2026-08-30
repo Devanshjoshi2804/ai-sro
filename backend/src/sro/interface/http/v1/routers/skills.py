@@ -6,6 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
+from sro.application.ports.tools import ToolsUnavailable
+from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
@@ -14,10 +16,12 @@ from sro.interface.http.schemas import (
     DescribeRequest,
     InduceSkillRequest,
     InductionResponse,
+    MapStepRequest,
     PromoteRequest,
     SkillDetail,
     SkillSummary,
     SkillVersionModel,
+    ToolOfferedModel,
     UnderstandRequest,
     UnderstoodResponse,
 )
@@ -136,6 +140,57 @@ async def get_doings(
         )
         for doing in doings
     ]
+
+
+@router.get("/tools/{server}")
+async def offered_tools(
+    server: str, container: ContainerDep, ctx: ContextDep
+) -> list[ToolOfferedModel]:
+    """What this connector says it has, now.
+
+    Asked by the screen that maps a step onto one, so somebody is choosing from
+    what the server actually offers rather than typing a name and finding out
+    the first time the skill fires.
+    """
+    tools = container.tools
+    if not tools.available:
+        raise NotFound("no connector is configured")
+    try:
+        offered = await tools.list_tools(server)
+    except ToolsUnavailable as gone:
+        raise NotFound(str(gone)) from gone
+    return [
+        ToolOfferedModel(
+            name=tool.name, description=tool.description, arguments=list(tool.arguments)
+        )
+        for tool in offered
+    ]
+
+
+@router.post("/{skill_id}/steps/tool", status_code=status.HTTP_201_CREATED)
+async def map_step_to_tool(
+    skill_id: str, body: MapStepRequest, container: ContainerDep, ctx: ContextDep
+) -> SkillDetail:
+    """Somebody saying: this click is that tool.
+
+    The one part of a skill nobody demonstrates, so it is a decision with a
+    name on it. A new version, at the bottom of the ladder -- the step now goes
+    through a door nobody has watched it go through, and the streak that would
+    let it run unattended has to be earned against the connector rather than
+    inherited from the clicks it replaced.
+    """
+    await container.map_step_to_tool().execute(
+        ctx,
+        skill_id=SkillId(skill_id),
+        version=body.version,
+        step_index=body.step_index,
+        server=body.server,
+        tool=body.tool,
+        arguments=body.arguments,
+        writes=body.writes,
+    )
+    skill = await container.get_skill().execute(ctx, skill_id=SkillId(skill_id))
+    return SkillDetail.of_skill(skill)
 
 
 @router.post("/{skill_id}/describe")

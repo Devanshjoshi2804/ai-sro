@@ -113,6 +113,7 @@ from sro.application.recording.live_view import GetLiveView
 from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
 from sro.application.skill.describe_skill import DescribeSkill
+from sro.application.skill.map_step_to_tool import MapStepToTool
 from sro.application.skill.promote_skill import PromoteSkill
 from sro.application.skill.read_doings import ReadDoings
 from sro.application.skill.read_skills import GetSkill, ListSkills
@@ -444,6 +445,9 @@ class Container:
 
     def read_doings(self) -> ReadDoings:
         return ReadDoings(self.unit_of_work())
+
+    def map_step_to_tool(self) -> MapStepToTool:
+        return MapStepToTool(self.unit_of_work(), self.clock, self.tools)
 
     def grant_host(self) -> GrantHost:
         return GrantHost(self.unit_of_work(), self.clock)

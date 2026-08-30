@@ -10,6 +10,8 @@ export type InductionResponse = Schemas["InductionResponse"];
 
 export type Choice = Schemas["ChoiceModel"];
 export type Demonstration = Schemas["DemonstrationModel"];
+export type ToolOffered = Schemas["ToolOfferedModel"];
+export type MapStepRequest = Schemas["MapStepRequest"];
 
 export const skillKeys = {
   all: ["skills"] as const,
@@ -17,6 +19,7 @@ export const skillKeys = {
   choices: (id: string, parameter: string, q: string) =>
     ["skills", id, "choices", parameter, q] as const,
   doings: (id: string, version: number) => ["skills", id, "doings", version] as const,
+  tools: (server: string) => ["skills", "tools", server] as const,
 };
 
 export const listSkills = () => api.get<SkillSummary[]>("/v1/skills");
@@ -88,3 +91,22 @@ export const describeSkill = (
  */
 export const listChoices = (skillId: string, parameter: string, q: string) =>
   api.get<Choice[]>(`/v1/skills/${skillId}/choices/${parameter}?q=${encodeURIComponent(q)}`);
+
+/** What a connector says it has, now.
+ *
+ * Asked so somebody mapping a step is choosing from what the server actually
+ * offers rather than typing a name and finding out the first time the skill
+ * fires.
+ */
+export const listOfferedTools = (server: string) =>
+  api.get<ToolOffered[]>(`/v1/skills/tools/${encodeURIComponent(server)}`);
+
+/**
+ * Somebody saying: this click is that tool.
+ *
+ * The one part of a skill nobody demonstrates, so it is a decision with a name
+ * on it. Answers with the whole skill because it produces a new version, and
+ * the screen has to redraw around it.
+ */
+export const mapStepToTool = (skillId: string, body: MapStepRequest) =>
+  api.post<SkillDetail>(`/v1/skills/${skillId}/steps/tool`, body);

@@ -563,6 +563,24 @@ class UiPlanModel(BaseModel):
     wait_for: str | None
 
 
+class ToolOfferedModel(BaseModel):
+    name: str
+    description: str
+    arguments: list[str]
+
+
+class MapStepRequest(BaseModel):
+    version: int
+    step_index: int
+    server: str
+    tool: str
+    arguments: dict[str, str] = {}
+    writes: bool = False
+    """Whether calling this changes something outside this system. Said by the
+    person mapping it, because nothing else can: MCP declares no such thing,
+    and a tool named `send_message` is a name rather than a promise."""
+
+
 class ToolPlanModel(BaseModel):
     server: str
     tool: str

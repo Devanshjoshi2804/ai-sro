@@ -2,7 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getSkill, promoteSkill, skillKeys, type StepModel } from "@/features/skill/api";
+import {
+  getSkill,
+  promoteSkill,
+  skillKeys,
+  type ParameterModel,
+  type StepModel,
+} from "@/features/skill/api";
 import { ApiError } from "@/lib/api/client";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MapStepToTool } from "@/features/skill/components/map-step-to-tool";
 import { SkillDoings } from "@/features/skill/components/skill-doings";
 
 /**
@@ -195,7 +202,12 @@ export function SkillDetail({ skillId }: { skillId: string }) {
                   {loop && step.index === loop.first_step && (
                     <p className="text-muted-foreground pb-1 text-xs font-medium">↻ {loop.says}</p>
                   )}
-                  <StepCard step={step} />
+                  <StepCard
+                    step={step}
+                    skillId={skillId}
+                    version={latest.version}
+                    parameters={latest.parameters}
+                  />
                 </div>
               );
             })}
@@ -206,7 +218,17 @@ export function SkillDetail({ skillId }: { skillId: string }) {
   );
 }
 
-function StepCard({ step }: { step: StepModel }) {
+function StepCard({
+  step,
+  skillId,
+  version,
+  parameters,
+}: {
+  step: StepModel;
+  skillId: string;
+  version: number;
+  parameters: ParameterModel[];
+}) {
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -275,6 +297,15 @@ function StepCard({ step }: { step: StepModel }) {
             ))}
           </div>
         )}
+
+        {/* Beneath the plans it would replace, because the decision only makes
+            sense once somebody has read what the step does today. */}
+        <MapStepToTool
+          skillId={skillId}
+          version={version}
+          step={step}
+          parameters={parameters}
+        />
       </CardContent>
     </Card>
   );

@@ -38,7 +38,6 @@ from sro.domain.skill.template import Template
 from sro.domain.skill.track_record import (
     DEMOTE_AFTER_FAILURES,
     REQUIRED_CLEAN_RUNS,
-    why_not_autonomous,
 )
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.domain.trigger.watch import MAX_TERM, Term, TermField, ValueAt, Watch
@@ -655,20 +654,7 @@ class SkillVersionModel(BaseModel):
                 failed_runs=version.track_record.failed_runs,
                 unreachable_runs=version.track_record.unreachable_runs,
             ),
-            ready_for_autonomy=why_not_autonomous(
-                version.track_record,
-                verifiable=version.verifiable,
-                needs_a_person=version.needs_a_person,
-                # Which write nobody checks, where that is the reason: "no step
-                # has an assertion" was the only thing this ever said, and it
-                # was wrong for the version whose reads assert and whose writes
-                # do not -- which is the version worth worrying about.
-                unchecked_writes=(
-                    "step " + ", ".join(str(index) for index in version.unchecked_writes)
-                    if version.unchecked_writes
-                    else "no step"
-                ),
-            ),
+            ready_for_autonomy=version.not_ready_for_autonomy,
             demotion_reason=version.demotion_reason,
             induced_at=version.provenance.induced_at,
             induced_by=version.provenance.induced_by.value,

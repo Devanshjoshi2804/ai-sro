@@ -19,6 +19,7 @@ from sro.application.execution.execute_skill import (
     ExecuteSkill,
     ExecutionRequest,
 )
+from sro.domain.shared.errors import InvariantViolation
 from sro.domain.skill.assertion import Assertion, AssertionKind
 from sro.domain.skill.plan import NetworkPlan
 from sro.domain.skill.promotion import PromotionStage
@@ -140,3 +141,20 @@ async def test_a_network_step_says_whether_it_verified_anything(
     run = next(iter(uow.runs.rows.values()))
     assert run.steps[0].assertion_failures == ()
     assert run.steps[0].unchecked == expected
+
+
+def test_the_promotion_gate_refuses_in_the_same_words_the_screen_shows() -> None:
+    """Three callers asked why autonomy was refused and they disagreed: the
+    console passed everything it knew and the gate passed only `verifiable`,
+    so a version refused at the gate was told "no step of this skill cannot be
+    checked" -- a sentence that is not even wrong."""
+    version = f.skill_version(steps=(_read(0, asserts=True), _write(1, asserts=False)))
+    version.promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
+    version.promote(PromotionStage.ASSISTED, f.at(700), f.OPERATOR)
+
+    with pytest.raises(InvariantViolation) as refused:
+        version.promote(PromotionStage.AUTONOMOUS, f.at(800), f.OPERATOR)
+
+    assert version.not_ready_for_autonomy is not None
+    assert version.not_ready_for_autonomy in str(refused.value)
+    assert "step 1" in str(refused.value)

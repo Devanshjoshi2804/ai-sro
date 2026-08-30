@@ -253,6 +253,28 @@ class SkillVersion:
         )
 
     @property
+    def not_ready_for_autonomy(self) -> str | None:
+        """Why this version may not run unattended, or ``None`` when it may.
+
+        Here rather than at each caller, because there were three of them and
+        they disagreed: the console passed everything and the promotion gate
+        passed only `verifiable`, so a version refused at the gate was told
+        "no step of this skill cannot be checked" -- a sentence that is not
+        even wrong. What refuses a promotion and what a screen says about it
+        have to be the same sentence.
+        """
+        return why_not_autonomous(
+            self.track_record,
+            verifiable=self.verifiable,
+            needs_a_person=self.needs_a_person,
+            unchecked_writes=(
+                "step " + ", ".join(str(index) for index in self.unchecked_writes)
+                if self.unchecked_writes
+                else "no step"
+            ),
+        )
+
+    @property
     def verifiable(self) -> bool:
         """Whether a run of this can be checked.
 
@@ -333,9 +355,7 @@ class SkillVersion:
                 "second time to turn those values into parameters, or promote it again saying "
                 "you have read what it sends"
             )
-        if to is PromotionStage.AUTONOMOUS and (
-            refusal := why_not_autonomous(self.track_record, verifiable=self.verifiable)
-        ):
+        if to is PromotionStage.AUTONOMOUS and (refusal := self.not_ready_for_autonomy):
             raise InvariantViolation(f"not ready to run unattended: {refusal}")
         if at.tzinfo is None:
             raise InvariantViolation("promotion timestamp must be timezone-aware")

@@ -18,9 +18,16 @@ import {
 const WINDOWS = [1, 7, 30] as const;
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  taught: "default",
+  taught: "outline",
   new: "secondary",
   dismissed: "outline",
+};
+
+// Taught is a settled good outcome, not something happening now, so it takes the
+// clean colour rather than the accent -- otherwise orange means both "recording"
+// and "done", and a live capture stops being the thing that catches the eye.
+const STATUS_TONE: Record<string, string> = {
+  taught: "bg-good/15 text-good border-good/40",
 };
 
 /**
@@ -56,8 +63,14 @@ export function Overview() {
               key={window}
               type="button"
               onClick={() => setDays(window)}
+              aria-pressed={days === window}
+              // A near-white chip was the loudest thing on a page whose subject
+              // is three numbers. Which window you are looking at is worth
+              // marking, not worth shouting.
               className={`rounded-md border px-2 py-1 text-xs ${
-                days === window ? "bg-foreground text-background" : "text-muted-foreground"
+                days === window
+                  ? "bg-secondary text-foreground border-ring"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {window === 1 ? "24 hours" : `${window} days`}
@@ -114,7 +127,7 @@ export function Overview() {
           </TableHeader>
           <TableBody>
             {tasks.map((task: TaskLineModel) => (
-              <TableRow key={`${task.host}:${task.title}`}>
+              <TableRow key={task.id}>
                 <TableCell className="font-medium">
                   {task.skill_id ? (
                     <Link href={`/skills/${task.skill_id}`} className="underline">
@@ -131,7 +144,12 @@ export function Overview() {
                 <TableCell>{task.runs}</TableCell>
                 <TableCell>{task.minutes_saved} min</TableCell>
                 <TableCell>
-                  <Badge variant={STATUS_VARIANT[task.status] ?? "outline"}>{task.status}</Badge>
+                  <Badge
+                    variant={STATUS_VARIANT[task.status] ?? "outline"}
+                    className={STATUS_TONE[task.status]}
+                  >
+                    {task.status}
+                  </Badge>
                 </TableCell>
               </TableRow>
             ))}

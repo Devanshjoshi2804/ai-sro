@@ -956,6 +956,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/skills/{skill_id}/doings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Doings
+         * @description Every demonstration this version was learned from, and what each one filled in.
+         *
+         *     The version stores the values of the two doings it diffed; the rest are
+         *     read back out of their own recorded traffic here. A skill demonstrated ten
+         *     times has ten of these, and a reviewer asked why a field is optional can
+         *     see the doing that left it out.
+         */
+        get: operations["get_doings_v1_skills__skill_id__doings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills/{skill_id}/describe": {
         parameters: {
             query?: never;
@@ -1611,6 +1636,35 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * DemonstrationModel
+         * @description One demonstration behind a version, and what it put in each field.
+         *
+         *     ``values`` holds a name only where this doing answers for it: a null is
+         *     "sent holding nothing", which is the evidence behind an optional field,
+         *     and a name absent from the mapping is a field this doing does not answer
+         *     for at all. The two are different facts and the screen shows them
+         *     differently.
+         */
+        DemonstrationModel: {
+            /** Recording Id */
+            recording_id: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Demonstrator */
+            demonstrator: string;
+            /** Frames */
+            frames: number;
+            /** Diffed */
+            diffed: boolean;
+            /** Values */
+            values: {
+                [key: string]: string | null;
+            };
+        };
         /** DescribeRequest */
         DescribeRequest: {
             /** Version */
@@ -2234,6 +2288,18 @@ export interface components {
             /** Source Step Index */
             source_step_index: number | null;
             options?: components["schemas"]["OptionsModel"] | null;
+            /**
+             * Optional
+             * @default false
+             */
+            optional: boolean;
+            /** Absent As */
+            absent_as?: string | null;
+            /**
+             * Evidence
+             * @default proven
+             */
+            evidence: string;
         };
         /** PromoteRequest */
         PromoteRequest: {
@@ -2798,6 +2864,8 @@ export interface components {
         };
         /** TaskLineModel */
         TaskLineModel: {
+            /** Id */
+            id: string;
             /** Title */
             title: string;
             /** Host */
@@ -8225,6 +8293,132 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SkillDetail"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    get_doings_v1_skills__skill_id__doings_get: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                skill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemonstrationModel"][];
                 };
             };
             /** @description No credential, or one this deployment rejects. */

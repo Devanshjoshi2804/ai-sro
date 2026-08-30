@@ -70,6 +70,25 @@ function aTrigger(over: Partial<triggerApi.TriggerModel> = {}): triggerApi.Trigg
 afterEach(() => vi.restoreAllMocks());
 
 describe("putting a skill on a clock", () => {
+  it("says what it is still waiting for rather than only greying the button", async () => {
+    // A disabled control that does not name what it wants is a control people
+    // work around, and this one starts a warehouse write on a schedule.
+    vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
+    vi.spyOn(skillApi, "listSkills").mockResolvedValue([
+      { id: "skl-1", name: "Adjust an LPN" },
+    ] as never);
+
+    show();
+    await screen.findByRole("option", { name: "Adjust an LPN" });
+
+    expect(screen.getByRole("button", { name: "Schedule it" })).toBeDisabled();
+    expect(screen.getByText(/still needed: a skill/i)).toBeInTheDocument();
+
+    await userEvent.setup().selectOptions(screen.getByLabelText("Skill"), "skl-1");
+    expect(screen.queryByText(/still needed/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Schedule it" })).toBeEnabled();
+  });
+
   it("asks for the three permissions separately, and none is on to begin with", async () => {
     vi.spyOn(triggerApi, "listTriggers").mockResolvedValue([]);
     vi.spyOn(skillApi, "listSkills").mockResolvedValue([

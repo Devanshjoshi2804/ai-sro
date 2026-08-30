@@ -30,7 +30,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <BarLink href="/knowledge">What we know</BarLink>
         </BarGroup>
       </TopBar>
-      <main data-chrome="page" className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
+      {/* Wider than a reading measure, because these are tables. At `max-w-6xl`
+          the Recordings table was 1327px inside an 1104px container -- Frames,
+          Narration and Started were off the end -- while 300px of a 1456px
+          viewport sat unused beside it. Prose blocks set their own measure. */}
+      <main data-chrome="page" className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-8">
         {children}
       </main>
     </div>

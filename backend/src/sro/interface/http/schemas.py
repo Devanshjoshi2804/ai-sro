@@ -463,6 +463,38 @@ class ParameterModel(BaseModel):
     source_step_index: int | None
     options: OptionsModel | None = None
 
+    optional: bool = False
+    """Some demonstration left this field out and the write still worked."""
+
+    absent_as: str | None = None
+    """What the skipping demonstration sent instead -- the JSON that stands for
+    "nobody filled this in". The answer to "why is this optional", and the
+    reason it is on the wire: a reviewer asked that has to be shown the doing
+    that proves it, not told to trust a flag."""
+
+    evidence: str = "proven"
+    """Whether two demonstrations disagreed here, or a model read one and
+    guessed. Shown, because a proposed parameter is confirmed by whoever runs
+    the skill and a proven one is not."""
+
+
+class DemonstrationModel(BaseModel):
+    """One demonstration behind a version, and what it put in each field.
+
+    ``values`` holds a name only where this doing answers for it: a null is
+    "sent holding nothing", which is the evidence behind an optional field,
+    and a name absent from the mapping is a field this doing does not answer
+    for at all. The two are different facts and the screen shows them
+    differently.
+    """
+
+    recording_id: str
+    started_at: datetime
+    demonstrator: str
+    frames: int
+    diffed: bool
+    values: dict[str, str | None]
+
 
 class AssertionModel(BaseModel):
     kind: str
@@ -664,6 +696,9 @@ class SkillVersionModel(BaseModel):
                         else None
                     ),
                     source_step_index=p.source_step_index,
+                    optional=p.optional,
+                    absent_as=p.absent_as,
+                    evidence=p.evidence.value,
                 )
                 for p in version.parameters
             ],
@@ -1690,6 +1725,7 @@ class DoingModel(BaseModel):
 
 
 class TaskLineModel(BaseModel):
+    id: str
     title: str
     host: str
     kind: str

@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const DISPOSITION_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  performed: "default",
+  // The expected case, and therefore the quiet one. As the accent it made
+  // every ordinary step glow and left a failure to compete with all of them.
+  performed: "secondary",
   withheld: "secondary",
   skipped: "outline",
   failed: "destructive",

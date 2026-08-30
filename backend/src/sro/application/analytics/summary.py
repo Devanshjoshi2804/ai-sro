@@ -67,6 +67,11 @@ class Doing:
 
 @dataclass(frozen=True, slots=True)
 class TaskLine:
+    # Two candidates can carry the same host and the same title -- mining groups
+    # by signature, and two signatures describe themselves the same way. Without
+    # this the console keyed rows on host+title, React warned that it could drop
+    # one of them, and a reviewer had no way to tell the pair apart.
+    id: str
     title: str
     host: str
     kind: str
@@ -159,6 +164,7 @@ def _line(candidate: TaskCandidate, by_skill: dict[str, int]) -> TaskLine:
     # an estimate built from one measurement, not a measurement.
     saved = runs * candidate.median_duration_ms / 60_000
     return TaskLine(
+        id=candidate.id.value,
         title=candidate.title,
         host=candidate.host,
         kind=kind_of(candidate.title),

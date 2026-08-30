@@ -69,6 +69,14 @@
   --ring: var(--brand-accent-line);
   --radius: var(--brand-radius-md);
 
+  /* The browser draws the checkboxes, the selects, the time picker and the
+   * scrollbars, and it was drawing all of them for a white page -- a checkbox
+   * on Recordings was a bright white square on near-black. Telling it the
+   * ground is dark is the whole fix, and it reaches controls no stylesheet of
+   * ours ever touches. */
+  color-scheme: dark;
+  accent-color: var(--brand-accent);
+
   /* Ours, not shadcn's: what the system is doing, and what state a thing is in. */
   --accent-brand: var(--brand-accent);
   --good: var(--brand-good);
@@ -94,6 +102,24 @@
   h3 {
     @apply font-heading;
   }
+}
+
+/* A table that continues past its container says so.
+ *
+ * The container always scrolled -- the primitive sets `overflow-x: auto` -- but
+ * on a platform with overlay scrollbars nothing appears until you already
+ * happen to be scrolling, so the Recordings table simply ended mid-column and
+ * looked like the whole of it. Four background layers, no JavaScript: the two
+ * `local` layers scroll with the content and cover the shadow at whichever end
+ * you have reached, and the two `scroll` layers are the shadow. */
+[data-slot="table-container"] {
+  background:
+    linear-gradient(to right, var(--background) 40%, transparent) left / 44px 100% no-repeat local,
+    linear-gradient(to left, var(--background) 40%, transparent) right / 44px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(255, 255, 255, 0.3), transparent) left / 22px 100%
+      no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(255, 255, 255, 0.3), transparent) right / 22px
+      100% no-repeat scroll;
 }
 
 @keyframes recpulse {

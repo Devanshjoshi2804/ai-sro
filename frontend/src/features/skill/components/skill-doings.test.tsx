@@ -66,6 +66,8 @@ function doing(id: string, values: Record<string, string | null>, diffed = false
   };
 }
 
+// Four doings, three shapes: the first two filled the same fields (different
+// values), the third left one out, the fourth answers for nothing.
 const four = [
   doing("rec-1", { work_area: "FOURTH", facility: "SG" }, true),
   doing("rec-2", { work_area: "THIRD", facility: "SG" }, true),
@@ -88,21 +90,37 @@ beforeEach(() => {
 });
 
 describe("the doings behind a skill", () => {
-  it("gives every doing its own column, not just the two that were diffed", async () => {
+  it("gives a column to each distinct way the task was done, not to each doing", async () => {
     renderWithQuery(<SkillDoings skillId="skl-1" version={version as never} />);
 
-    await waitFor(() => expect(screen.getByText("FOURTH")).toBeInTheDocument());
-    // Four doings, so four columns — the count is the evidence's, not a constant.
-    await userEvent.click(screen.getByRole("button", { name: /show all 4/i }));
-    await waitFor(() => expect(screen.getAllByRole("columnheader")).toHaveLength(5));
-  });
-
-  it("opens the first few and says how many more are kept", async () => {
-    renderWithQuery(<SkillDoings skillId="skl-1" version={version as never} />);
-
+    // Four doings, three shapes: rec-1 and rec-2 filled the same fields and
+    // only their values differ, which is not a different way of doing the job.
     await waitFor(() => expect(screen.getByText("FOURTH")).toBeInTheDocument());
     expect(screen.getAllByRole("columnheader")).toHaveLength(4);
-    expect(screen.getByText(/1 more doing is kept and not shown/i)).toBeInTheDocument();
+    expect(screen.getByText("2 doings")).toBeInTheDocument();
+    expect(screen.getByText(/3 distinct ways/i)).toBeInTheDocument();
+  });
+
+  it("keeps every value a shared column covered, reachable", async () => {
+    renderWithQuery(<SkillDoings skillId="skl-1" version={version as never} />);
+
+    // The column shows one value and says there is another behind it, rather
+    // than picking one and silently dropping the rest.
+    await waitFor(() => expect(screen.getByText("FOURTH")).toBeInTheDocument());
+    expect(screen.queryByText("THIRD")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "+1" }));
+    await waitFor(() => expect(screen.getByText("THIRD")).toBeInTheDocument());
+  });
+
+  it("can be asked for one column per doing instead", async () => {
+    renderWithQuery(<SkillDoings skillId="skl-1" version={version as never} />);
+
+    await waitFor(() => expect(screen.getByText("FOURTH")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: /show every doing/i }));
+
+    await waitFor(() => expect(screen.getAllByRole("columnheader")).toHaveLength(5));
+    expect(screen.getByText("THIRD")).toBeInTheDocument();
   });
 
   it("shows a field sent holding nothing as left empty, never as a value", async () => {
@@ -114,9 +132,6 @@ describe("the doings behind a skill", () => {
 
   it("says nothing was recorded rather than inventing a cell", async () => {
     renderWithQuery(<SkillDoings skillId="skl-1" version={version as never} />);
-
-    await waitFor(() => expect(screen.getByText("FOURTH")).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("button", { name: /show all 4/i }));
 
     await waitFor(() => expect(screen.getByText("not recorded")).toBeInTheDocument());
   });
@@ -180,9 +195,19 @@ describe("the doings behind a skill", () => {
     await waitFor(() => expect(screen.getByText(/aged out of retention/i)).toBeInTheDocument());
   });
 
-  it("marks which doings were actually diffed against each other", async () => {
+  it("marks the column holding the doings that were actually diffed", async () => {
     renderWithQuery(<SkillDoings skillId="skl-1" version={version as never} />);
 
-    await waitFor(() => expect(screen.getAllByText("diffed")).toHaveLength(2));
+    // Both diffed doings share one shape, so one column carries the mark.
+    await waitFor(() => expect(screen.getAllByText("diffed")).toHaveLength(1));
+  });
+
+  it("names the individual doings behind a shared column", async () => {
+    renderWithQuery(<SkillDoings skillId="skl-1" version={version as never} />);
+
+    await waitFor(() => expect(screen.getByText("2 doings")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: /which ones/i }));
+
+    await waitFor(() => expect(screen.getAllByText(/4 steps/).length).toBeGreaterThan(1));
   });
 });

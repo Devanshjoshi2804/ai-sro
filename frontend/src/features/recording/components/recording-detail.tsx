@@ -1,11 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { getRecording, recordingKeys } from "@/features/recording/api";
+import { getMedia, getRecording, recordingKeys } from "@/features/recording/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FrameShot, shotsByFrame } from "@/features/recording/components/frame-shot";
 import { LiveSession } from "@/features/recording/components/live-session";
 import { RecordingVideo } from "@/features/recording/components/recording-video";
 
@@ -18,11 +19,19 @@ export function RecordingDetail({ recordingId }: { recordingId: string }) {
     refetchInterval: (query) => (query.state.data?.status === "capturing" ? 5_000 : false),
   });
 
+  // Links are minted per request and expire, so they are fetched beside the
+  // recording rather than stored with it.
+  const media = useQuery({
+    queryKey: [...recordingKeys.detail(recordingId), "media"],
+    queryFn: () => getMedia(recordingId),
+  });
+
   if (recording.isLoading) return <Skeleton className="h-96 w-full" />;
   if (recording.error) return <p className="text-destructive">{String(recording.error)}</p>;
   if (!recording.data) return null;
 
   const { objective_key: objective, frames, artifacts } = recording.data;
+  const shots = shotsByFrame(media.data);
 
   return (
     <div className="space-y-6">
@@ -65,14 +74,20 @@ export function RecordingDetail({ recordingId }: { recordingId: string }) {
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-muted-foreground space-y-1 text-sm">
-                <p>{new Date(frame.occurred_at).toLocaleTimeString()}</p>
-                {frame.primary_request && (
-                  <p className="text-foreground font-mono text-xs break-all">
-                    {frame.primary_request}
-                  </p>
-                )}
-                <p>{frame.request_count} network calls captured</p>
+              <CardContent className="flex gap-4 text-sm">
+                <FrameShot
+                  shot={shots.get(frame.index)}
+                  label={`#${frame.index} ${frame.action_kind} ${frame.target ?? ""}`.trim()}
+                />
+                <div className="text-muted-foreground space-y-1">
+                  <p>{new Date(frame.occurred_at).toLocaleTimeString()}</p>
+                  {frame.primary_request && (
+                    <p className="text-foreground font-mono text-xs break-all">
+                      {frame.primary_request}
+                    </p>
+                  )}
+                  <p>{frame.request_count} network calls captured</p>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -89,21 +104,35 @@ export function RecordingDetail({ recordingId }: { recordingId: string }) {
           />
         </TabsContent>
 
-        <TabsContent value="artifacts" className="space-y-2 pt-4">
-          {artifacts.map((artifact) => (
-            <div
-              key={`${artifact.kind}-${artifact.uri}`}
-              className="flex items-center justify-between rounded-md border px-4 py-2 text-sm"
-            >
-              <span className="flex items-center gap-3">
-                <Badge variant="secondary">{artifact.kind}</Badge>
-                <span className="text-muted-foreground font-mono text-xs">{artifact.uri}</span>
-              </span>
-              <span className="text-muted-foreground tabular-nums">
-                {Math.round(artifact.size_bytes / 1024)} KB
-              </span>
-            </div>
-          ))}
+        <TabsContent value="artifacts" className="pt-4">
+          {/* Contact sheet rather than a list of keys: an artifact is a picture
+              of somebody's screen, and a URI is not a way to look at one. */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+            {artifacts.map((artifact) => {
+              const shot =
+                artifact.frame_index !== null ? shots.get(artifact.frame_index) : undefined;
+              return (
+                <div key={`${artifact.kind}-${artifact.uri}`} className="space-y-1">
+                  {shot ? (
+                    <FrameShot shot={shot} label={`#${artifact.frame_index} of this doing`} />
+                  ) : (
+                    <span className="text-muted-foreground block truncate font-mono text-xs">
+                      {artifact.uri}
+                    </span>
+                  )}
+                  <p className="text-muted-foreground flex items-center gap-2 text-xs">
+                    <Badge variant="secondary">{artifact.kind}</Badge>
+                    {artifact.frame_index !== null && (
+                      <span className="tabular-nums">#{artifact.frame_index}</span>
+                    )}
+                    <span className="tabular-nums">
+                      {Math.round(artifact.size_bytes / 1024)} KB
+                    </span>
+                  </p>
+                </div>
+              );
+            })}
+          </div>
           {artifacts.length === 0 && (
             <p className="text-muted-foreground py-12 text-center">No artifacts attached.</p>
           )}

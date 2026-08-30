@@ -31,6 +31,7 @@ from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.objective import Direction, ObjectiveKey
+from sro.domain.skill.assertion import AssertionKind
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
@@ -542,6 +543,10 @@ class AssertionModel(BaseModel):
     kind: str
     expected: str
     pointer: str | None
+    written_by: str | None = None
+    """Who decided this counts as success, where a person did. ``None`` means
+    induction derived it from the recordings -- two demonstrations agreeing,
+    which is evidence rather than an opinion."""
 
 
 class NetworkPlanModel(BaseModel):
@@ -567,6 +572,14 @@ class ToolOfferedModel(BaseModel):
     name: str
     description: str
     arguments: list[str]
+
+
+class AssertRequest(BaseModel):
+    version: int
+    step_index: int
+    kind: AssertionKind
+    expected: str
+    pointer: str | None = None
 
 
 class MapStepRequest(BaseModel):
@@ -757,7 +770,10 @@ class SkillVersionModel(BaseModel):
                     ),
                     assertions=[
                         AssertionModel(
-                            kind=a.kind.value, expected=str(a.expected), pointer=a.pointer
+                            kind=a.kind.value,
+                            expected=str(a.expected),
+                            pointer=a.pointer,
+                            written_by=str(a.written_by) if a.written_by else None,
                         )
                         for a in step.assertions
                     ],

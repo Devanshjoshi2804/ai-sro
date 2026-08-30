@@ -11,6 +11,7 @@ from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import RecordingId, SkillId
 from sro.interface.http.deps import ContainerDep, ContextDep
 from sro.interface.http.schemas import (
+    AssertRequest,
     ChoiceModel,
     DemonstrationModel,
     DescribeRequest,
@@ -188,6 +189,35 @@ async def map_step_to_tool(
         tool=body.tool,
         arguments=body.arguments,
         writes=body.writes,
+    )
+    skill = await container.get_skill().execute(ctx, skill_id=SkillId(skill_id))
+    return SkillDetail.of_skill(skill)
+
+
+@router.post("/{skill_id}/steps/assertion", status_code=status.HTTP_201_CREATED)
+async def add_assertion(
+    skill_id: str, body: AssertRequest, container: ContainerDep, ctx: ContextDep
+) -> SkillDetail:
+    """Somebody saying what counts as this step having worked.
+
+    Post-conditions normally come out of the recordings -- two demonstrations
+    answering the same status, or agreeing on a field. A step performed through
+    a connector has no such thing behind it, so the only post-condition it can
+    have is one a person writes, and a write that proves nothing about its
+    result keeps the whole version off the top of the ladder.
+
+    Only ever adds. A check induction derived is what two demonstrations
+    agreed on, and an opinion that could delete a measurement is not a
+    tightening.
+    """
+    await container.add_assertion().execute(
+        ctx,
+        skill_id=SkillId(skill_id),
+        version=body.version,
+        step_index=body.step_index,
+        kind=body.kind,
+        expected=body.expected,
+        pointer=body.pointer,
     )
     skill = await container.get_skill().execute(ctx, skill_id=SkillId(skill_id))
     return SkillDetail.of_skill(skill)

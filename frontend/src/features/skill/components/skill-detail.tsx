@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MapStepToTool } from "@/features/skill/components/map-step-to-tool";
+import { WhatCountsAsDone } from "@/features/skill/components/what-counts-as-done";
 import { SkillDoings } from "@/features/skill/components/skill-doings";
 
 /**
@@ -293,6 +294,16 @@ function StepCard({
               <p key={index} className="text-xs">
                 {assertion.kind}
                 {assertion.pointer ? ` ${assertion.pointer}` : ""} → {assertion.expected}
+                {/* An assertion the demonstrations proved and one somebody
+                    wrote are different kinds of thing, and a screen that said
+                    them in the same words would present an opinion as
+                    evidence. */}
+                {assertion.written_by && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    — decided by {assertion.written_by}
+                  </span>
+                )}
               </p>
             ))}
           </div>
@@ -306,6 +317,7 @@ function StepCard({
           step={step}
           parameters={parameters}
         />
+        <WhatCountsAsDone skillId={skillId} version={version} step={step} />
       </CardContent>
     </Card>
   );

@@ -12,6 +12,8 @@ export type Choice = Schemas["ChoiceModel"];
 export type Demonstration = Schemas["DemonstrationModel"];
 export type ToolOffered = Schemas["ToolOfferedModel"];
 export type MapStepRequest = Schemas["MapStepRequest"];
+export type AssertRequest = Schemas["AssertRequest"];
+export type AssertionModel = Schemas["AssertionModel"];
 
 export const skillKeys = {
   all: ["skills"] as const,
@@ -110,3 +112,12 @@ export const listOfferedTools = (server: string) =>
  */
 export const mapStepToTool = (skillId: string, body: MapStepRequest) =>
   api.post<SkillDetail>(`/v1/skills/${skillId}/steps/tool`, body);
+
+/**
+ * Somebody saying what counts as this step having worked.
+ *
+ * Only ever adds. A check induction derived is what two demonstrations agreed
+ * on, and an opinion that could delete a measurement is not a tightening.
+ */
+export const addAssertion = (skillId: string, body: AssertRequest) =>
+  api.post<SkillDetail>(`/v1/skills/${skillId}/steps/assertion`, body);

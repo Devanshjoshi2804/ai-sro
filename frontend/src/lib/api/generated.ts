@@ -1081,6 +1081,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/skills/{skill_id}/steps/assertion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Assertion
+         * @description Somebody saying what counts as this step having worked.
+         *
+         *     Post-conditions normally come out of the recordings -- two demonstrations
+         *     answering the same status, or agreeing on a field. A step performed through
+         *     a connector has no such thing behind it, so the only post-condition it can
+         *     have is one a person writes, and a write that proves nothing about its
+         *     result keeps the whole version off the top of the ladder.
+         *
+         *     Only ever adds. A check induction derived is what two demonstrations
+         *     agreed on, and an opinion that could delete a measurement is not a
+         *     tightening.
+         */
+        post: operations["add_assertion_v1_skills__skill_id__steps_assertion_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills/{skill_id}/describe": {
         parameters: {
             query?: never;
@@ -1609,6 +1639,23 @@ export interface components {
             /** Label */
             label: string | null;
         };
+        /** AssertRequest */
+        AssertRequest: {
+            /** Version */
+            version: number;
+            /** Step Index */
+            step_index: number;
+            kind: components["schemas"]["AssertionKind"];
+            /** Expected */
+            expected: string;
+            /** Pointer */
+            pointer?: string | null;
+        };
+        /**
+         * AssertionKind
+         * @enum {string}
+         */
+        AssertionKind: "http_status" | "response_field_present" | "response_field_equals" | "ui_text_visible";
         /** AssertionModel */
         AssertionModel: {
             /** Kind */
@@ -1617,6 +1664,8 @@ export interface components {
             expected: string;
             /** Pointer */
             pointer: string | null;
+            /** Written By */
+            written_by?: string | null;
         };
         /** BatchItemModel */
         BatchItemModel: {
@@ -9148,6 +9197,134 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["MapStepRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillDetail"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    add_assertion_v1_skills__skill_id__steps_assertion_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                skill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssertRequest"];
             };
         };
         responses: {

@@ -112,6 +112,7 @@ from sro.application.recording.list_recordings import ListRecordings
 from sro.application.recording.live_view import GetLiveView
 from sro.application.recording.media import GetRecordingMedia
 from sro.application.recording.start_recording import StartRecording
+from sro.application.skill.add_assertion import AddAssertion
 from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.map_step_to_tool import MapStepToTool
 from sro.application.skill.promote_skill import PromoteSkill
@@ -448,6 +449,9 @@ class Container:
 
     def map_step_to_tool(self) -> MapStepToTool:
         return MapStepToTool(self.unit_of_work(), self.clock, self.tools)
+
+    def add_assertion(self) -> AddAssertion:
+        return AddAssertion(self.unit_of_work(), self.clock)
 
     def grant_host(self) -> GrantHost:
         return GrantHost(self.unit_of_work(), self.clock)

@@ -182,7 +182,7 @@ export function ConnectPanel({
                 padding: "10px 16px",
                 borderRadius: 8,
                 border: "none",
-                background: url.trim() ? ink.accent : "#E7E7E4",
+                background: url.trim() ? ink.accent : ink.disabled,
                 color: url.trim() ? "#fff" : ink.textMuted,
                 fontSize: 13,
                 fontWeight: 700,
@@ -331,11 +331,11 @@ export function SessionState({
   const state = check?.health ?? (status === "connected" ? "checking" : "never_connected");
   const { dot, label } = {
     signed_in: { dot: ink.goodDot, label: "signed in" },
-    signed_out: { dot: "#C0392B", label: "signed out" },
+    signed_out: { dot: ink.danger, label: "signed out" },
     never_connected: { dot: ink.textMuted, label: "not connected" },
     // An outage is not a bad session, and asking for a password would not fix
     // one. Say what is true: we could not ask.
-    unreachable: { dot: "#B7791F", label: "system not answering" },
+    unreachable: { dot: ink.warn, label: "system not answering" },
     checking: { dot: ink.textMuted, label: "checking…" },
   }[state] ?? { dot: ink.textMuted, label: state };
 
@@ -463,7 +463,7 @@ function KeepSignedIn({ connectionId, system }: { connectionId: string; system: 
           border: "none",
           borderRadius: 6,
           padding: "5px 8px",
-          background: ready ? ink.accent : "#E7E7E4",
+          background: ready ? ink.accent : ink.disabled,
           color: ready ? "#fff" : ink.textMuted,
           fontSize: 11,
           fontWeight: 700,

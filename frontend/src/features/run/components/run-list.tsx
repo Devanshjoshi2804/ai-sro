@@ -28,8 +28,11 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   failed: "destructive",
 };
 
+// `dark:` has to be spelled out: the primitive's own `dark:bg-destructive/20`
+// outranks a plain utility, and this shipped for a moment as near-black text on
+// a 20%-opacity red -- less legible than the tint it was meant to replace.
 const STATUS_WEIGHT: Record<string, string> = {
-  failed: "bg-destructive text-background border-destructive font-semibold",
+  failed: "bg-destructive dark:bg-destructive text-background border-destructive font-semibold",
 };
 
 export function RunList() {

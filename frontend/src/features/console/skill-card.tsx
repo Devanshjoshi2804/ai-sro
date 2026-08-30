@@ -121,7 +121,7 @@ export function SkillCard({
           >
             PARAMETERS · {version.recording_ids.length === 1 ? "one run, nothing to diff" : "from the diff"}
           </div>
-          <div style={{ fontFamily: mono, fontSize: 11.5, lineHeight: 1.9, color: "#3F4145" }}>
+          <div style={{ fontFamily: mono, fontSize: 11.5, lineHeight: 1.9, color: ink.textSoft }}>
             {version.parameters.length === 0 && (
               <span style={{ color: ink.textMuted }}>
                 {version.recording_ids.length === 1
@@ -149,7 +149,7 @@ export function SkillCard({
           >
             VERIFICATION
           </div>
-          <div style={{ fontSize: 12, lineHeight: 1.9, color: "#3F4145" }}>
+          <div style={{ fontSize: 12, lineHeight: 1.9, color: ink.textSoft }}>
             {step?.assertions.length === 0 && (
               <span style={{ color: ink.textMuted }}>No assertions extracted.</span>
             )}
@@ -181,7 +181,7 @@ export function SkillCard({
           fontWeight: 600,
           color: ink.textSoft,
           cursor: "pointer",
-          background: "#FBFBFA",
+          background: ink.panel,
         }}
       >
         {open ? "▾" : "▸"} {open ? "Hide the plan" : "How this will be performed"}
@@ -196,7 +196,7 @@ export function SkillCard({
             fontFamily: mono,
             fontSize: 11.5,
             lineHeight: 1.95,
-            color: "#C9CACB",
+            color: ink.textMuted,
             whiteSpace: "pre-wrap",
             overflow: "auto",
           }}
@@ -390,7 +390,7 @@ const inputStyle = {
   lineHeight: 1.6,
   resize: "vertical",
   fontFamily: "inherit",
-  background: "#fff",
+  background: ink.page,
   color: ink.text,
 } as const;
 
@@ -657,7 +657,7 @@ function RunButton({
           padding: "6px 12px",
           borderRadius: 7,
           border: "none",
-          background: blocked ? "#E7E7E4" : ink.accent,
+          background: blocked ? ink.disabled : ink.accent,
           color: blocked ? ink.textMuted : "#fff",
           fontSize: 12,
           fontWeight: 700,

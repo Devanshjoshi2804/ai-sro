@@ -1,22 +1,15 @@
 :root {
-  color-scheme: light dark;
-  --ink: #111827;
-  --quiet: #6b7280;
-  --line: #e5e7eb;
-  --paper: #ffffff;
-  --ground: #f9fafb;
-  --alarm: #b91c1c;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #e5e7eb;
-    --quiet: #9ca3af;
-    --line: #374151;
-    --paper: #111827;
-    --ground: #0b1220;
-    --alarm: #f87171;
-  }
+  /* Was a third palette: cool grey, a red alarm, and no orange at all -- a
+   * different product in the same window. Now the same tokens the panel and the
+   * console read. */
+  color-scheme: dark;
+  --ink: var(--brand-heading);
+  --quiet: var(--brand-body);
+  --line: var(--brand-line);
+  --paper: var(--brand-surface);
+  --ground: var(--brand-ground);
+  --accent: var(--brand-accent);
+  --alarm: var(--brand-danger);
 }
 
 body {
@@ -24,7 +17,7 @@ body {
   padding: 2rem 1rem 4rem;
   background: var(--ground);
   color: var(--ink);
-  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font: 15px/1.5 var(--font-body, ui-sans-serif), system-ui, -apple-system, sans-serif;
 }
 
 main { max-width: 46rem; margin: 0 auto; }
@@ -72,8 +65,8 @@ button {
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--accent);
+  color: #fff;
   font: inherit;
   cursor: pointer;
 }

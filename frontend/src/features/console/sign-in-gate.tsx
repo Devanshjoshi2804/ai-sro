@@ -2,12 +2,10 @@
 
 import { useState, useSyncExternalStore } from "react";
 import {
-  forget,
   looksLikeAToken,
   onCredentialChange,
   remember,
   usableCredential,
-  whoAmI,
 } from "@/lib/api/credential";
 import { ink, mono } from "@/features/console/theme";
 
@@ -161,17 +159,11 @@ export function SignInGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return (
-    <>
-      {children}
-      <SignedInAs
-        onForget={() => {
-          forget();
-          setTyped("");
-        }}
-      />
-    </>
-  );
+  // The credential used to announce itself from a pill fixed to the corner of
+  // the viewport, which sat on top of whatever was under it -- a table row on
+  // Runs, the sentence about where capture is stored on the console. The bar
+  // already names the tenant, so signing out is offered there instead.
+  return <>{children}</>;
 }
 
 function accept(typed: string, refuse: (why: string | null) => void): void {
@@ -187,29 +179,3 @@ function accept(typed: string, refuse: (why: string | null) => void): void {
 }
 
 
-function SignedInAs({ onForget }: { onForget: () => void }) {
-  const me = whoAmI();
-  if (!me) return null;
-  return (
-    <button
-      onClick={onForget}
-      title="Forget this credential on this browser"
-      style={{
-        position: "fixed",
-        right: 12,
-        bottom: 12,
-        zIndex: 60,
-        padding: "5px 9px",
-        borderRadius: 999,
-        border: `1px solid ${ink.line}`,
-        background: ink.panel,
-        color: ink.textMuted,
-        fontFamily: mono,
-        fontSize: 10.5,
-        cursor: "pointer",
-      }}
-    >
-      {me.principal} · {me.tenant} · sign out
-    </button>
-  );
-}

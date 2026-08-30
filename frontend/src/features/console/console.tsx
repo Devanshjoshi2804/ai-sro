@@ -273,7 +273,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        fontFamily: "Manrope, var(--font-geist-sans), sans-serif",
+        fontFamily: "var(--font-body), system-ui, sans-serif",
         color: ink.text,
         background: ink.page,
         overflow: "hidden",
@@ -281,7 +281,7 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
     >
       <TopBar>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 4 }}>
-          <Tab active={tab === "chat"} onClick={() => setTab("chat")} dot="#5A5C60">
+          <Tab active={tab === "chat"} onClick={() => setTab("chat")} dot={ink.textMuted}>
             Threads
           </Tab>
           {teaching && (
@@ -839,7 +839,7 @@ function TeachForm({
                 padding: "10px 16px",
                 borderRadius: 8,
                 border: "none",
-                background: pending ? "#E7E7E4" : ink.accent,
+                background: pending ? ink.disabled : ink.accent,
                 color: pending ? ink.textMuted : "#fff",
                 fontSize: 13,
                 fontWeight: 700,
@@ -858,7 +858,7 @@ function TeachForm({
                 padding: "10px 16px",
                 borderRadius: 8,
                 border: systems.length === 0 ? "none" : `1px solid ${ink.line}`,
-                background: systems.length === 0 ? (pending ? "#E7E7E4" : ink.accent) : "transparent",
+                background: systems.length === 0 ? (pending ? ink.disabled : ink.accent) : "transparent",
                 color: systems.length === 0 ? (pending ? ink.textMuted : "#fff") : ink.textSoft,
                 fontSize: 13,
                 fontWeight: 700,
@@ -960,7 +960,7 @@ function Tab({
         fontWeight: 600,
         cursor: "pointer",
         background: active ? ink.page : "transparent",
-        color: active ? ink.text : "#8A8C8F",
+        color: active ? ink.text : ink.textMuted,
       }}
     >
       <span
@@ -1069,7 +1069,7 @@ function Operator({ children }: { children: React.ReactNode }) {
         alignSelf: "flex-end",
         maxWidth: "60%",
         background: ink.text,
-        color: "#F2F2F0",
+        color: ink.text,
         padding: "11px 15px",
         borderRadius: "14px 14px 4px 14px",
         fontSize: 14.5,
@@ -1167,7 +1167,7 @@ function PlusItem({
           height: 24,
           flex: "0 0 24px",
           borderRadius: 6,
-          background: disabled ? "#F1F1EE" : ink.accentWash,
+          background: disabled ? ink.disabled : ink.accentWash,
           color: disabled ? ink.textSoft : ink.accentDeep,
           display: "grid",
           placeItems: "center",
@@ -1179,7 +1179,7 @@ function PlusItem({
       </span>
       <span>
         <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{title}</span>
-        <span style={{ display: "block", fontSize: 11.5, color: "#7A7C7F", lineHeight: 1.5 }}>
+        <span style={{ display: "block", fontSize: 11.5, color: ink.textMuted, lineHeight: 1.5 }}>
           {subtitle}
         </span>
       </span>

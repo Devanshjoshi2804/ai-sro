@@ -94,6 +94,9 @@ types: ## Regenerate frontend API types from the backend OpenAPI document
 gen-recorder: ## Regenerate the extension's copy of the page recorder, secrets baked in
 	$(BACKEND) uv run python -m sro.infrastructure.steel.generate_extension_recorder
 
+tokens: ## Copy the brand palette from the console into the extension
+	$(BACKEND) uv run python scripts/write_tokens.py
+
 # --- quality ----------------------------------------------------------------
 
 lint: lint-backend lint-frontend ## Run every linter
@@ -139,5 +142,6 @@ test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/content/network.test.mjs
 	node new-chrome-extension/src/content/watch.test.mjs
 	node new-chrome-extension/src/panel/panel.test.mjs
+	node new-chrome-extension/src/tokens.test.mjs
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

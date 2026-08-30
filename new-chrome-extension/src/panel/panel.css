@@ -3,24 +3,29 @@
    a monospace so a count that changes while you watch is legible as a count. */
 
 :root {
-  color-scheme: light;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* The palette comes from `brand.generated.css`, linked ahead of this file.
+   * These names stay because the whole stylesheet is written in them; what
+   * changed is that they are no longer a second, slightly-wrong copy of the
+   * console's colours. */
+  color-scheme: dark;
+  font-family: var(--font-body, system-ui), -apple-system, "Segoe UI", sans-serif;
   font-size: 13px;
 
-  --ground: #f7f7f5;
-  --card: #fff;
-  --line: #e6e4df;
-  --line-soft: #efeee9;
-  --ink: #1c1c1a;
-  --ink-soft: #5f5e58;
-  --ink-mute: #8b8a82;
-  --accent: #e8621f;
-  --good: #16a34a;
-  --warn: #b45309;
-  --warn-wash: #fffaf0;
-  --warn-line: #f0d9a8;
-  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ground: var(--brand-ground);
+  --card: var(--brand-surface);
+  --line: var(--brand-line);
+  --line-soft: var(--brand-line-soft);
+  --ink: var(--brand-heading);
+  --ink-soft: var(--brand-body);
+  --ink-mute: var(--brand-muted);
+  --accent: var(--brand-accent);
+  --good: var(--brand-good);
+  --warn: var(--brand-warn);
+  --warn-wash: var(--brand-warn-tint);
+  --warn-line: var(--brand-warn-line);
+  --mono: var(--font-mono-face, ui-monospace), SFMono-Regular, Menlo, monospace;
 }
+
 
 body {
   margin: 0;
@@ -244,7 +249,7 @@ button.danger:hover:not(:disabled) {
   margin: 8px 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: #f2f1ec;
+  background: var(--brand-surface-2);
   font-family: var(--mono);
   font-size: 11.5px;
   word-break: break-all;

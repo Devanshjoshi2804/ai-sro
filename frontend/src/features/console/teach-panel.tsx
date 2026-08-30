@@ -137,7 +137,7 @@ export function TeachPanel({
 
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", height: "100%", background: "#E9E9E6" }}
+      style={{ display: "flex", flexDirection: "column", height: "100%", background: ink.page }}
     >
       <header
         style={{
@@ -200,7 +200,7 @@ export function TeachPanel({
                     width: 34,
                     height: 5,
                     borderRadius: 3,
-                    background: "#D6D6D2",
+                    background: ink.line,
                     overflow: "hidden",
                   }}
                 >
@@ -259,7 +259,7 @@ export function TeachPanel({
             gap: 12,
             padding: "10px 20px",
             background: ink.goodWash,
-            borderBottom: `1px solid #CBDFCE`,
+            borderBottom: `1px solid ${ink.goodLine}`,
             color: ink.good,
             fontSize: 13,
           }}
@@ -302,7 +302,7 @@ export function TeachPanel({
             flex: 1,
             minWidth: 0,
             background: ink.panel,
-            border: "1px solid #D5D5D1",
+            border: `1px solid ${ink.line}`,
             borderRadius: 10,
             overflow: "hidden",
             display: "flex",
@@ -365,7 +365,7 @@ export function TeachPanel({
               key={frame.index}
               style={{
                 background: ink.panel,
-                border: `1px solid ${frame.applied ? "#CBDFCE" : ink.line}`,
+                border: `1px solid ${frame.applied ? ink.goodLine : ink.line}`,
                 borderRadius: 9,
                 padding: "9px 11px",
                 display: "flex",

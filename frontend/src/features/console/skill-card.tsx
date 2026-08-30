@@ -625,7 +625,6 @@ function RunButton({
                     padding: "7px 9px",
                     fontSize: 12.5,
                     fontFamily: mono,
-                    outline: "none",
                   }}
                 />
               )}

@@ -68,13 +68,15 @@ export function SignInGate({ children }: { children: React.ReactNode }) {
               Sign in
             </h1>
             <p style={{ fontSize: 13, color: ink.textSoft, margin: 0, lineHeight: 1.55 }}>
-              Your credential decides which warehouse you can see and puts your name
-              on every write you authorise.
+              Your credential decides which warehouse you can see and puts your name on every write
+              you authorise.
             </p>
           </div>
 
           <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: ink.textMuted, letterSpacing: 0.5 }}>
+            <span
+              style={{ fontSize: 10.5, fontWeight: 700, color: ink.textMuted, letterSpacing: 0.5 }}
+            >
               CREDENTIAL
             </span>
             <textarea
@@ -102,7 +104,6 @@ export function SignInGate({ children }: { children: React.ReactNode }) {
                 borderRadius: 8,
                 border: `1px solid ${refused ? ink.danger : ink.line}`,
                 resize: "vertical",
-                outline: "none",
                 wordBreak: "break-all",
               }}
             />
@@ -177,5 +178,3 @@ function accept(typed: string, refuse: (why: string | null) => void): void {
   // `remember` tells the gate itself; nothing else has to.
   remember(token);
 }
-
-

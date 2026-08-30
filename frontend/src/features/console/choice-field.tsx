@@ -71,10 +71,17 @@ export function ChoiceField({
   );
 
   const failed =
-    choices.error instanceof ApiError ? choices.error.problem.detail : choices.error ? String(choices.error) : null;
+    choices.error instanceof ApiError
+      ? choices.error.problem.detail
+      : choices.error
+        ? String(choices.error)
+        : null;
 
   return (
-    <div ref={box} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 4 }}>
+    <div
+      ref={box}
+      style={{ position: "relative", display: "flex", flexDirection: "column", gap: 4 }}
+    >
       <input
         value={open ? typed : (picked?.label ?? value)}
         placeholder={`search ${parameter.name.replace(/_/g, " ")}`}
@@ -89,7 +96,6 @@ export function ChoiceField({
           padding: "7px 9px",
           fontSize: 12.5,
           fontFamily: value && !open ? mono : undefined,
-          outline: "none",
         }}
       />
       {open && (

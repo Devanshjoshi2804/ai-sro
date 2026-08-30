@@ -102,6 +102,23 @@
   h3 {
     @apply font-heading;
   }
+
+  /* A floor, in the base layer so anything with its own treatment wins.
+   *
+   * Measured on the console: twenty-three focusable elements, twenty-three with
+   * no visible focus at all. They are drawn with inline `style` objects, which
+   * cannot express `:focus-visible` at any price -- and `docs/04` already says
+   * accessibility is not optional here, because this product's own capture
+   * pipeline depends on accessible names existing.
+   *
+   * One rule rather than three hundred rewrites: a stylesheet reaches every one
+   * of them, and the shadcn primitives keep their own rings because a utility
+   * outranks this. */
+  :focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 /* A table that continues past its container says so.

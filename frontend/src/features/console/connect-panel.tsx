@@ -171,7 +171,6 @@ export function ConnectPanel({
                 padding: "10px 12px",
                 fontSize: 13.5,
                 fontFamily: mono,
-                outline: "none",
               }}
             />
             <button
@@ -292,7 +291,6 @@ function Waiting({
     </>
   );
 }
-
 
 /**
  * What the stored session is actually worth, right now.
@@ -452,7 +450,6 @@ function KeepSignedIn({ connectionId, system }: { connectionId: string; system: 
             padding: "5px 7px",
             fontSize: 11.5,
             fontFamily: mono,
-            outline: "none",
           }}
         />
       ))}

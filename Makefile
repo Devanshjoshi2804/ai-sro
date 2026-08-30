@@ -97,6 +97,10 @@ gen-recorder: ## Regenerate the extension's copy of the page recorder, secrets b
 tokens: ## Copy the brand palette from the console into the extension
 	$(BACKEND) uv run python scripts/write_tokens.py
 
+verify-held: ## Prove a person typing in their own browser reaches the console
+	@token=$$($(BACKEND) uv run python -m sro.cli.mint $(or $(tenant),acme) $(or $(principal),operator) --days 1); \
+	  cd backend && SRO_TOKEN=$$token uv run python -u scripts/verify_held.py
+
 shots: ## Every screen at three widths, for comparing before and after: make shots out=/tmp/before
 	@token=$$($(BACKEND) uv run python -m sro.cli.mint $(or $(tenant),acme) $(or $(principal),operator) --days 1); \
 	  cd backend && SRO_TOKEN=$$token SRO_SHOTS=$(or $(out),/tmp/sro-shots) uv run python -u scripts/route_shots.py

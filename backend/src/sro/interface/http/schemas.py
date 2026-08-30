@@ -659,6 +659,15 @@ class SkillVersionModel(BaseModel):
                 version.track_record,
                 verifiable=version.verifiable,
                 needs_a_person=version.needs_a_person,
+                # Which write nobody checks, where that is the reason: "no step
+                # has an assertion" was the only thing this ever said, and it
+                # was wrong for the version whose reads assert and whose writes
+                # do not -- which is the version worth worrying about.
+                unchecked_writes=(
+                    "step " + ", ".join(str(index) for index in version.unchecked_writes)
+                    if version.unchecked_writes
+                    else "no step"
+                ),
             ),
             demotion_reason=version.demotion_reason,
             induced_at=version.provenance.induced_at,

@@ -136,7 +136,11 @@ class TrackRecord:
 
 
 def why_not_autonomous(
-    record: TrackRecord, *, verifiable: bool, needs_a_person: bool = False
+    record: TrackRecord,
+    *,
+    verifiable: bool,
+    needs_a_person: bool = False,
+    unchecked_writes: str = "no step",
 ) -> str | None:
     """The reason autonomy is refused, or ``None`` when it is earned.
 
@@ -146,9 +150,9 @@ def why_not_autonomous(
     """
     if not verifiable:
         return (
-            "no step of this skill has an assertion, so a run of it cannot be checked; "
-            "a skill that cannot be verified may run assisted indefinitely and never "
-            "unattended"
+            f"{unchecked_writes} of this skill cannot be checked, so a run of it proves "
+            "only that a request was sent; a skill that cannot be verified may run "
+            "assisted indefinitely and never unattended"
         )
     if needs_a_person:
         # Not "not yet" -- not ever. A step with no call behind it is performed

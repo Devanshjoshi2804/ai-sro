@@ -1126,6 +1126,14 @@ class ExecuteStep:
                 request_body=sent,
                 detail=oversize,
                 assertion_failures=failures,
+                # The same fact the interface rung records, on the rung that
+                # runs far more often. A step with no post-condition cannot
+                # fail one, so it came back with an empty failure list -- and
+                # empty is what a fully checked step returns too. Everything
+                # downstream read the silence as "verified": `LearnFromRun`
+                # took a claim from it, and a reviewer reading the run saw a
+                # step that had been tested.
+                unchecked=() if step.assertions else (NOTHING_ASSERTED,),
                 found_rows=answer.rows if answer else None,
                 found_total=answer.total if answer else None,
                 found_partial=bool(answer and answer.partial),

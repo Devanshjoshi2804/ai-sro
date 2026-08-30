@@ -235,14 +235,37 @@ class SkillVersion:
         return any(step.network_plan is None for step in self.steps)
 
     @property
-    def verifiable(self) -> bool:
-        """Whether a run of this can be checked at all.
+    def unchecked_writes(self) -> tuple[int, ...]:
+        """The steps that change the system and prove nothing about the result.
 
-        A skill with no assertion anywhere produces runs that only ever prove a
-        request was sent. That may run assisted forever; it may never run
-        unattended.
+        A write whose two demonstrations returned different statuses and shared
+        no stable response field comes out of induction with no post-condition
+        at all. Performing it can then only fail by not being sent -- the
+        warehouse can reject it, ignore it, or do something else entirely, and
+        the run says the step was fine.
         """
-        return any(step.assertions for step in self.steps)
+        return tuple(
+            step.index
+            for step in self.steps
+            if step.network_plan is not None
+            and step.network_plan.is_mutation
+            and not step.assertions
+        )
+
+    @property
+    def verifiable(self) -> bool:
+        """Whether a run of this can be checked.
+
+        Two conditions, because one was not enough. Something must be checked
+        at all -- a skill with no assertion anywhere produces runs that only
+        ever prove a request was sent. And every step that *changes* the system
+        must be among the checked: this was `any`, so a version whose read step
+        asserted and whose writes did not counted as verified on the strength
+        of the one step nobody is worried about.
+
+        Either way it may run assisted forever; it may never run unattended.
+        """
+        return any(step.assertions for step in self.steps) and not self.unchecked_writes
 
     def record_run(self, verdict: Verdict, at: datetime) -> None:
         self.track_record = self.track_record.after(verdict, at)

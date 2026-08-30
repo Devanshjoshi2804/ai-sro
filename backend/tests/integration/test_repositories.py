@@ -142,6 +142,50 @@ class TestSkills:
 
         assert again.latest.stage.value == "shadow"
 
+    async def test_two_reviewers_promoting_two_versions_do_not_undo_each_other(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The gap the append check left, and the comment that called it safe.
+
+        `latest_version` only moves when a version is appended, so a promotion
+        left it alone and two of them raced. That was called correct on the
+        grounds that a stage is one field -- but it is not one field that gets
+        written, it is the JSONB document all the versions live in, so the
+        second reviewer's save silently undid the first's.
+        """
+        skill = f.skill(versions=0, id=SkillId("skill-two-rungs"))
+        skill.add_version(f.skill_version(version=1))
+        skill.add_version(f.skill_version(version=2))
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.skills.add(skill)
+            await uow.commit()
+
+        async with (
+            SqlUnitOfWork(session_factory) as first,
+            SqlUnitOfWork(session_factory) as second,
+        ):
+            mine = await first.skills.get(skill.tenant_id, skill.id)
+            theirs = await second.skills.get(skill.tenant_id, skill.id)
+            mine.version(1).promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
+            theirs.version(2).promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
+
+            await first.skills.save(mine)
+            await first.commit()
+
+            await second.skills.save(theirs)
+            with pytest.raises(Conflict):
+                await second.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            again = await uow.skills.get(skill.tenant_id, skill.id)
+
+        # The first reviewer's decision is still there. Without the check it was
+        # gone, and the screen showed version 1 back at `recorded` with nothing
+        # to say why.
+        assert again.version(1).stage is PromotionStage.SHADOW
+        assert again.version(2).stage is PromotionStage.RECORDED
+
     async def test_two_writers_appending_at_once_do_not_lose_one_of_them(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:

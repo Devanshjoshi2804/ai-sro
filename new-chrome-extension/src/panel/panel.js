@@ -237,7 +237,11 @@ function watching(status) {
         " Watch a tab and everything in it is evidence -- its calls, its screens," +
         " wherever it navigates." +
         elsewhere,
-      tone: "attention",
+      // No tone. Not watching is the resting state of this panel, not a fault,
+      // and it wore the same amber as "not observing", "this browser cannot be
+      // reached" and "last error" -- so when something is actually wrong it
+      // looked identical to the ordinary Tuesday. The orange button below is
+      // what makes this the card to deal with.
       actions: [
         {
           label: "Watch this tab",

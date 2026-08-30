@@ -119,6 +119,28 @@ function panel(status) {
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
+test("the ordinary resting state does not wear the colour trouble wears", async () => {
+  // Not watching is what this panel looks like on a quiet Tuesday. It carried
+  // `data-tone="attention"` -- the same amber as "not observing", "this browser
+  // cannot be reached" and "last error" -- so a real fault looked exactly like
+  // the normal case, and the alarm meant nothing.
+  const { cards } = panel({ deviceId: "dev-1", capturing: true });
+
+  const idle = cards.find((c) => words(c).includes("Not watching this tab"));
+  assert.ok(idle, "the offer to watch this tab was not drawn at all");
+  assert.strictEqual(idle.dataset.tone, undefined, "the resting state is not an alarm");
+});
+
+test("something actually wrong still wears it", async () => {
+  // The other half: quieting the ordinary case is only worth anything if the
+  // faults are still loud.
+  const { cards } = panel({ deviceId: "dev-1", lastError: "the upload was refused" });
+
+  const wrong = cards.find((c) => words(c).includes("Last error"));
+  assert.ok(wrong, "an error this browser hit was not shown");
+  assert.strictEqual(wrong.dataset.tone, "attention");
+});
+
 test("a mail that matched is a card naming the task and what it read", async () => {
   const { cards } = panel({ deviceId: "dev-1", offers: [OFFER] });
 

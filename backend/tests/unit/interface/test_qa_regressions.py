@@ -7,20 +7,27 @@ stream that hung for fifteen minutes on somebody else's run.
 
 from __future__ import annotations
 
+import asyncio
+import json
 from collections.abc import AsyncIterator
+from contextlib import suppress
 
 import httpx
 import pytest
 from httpx import ASGITransport
 
+from sro.application.context import RequestContext
 from sro.application.execution.answer import read_answer
 from sro.application.intent.narrow import _mentions
 from sro.domain.execution.run import Run, RunId
 from sro.domain.shared.errors import DomainError
+from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.domain.skill.promotion import PromotionStage
+from sro.infrastructure.agent.sockets import DEFAULT_TIMEOUT, MAX_BUSY_WAIT
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from sro.interface.http.errors import _status_for
+from sro.interface.http.v1.routers.stream import _events
 from tests import factories as f
 from tests.unit.fakes import FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
@@ -181,6 +188,63 @@ class TestAPursuitBelongsToOneTenant:
         assert theirs.status_code == 404
 
 
+class TestTheStreamSaysWhenTheOperatorIsTyping:
+    """The extension asks to be left alone while somebody types, and the backend
+    holds its commands -- politeness that happened entirely out of sight, so a
+    run being deferential looked exactly like a run that had stalled.
+
+    Read from the generator rather than over HTTP: `ASGITransport` runs an app
+    to completion, so a request for a stream watching a run that never finishes
+    waits the full fifteen minutes rather than yielding anything.
+
+    Asserted here as well as in the console's own tests because OpenAPI does not
+    describe a `StreamingResponse`. Its shape is hand-written on both sides, and
+    a test that only checked the side that invented it would prove the double.
+    """
+
+    async def test_the_stream_reports_being_held_and_says_for_how_long(
+        self, container: _FakeContainer, uow: FakeUnitOfWork
+    ) -> None:
+        run = _running(device_id=DeviceId("dev-1"))
+        await uow.runs.add(run)
+        container.agent_sockets.deliver(
+            '{"kind": "busy", "for_ms": 5000}', f.TENANT, DeviceId("dev-1")
+        )
+
+        held = (await _first_events(container, run.id))["waiting"]
+
+        assert held["held_ms"] is not None
+        # Never longer than the backend actually intends to wait: a browser
+        # asking for politeness does not get to set the number a person reads.
+        assert held["held_ms"] <= DEFAULT_TIMEOUT * MAX_BUSY_WAIT * 1000
+
+    async def test_a_run_in_our_own_browser_is_never_reported_as_held(
+        self, container: _FakeContainer, uow: FakeUnitOfWork
+    ) -> None:
+        """There is no operator sitting in front of a hosted session to defer
+        to, so asking about one would be asking a question with no meaning."""
+        run = _running(device_id=None)
+        await uow.runs.add(run)
+
+        assert "waiting" not in await _first_events(container, run.id)
+
+    async def test_a_browser_that_has_stopped_typing_is_said_to_have_stopped(
+        self, container: _FakeContainer, uow: FakeUnitOfWork
+    ) -> None:
+        """On change only, so the end of a pause is an event rather than the
+        absence of one -- a console that never heard would hold the banner up
+        over a run that had started moving again."""
+        run = _running(device_id=DeviceId("dev-1"))
+        await uow.runs.add(run)
+        container.agent_sockets.deliver(
+            '{"kind": "busy", "for_ms": 20}', f.TENANT, DeviceId("dev-1")
+        )
+
+        events = await _first_events(container, run.id, ticks=4)
+
+        assert events["waiting"]["held_ms"] is None
+
+
 class TestTheKnowledgeBaseIngestPathIsReal:
     """`make ingest-kb` pointed at `knowledge-base/blue-yonder-sce/`, a
     directory that has never existed -- the real files sit directly under
@@ -257,3 +321,43 @@ class TestARunTheBreakerStopped:
         assert response.status_code == 409
         assert "look" in response.json()["detail"]
         assert container.durable.started == []
+
+
+def _running(*, device_id: DeviceId | None) -> Run:
+    """A run that has started and not finished, which is the only kind the
+    stream reports anything live about."""
+    return Run(
+        id=RunId("run-watching"),
+        tenant_id=f.TENANT,
+        skill_id=SkillId("skl-watching"),
+        skill_version=1,
+        stage=PromotionStage.SHADOW,
+        parameters={},
+        requested_by=f.OPERATOR,
+        started_at=f.at(800),
+        target_system="blue_yonder",
+        device_id=device_id,
+    )
+
+
+async def _first_events(
+    container: _FakeContainer, run_id: RunId, ticks: int = 2
+) -> dict[str, dict[str, object]]:
+    """What the stream says in its first few looks at the row.
+
+    The run never finishes, so the generator never returns; it is abandoned
+    after a bounded number of events instead.
+    """
+    seen: dict[str, dict[str, object]] = {}
+    events = _events(container, RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR), run_id)
+    with suppress(TimeoutError):
+        async with asyncio.timeout(5):
+            for _ in range(ticks):
+                chunk = await anext(events)
+                lines = chunk.splitlines()
+                name = next((x[7:] for x in lines if x.startswith("event: ")), None)
+                data = next((x[6:] for x in lines if x.startswith("data: ")), None)
+                if name and data:
+                    seen[name] = json.loads(data)
+    await events.aclose()
+    return seen

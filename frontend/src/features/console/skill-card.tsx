@@ -8,6 +8,7 @@ import { getRun, runKeys, startRun, type RunModel } from "@/features/run/api";
 import { runInThread, threadKeys } from "@/features/console/chat-api";
 import { listDevices } from "@/features/trigger/api";
 import { useRunStream } from "@/features/run/stream";
+import { InYourBrowser, whereItIsActing } from "@/features/run/components/in-your-browser";
 import { ApiError } from "@/lib/api/client";
 import { whoAmI } from "@/lib/api/credential";
 import { ChoiceField } from "@/features/console/choice-field";
@@ -439,7 +440,10 @@ function RunButton({
   const browsers = useQuery({
     queryKey: ["devices"],
     queryFn: listDevices,
-    enabled: crosses,
+    // Also while a run is live: this is what turns `dev_8f3a…` into the name
+    // the operator calls their own laptop, and a run happening in their browser
+    // has to say which browser.
+    enabled: crosses || Boolean(watching),
   });
   const usable = (browsers.data ?? []).filter((each) => !each.paused);
   const named = device || (usable.length === 1 ? usable[0].id : "");
@@ -492,7 +496,15 @@ function RunButton({
       return startRun(
         skillId,
         { ...parameters, ...given },
-        { authorizedBy: "confirmed", version: version.version, deviceId: named || null },
+        {
+          authorizedBy: "confirmed",
+          version: version.version,
+          deviceId: named || null,
+          // Somebody pressed this and is looking at the card. Taking their tab
+          // is what they asked for; refusing it here would make
+          // `focus_not_permitted` a state they see for no reason.
+          mayTakeFocus: Boolean(named),
+        },
       );
     },
     onSuccess: (started) => {
@@ -536,9 +548,23 @@ function RunButton({
   if (watching || still) {
     // Steps as they land, and whatever the row already had for a run that
     // started before this browser was looking.
-    return (
-      <AsItHappens steps={streamed.steps.length ? streamed.steps : (already.data?.steps ?? [])} />
-    );
+    const landed = streamed.steps.length ? streamed.steps : (already.data?.steps ?? []);
+    const on = streamed.run?.device_id ?? already.data?.device_id ?? null;
+    if (on) {
+      // In the operator's own Chrome, which is a different screen: it has to
+      // name where it is acting and show when it is holding back for them.
+      return (
+        <InYourBrowser
+          steps={landed}
+          waiting={streamed.waiting}
+          of={version.steps?.length ?? null}
+          where={whereItIsActing(landed)}
+          browser={(browsers.data ?? []).find((each) => each.id === on)?.label ?? null}
+          finished={Boolean(streamed.run && streamed.run.status !== "running")}
+        />
+      );
+    }
+    return <AsItHappens steps={landed} />;
   }
 
   // What it still needs, asked for here rather than in the next sentence. Chat

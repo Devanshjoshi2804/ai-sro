@@ -6,6 +6,16 @@ import type { RunModel } from "@/features/run/api";
 export type RunStep = RunModel["steps"][number];
 
 /**
+ * The browser this run is driving has asked to be left alone.
+ *
+ * Not part of the run row: it lives for a few seconds in the process holding
+ * the socket, so the stream is the only place it exists. `heldMs` is what the
+ * backend will actually honour rather than what the browser asked for, so a
+ * countdown drawn from it does not promise a wait nobody intends to take.
+ */
+export type Waiting = { index: number; heldMs: number | null };
+
+/**
  * A run as it happens, rather than when it is over.
  *
  * `fetch` rather than `EventSource`: the credential travels in a header, and
@@ -19,13 +29,15 @@ export function useRunStream(runId: string | null | undefined, live: boolean) {
   // Keyed by run: a new run starts from nothing without an effect having to
   // clear the last one's steps, which is a cascading render and reads as a
   // flash of the previous run in the card.
-  const [seen, setSeen] = useState<{ runId: string; steps: RunStep[]; run: RunModel | null }>({
-    runId: "",
-    steps: [],
-    run: null,
-  });
+  const [seen, setSeen] = useState<{
+    runId: string;
+    steps: RunStep[];
+    run: RunModel | null;
+    waiting: Waiting | null;
+  }>({ runId: "", steps: [], run: null, waiting: null });
   const steps = seen.runId === runId ? seen.steps : [];
   const run = seen.runId === runId ? seen.run : null;
+  const waiting = seen.runId === runId ? seen.waiting : null;
 
   useEffect(() => {
     if (!runId || !live) return;
@@ -35,10 +47,22 @@ export function useRunStream(runId: string | null | undefined, live: boolean) {
       setSeen((was) =>
         was.runId === runId
           ? { ...was, steps: [...was.steps, step] }
-          : { runId, steps: [step], run: null },
+          : { runId, steps: [step], run: null, waiting: null },
       );
     const finish = (finished: RunModel) =>
-      setSeen((was) => ({ runId, steps: was.runId === runId ? was.steps : [], run: finished }));
+      setSeen((was) => ({
+        runId,
+        steps: was.runId === runId ? was.steps : [],
+        run: finished,
+        // A finished run is not waiting for anybody.
+        waiting: null,
+      }));
+    const hold = (next: Waiting | null) =>
+      setSeen((was) =>
+        was.runId === runId
+          ? { ...was, waiting: next }
+          : { runId, steps: [], run: null, waiting: next },
+      );
 
     void (async () => {
       try {
@@ -63,9 +87,19 @@ export function useRunStream(runId: string | null | undefined, live: boolean) {
             const kind = /^event: (.+)$/m.exec(chunk)?.[1];
             const data = /^data: (.+)$/m.exec(chunk)?.[1];
             if (!kind || !data) continue;
-            const payload = JSON.parse(data) as RunStep & RunModel;
+            const payload = JSON.parse(data) as RunStep &
+              RunModel & { index: number; held_ms: number | null };
             if (kind === "step") land(payload as RunStep);
             if (kind === "done") finish(payload as RunModel);
+            // Sent only when it changes, so `held_ms: null` is the event that
+            // says the operator stopped typing rather than an empty one.
+            if (kind === "waiting") {
+              hold(
+                payload.held_ms === null
+                  ? null
+                  : { index: payload.index, heldMs: payload.held_ms },
+              );
+            }
             // The run is not ours or never existed. Nothing to watch, and
             // holding the connection open would be a browser tab waiting on a
             // row that is never coming.
@@ -81,5 +115,5 @@ export function useRunStream(runId: string | null | undefined, live: boolean) {
     return () => controller.abort();
   }, [runId, live]);
 
-  return { steps, run };
+  return { steps, run, waiting };
 }

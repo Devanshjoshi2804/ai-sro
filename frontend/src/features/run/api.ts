@@ -28,6 +28,13 @@ export const startRun = (
      * other way to run: the deployment holds one system's credentials at most,
      * and the operator's own Chrome is signed in to both. */
     deviceId?: string | null;
+    /** Whether this run may bring a tab to the front.
+     *
+     * True when a person pressed the button and is watching it happen, which is
+     * what the flag is for -- and it is why `focus_not_permitted` should be a
+     * state the console almost never has to draw. Left alone for a schedule
+     * firing behind somebody at three in the afternoon. */
+    mayTakeFocus?: boolean;
   } = {},
 ) =>
   api.post<RunModel>(`/v1/skills/${skillId}/runs`, {
@@ -36,6 +43,7 @@ export const startRun = (
     medium: options.medium ?? "network",
     version: options.version ?? null,
     device_id: options.deviceId ?? null,
+    may_take_focus: options.mayTakeFocus ?? false,
   });
 
 export type BatchResult = Schemas["BatchResultModel"];

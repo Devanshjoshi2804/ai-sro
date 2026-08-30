@@ -85,12 +85,12 @@ export function Overview() {
           {watching.devices === 1 ? "browser" : "browsers"}
         </Figure>
         <Figure label="Tasks noticed" value={noticing.tasks.toString()}>
-          {noticing.worth_offering} worth offering · {noticing.taught} taught ·{" "}
-          {noticing.dismissed} dismissed
+          {noticing.worth_offering} worth offering · {noticing.taught} taught · {noticing.dismissed}{" "}
+          dismissed
         </Figure>
         <Figure label="Minutes saved" value={doing.minutes_saved.toString()} estimate>
-          {doing.clean} clean · {doing.degraded} degraded · {doing.failed} failed ·{" "}
-          {doing.withheld} rehearsed · {doing.unreachable} never reached
+          {doing.clean} clean · {doing.degraded} degraded · {doing.failed} failed · {doing.withheld}{" "}
+          rehearsed · {doing.unreachable} never reached
         </Figure>
       </section>
 
@@ -104,8 +104,8 @@ export function Overview() {
           ))}
           {Object.keys(noticing.by_kind).length === 0 && (
             <p className="text-muted-foreground text-sm">
-              Nothing noticed yet. Tasks appear once the same piece of work has been seen more
-              than once.
+              Nothing noticed yet. Tasks appear once the same piece of work has been seen more than
+              once.
             </p>
           )}
         </div>
@@ -166,8 +166,8 @@ export function Overview() {
 
       <p className="text-muted-foreground text-xs">
         Minutes saved is an estimate built from one measurement: how long the task took the
-        operator, times the number of runs that actually sent something. A rehearsal saved
-        nobody anything and is not counted.
+        operator, times the number of runs that actually sent something. A rehearsal saved nobody
+        anything and is not counted.
       </p>
     </div>
   );

@@ -23809,6 +23809,16 @@
           "unreachable_runs": {
             "type": "integer",
             "title": "Unreachable Runs"
+          },
+          "clean_runs_needed": {
+            "type": "integer",
+            "title": "Clean Runs Needed",
+            "default": 10
+          },
+          "failures_before_demotion": {
+            "type": "integer",
+            "title": "Failures Before Demotion",
+            "default": 3
           }
         },
         "type": "object",

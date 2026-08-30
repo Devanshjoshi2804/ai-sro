@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSkill, promoteSkill, skillKeys, type StepModel } from "@/features/skill/api";
 import { ApiError } from "@/lib/api/client";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Rung, Streak } from "@/features/skill/components/ladder";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -93,9 +95,8 @@ export function SkillDetail({ skillId }: { skillId: string }) {
         </div>
         {latest && (
           <div className="flex items-center gap-3">
-            <Badge variant={latest.stage === "shadow" ? "default" : "outline"}>
-              v{latest.version} · {latest.stage}
-            </Badge>
+            <span className="text-muted-foreground font-mono text-xs">v{latest.version}</span>
+            <Rung stage={latest.stage} />
             {/* The reason is already on the page, in Track record below. Saying
                 it twice is what a reviewer reads as noise; what was missing was
                 the button agreeing with it. */}
@@ -117,27 +118,12 @@ export function SkillDetail({ skillId }: { skillId: string }) {
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Track record</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p className="tabular-nums">
-                {latest.track_record.clean_streak} clean in a row ·{" "}
-                {latest.track_record.clean_runs} clean · {latest.track_record.degraded_runs}{" "}
-                needed a slower rung · {latest.track_record.failed_runs} failed ·{" "}
-                {latest.track_record.unreachable_runs} never reached the system
-              </p>
-              {latest.ready_for_autonomy ? (
-                <p className="text-muted-foreground">
-                  Not ready to run unattended: {latest.ready_for_autonomy}
-                </p>
-              ) : (
-                <p className="text-muted-foreground">
-                  This version has earned the right to run unattended.
-                </p>
-              )}
-              {latest.demotion_reason && (
-                <p className="text-destructive">
-                  Demoted automatically: {latest.demotion_reason}
-                </p>
-              )}
+            <CardContent className="text-sm">
+              <Streak
+                record={latest.track_record}
+                refusal={latest.ready_for_autonomy}
+                demotion={latest.demotion_reason}
+              />
             </CardContent>
           </Card>
 
@@ -149,7 +135,17 @@ export function SkillDetail({ skillId }: { skillId: string }) {
               <p>
                 Induced {new Date(latest.induced_at).toLocaleString()} by {latest.induced_by}
               </p>
-              <p className="font-mono text-xs">{latest.recording_ids.join(" + ")}</p>
+              <p className="flex flex-wrap gap-x-2 gap-y-1 font-mono text-xs">
+                {latest.recording_ids.map((id) => (
+                  <Link
+                    key={id}
+                    href={`/recordings/${id}`}
+                    className="hover:text-foreground underline"
+                  >
+                    {id}
+                  </Link>
+                ))}
+              </p>
               <p>{latest.provenance_note}</p>
             </CardContent>
           </Card>
@@ -197,9 +193,7 @@ export function SkillDetail({ skillId }: { skillId: string }) {
               return (
                 <div key={step.index} className={loop ? "border-l-2 border-sky-400 pl-3" : ""}>
                   {loop && step.index === loop.first_step && (
-                    <p className="text-muted-foreground pb-1 text-xs font-medium">
-                      ↻ {loop.says}
-                    </p>
+                    <p className="text-muted-foreground pb-1 text-xs font-medium">↻ {loop.says}</p>
                   )}
                   <StepCard step={step} />
                 </div>
@@ -230,8 +224,7 @@ function StepCard({ step }: { step: StepModel }) {
         )}
         {step.branch_hint && (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs">
-            <span className="font-medium">Described but not demonstrated:</span>{" "}
-            {step.branch_hint}
+            <span className="font-medium">Described but not demonstrated:</span> {step.branch_hint}
             <span className="text-muted-foreground block">
               Nothing was recorded doing this, so it is a question rather than a branch.
             </span>

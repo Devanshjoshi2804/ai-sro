@@ -20,6 +20,9 @@ const version = {
     clean_runs: 0,
     degraded_runs: 0,
     failed_runs: 0,
+    unreachable_runs: 0,
+    clean_runs_needed: 10,
+    failures_before_demotion: 3,
   },
   ready_for_autonomy: "0 clean runs in a row, 10 needed",
   demotion_reason: null,
@@ -129,6 +132,56 @@ describe("SkillDetail", () => {
     renderWithQuery(<SkillDetail skillId="skl-1" />);
 
     expect(await screen.findByText(/0 clean runs in a row, 10 needed/)).toBeInTheDocument();
+  });
+
+  it("draws the streak against what it needs, from the backend's own threshold", async () => {
+    // A console that hardcoded ten would keep saying ten the day the domain
+    // changed its mind, and the bar would disagree with the rule that actually
+    // refuses the promotion.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      versions: [
+        {
+          ...version,
+          track_record: { ...version.track_record, clean_streak: 7, clean_runs_needed: 12 },
+        },
+      ],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    const meter = await screen.findByRole("meter", { name: /clean runs in a row/i });
+    expect(meter).toHaveAttribute("aria-valuenow", "7");
+    expect(meter).toHaveAttribute("aria-valuemax", "12");
+    expect(screen.getByText(/7 of 12/)).toBeInTheDocument();
+  });
+
+  it("says how close a failing version is to being demoted", async () => {
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      versions: [
+        {
+          ...version,
+          track_record: { ...version.track_record, consecutive_failures: 2 },
+        },
+      ],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    // A streak only means something beside the thing that would break it.
+    expect(await screen.findByText(/2 failures in a row/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 more demotes it/i)).toBeInTheDocument();
+  });
+
+  it("says nothing about demotion for a version that has never failed", async () => {
+    vi.spyOn(api, "getSkill").mockResolvedValue(skill as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+    await screen.findByRole("meter", { name: /clean runs in a row/i });
+
+    expect(screen.queryByText(/in a row\./i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/demotes it/i)).not.toBeInTheDocument();
   });
 
   it("refuses the unattended rung on the page rather than on the click", async () => {

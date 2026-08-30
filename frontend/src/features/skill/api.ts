@@ -3,22 +3,35 @@ import { api, type Schemas } from "@/lib/api/client";
 export type SkillSummary = Schemas["SkillSummary"];
 export type SkillDetail = Schemas["SkillDetail"];
 export type SkillVersionModel = Schemas["SkillVersionModel"];
+export type TrackRecordModel = Schemas["TrackRecordModel"];
 export type StepModel = Schemas["StepModel"];
 export type ParameterModel = Schemas["ParameterModel"];
 export type InductionResponse = Schemas["InductionResponse"];
 
 export type Choice = Schemas["ChoiceModel"];
+export type Demonstration = Schemas["DemonstrationModel"];
 
 export const skillKeys = {
   all: ["skills"] as const,
   detail: (id: string) => ["skills", id] as const,
   choices: (id: string, parameter: string, q: string) =>
     ["skills", id, "choices", parameter, q] as const,
+  doings: (id: string, version: number) => ["skills", id, "doings", version] as const,
 };
 
 export const listSkills = () => api.get<SkillSummary[]>("/v1/skills");
 
 export const getSkill = (id: string) => api.get<SkillDetail>(`/v1/skills/${id}`);
+
+/**
+ * Every demonstration a version was learned from, and what each one filled in.
+ *
+ * The version itself stores the values of the two doings it diffed; the rest
+ * are read back out of their own recorded traffic, so a task demonstrated ten
+ * times answers for all ten.
+ */
+export const getDoings = (id: string, version: number) =>
+  api.get<Demonstration[]>(`/v1/skills/${id}/doings?version=${version}`);
 
 /**
  * Two demonstrations, or one.
@@ -74,6 +87,4 @@ export const describeSkill = (
  * endpoint the screen used rather than from what was recorded that afternoon.
  */
 export const listChoices = (skillId: string, parameter: string, q: string) =>
-  api.get<Choice[]>(
-    `/v1/skills/${skillId}/choices/${parameter}?q=${encodeURIComponent(q)}`,
-  );
+  api.get<Choice[]>(`/v1/skills/${skillId}/choices/${parameter}?q=${encodeURIComponent(q)}`);

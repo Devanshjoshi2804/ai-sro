@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { listSkills, skillKeys } from "@/features/skill/api";
-import { Badge } from "@/components/ui/badge";
+import { Rung } from "@/features/skill/components/ladder";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -59,9 +59,7 @@ export function SkillList() {
               </TableCell>
               <TableCell className="text-right tabular-nums">v{skill.latest_version}</TableCell>
               <TableCell>
-                <Badge variant={skill.latest_stage === "shadow" ? "default" : "outline"}>
-                  {skill.latest_stage}
-                </Badge>
+                <Rung stage={skill.latest_stage} />
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {new Date(skill.created_at).toLocaleDateString()}

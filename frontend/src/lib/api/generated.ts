@@ -3027,6 +3027,16 @@ export interface components {
             failed_runs: number;
             /** Unreachable Runs */
             unreachable_runs: number;
+            /**
+             * Clean Runs Needed
+             * @default 10
+             */
+            clean_runs_needed: number;
+            /**
+             * Failures Before Demotion
+             * @default 3
+             */
+            failures_before_demotion: number;
         };
         /**
          * TriggerKind

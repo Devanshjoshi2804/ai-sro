@@ -119,7 +119,8 @@ export function SkillCard({
               color: ink.textMuted,
             }}
           >
-            PARAMETERS · {version.recording_ids.length === 1 ? "one run, nothing to diff" : "from the diff"}
+            PARAMETERS ·{" "}
+            {version.recording_ids.length === 1 ? "one run, nothing to diff" : "from the diff"}
           </div>
           <div style={{ fontFamily: mono, fontSize: 11.5, lineHeight: 1.9, color: ink.textSoft }}>
             {version.parameters.length === 0 && (
@@ -474,9 +475,14 @@ function RunButton({
       // what survives a re-render, a reload and tomorrow morning. Outside one
       // (the skills page), it is still just a run.
       if (threadId) {
-        const thread = await runInThread(threadId, skillId, { ...parameters, ...given }, {
-          version: version.version,
-        });
+        const thread = await runInThread(
+          threadId,
+          skillId,
+          { ...parameters, ...given },
+          {
+            version: version.version,
+          },
+        );
         const last = thread.messages.at(-1)?.decision as { run_id?: string } | undefined;
         // Started, not finished: the card watches it happen from here.
         setWatching(last?.run_id ?? null);
@@ -530,7 +536,9 @@ function RunButton({
   if (watching || still) {
     // Steps as they land, and whatever the row already had for a run that
     // started before this browser was looking.
-    return <AsItHappens steps={streamed.steps.length ? streamed.steps : (already.data?.steps ?? [])} />;
+    return (
+      <AsItHappens steps={streamed.steps.length ? streamed.steps : (already.data?.steps ?? [])} />
+    );
   }
 
   // What it still needs, asked for here rather than in the next sentence. Chat
@@ -545,8 +553,7 @@ function RunButton({
     .map((parameter) => parameter.name)
     .filter((name) => !supplied[name]?.trim());
 
-  const blocked =
-    stillMissing.length > 0 || version.stage === "recorded" || (crosses && !named);
+  const blocked = stillMissing.length > 0 || version.stage === "recorded" || (crosses && !named);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
       {missing.length > 0 && (
@@ -780,7 +787,6 @@ function Mark({ disposition }: { disposition: string }) {
         : ink.textMuted;
   return <span style={{ color: colour, fontWeight: 700 }}>•</span>;
 }
-
 
 function Result({
   run,

@@ -35,7 +35,11 @@ from sro.domain.skill.locator import ControlLocator, LocatorStrategy
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill, SkillVersion
 from sro.domain.skill.template import Template
-from sro.domain.skill.track_record import why_not_autonomous
+from sro.domain.skill.track_record import (
+    DEMOTE_AFTER_FAILURES,
+    REQUIRED_CLEAN_RUNS,
+    why_not_autonomous,
+)
 from sro.domain.trigger.trigger import Trigger, TriggerKind
 from sro.domain.trigger.watch import MAX_TERM, Term, TermField, ValueAt, Watch
 
@@ -540,6 +544,12 @@ class TrackRecordModel(BaseModel):
     degraded_runs: int
     failed_runs: int
     unreachable_runs: int
+    # The two thresholds the streak is measured against, sent rather than left
+    # for a reader to know. A console drawing "7 of 10" from a 10 it hardcoded
+    # would go on saying 10 the day `REQUIRED_CLEAN_RUNS` moved, and the bar
+    # would disagree with the rule that actually refuses the promotion.
+    clean_runs_needed: int = REQUIRED_CLEAN_RUNS
+    failures_before_demotion: int = DEMOTE_AFTER_FAILURES
 
 
 class LoopModel(BaseModel):

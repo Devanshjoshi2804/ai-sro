@@ -14,6 +14,7 @@ skill nobody can trust.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -47,6 +48,17 @@ from sro.domain.observation.candidate import (
 from sro.domain.recording.recording import Recording
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import BatchId, CandidateId, RecordingId, SkillId
+
+logger = logging.getLogger(__name__)
+
+MOST_DOINGS = 10
+"""How many doings of a task one teach reads.
+
+Well above the two that are diffed and the handful `worth_offering` asks for,
+and far below the number a daily task accumulates. Every doing past this is
+read for one thing -- whether a field was left empty -- and the tenth is
+unlikely to be the first to say so.
+"""
 
 
 class NothingToTeach(DomainError):
@@ -102,8 +114,28 @@ class TeachCandidate:
         # a task rather than about the last two times somebody did it, and the
         # doing that proves the warehouse takes Absolute Priority empty may be
         # the first of three.
+        # Bounded, and the bound is said out loud. A task somebody does every
+        # morning has fifty sightings by the end of the month, and reading them
+        # all is fifty blob passes and fifty stored recordings for one teach --
+        # to answer a question the freshest handful has already answered.
+        #
+        # Dropped from the far end, so the two that get diffed are never among
+        # the losses. What a dropped doing could still have said is that some
+        # field may be left out, and not hearing it leaves that field required:
+        # a skill that asks for one value too many, which is the direction to
+        # be wrong in.
+        history = list(reversed(candidate.episodes))
+        if len(history) > MOST_DOINGS:
+            logger.info(
+                "teaching %s from the %d most recent of %d doings",
+                candidate_id,
+                MOST_DOINGS,
+                len(history),
+            )
+            history = history[:MOST_DOINGS]
+
         recordings: list[Recording] = []
-        for episode in reversed(candidate.episodes):
+        for episode in history:
             recording = await self._demonstration(ctx, candidate, episode)
             if recording is not None:
                 recordings.append(recording)

@@ -14,7 +14,12 @@ import pytest
 
 from sro.application.context import RequestContext
 from sro.application.induction.errors import InductionFailed
-from sro.application.observation.teach import DismissCandidate, NothingToTeach, TeachCandidate
+from sro.application.observation.teach import (
+    MOST_DOINGS,
+    DismissCandidate,
+    NothingToTeach,
+    TeachCandidate,
+)
 from sro.domain.observation.batch import CaptureMode, ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, Episode, TaskCandidate
 from sro.domain.recording.recording import RecordingStatus
@@ -465,3 +470,31 @@ async def test_a_task_watched_once_is_read_rather_than_diffed() -> None:
     assert induce.pairs == [], "one doing was handed to a diff with nothing to diff it against"
     assert len(understand.asked) == 1
     assert taught.needs_demonstration is True
+
+
+async def test_a_task_done_every_morning_is_taught_from_a_bounded_history() -> None:
+    """Fifty sightings was fifty blob passes and fifty stored recordings for
+    one teach, to answer a question the freshest handful has already answered.
+
+    Dropped from the far end, so the two that get diffed are never among the
+    losses -- and what a dropped doing could still have said is that some field
+    may be left out, which leaves that field required. A skill that asks for one
+    value too many is the direction to be wrong in.
+    """
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    candidate = await _stored(uow, blobs)
+    # Every one of them replayable: what is under test is how many get read,
+    # not which. The same window as the candidate's own, so each yields a
+    # recording rather than being skipped as evidence that has aged out.
+    many = tuple(candidate.episodes[0] for _ in range(MOST_DOINGS + 15))
+    candidate.episodes = many
+    await uow.candidates.save(candidate)
+    induce = _Induces()
+
+    await _teach(uow, blobs, _NoUnderstanding(), induce).execute(CTX, candidate_id=candidate.id)
+
+    # Two diffed and the rest read only for emptiness -- and never more than
+    # the cap, however long somebody has been doing this task.
+    first, second = induce.pairs[0]
+    assert first and second
+    assert len(induce.rest[0]) == MOST_DOINGS - 2

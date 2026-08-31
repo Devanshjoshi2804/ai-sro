@@ -43,14 +43,40 @@ export function Rung({ stage }: { stage: string }) {
  * Both denominators come from the backend. A hardcoded 10 here would keep
  * saying 10 the day the domain changed its mind.
  */
+/**
+ * Which door the promotion that put this version at its current rung came
+ * through — see `SkillVersion.promoted_from`.
+ *
+ * Spelled out rather than shown raw. ADR 014 lets an operator promote a
+ * version to assisted by reading the panel's own preview and pressing once,
+ * and says plainly that the visibility of *which* review happened "is the
+ * whole of what this decision buys a reviewer". A field nothing renders buys
+ * nobody anything, which is what this was until now.
+ *
+ * The two that matter are the two reviews. `earned` and `repair` are named
+ * too, because blank has to keep meaning exactly one thing — nobody has
+ * promoted this version by any door — and a value this screen quietly dropped
+ * would read as that.
+ */
+const PROMOTED_FROM: Record<string, string> = {
+  console: "Promoted here, by somebody reading this version's evidence.",
+  preview:
+    "Promoted from the panel: an operator read the steps and the values of one run, " +
+    "mid-task, and pressed once. Not a read of this page.",
+  earned: "Promoted by its own clean runs. Nobody was asked.",
+  repair: "Moved back up by a drift repair, to the rung the version it replaces had earned.",
+};
+
 export function Streak({
   record,
   refusal,
   demotion,
+  promotedFrom = "",
 }: {
   record: TrackRecordModel;
   refusal: string | null;
   demotion: string | null;
+  promotedFrom?: string;
 }) {
   const needed = record.clean_runs_needed;
   const done = Math.min(record.clean_streak, needed);
@@ -97,6 +123,9 @@ export function Streak({
 
       {refusal && <p className="text-muted-foreground text-xs">Not yet: {refusal}</p>}
       {demotion && <p className="text-destructive text-xs">Demoted automatically: {demotion}</p>}
+      {PROMOTED_FROM[promotedFrom] && (
+        <p className="text-muted-foreground text-xs">{PROMOTED_FROM[promotedFrom]}</p>
+      )}
 
       <dl className="text-muted-foreground grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4">
         <Tally label="clean" value={record.clean_runs} />

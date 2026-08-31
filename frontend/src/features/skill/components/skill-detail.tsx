@@ -131,6 +131,7 @@ export function SkillDetail({ skillId }: { skillId: string }) {
                 record={latest.track_record}
                 refusal={latest.ready_for_autonomy}
                 demotion={latest.demotion_reason}
+                promotedFrom={latest.promoted_from}
               />
             </CardContent>
           </Card>

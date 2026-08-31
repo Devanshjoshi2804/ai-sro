@@ -121,6 +121,40 @@ describe("SkillDetail", () => {
     expect(button).toBeDisabled();
   });
 
+  it("says which door a promotion came through, so a reviewer can disagree", async () => {
+    // ADR 014 lets an operator promote a version to assisted by reading the
+    // panel's own preview and pressing once, and says plainly that the
+    // visibility of *which* review happened "is the whole of what this
+    // decision buys a reviewer". `promoted_from` was on the wire and rendered
+    // nowhere, so that decision bought a reviewer nothing at all.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      latest_stage: "assisted",
+      versions: [{ ...version, stage: "assisted", promoted_from: "preview" }],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    expect(await screen.findByText(/an operator read the steps and the values/i)).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("Promoted here");
+  });
+
+  it("reads differently for a promotion made in this console", async () => {
+    // The other half: naming the panel promotion is only worth anything if a
+    // console one is visibly a different thing beside it.
+    vi.spyOn(api, "getSkill").mockResolvedValue({
+      ...skill,
+      latest_stage: "assisted",
+      versions: [{ ...version, stage: "assisted", promoted_from: "console" }],
+    } as never);
+
+    renderWithQuery(<SkillDetail skillId="skl-1" />);
+
+    expect(
+      await screen.findByText(/Promoted here, by somebody reading this version's evidence/i),
+    ).toBeInTheDocument();
+  });
+
   it("says why a version cannot run unattended yet", async () => {
     // A gate that says no without saying why is a gate people work around.
     vi.spyOn(api, "getSkill").mockResolvedValue({

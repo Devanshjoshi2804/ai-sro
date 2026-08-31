@@ -2931,6 +2931,13 @@ export interface components {
             /** Why */
             why: string[];
             proposal: components["schemas"]["ProposalModel"] | null;
+            /**
+             * Items
+             * @default []
+             */
+            items: {
+                [key: string]: string;
+            }[];
         };
         /** ResolveIntentRequest */
         ResolveIntentRequest: {

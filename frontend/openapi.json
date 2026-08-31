@@ -25813,6 +25813,17 @@
                 "type": "null"
               }
             ]
+          },
+          "items": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Items",
+            "default": []
           }
         },
         "type": "object",

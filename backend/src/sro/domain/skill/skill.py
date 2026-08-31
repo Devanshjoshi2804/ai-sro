@@ -113,11 +113,48 @@ class Provenance:
     way round for the sake of a type.
     """
 
+    aligned_recording_ids: tuple[RecordingId, ...] = ()
+    """Which of ``recording_ids`` shaped the *steps* -- the subset ``align_all``
+    actually diffed, as opposed to the ones read only for what they proved a
+    parameter could be.
+
+    The distinction this field exists to hold: a version induced from four
+    demonstrations used to cite all four in ``recording_ids`` whether or not a
+    given one ever touched a step, and a reader checking why a skill declared a
+    parameter no step could fill had no way to see that two of the four never
+    reached the steps at all -- only the parameters. Both the four and the
+    fewer were true and told apart nowhere.
+
+    A subset of ``recording_ids`` rather than a second list, so the two can
+    never drift into naming different recordings by construction; the
+    invariant below is what keeps that true rather than a docstring's word for
+    it.
+
+    Empty for every version induced before this field existed, and empty is
+    not a claim that none of its recordings shaped the steps -- it is the
+    honest admission that nobody wrote down which ones did. Reading it as
+    "zero" would be the exact mistake this field was added to stop: a false
+    claim standing in for missing data.
+
+    One case a reader has to know to interpret this correctly rather than
+    guess: where the pair looped, `InduceSkill` deliberately excludes the rest
+    of the history from `align_all` -- see ADR 015 -- so a looping version's
+    ``aligned_recording_ids`` is only the pair, never the whole of
+    ``recording_ids``, on purpose. The other demonstrations are still cited,
+    because they still proved parameters; they just never got a say in what
+    the steps are, and this field is where that says so.
+    """
+
     def __post_init__(self) -> None:
         if not self.recording_ids:
             raise InvariantViolation("a skill version must cite the recordings it came from")
         if self.induced_at.tzinfo is None:
             raise InvariantViolation("Provenance.induced_at must be timezone-aware")
+        if not set(self.aligned_recording_ids) <= set(self.recording_ids):
+            raise InvariantViolation(
+                "Provenance.aligned_recording_ids must be a subset of recording_ids -- a "
+                "recording cannot have shaped the steps without being cited as a source at all"
+            )
 
 
 @dataclass(eq=False)

@@ -197,11 +197,19 @@ class InduceSkill:
                 for other in others
                 if other not in (run_a.id, run_b.id)
             ]
-            history = tuple(
-                other.frames
+            # Named apart from `history` because `recording_ids` below cites
+            # all of `rest` -- everything read, on the theory that a reader
+            # asking "why is this recording in provenance" deserves the
+            # answer even where the answer is "it named a different task and
+            # nothing was built from it" -- while `aligned_recording_ids`
+            # must cite only the ones that actually reached `align_all`,
+            # which is this filtered subset and no other.
+            contributing = [
+                other
                 for other in rest
                 if other.status is RecordingStatus.SEALED and other.objective_key == objective
-            )
+            ]
+            history = tuple(other.frames for other in contributing)
 
             # Two demonstrations that did the same block a different number of
             # times are two lengths of one looping task, not two tasks. Read
@@ -388,6 +396,23 @@ class InduceSkill:
                     # doing that proves it.
                     recording_ids=(
                         (run_a.id, run_b.id, *(other.id for other in rest))
+                        if second is not None
+                        else (run_a.id,)
+                    ),
+                    # The same shape `doings` was built in, above, translated
+                    # from frames to the ids that own them -- not recomputed
+                    # by some other rule that could quietly drift from it.
+                    # `contributing` is `rest` filtered to what `history`
+                    # actually held, so a recording that named a different
+                    # objective or was never sealed is honestly absent from
+                    # both, not counted as aligned on the strength of merely
+                    # having been passed in.
+                    aligned_recording_ids=(
+                        (
+                            (run_a.id, run_b.id)
+                            if looped is not None
+                            else (run_a.id, run_b.id, *(other.id for other in contributing))
+                        )
                         if second is not None
                         else (run_a.id,)
                     ),

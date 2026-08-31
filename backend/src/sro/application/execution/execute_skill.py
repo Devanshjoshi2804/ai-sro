@@ -1638,9 +1638,13 @@ def _check_runnable(version: SkillVersion, request: ExecutionRequest) -> None:
             + ", so it runs in a browser that is signed in to all of them: name a device"
         )
     supplied = set(request.parameters)
-    required = {
-        p.name for p in version.parameters if p.kind is ParameterKind.INPUT and not p.optional
-    }
+    # `version.inputs` is the one definition of "values somebody has to supply
+    # for a run to be worth starting", and it has already changed once --
+    # optional parameters were folded out of it after a skill with any optional
+    # field turned out to be impossible to put on a trigger. Re-deriving the
+    # same expression here left that rule written in two places, so the next
+    # change to it would have been correct in one of them.
+    required = {p.name for p in version.inputs}
     if absent := sorted(required - supplied):
         raise NotRunnable("no value supplied for " + ", ".join(absent))
     # And what was supplied is the shape its slot holds. A template

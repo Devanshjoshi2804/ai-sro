@@ -248,6 +248,31 @@
   // announcement was made before this listener existed.
   window.dispatchEvent(new CustomEvent("sro:need-hello"));
 
+  // Say so when the exchange never happened, because the alternative is worse
+  // than not recording.
+  //
+  // Reloading the extension replaces this half with a fresh one that knows no
+  // realm, while the page-realm half that could tell it is the *old* one, which
+  // answered its single hello long ago and stopped listening. The patch is
+  // still installed and still emitting; every record it sends is dropped here.
+  //
+  // It cannot be repaired. The patch lives in the page's own realm, so once
+  // page scripts are running there is no channel to it a page cannot also read
+  // and write -- the handshake works only because it happens at
+  // `document_start`, before any page script exists to overhear it. Answering a
+  // hello later hands the secret to whoever asked, and a forged exchange
+  // becomes a candidate skill an operator is offered.
+  //
+  // So the tab reports it instead. Silence here is what cost an operator two
+  // demonstrations: gestures recorded, every call dropped, and nothing anywhere
+  // saying why.
+  setTimeout(() => {
+    if (expected !== null) return;
+    chrome.runtime
+      .sendMessage({ kind: "calls-not-recordable", url: location.href })
+      .catch(() => {});
+  }, 1000);
+
   const looksLikeRecord = (raw) =>
     raw &&
     typeof raw === "object" &&

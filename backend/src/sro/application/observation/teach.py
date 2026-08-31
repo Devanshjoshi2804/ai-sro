@@ -22,10 +22,16 @@ from datetime import datetime
 from sro.application.capture.assemble import AssemblyResult, assemble_frames
 from sro.application.capture.decode import (
     epoch_to_datetime,
+    to_ax_graph,
     to_captured_request,
     to_input_action,
 )
-from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent
+from sro.application.capture.events import (
+    CaptureEvent,
+    InputEvent,
+    RequestEvent,
+    SnapshotEvent,
+)
 from sro.application.capture.identity import derive_objective_key
 from sro.application.context import RequestContext
 from sro.application.induction.errors import InductionFailed
@@ -623,6 +629,26 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
             # rather than failing the teach: one malformed call out of forty is
             # not a reason to make somebody do the task again.
             return None
+
+    if kind == "snapshot":
+        # Read here as well as on the demonstration path, because this is where
+        # a task the operator never deliberately taught becomes a skill -- which
+        # is the way this product is meant to work. Passing over the trees here
+        # meant a mined skill got the weaker locator ladder however many trees
+        # had been captured for it: a css path of framework ids assigned in
+        # render order, different on the next page load.
+        snapshot = event.get("snapshot")
+        taken_at = event.get("taken_at")
+        if not isinstance(snapshot, Mapping):
+            return None
+        at = _at(taken_at)
+        if at is None or not _inside(at, episode):
+            return None
+        try:
+            graph = to_ax_graph(dict(snapshot), url=str(event.get("url") or ""), taken_at=at)
+        except (KeyError, TypeError, ValueError):
+            return None
+        return None if graph is None else SnapshotEvent(snapshot=graph)
     return None
 
 

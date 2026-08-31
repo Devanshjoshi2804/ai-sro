@@ -84,3 +84,47 @@ The costs are real and are accepted:
   no CDP initiator chain, response bodies only where the page could see them.
   Enough to recognise a repeated task; sometimes not enough to induce a skill
   from, which is why the teaching tier still exists.
+
+## Amendment, 2026-08-31 — accessibility trees while nobody is teaching
+
+Passive capture originally took screenshots and never accessibility trees. The
+tree is the one view that says what a control *is* rather than where it happens
+to sit today, and induction builds a locator from it. Without one a skill has
+only what the DOM offers: a css path of framework ids assigned in render order,
+`span#button-1350-btnIconEl`, which is a different element after a reload.
+
+So every skill that arrived the way this document describes — watch the
+operator, notice the repetition, offer it back — got the weaker ladder, and the
+good locators were reserved for the one path an operator has to remember to
+press a button for. That inverts the decision above: the deliberate tier was
+meant to be higher-fidelity in what it *asks* of somebody, not the only tier
+that produces a durable skill.
+
+Trees are now taken passively, under `capture_snapshots`, with their own
+per-minute cap.
+
+**Off by default, and the only capture setting that is.** Trees come from
+`chrome.debugger`, and Chrome shows "AI-SRO is debugging this browser" for as
+long as anything is attached. That is a visible change to a screen somebody is
+working on, so it is an administrator's decision taken where the cost is written
+down, not a default an operator meets one morning.
+
+**The banner is a deployment question, not a code one.** An extension
+force-installed by enterprise policy (`ExtensionInstallForcelist`) does not
+raise it at all — which is the deployment this is for: managed Chrome, operators
+who installed nothing themselves. An unpacked development copy does raise it,
+and no extension can suppress it from inside; `--silent-debugger-extension-api`
+is a launch flag, so it is a developer's convenience and not an answer for a
+fleet. A tenant running unmanaged browsers should leave this off.
+
+**DevTools wins.** Chrome allows one debugger per tab. An operator who opens
+DevTools takes it and keeps it; a refused attach is remembered and not retried,
+and capture carries on without trees. Their tab, their tools.
+
+**Teaching wins too.** A deliberate demonstration attaches its own debugger, so
+passive trees let go first. The operator asked for that one and did not ask for
+this one.
+
+The controls above are unchanged and all still apply: excluded hosts are never
+touched, the pause and the kill switch still stop it, and the panel still says
+what is on.

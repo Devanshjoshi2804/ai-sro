@@ -151,8 +151,8 @@ test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/frames.test.mjs
 	node new-chrome-extension/src/background/pages.test.mjs
 	node new-chrome-extension/src/background/watching-across-a-reload.test.mjs
+	node new-chrome-extension/src/background/trees.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs
-	node new-chrome-extension/src/content/reintroducing-the-patch.test.mjs
 	node new-chrome-extension/src/content/watch.test.mjs
 	node new-chrome-extension/src/panel/panel.test.mjs
 	node new-chrome-extension/src/tokens.test.mjs

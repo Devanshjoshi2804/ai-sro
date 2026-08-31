@@ -58,7 +58,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // this, and nothing rides on a page having one registered at all.
 // ponytail: main frame only; add per-iframe navigation if a miner needs it.
 chrome.webNavigation.onCommitted.addListener((d) => {
-  if (d.frameId === 0) void pageEvent("navigated", d.tabId, d.url, d.timeStamp);
+  if (d.frameId !== 0) return;
+  // A fresh document gets a fresh patch and a handshake at `document_start`,
+  // which is the only moment one can safely happen -- so whatever was wrong
+  // with the last document is not wrong with this one.
+  halfDeaf.delete(d.tabId);
+  void pageEvent("navigated", d.tabId, d.url, d.timeStamp);
 });
 chrome.webNavigation.onCompleted.addListener((d) => {
   if (d.frameId === 0) void pageEvent("loaded", d.tabId, d.url, d.timeStamp);
@@ -210,12 +215,18 @@ function unwatch(tabId) {
     // A tab nobody was watching closes all day long. Writing the same list
     // back for each one is how a watch set meanwhile gets overwritten.
     if (next.length !== watched.length) await state.setWatched(next);
+    // Stop watching, stop debugging. An operator who pressed "stop watching"
+    // and was left with the banner up would have every reason to disbelieve
+    // the panel about anything else it says.
+    if (next.length !== watched.length) await releaseTree(tabId);
     if (leaving?.host && (await isExcluded(leaving.host))) await ungrant(leaving.host);
     return next;
   });
 }
 
 chrome.tabs.onRemoved.addListener((tabId) => {
+  halfDeaf.delete(tabId);
+  void releaseTree(tabId);
   void unwatch(tabId);
 });
 
@@ -303,6 +314,14 @@ function underPolicy(request, policy) {
   };
 }
 
+/** Tabs whose page-realm patch outlived the extension that installed it.
+ *
+ * Their gestures still arrive; their calls are emitted and dropped. Cleared on
+ * navigation, because a fresh document gets a fresh patch and a handshake at
+ * `document_start`, which is the only moment one can safely happen.
+ */
+const halfDeaf = new Set();
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   // Returning true keeps the channel open for the async answer.
   handle(message, sender).then(respond, (error) => respond({ error: String(error) }));
@@ -313,6 +332,20 @@ async function handle(message, sender) {
   switch (message?.kind) {
     case "content-ready":
       return { ok: true };
+    case "calls-not-recordable": {
+      // A tab whose page-realm patch outlived the extension that installed it.
+      // It is still emitting and nothing can accept what it emits, and the tab
+      // cannot be repaired from here -- the patch lives in the page's own realm,
+      // where the handshake that made it trustworthy can only happen before any
+      // page script exists.
+      //
+      // Recorded rather than acted on. Reloading somebody's page out from under
+      // them is not this worker's call to make; saying that the tab records
+      // gestures and no calls is, because the alternative is a demonstration
+      // that quietly asserts nothing about the system it changes.
+      halfDeaf.add(sender?.tab?.id ?? -1);
+      return { ok: true };
+    }
     case "gesture":
     case "request": {
       // Every captured event is judged here, at the one point they all pass
@@ -401,6 +434,18 @@ async function handle(message, sender) {
           if (before) await queue.enqueue(before, null, recordingId);
           // And one for whatever they do next.
           void teaching.snapshot(tab_id, redactUrl(frameUrl)).catch(() => null);
+        } else {
+          // The same thing for work nobody is deliberately demonstrating, so a
+          // skill that arrived the way this product intends -- watch, notice
+          // the repetition, offer it back -- gets the same locators as one
+          // somebody remembered to press a button for. Same ordering, because
+          // the assembler's rule is the same on both paths.
+          //
+          // Only ever `else`: Chrome allows one debugger per tab, and a
+          // deliberate demonstration is the one that asked for it.
+          const before = takeTree(tab_id);
+          if (before) await queue.enqueue(before, null, null);
+          void takeTreeSoon(tab_id, page_url, policy).catch(() => null);
         }
         return { ok: true, screenshot: Boolean(shot) };
       }
@@ -485,6 +530,22 @@ async function handle(message, sender) {
       if (!tab?.id || !/^https?:/.test(tab.url || "")) {
         return { error: "open the system you want to teach in a tab first" };
       }
+      // A tab that can no longer record calls cannot be taught in.
+      //
+      // It would record every gesture and no call at all, which induces to a
+      // skill that checks nothing: no status to assert, no response field to
+      // compare, so it can never be verified and never earns a rung above
+      // assisted. Worse, it looks like a successful demonstration. An operator
+      // found this out by teaching the same task twice into a tab that had
+      // outlived an extension reload.
+      if (halfDeaf.has(tab.id)) {
+        return {
+          error:
+            "this tab stopped recording network calls when the extension reloaded. " +
+            "Reload the page and teach again -- a demonstration without its calls " +
+            "makes a skill that can never check its own work.",
+        };
+      }
       // Pressing "teach" in a tab is the same sentence as "watch this tab",
       // said more strongly. An operator who demonstrates in an unwatched tab
       // and gets an empty recording learns nothing except not to trust this.
@@ -492,6 +553,10 @@ async function handle(message, sender) {
       await injectInto(tab.id, tab.url, await state.policy());
       const started = await api.startRecording(deviceId, message.label || tab.title || null);
       try {
+        // Chrome allows one debugger per tab, so passive trees let go before a
+        // deliberate demonstration asks for it. That way round because the
+        // operator asked for this one and did not ask for the other.
+        await releaseTree(tab.id);
         await teaching.start(started.recording_id, tab.id);
         // The first "before": the screen as it was when the operator pressed
         // start, which is what the first gesture will be judged against.
@@ -918,6 +983,9 @@ async function settle() {
   // from an ordinary wake-up. Without this a tab open across a reload records
   // nothing while the panel goes on saying it is watched.
   await injectIntoWatched(await watchedTabs(), policy, granted);
+  // A tenant that has just switched trees off gets the banner taken down now,
+  // not at the next tab close. Nothing re-attaches until a gesture asks.
+  if (!policy?.capture_snapshots) await releaseAll();
   await channel.settle();
   await badge();
   return status();

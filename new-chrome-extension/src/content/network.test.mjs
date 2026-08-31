@@ -48,6 +48,8 @@ function makeSandbox({ withRules = true, answerHandshake = true } = {}) {
     URL,
     URLSearchParams,
     TextEncoder,
+    setTimeout,
+    clearTimeout,
     sent,
   };
   sandbox.globalThis = sandbox;
@@ -242,35 +244,41 @@ const base = {
 
 console.log("network.test.mjs: ok");
 
-// A reload leaves the page-realm patch installed and the isolated half fresh.
+
+
+// A handshake that never happened is reported, not endured in silence.
 //
-// The patch goes on emitting -- a CustomEvent needs nothing from the extension
-// that installed it -- but the half that could tell a new isolated world which
-// realm those records carry answered its one hello long ago and stopped
-// listening. So every call was emitted and every one dropped on arrival: a
-// reloaded extension recorded gestures and no calls at all, silently, until the
-// page next navigated. Which is long enough to teach a skill that asserts
-// nothing about the system it changes.
+// Reloading the extension replaces this half with a fresh one that knows no
+// realm, while the page-realm half that could tell it is the *old* one, which
+// answered its single hello long ago and stopped listening. The patch is still
+// installed and still emitting; every record it sends is dropped here.
 //
-// `network.main.js` now answers for the patch already installed, reading the
-// realm back off the guard symbol. The two halves below stand in for that.
+// It cannot be repaired: the patch lives in the page's own realm, so once page
+// scripts are running there is no channel to it a page cannot also read and
+// write. Answering a hello later hands the secret to whoever asked, and a
+// forged exchange becomes a candidate skill an operator is offered --
+// `test_the_page_cannot_forge_an_exchange_into_the_evidence_plane` holds that
+// line and should be read beside this.
+//
+// So the tab says so, and teaching refuses to start in it. Silence here cost an
+// operator two demonstrations: gestures recorded, every call dropped, nothing
+// anywhere saying why.
 {
-  // Nobody answers: the fresh isolated half never learns a realm, and a record
-  // that says it came from one is not one it can believe.
   const orphaned = makeSandbox({ answerHandshake: false });
-  orphaned.__fire({ __from: NONCE, ...base });
-  assert.equal(orphaned.sent.length, 0, "a record was accepted with no handshake behind it");
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  const said = JSON.parse(JSON.stringify(orphaned.sent));
+  assert.ok(
+    said.some((message) => message.kind === "calls-not-recordable"),
+    "a tab that never completed the handshake said nothing about it",
+  );
 
-  // Answered late, by the execution that found the patch already there. Same
-  // realm, because it is read off the patch rather than minted fresh -- a new
-  // realm would be answering for a patch that signs with the old one.
-  const spoken = makeSandbox({ answerHandshake: true });
-  spoken.__fire({ __from: NONCE, ...base });
-  assert.equal(spoken.sent.length, 1, "a re-introduced realm did not restore capture");
-
-  // And the realm still has to match. Re-introduction restores the handshake;
-  // it does not make the isolated half take anybody's word for it.
-  const wrong = makeSandbox({ answerHandshake: true });
-  wrong.__fire({ __from: "some-other-realm", ...base });
-  assert.equal(wrong.sent.length, 0, "a record from an unknown realm was accepted");
+  // And a tab that did complete it says nothing, or the panel learns to ignore
+  // the one message that matters.
+  const whole = makeSandbox({ answerHandshake: true });
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  const quiet = JSON.parse(JSON.stringify(whole.sent));
+  assert.ok(
+    !quiet.some((message) => message.kind === "calls-not-recordable"),
+    "a tab whose handshake succeeded reported itself broken",
+  );
 }

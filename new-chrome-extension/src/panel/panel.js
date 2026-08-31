@@ -291,7 +291,13 @@ function watching(status) {
       : `Everything you do in ${mine.host || "this tab"} is evidence. What you repeat` +
         " becomes a task worth offering; teach one deliberately at any time." +
         elsewhere,
-    metrics: `since ${clock(mine.since)}`,
+    // Said out loud, because it is a change to the screen they are working on.
+    // Chrome puts a debugging banner up for it on any browser that did not
+    // install this by policy, and an operator meeting that with no explanation
+    // has been given a reason to distrust everything else the panel says.
+    metrics:
+      `since ${clock(mine.since)}` +
+      (status.policy?.capture_snapshots ? " · reading this page's structure too" : ""),
     actions: [
       {
         label: "Start teaching",

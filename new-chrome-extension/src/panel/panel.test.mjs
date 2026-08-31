@@ -86,6 +86,10 @@ function buttons(el) {
   return [...(el.tag === "button" ? [el] : []), ...el.kids.flatMap(buttons)];
 }
 
+function inputs(el) {
+  return [...(el.tag === "input" ? [el] : []), ...el.kids.flatMap(inputs)];
+}
+
 /** Every message of one kind the panel sent, copied out of the vm's realm:
  * an object made in there has a different `Object.prototype`, which
  * `deepStrictEqual` calls a difference. This is also exactly what
@@ -117,11 +121,16 @@ function panel(status, here = null, replies = {}) {
           // explicit `render` below, so a poll that raced it would be the
           // thing being asserted on.
           if (message.kind === "status") return { deviceId: "" };
-          // A list where the panel expects a list. With a current tab set, it
-          // goes on to ask what is offerable here, and `{}` reaching
-          // `.filter` throws after the assertions have already passed --
-          // which is a green test run and a red exit code.
-          return Array.isArray(replies[message.kind]) ? replies[message.kind] : [];
+          // A reply the fixture actually named, object or list alike --
+          // `resolve-intent`, `teach-candidate` and `skill` all answer with an
+          // object, and a guard that only ever returned an object for
+          // `status` made every fixture for those three silently discarded.
+          // Where nothing was named, `[]`: a list where the panel expects a
+          // list, because with a current tab set it goes on to ask what is
+          // offerable here, and `{}` reaching `.filter` throws after the
+          // assertions have already passed -- which is a green test run and a
+          // red exit code.
+          return message.kind in replies ? replies[message.kind] : [];
         },
         openOptionsPage: () => {},
       },
@@ -161,7 +170,14 @@ function panel(status, here = null, replies = {}) {
   // `ask({kind: "candidates"})`) that a real load triggers separately from
   // `whereWeAre` -- so nothing above has populated `ids["candidates"]` yet,
   // and a test of that list has to trigger and await this itself.
-  return { sent, cards, ids, renderCandidates: sandbox.here, plainly: sandbox.plainly };
+  return {
+    sent,
+    cards,
+    ids,
+    renderCandidates: sandbox.here,
+    plainly: sandbox.plainly,
+    previewOf: sandbox.previewOf,
+  };
 }
 
 const tests = [];
@@ -417,6 +433,159 @@ test("both offer shapes read correctly at a count of one, not '1 times'", async 
   });
   assert.match(counted, /created one work operation here/i, `noun stayed plural: ${counted}`);
   assert.ok(!/\bwork operations\b/i.test(counted), `noun stayed plural: ${counted}`);
+});
+
+test("the preview shrinks as the version earns it", async () => {
+  // Requiring approval for every action an agent takes defeats the point of
+  // automating it. The rungs already say when a version has earned the
+  // benefit of the doubt; until now nothing read them for this.
+  //
+  // `panel()` rather than `await import("./panel.js")`: the module's own
+  // bottom lines wire real listeners against a real `document` the moment it
+  // loads, and a plain Node import hits those with no `document` to find --
+  // the same reason every other export here is read off the vm sandbox
+  // `panel()` already built instead of a second, incompatible way to load
+  // the same file.
+  const { previewOf } = panel({ deviceId: "dev-1" });
+  const steps = [
+    { intent: "Type the Operation code.", value: "NDPCK" },
+    { intent: "Press Save.", value: null },
+  ];
+
+  const first = previewOf({ stage: "recorded", clean_streak: 0 }, steps);
+  assert.equal(first.show, "every-step", "a first press hid what it would do");
+
+  const trusted = previewOf({ stage: "assisted", clean_streak: 4 }, steps);
+  assert.equal(trusted.show, "one-line", "a version with a streak still asked in full");
+
+  const earned = previewOf({ stage: "autonomous", clean_streak: 10 }, steps);
+  assert.equal(earned.show, "nothing", "an autonomous version still asked first");
+});
+
+test("what it could not work out, it asks for by the screen's own name", async () => {
+  const { previewOf } = panel({ deviceId: "dev-1" });
+
+  const asked = previewOf({ stage: "recorded", clean_streak: 0 }, [
+    { intent: "Type the Operation code.", value: "NDPCK" },
+    { intent: "Enter the Voice Code.", value: null, missing: "voice_code", label: "Voice Code" },
+  ]);
+
+  assert.deepEqual(asked.missing, ["Voice Code"]);
+});
+
+/** A candidate `here()` can offer, minus whatever one test cares about
+ * itself -- so a change to a field none of these tests read does not become
+ * a change to every fixture that builds one. */
+function offerableCandidate(overrides = {}) {
+  return {
+    id: "cnd-1",
+    signature: "POST data/WM/wm/workOperations",
+    status: "new",
+    times_seen: 3,
+    median_duration_ms: 40000,
+    minutes_so_far: 5,
+    episodes: [],
+    joins: [],
+    ...overrides,
+  };
+}
+
+/** Drives a candidate row all the way to "Do the next one" being pressed and
+ * the box it always opens with waiting for a sentence -- teaching succeeds,
+ * which is the same for both tests below; what happens once a sentence is
+ * typed into that box and asked is what each of them is actually about.
+ * `replies` is folded in under the fixtures this needs to get there, so a
+ * test only has to name the reply it cares about. */
+async function openedOffer(replies) {
+  const { sent, ids, renderCandidates } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    {
+      candidates: [offerableCandidate()],
+      "teach-candidate": { skill_id: "skl-offered", needs_demonstration: false },
+      ...replies,
+    },
+  );
+  await renderCandidates();
+  const row = ids["candidates"].kids[0];
+  const [doNext] = buttons(row);
+  await doNext.listeners[0]();
+  return { sent, row };
+}
+
+test("the box a candidate's offer opens still runs a sentence naming a different task", async () => {
+  // Spec §6: a sentence that names no offered task still resolves, across the
+  // whole library, and the offer is a pre-filled message into the same box --
+  // not a restriction on what that box can be asked. `resolve-intent` carries
+  // no field to pin it to the offered skill in the first place, which is
+  // most of the proof: there is nothing here to restrict it with. The rest is
+  // that a sentence naming a wholly different, unoffered skill still runs
+  // that skill rather than the one the row was about.
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: { skill_id: "skl-9", name: "Create a work area", version: 1, stage: "autonomous" },
+      choices: [],
+      missing_parameters: [],
+    },
+    skill: {
+      id: "skl-9",
+      name: "Create a work area",
+      versions: [
+        { version: 1, stage: "autonomous", track_record: { clean_streak: 12 }, steps: [], parameters: [] },
+      ],
+    },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "make a work area for receiving";
+  await ask.listeners[0]();
+
+  const asked = sent.filter((message) => message.kind === "resolve-intent");
+  assert.equal(asked.length, 1);
+  assert.ok(!("skillId" in asked[0]), "the box only ever asks about the offered skill");
+
+  // Autonomous, with a streak: `previewOf` says nothing to show, and the
+  // press happens on its own -- for the task the sentence named, "skl-9",
+  // never "skl-offered", the one the row was about.
+  const ran = sent.filter((message) => message.kind === "run-skill");
+  assert.equal(ran.length, 1);
+  assert.equal(ran[0].skillId, "skl-9");
+});
+
+test("a sentence it is unsure about is not resolved by picking the top match", async () => {
+  // `ResolveIntent` already refuses rather than guess between two close
+  // skills. What must not happen on this side is the panel taking the first
+  // of several and running it -- a warehouse write on a coin toss.
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: null,
+      choices: [
+        { skill_id: "skl-1", name: "Create a work area", version: 1, stage: "assisted" },
+        { skill_id: "skl-2", name: "Create a work operation", version: 1, stage: "assisted" },
+      ],
+      missing_parameters: [],
+      question:
+        "More than one taught skill fits that. Which did you mean: Create a work area or Create a work operation?",
+    },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "create a work thing";
+  await ask.listeners[0]();
+
+  const said = words(row);
+  assert.ok(/Create a work area/.test(said) && /Create a work operation/.test(said));
+  assert.ok(/which/i.test(said), "it did not ask which one was meant");
+  assert.ok(
+    !sent.some((message) => message.kind === "run-skill"),
+    "a run started before anyone said which one was meant",
+  );
 });
 
 for (const [name, fn] of tests) {

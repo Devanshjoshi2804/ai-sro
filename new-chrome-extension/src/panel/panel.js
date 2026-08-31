@@ -759,7 +759,10 @@ function row(candidate) {
   const offer = document.createElement("button");
   offer.type = "button";
   offer.textContent = "Do the next one";
-  offer.addEventListener("click", () => beginOffer(candidate, item));
+  offer.addEventListener("click", () => {
+    offer.disabled = true;
+    return beginOffer(candidate, item);
+  });
 
   const no = document.createElement("button");
   no.type = "button";
@@ -782,20 +785,299 @@ function row(candidate) {
   return item;
 }
 
+/** How much to show before running, and what still needs asking.
+ *
+ * Tied to the rung, not to the press. A preview on every press forever is the
+ * thing that makes people stop reading previews -- and the ladder already says
+ * when a version has earned the benefit of the doubt, on evidence rather than
+ * on somebody's patience. This is not a preference: an operator cannot switch it
+ * off, because it is the version that earned it and not them.
+ *
+ * `version` here is the flat shape this file builds in `preview()` below
+ * (`{stage, clean_streak}`), not the wire's `SkillVersionModel` -- the streak
+ * lives two levels down there, under `track_record`, and a function that
+ * reached through that nesting itself would be a second place to keep in
+ * step with the shape the API happens to use today.
+ */
+export function previewOf(version, steps) {
+  const missing = steps.filter((step) => step.missing).map((step) => step.label || step.missing);
+  const show =
+    version.stage === "autonomous"
+      ? "nothing"
+      : version.stage === "recorded" || !version.clean_streak
+        ? "every-step"
+        : "one-line";
+  return { show, steps, missing };
+}
+
+/** The steps `previewOf` needs, from a skill version's own steps and what
+ * `resolve-intent` said is still missing.
+ *
+ * A step is a place data was typed only where a declared parameter's
+ * `source_step_index` names it -- "Press Save." matches no parameter and
+ * carries `value: null` forever, which is correct: it is a gesture, not a
+ * question. A step that does match one, but whose parameter is not in
+ * `missingParameters`, also carries `null` here -- not because nothing is
+ * there, but because `resolve-intent` does not hand back the value it read
+ * out of the sentence, only which names are still unaccounted for. Showing
+ * a blank for what is genuinely unknown is honest; inventing one is not.
+ */
+function preview(skillVersion, missingParameters) {
+  const steps = (skillVersion.steps || []).map((step) => {
+    const parameter = (skillVersion.parameters || []).find(
+      (candidate) => candidate.source_step_index === step.index,
+    );
+    if (parameter && missingParameters.includes(parameter.name)) {
+      return {
+        intent: step.intent,
+        value: null,
+        missing: parameter.name,
+        label: parameter.description || parameter.name,
+      };
+    }
+    return { intent: step.intent, value: null };
+  });
+  return previewOf(
+    { stage: skillVersion.stage, clean_streak: skillVersion.track_record?.clean_streak ?? 0 },
+    steps,
+  );
+}
+
+/** The press. Promotes the version the preview just showed and starts it in
+ * this browser -- `POST /skills/{id}/runs/from-preview`, never the ordinary
+ * run endpoint, because that call does both at once and only this browser is
+ * the one the operator watched the preview name. A looped skill is refused
+ * here with a sentence written for an operator to read; it is returned to the
+ * caller to show, not swallowed into a generic failure.
+ */
+async function runIt(skillId, parameters, intent) {
+  // The device this browser is, read fresh rather than cached: it is the one
+  // thing every run in this panel already asks for at the moment it presses,
+  // not before, because a device id fixed earlier in the flow is one more
+  // thing that could go stale while the operator was still typing.
+  const { deviceId } = await ask({ kind: "status" });
+  return ask({ kind: "run-skill", skillId, parameters, deviceId, intent });
+}
+
+/** What a sentence resolved to, drawn into `box`: one skill and its preview,
+ * a question between a few, or nothing taught at all.
+ *
+ * `resolve-intent` is never asked about one skill in particular -- see
+ * `askBox` below for why -- so every one of these is a real outcome, not an
+ * edge case. Two candidates too close to separate is the one this file must
+ * get right and a naive reading gets wrong: the temptation is to run the
+ * first, because it scored highest, and that is a warehouse write on a coin
+ * toss. So this asks, with both names on the screen, and waits.
+ */
+async function renderResolution(resolution, box, utterance) {
+  box.replaceChildren();
+
+  if (!resolution.matched) {
+    const said_ = document.createElement("p");
+    said_.className = "note";
+    if (resolution.choices?.length) {
+      said_.textContent =
+        resolution.question ||
+        `Which one did you mean: ${resolution.choices.map((choice) => choice.name).join(" or ")}?`;
+      box.append(said_);
+      for (const choice of resolution.choices) {
+        const pick = document.createElement("button");
+        pick.type = "button";
+        pick.className = "quiet";
+        pick.textContent = choice.name;
+        pick.addEventListener("click", async () => {
+          pick.disabled = true;
+          // ponytail: `resolve-intent` gives no missing-parameter list for a
+          // choice that was not the match, only for the one it settled on --
+          // so a picked choice is previewed with nothing marked missing rather
+          // than asked a second time. If a run this starts is refused for a
+          // value it never asked about, a second `resolve-intent` pinned to
+          // this choice is the fix; nothing taught needs it yet.
+          await renderPreview(preview(await fetchVersion(choice), []), choice, box, utterance);
+        });
+        box.append(pick);
+      }
+      return;
+    }
+    said_.textContent = resolution.question || "Nothing taught matches that.";
+    box.append(said_);
+    return;
+  }
+
+  await renderPreview(
+    preview(await fetchVersion(resolution.matched), resolution.missing_parameters || []),
+    resolution.matched,
+    box,
+    utterance,
+  );
+}
+
+/** The skill version a candidate names, fetched fresh. Held nowhere between
+ * asks: the panel already reads it this way to say what a run in progress is
+ * doing (`refresh()`, above), and a second cache here is a second place it
+ * could disagree with the skill's own record. */
+async function fetchVersion(candidate) {
+  const skill = await ask({ kind: "skill", skillId: candidate.skill_id });
+  const found = (skill.versions || []).find((each) => each.version === candidate.version);
+  return found || { stage: candidate.stage, steps: [], parameters: [], track_record: null };
+}
+
+/** What is still missing, asked for by the screen's own name -- never the
+ * signature's -- and then the preview `built.show` actually calls for. */
+async function renderPreview(built, candidate, box, utterance) {
+  box.replaceChildren();
+  const need = built.steps.filter((step) => step.missing);
+  if (need.length) {
+    const fields = new Map();
+    for (const step of need) {
+      const line = document.createElement("label");
+      line.textContent = `${step.label}: `;
+      const field = document.createElement("input");
+      field.type = "text";
+      line.append(field);
+      box.append(line);
+      fields.set(step, field);
+    }
+    const go = document.createElement("button");
+    go.type = "button";
+    go.textContent = "Continue";
+    go.addEventListener("click", async () => {
+      for (const [step, field] of fields) step.value = field.value;
+      await renderReady(built, candidate, box, utterance);
+    });
+    box.append(go);
+    return;
+  }
+  await renderReady(built, candidate, box, utterance);
+}
+
+/** Every value is in hand. Now it is only `built.show` deciding what an
+ * operator sees before the press -- every step and its value, one line, or
+ * nothing at all -- never how many times they have pressed it before. */
+async function renderReady(built, candidate, box, utterance) {
+  box.replaceChildren();
+  const parameters = {};
+  for (const step of built.steps) if (step.missing) parameters[step.missing] = step.value ?? "";
+
+  const press = async () => {
+    box.replaceChildren();
+    const said_ = document.createElement("p");
+    said_.className = "note";
+    said_.textContent = "starting…";
+    box.append(said_);
+    try {
+      await runIt(candidate.skill_id, parameters, utterance);
+      said_.textContent = `“${candidate.name}” is running`;
+    } catch (error) {
+      said_.textContent = error.message;
+    }
+  };
+
+  if (built.show === "nothing") {
+    await press();
+    return;
+  }
+
+  if (built.show === "one-line") {
+    const said_ = document.createElement("p");
+    said_.textContent = `${candidate.name} — do it?`;
+    box.append(said_);
+  } else {
+    for (const step of built.steps) {
+      const line = document.createElement("p");
+      line.className = "metrics";
+      line.textContent = step.value === null ? step.intent : `${step.intent} — ${step.value}`;
+      box.append(line);
+    }
+  }
+
+  const go = document.createElement("button");
+  go.type = "button";
+  go.textContent = "Do it";
+  go.addEventListener("click", press);
+  box.append(go);
+}
+
+/** The one input that turns a sentence into a run: opened here pre-filled
+ * with a sentence naming the candidate that offered it, but never restricted
+ * to that candidate once opened.
+ *
+ * `resolve-intent` carries no field to pin it to one skill -- there is
+ * nothing to send -- and that absence is deliberate rather than a gap this
+ * file works around: a sentence typed in here that names some other taught
+ * task is answered about that task, exactly as if it had been typed into a
+ * blank box, because the offer that opened this one was a suggestion for
+ * what to type, not a restriction on what can be asked.
+ */
+function askBox(holder, prefill) {
+  const row_ = document.createElement("div");
+  row_.className = "row";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = prefill;
+  const go = document.createElement("button");
+  go.type = "button";
+  go.textContent = "Ask";
+  row_.append(input, go);
+
+  const said_ = document.createElement("p");
+  said_.className = "note";
+  const box = document.createElement("div");
+
+  go.addEventListener("click", async () => {
+    go.disabled = true;
+    said_.textContent = "";
+    try {
+      const resolution = await ask({ kind: "resolve-intent", utterance: input.value });
+      await renderResolution(resolution, box, input.value);
+    } catch (error) {
+      said_.textContent = error.message;
+    }
+    go.disabled = false;
+  });
+
+  holder.append(row_, said_, box);
+}
+
 /** Starts the offer this row just made: doing the operator's next occurrence
  * of the task.
  *
- * A stub. What actually runs a skill against the next occurrence -- resolving
- * an intent, starting it, and letting the operator say it went wrong -- is the
- * next task, and this one only replaces the words on the button. Until then
- * this says plainly that pressing it does nothing yet, because a button that
- * looks pressed and silently does nothing is worse than one that admits it.
+ * Teaches the candidate first -- silently, because the operator asked for a
+ * task done, not a lesson on how the system learns tasks -- then opens the
+ * same box every sentence goes through. A refusal here is not an error to
+ * report and move past: passive capture cannot always induce a task from
+ * what it saw, and the honest answer is to say so and ask for one more
+ * ordinary doing of it, which is what the sentence below says.
  */
-function beginOffer(candidate, item) {
+async function beginOffer(candidate, item) {
   const note = document.createElement("p");
   note.className = "note";
-  note.textContent = "doing it for you isn't wired up yet";
+  note.textContent = "one moment…";
   item.append(note);
+
+  let taught;
+  try {
+    taught = await ask({ kind: "teach-candidate", id: candidate.id });
+  } catch (error) {
+    note.textContent = error.message;
+    return;
+  }
+
+  if (taught.needs_demonstration) {
+    note.textContent =
+      taught.because ||
+      "I've watched this a few times but the doings differ too much for me to be sure" +
+        " — do one more and I'll try again.";
+    return;
+  }
+
+  // Cleared rather than removed: `card()` and the rest of this file never
+  // reach for a node's own `.remove()`, because nothing here tracks a node's
+  // parent to make it meaningful, and reaching for it once here would be a
+  // second way to take a node out of the page for no reason worth a second
+  // way.
+  note.textContent = "";
+  askBox(item, candidate.named_by_model && candidate.title ? candidate.title : "Do the next one");
 }
 
 /** What a model noticed about this candidate, and the two words a person can

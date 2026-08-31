@@ -162,6 +162,22 @@ export const api = {
       body: { reason },
     }),
 
+  /** What a sentence asks for. Ranks the whole taught library every time --
+   * there is no field on this request to restrict it to one skill, and the
+   * panel does not invent one: a sentence offered against one candidate that
+   * names a different taught task is answered about that task. */
+  resolveIntent: (utterance) => call("/v1/intent/resolve", { method: "POST", body: { utterance } }),
+
+  /** The press. Promotes the version a preview just showed and starts it in
+   * the operator's own browser in one call -- see ADR 014 and
+   * `RunFromPreview`. Refused for a looped skill with a sentence written for
+   * an operator to read, which the panel shows rather than swallows. */
+  runFromPreview: (skillId, parameters, deviceId, intent) =>
+    call(`/v1/skills/${encodeURIComponent(skillId)}/runs/from-preview`, {
+      method: "POST",
+      body: { parameters, device_id: deviceId, intent },
+    }),
+
   /** The operator deleting their own evidence, from their own devices, for the
    * tenant on their credential. Answers with what went. */
   forget: (since) =>

@@ -621,6 +621,13 @@ async function handle(message, sender) {
       return api.answerJoin(message.id, message.otherId, message.joinKind, message.answer);
     case "dismiss-candidate":
       return api.dismissCandidate(message.id, message.reason);
+    case "resolve-intent":
+      return api.resolveIntent(message.utterance);
+    case "run-skill":
+      // The press. `from-preview`, not the ordinary run endpoint -- the
+      // operator read the preview this promotes on, in this browser, and a
+      // run started anywhere else would not be the run they read.
+      return api.runFromPreview(message.skillId, message.parameters, message.deviceId, message.intent);
     case "panel-console":
       // The one place the token deliberately leaves the worker: the console
       // this browser frames cannot see the credential in its own tab, because

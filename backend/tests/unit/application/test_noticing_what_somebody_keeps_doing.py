@@ -163,8 +163,8 @@ def test_a_pile_the_operator_was_interrupted_in_the_middle_of_loses_nothing() ->
     found = segment(read(_payload(events), BatchId("bat-1")))
 
     assert [piece.signature for piece in found] == [
-        "POST api/suppliers → GET api/suppliers/*",
-        "POST api/suppliers → GET api/suppliers/*",
+        "POST api/suppliers",
+        "POST api/suppliers",
         "GET api/suppliers",
     ]
     assert found[-1].episode.ended_at == START + timedelta(seconds=181), "the tail was dropped"
@@ -213,17 +213,22 @@ def test_reading_a_screen_is_not_a_piece_of_work() -> None:
 
 
 def test_a_repeat_of_the_same_step_is_one_step_not_two() -> None:
-    # A grid that pages twice is the same step done twice.
+    """A grid that pages twice is the same step done twice.
+
+    On a task that only reads, because that is the one whose signature is made
+    of reads. A task that changes something is known by the change, and the
+    grid refreshing behind it is not part of what it is.
+    """
     events = [
         _gesture(START),
-        _call(START + timedelta(seconds=1), "POST", "/api/suppliers"),
+        _call(START + timedelta(seconds=1), "GET", "/api/suppliers"),
         _call(START + timedelta(seconds=2), "GET", "/api/suppliers"),
         _call(START + timedelta(seconds=3), "GET", "/api/suppliers"),
     ]
 
     found = segment(read(_payload(events), BatchId("bat-1")))
 
-    assert found[0].signature == "POST api/suppliers → GET api/suppliers"
+    assert found[0].signature == "GET api/suppliers"
 
 
 def test_how_somebody_got_there_is_not_what_the_task_is() -> None:
@@ -252,7 +257,7 @@ def test_how_somebody_got_there_is_not_what_the_task_is() -> None:
     menu = segment(read(_payload(from_the_menu), BatchId("bat-1")))
     search = segment(read(_payload(from_a_search), BatchId("bat-2")))
 
-    assert menu[0].signature == search[0].signature == "POST api/suppliers → GET api/suppliers"
+    assert menu[0].signature == search[0].signature == "POST api/suppliers"
     # The route is still evidence of the same piece of work; it is just not
     # what the piece of work *is*.
     assert menu[0].episode.calls == 4
@@ -364,3 +369,67 @@ def test_a_beacon_landing_mid_form_does_not_cut_the_task_in_half() -> None:
 
     assert len(found) == 1, "a beacon on a timer ended the task the operator was in"
     assert found[0].signature == "POST api/suppliers"
+
+
+def test_how_fast_somebody_clicked_next_is_not_what_the_task_is() -> None:
+    """Two doings of one task, one paused after saving and one carried straight
+    on. Before this they were two tasks done once each.
+
+    The signature used to run from the change to the end of the piece, so it
+    swept up whatever the application did after the save. But the piece is cut
+    at the first thing the operator touches after something changed -- so an
+    operator who sat still kept the grid refresh and the re-reads inside their
+    piece, and one who clicked the next row did not. The identical task in the
+    identical screen produced `POST workOperations → GET workOperations → GET
+    deviceClassFunctions` one time and `POST workOperations` the next, and the
+    two never met.
+
+    Found on a real WMS, twice, by an operator doing the same job twice and
+    getting two candidates at one occurrence each -- which is the number that
+    never earns anything, and exactly what `_signature` was written to prevent.
+
+    The reads after a change are what the reads before it always were: evidence
+    of the same piece of work, and not what the piece of work is.
+    """
+    unhurried = [
+        _gesture(START),
+        _call(START + timedelta(seconds=1), "POST", "/api/workOperations"),
+        _call(START + timedelta(seconds=2), "GET", "/api/workOperations"),
+        _call(START + timedelta(seconds=3), "GET", "/api/deviceClassFunctions"),
+    ]
+    straight_on = [
+        _gesture(START),
+        _call(START + timedelta(seconds=1), "POST", "/api/workOperations"),
+    ]
+
+    paused = segment(read(_payload(unhurried), BatchId("bat-1")))
+    carried_on = segment(read(_payload(straight_on), BatchId("bat-2")))
+
+    assert paused[0].signature == carried_on[0].signature == "POST api/workOperations"
+    # The reads are still in the episode. They are the evidence teaching reads;
+    # they are just not what makes two doings the same task.
+    assert paused[0].episode.calls == 3
+
+
+def test_a_task_that_only_reads_is_still_known_by_what_it_read() -> None:
+    """It has nothing else to be known by, and reading a screen is a task.
+
+    The rule above removes the reads from a signature that has a change in it.
+    A run with no change at all is the one place they are still the whole of it,
+    and losing that would make every read-only task the same task.
+    """
+    looking = [
+        _gesture(START),
+        _call(START + timedelta(seconds=1), "GET", "/api/suppliers"),
+        _call(START + timedelta(seconds=2), "GET", "/api/suppliers/S1"),
+    ]
+    looking_elsewhere = [
+        _gesture(START),
+        _call(START + timedelta(seconds=1), "GET", "/api/labels"),
+    ]
+
+    one = segment(read(_payload(looking), BatchId("bat-1")))
+    other = segment(read(_payload(looking_elsewhere), BatchId("bat-2")))
+
+    assert one[0].signature == "GET api/suppliers → GET api/suppliers/*"
+    assert one[0].signature != other[0].signature

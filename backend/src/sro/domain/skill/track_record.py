@@ -80,12 +80,36 @@ class TrackRecord:
 
     last_run_at: datetime | None = None
 
+    failures_before_the_last_run: int = 0
+    """What `consecutive_failures` held before the most recent counted run.
+
+    Kept for exactly one reader, `instead_of` below. `consecutive_failures` is
+    collapsed to zero by any clean run, so a verdict that is later replaced --
+    a run that ended clean and that the operator then said made the wrong
+    record -- had already destroyed the number the replacement needs to count
+    up from. One integer is the whole of what it takes to put that back, and
+    the alternative is a version that made the wrong record every single time
+    never reaching three failures in a row because each of its own runs reset
+    the count on the way past.
+
+    Not a second track record and not history: it describes the one run that
+    can still be revised, which is the run the panel offers "it's wrong" for.
+    """
+
     @property
     def total_runs(self) -> int:
         return self.clean_runs + self.degraded_runs + self.failed_runs + self.unreachable_runs
 
     def after(self, verdict: Verdict, at: datetime) -> TrackRecord:
         """The record this run leaves behind."""
+        counted = self._counted(verdict, at)
+        if counted is self:
+            # WITHHELD: a shadow run counts nothing, so there is nothing to
+            # revise later and nothing to remember about what came before it.
+            return self
+        return replace(counted, failures_before_the_last_run=self.consecutive_failures)
+
+    def _counted(self, verdict: Verdict, at: datetime) -> TrackRecord:
         if at.tzinfo is None:
             raise InvariantViolation("a run's time must be timezone-aware")
 
@@ -139,18 +163,39 @@ class TrackRecord:
         reading a clean run that, on the operator's own account, never
         happened.
 
-        The count columns are exact: the verdict already recorded is undone in
-        its own column before the new one is applied. The two streak columns
-        are not rewound, because they cannot be -- both are collapsed by every
-        run that touches them, so whatever they held before the run being
-        revised was overwritten and is stored nowhere. Applying the new verdict
-        on top of them is what this codebase did before and is right in the
-        case that matters: a run called wrong is FAILED, which zeroes the
-        streak and adds one to the failures either way. It undercounts only
-        where a version already had consecutive failures, one clean run
-        interrupted them, and that clean run is the one being called wrong --
-        rare, in the safe direction for `total_runs`, and not worth storing a
-        per-run snapshot of the record to recover.
+        Three things are put back, and the third is the one that matters.
+
+        The count column of the replaced verdict is decremented before the new
+        one is applied, which is exact.
+
+        `consecutive_failures` is rewound to what it held before the replaced
+        verdict touched it, from `failures_before_the_last_run`, and only then
+        is the new verdict applied on top. Restoring what the replaced verdict
+        cleared is precisely this method's job: without it, the sequence that
+        actually happens -- a run ends clean, the operator looks at what it
+        made and says it is wrong, repeat -- oscillates between zero and one
+        forever, because every run's own clean verdict resets the count before
+        the operator's answer can raise it. `DEMOTE_AFTER_FAILURES` then never
+        fires, and a version that makes the wrong record every single time runs
+        assisted indefinitely. That is the backstop ADR 014 rests its whole
+        residual-risk argument on, so it has to hold through the ordinary
+        sequence and not only through three outright crashes.
+
+        `clean_streak` is not rewound and does not need to be: every revision
+        this codebase can make lands on FAILED -- `judge` reads
+        `wrong_because` before anything else and `CallRunWrong` is the only
+        caller with a verdict to replace -- and FAILED sets the streak to zero
+        outright rather than relative to what was there. A revision *to* CLEAN
+        would need the same treatment as the failures above; nothing can make
+        one, and a second remembered integer for a case that cannot arise is
+        a field to keep correct forever in exchange for nothing.
+
+        ponytail: the remembered number describes the most recently counted
+        run. Calling a run wrong that is not that one -- two devices running
+        the same version, and the older result queried last -- rewinds to the
+        wrong base. The panel only ever offers "it's wrong" for the run it just
+        watched finish, so nothing reaches that today; the fix if it ever does
+        is to remember the number on the `Run` rather than on the record.
         """
         undone = {
             Verdict.CLEAN: "clean_runs",
@@ -169,7 +214,11 @@ class TrackRecord:
         # counts honest either way; raising would only turn a stale row into a
         # dead button.
         counted = max(getattr(self, undone) - 1, 0)
-        return replace(self, **{undone: counted}).after(verdict, at)
+        return replace(
+            self,
+            **{undone: counted},
+            consecutive_failures=self.failures_before_the_last_run,
+        ).after(verdict, at)
 
     @property
     def should_demote(self) -> bool:

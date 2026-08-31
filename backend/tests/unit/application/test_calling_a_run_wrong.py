@@ -16,17 +16,18 @@ from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOu
 from sro.domain.execution.verdict import apply_verdict
 from sro.domain.shared.identifiers import PrincipalId, SkillId
 from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.track_record import DEMOTE_AFTER_FAILURES
 from tests import factories as f
 from tests.unit.fakes import FakeClock, FakeUnitOfWork
 
 OPERATOR = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
 
-def _run(*, requested_by: PrincipalId = f.OPERATOR) -> Run:
+def _run(*, requested_by: PrincipalId = f.OPERATOR, run_id: str = "run-1") -> Run:
     # Local, like `test_autonomy.py`'s `_run`: there is no shared `f.run`
     # builder, and the point of this test is the use case, not a new factory.
     return Run(
-        id=RunId("run-1"),
+        id=RunId(run_id),
         tenant_id=f.TENANT,
         skill_id=SkillId("skill-1"),
         skill_version=1,
@@ -50,8 +51,8 @@ def _step(**overrides: object) -> StepOutcome:
     return StepOutcome(**{**defaults, **overrides})  # type: ignore[arg-type]
 
 
-async def _a_finished_run(uow: FakeUnitOfWork) -> Run:
-    run = _run()
+async def _a_finished_run(uow: FakeUnitOfWork, run_id: str = "run-1") -> Run:
+    run = _run(run_id=run_id)
     run.record(_step())
     run.finish(f.at(60))
     async with uow as open_uow:
@@ -145,3 +146,61 @@ async def test_one_run_leaves_one_entry_in_the_record_not_two() -> None:
     assert record.clean_runs == 0, "a run the operator took back is still counted clean"
     assert record.failed_runs == 1
     assert record.consecutive_failures == 1, "the demotion count still has to see it"
+
+
+async def test_a_skill_that_is_wrong_every_single_time_demotes() -> None:
+    """The backstop ADR 014 leans its whole residual-risk argument on, run
+    through the sequence that actually happens.
+
+    Not three runs that failed. A run that *succeeded* -- every step clean, the
+    system happy -- and made the wrong record, which the operator sees and
+    takes back. That is the exact shape the ADR describes: "a preview that
+    undersold a write becomes a run the operator can call wrong the moment they
+    see what it made; that counts against the streak exactly like any other
+    failure, and `DEMOTE_AFTER_FAILURES = 3` pulls the version back below
+    ASSISTED on the third one."
+
+    It did not. `FinishRun` records CLEAN the moment the run ends, and
+    `after(CLEAN)` zeroes `consecutive_failures`; the operator's answer arrives
+    afterwards and can only count up from zero. So the counter oscillated 0 -> 1
+    on every run and never once reached three, and a skill that produced the
+    wrong record every single time ran assisted forever. Closing the preview
+    door in `promote` did not touch this, because this is the same failure
+    arriving through `FinishRun`'s door instead.
+    """
+    uow, clock = FakeUnitOfWork(), FakeClock(f.at(900))
+    skill = f.skill()
+    version = skill.version(1)
+    version.promote(PromotionStage.SHADOW, f.at(10), f.OPERATOR, acknowledging_fixed_values=True)
+    version.promote(PromotionStage.ASSISTED, f.at(20), f.OPERATOR, acknowledging_fixed_values=True)
+    async with uow as open_uow:
+        await open_uow.skills.add(skill)
+        await open_uow.commit()
+
+    for attempt in range(1, DEMOTE_AFTER_FAILURES + 1):
+        run = await _a_finished_run(uow, run_id=f"run-{attempt}")
+        async with uow as open_uow:
+            # What `FinishRun` does the instant the run ends: nothing has gone
+            # wrong that any assertion could see, so this is a clean run.
+            apply_verdict(skill, run, f.at(60 * attempt))
+            await open_uow.skills.save(skill)
+            await open_uow.commit()
+        # Zero, correctly: as far as anything can tell at this instant the run
+        # worked, and a run that worked resets the count. What must not happen
+        # is that zero surviving the operator's answer below -- the count has
+        # to come back to where the clean verdict found it and then rise.
+        assert version.track_record.consecutive_failures == 0
+
+        # And what the operator does once they look at what it made.
+        await CallRunWrong(uow, clock).execute(
+            OPERATOR, run_id=run.id, because="it made the wrong record again"
+        )
+        assert version.track_record.consecutive_failures == attempt, (
+            f"wrong run {attempt} did not count as the {attempt}th failure in a row"
+        )
+
+    assert version.stage is PromotionStage.SHADOW, (
+        "a skill that made the wrong record every single time never demoted"
+    )
+    assert version.track_record.total_runs == DEMOTE_AFTER_FAILURES
+    assert version.track_record.clean_runs == 0

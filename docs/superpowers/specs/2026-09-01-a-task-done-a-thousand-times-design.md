@@ -30,17 +30,25 @@ few. That variation is the work, not noise in it.
 
 ## Why it produced two steps
 
-`InduceSkill.execute(first, second=None)` takes **two** recordings. Four were
-recorded; two were used. And the pair is truncated to the shorter of them —
-`frames_a, frames_b = run_a.frames[:keep], run_b.frames[:keep]` — before `align`
-takes the longest common subsequence of what remains.
+`InduceSkill.execute(first, second=None, others=())` reads every occurrence, but
+it does not use them for the same thing.
 
-So the 22-gesture demonstration, the only one showing the COD address lookup,
-contributed nothing. The 5-gesture partial capped what could be learned from
-anything paired with it. Two steps is what survives.
+**Two** recordings — `first` and `second` — go to `align`, which pairs them on
+the longest common subsequence of their gestures. Everything else goes to
+`parameterise(frames_a, frames_b, others=history)` as *history*.
 
-The provenance records all four recording ids, so the stored skill claims four
-demonstrations went into it when two did.
+So the other occurrences shape the **parameters** and never the **steps**. That
+is exactly what the stored skill shows: four parameters, correctly derived from
+what varied across all four doings — and two steps, which is the longest run of
+gestures the two aligned demonstrations happened to share.
+
+The 22-gesture demonstration, the only one showing the COD address lookup,
+contributed to naming `cod_address_id` and contributed nothing to the steps that
+would fill it. The skill therefore has a parameter it has no step to use.
+
+(Truncation is not the cause, though it is adjacent: `frames[:keep]` only cuts
+when `loops.detect` finds the two runs are two lengths of one looping task, and
+`keep` is `None` otherwise. It did not fire here.)
 
 ## The mistake this spec exists to avoid
 
@@ -159,7 +167,8 @@ one thing here a reviewer should look hardest at.
 - To keep a rare step that correlates with nothing. That is a fumble.
 - To truncate one demonstration to the length of another. A short doing is
   evidence that steps can be **skipped**, never that they do not exist.
-- To record in provenance more demonstrations than were actually read.
+- To name a parameter it has no step to fill. That is the shape of today's
+  defect: `cod_address_id` was derived from evidence whose steps were discarded.
 - To re-induce so often that no version can ever earn a clean streak.
 
 ## What ships when

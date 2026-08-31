@@ -376,8 +376,12 @@ def align_all(runs: Sequence[tuple[ActionFrame, ...]]) -> Alignment:
     quadratic table costs nothing next to the code that would avoid it. That
     holds once per pair; asking it to hold between every pair of N runs turns
     "a handful of steps, squared" into "a handful of runs, squared, each
-    already squared" -- so this pays the quadratic cost N times, against one
+    already squared". *This* step -- aligning every run against the reference
+    once it is chosen -- pays the quadratic cost N times, against one
     reference, rather than N-squared times against each other.
+
+    Choosing that reference is a separate cost, and it is not N -- see
+    :func:`_pick_reference`, which is all-pairs on purpose and says so.
 
     The reference is the run whose steps recur most across the others,
     judged by :func:`_longest_common` against each one -- not the longest run
@@ -449,6 +453,14 @@ def _pick_reference(runs: Sequence[tuple[ActionFrame, ...]]) -> tuple[ActionFram
     same steps, and the longer one's extra length is exactly the part nothing
     else here corroborates -- the wandering :func:`align_all`'s own docstring
     warns against rewarding.
+
+    ponytail: this scores every run against every other run, so choosing the
+    reference is O(N^2) in the number of runs even though aligning against it
+    afterward is only O(N). A few dozen occurrences pay that cheaply; a
+    thousand do not. Cheaper here would be scoring each run against a sample
+    of the others, or clustering first and picking a reference per cluster --
+    worth designing on its own once occurrence counts make this measurably
+    slow, not improvised inline.
     """
 
     def score(candidate: tuple[ActionFrame, ...]) -> tuple[int, int]:

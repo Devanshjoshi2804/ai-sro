@@ -104,6 +104,28 @@ def test_the_reference_is_the_doing_others_agree_with_most() -> None:
     assert [_control_of(frame) for frame in found.reference][:3] == ["Add", "Carrier", "Save"]
 
 
+def test_agreement_decides_it_even_when_the_winner_is_neither_first_nor_longest() -> None:
+    """The test above ties every run on raw agreement, so it is entirely
+    decided by the length tie-break -- a `_pick_reference` that ignored
+    agreement and always returned the first run would pass it too, because
+    the first run there already is the right answer. Here the winner is
+    third in the list and shorter than a decoy that opens it, so only real
+    agreement -- not position, not length -- explains the result."""
+    first_but_unrelated = _run("Alpha", "Beta", "Gamma")
+    longest_but_unrelated = _run("Zulu", "Yankee", "Xray", "Whiskey", "Victor")
+    found = align_all(
+        [
+            first_but_unrelated,
+            longest_but_unrelated,
+            _run("Add", "Carrier", "Save"),
+            _run("Add", "Carrier", "Save"),
+            _run("Add", "Carrier", "Save"),
+        ]
+    )
+
+    assert [_control_of(frame) for frame in found.reference] == ["Add", "Carrier", "Save"]
+
+
 def test_one_doing_alone_is_still_an_alignment() -> None:
     """A task demonstrated once has nothing to disagree with it. Every step is
     seen by everything there is."""

@@ -598,7 +598,13 @@ def _capture(event: Mapping[str, object], episode: Episode) -> CaptureEvent | No
         at = _at(gesture.get("at"))
         if at is None or not _inside(at, episode):
             return None
-        return InputEvent(at=at, action=to_input_action(dict(gesture)))
+        return InputEvent(
+            at=at,
+            action=to_input_action(dict(gesture)),
+            # Sent with every gesture since the recorder existed, and until now
+            # read only where a snapshot happened to carry it.
+            page_url=_text(event.get("frame_url")),
+        )
 
     if kind == "request":
         request = event.get("request")
@@ -638,3 +644,10 @@ def _at(raw: object) -> datetime | None:
             return None
         return parsed if parsed.tzinfo is not None else None
     return None
+
+
+def _text(value: object) -> str | None:
+    """A string field of the payload, or nothing. The blob is whatever the
+    browser uploaded, so a shape nobody expected is an absence rather than a
+    crash halfway through assembling a demonstration."""
+    return value if isinstance(value, str) and value.strip() else None

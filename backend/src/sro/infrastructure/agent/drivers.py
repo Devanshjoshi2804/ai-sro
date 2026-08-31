@@ -43,12 +43,21 @@ class RemoteAgents(AgentDrivers):
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        starts_on: str | None = None,
         doing: str = "",
         step: int | None = None,
         of: int | None = None,
     ) -> UiDriver:
         return RemoteUiDriver(
-            self._sockets, tenant_id, device_id, origin, may_take_focus, doing, step, of
+            self._sockets,
+            tenant_id,
+            device_id,
+            origin,
+            may_take_focus,
+            starts_on,
+            doing,
+            step,
+            of,
         )
 
     def http(self, tenant_id: TenantId, device_id: DeviceId) -> HttpCaller:
@@ -69,6 +78,7 @@ class RemoteUiDriver(UiDriver):
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        starts_on: str | None = None,
         doing: str = "",
         step: int | None = None,
         of: int | None = None,
@@ -78,6 +88,7 @@ class RemoteUiDriver(UiDriver):
         self._device_id = device_id
         self._origin = origin
         self._may_take_focus = may_take_focus
+        self._starts_on = starts_on
         self._doing = doing
         self._step = step
         self._of = of
@@ -158,6 +169,12 @@ class RemoteUiDriver(UiDriver):
         # does not understand takes nobody's screen.
         if self._may_take_focus:
             payload = {**payload, "allow_focus": True}
+        # The screen the task was demonstrated on. Without it a run could only
+        # be performed by an operator who had already navigated there, and one
+        # who had not got a page of `control_not_found` that said nothing about
+        # being on the wrong screen.
+        if self._starts_on:
+            payload = {**payload, "starts_on": self._starts_on}
         # What the page says about itself while this is happening. The operator
         # whose browser is being driven is watching the page, not the panel,
         # and "AI-SRO is doing X, step 4 of 13" is the difference between an

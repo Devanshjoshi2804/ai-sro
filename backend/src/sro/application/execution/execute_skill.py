@@ -534,6 +534,7 @@ class ExecuteStep:
             run.device_id,
             _origin_of(version, step, connections),
             run.may_take_focus,
+            starts_on=version.starts_on if version is not None else None,
             # What this step is for, not what the skill is called: the band is
             # read by somebody watching their own screen change, and "adding
             # the work area" answers what is happening to them now.

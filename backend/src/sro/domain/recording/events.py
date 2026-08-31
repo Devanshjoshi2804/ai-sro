@@ -66,6 +66,9 @@ class ActionFrame:
     occurred_at: datetime
     action: InputAction
 
+    page_url: str | None = None
+    """The page this gesture happened on, as the recorder saw it."""
+
     ax_graph: AxGraph | None = None
     """The page as the human saw it when they acted."""
 

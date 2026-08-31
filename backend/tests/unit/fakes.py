@@ -1030,6 +1030,10 @@ class FakeAgentDrivers:
         self.connected = connected
         self.asked_for: list[tuple[str, str]] = []
         self.told: tuple[str | None, bool] = (None, False)
+        self.sent_to: str | None = None
+        """The screen the browser was told to be on, where the demonstration
+        recorded one."""
+
         self.named: tuple[str, int | None, int | None] = ("", None, None)
         """What the band in the operator's page would say. A run driving
         somebody's own browser has to be legible there rather than only in the
@@ -1042,12 +1046,14 @@ class FakeAgentDrivers:
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        starts_on: str | None = None,
         doing: str = "",
         step: int | None = None,
         of: int | None = None,
     ) -> UiDriver:
         self.asked_for.append((str(tenant_id), str(device_id)))
         self.named = (doing, step, of)
+        self.sent_to = starts_on
         # What the run said about the page and the screen, so a test can read
         # back what the browser would have been told.
         self.told = (origin, may_take_focus)

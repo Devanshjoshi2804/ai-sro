@@ -285,3 +285,72 @@ def test_a_recorded_call_still_wins_over_the_connection() -> None:
         _origin_of(version, version.steps[0], [_connection("blue_yonder", "https://wms.example/x")])
         == "https://real.example"
     )
+
+
+def test_the_browser_is_told_which_screen_to_be_on() -> None:
+    """The origin gets the run to the right system; the screen gets it to the
+    right page of that system.
+
+    Both are needed and neither substitutes: an operator's Chrome has a dozen
+    tabs and one of them is the WMS, and the WMS itself has a hundred screens of
+    which the task was demonstrated on exactly one. Told only the origin, a run
+    performed on whichever WMS page happened to be open -- and reported a page
+    of `control_not_found` that said nothing about being on the wrong screen.
+    """
+    agents = fakes.FakeAgentDrivers()
+    executor = ExecuteStep(
+        fakes.FakeUnitOfWork(),
+        fakes.FakeHttpCaller(),
+        fakes.FakeCredentialVault(),
+        agents=agents,
+    )
+    run = Run(
+        id=RunId("run-1"),
+        tenant_id=factories.TENANT,
+        skill_id=SkillId("skill-1"),
+        skill_version=1,
+        stage=PromotionStage.ASSISTED,
+        parameters={},
+        requested_by=factories.OPERATOR,
+        started_at=factories.at(800),
+        authorized_by=factories.OPERATOR,
+        device_id=DeviceId("dev-1"),
+    )
+    taught_on = "https://wms.example/portal#wm.config/wm.config.work.work.areas"
+    version = factories.skill_version(
+        steps=(factories.step(index=0, network_plan=None),),
+        starts_on=taught_on,
+    )
+
+    executor._ui_for(run, version, version.steps[0])
+
+    assert agents.sent_to == taught_on
+
+
+def test_a_skill_that_recorded_no_screen_says_so_rather_than_inventing_one() -> None:
+    """Everything taught before the recorder kept the page has none, and a run
+    of one of those still has to work: it acts where the operator already is,
+    which is what it did before any of this existed."""
+    agents = fakes.FakeAgentDrivers()
+    executor = ExecuteStep(
+        fakes.FakeUnitOfWork(),
+        fakes.FakeHttpCaller(),
+        fakes.FakeCredentialVault(),
+        agents=agents,
+    )
+    run = Run(
+        id=RunId("run-1"),
+        tenant_id=factories.TENANT,
+        skill_id=SkillId("skill-1"),
+        skill_version=1,
+        stage=PromotionStage.ASSISTED,
+        parameters={},
+        requested_by=factories.OPERATOR,
+        started_at=factories.at(800),
+        authorized_by=factories.OPERATOR,
+        device_id=DeviceId("dev-1"),
+    )
+
+    executor._ui_for(run, _version("https://wms.example/api/waves"), None)
+
+    assert agents.sent_to is None

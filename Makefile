@@ -149,6 +149,7 @@ test-extension: ## The extension's own self-checks, in plain node
 	node new-chrome-extension/src/background/queue.upgrade.test.mjs
 	node new-chrome-extension/src/background/showing.test.mjs
 	node new-chrome-extension/src/background/frames.test.mjs
+	node new-chrome-extension/src/background/pages.test.mjs
 	node new-chrome-extension/src/content/network.test.mjs
 	node new-chrome-extension/src/content/watch.test.mjs
 	node new-chrome-extension/src/panel/panel.test.mjs

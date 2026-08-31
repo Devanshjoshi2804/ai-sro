@@ -142,6 +142,20 @@ class SkillVersion:
     demotion_reason: str | None = None
     """Why this version was pulled back down, when it was."""
 
+    starts_on: str | None = None
+    """The page the task was demonstrated on.
+
+    A skill taught by clicking names no URL on any step, so a run could only be
+    performed by an operator who had already navigated to the right screen --
+    and one who had not got the same thirteen `control_not_found` lines as one
+    whose browser was on the wrong system entirely. This is what the recorder
+    saw, on the frame the demonstration opened with.
+
+    Only where every demonstration of the task began on the same screen. Two
+    that began on different ones are saying the screen is not part of the task,
+    and a run that navigated on that evidence would be guessing.
+    """
+
     systems: tuple[str, ...] = ()
     """Every system this version touches, derived from what it was taught on.
 

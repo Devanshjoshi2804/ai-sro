@@ -28,6 +28,7 @@ class AgentDrivers(Protocol):
         device_id: DeviceId,
         origin: str | None = None,
         may_take_focus: bool = False,
+        starts_on: str | None = None,
         doing: str = "",
         step: int | None = None,
         of: int | None = None,

@@ -210,8 +210,8 @@ function bytesOf(dataUrl) {
   return bytes;
 }
 
-async function uiPerform(payload) {
-  const tab = await drivenTab(payload.origin);
+async function uiPerform(payload, runId) {
+  const tab = await tabForRun(payload, runId);
   if (!tab) return failure("no_tab_for_system", noPage(payload.origin));
   hold(tab.id);
   const frameId = await frameHolding(tab.id, payload);
@@ -221,6 +221,100 @@ async function uiPerform(payload) {
       : await inFrame(tab.id, frameId, performInPage, [payload]);
   hold(tab.id);
   return answer || failure("not_actionable", "the page did not answer");
+}
+
+/** The tab this run acts in, opening the screen it was taught on if need be.
+ *
+ * A skill taught by clicking names no URL on any step, so until the version
+ * recorded where the demonstration began, a run could only be performed by an
+ * operator who had already navigated to the right screen themselves -- and one
+ * who had not read thirteen `control_not_found` lines that said nothing about
+ * being on the wrong page.
+ *
+ * A new tab rather than navigating the one in front. The operator is looking at
+ * that tab; taking it out from under them to do something they did not ask to
+ * watch is the kind of thing that gets an extension uninstalled. A new tab is
+ * also the honest picture of what is happening: a second window on the system,
+ * doing the task, next to the one they are working in.
+ *
+ * Decided once per run and remembered, because a task changes the page it is on
+ * -- a modal opens, a fragment changes -- and asking again at every step would
+ * open a fresh tab in the middle of the form it had just filled in.
+ */
+async function tabForRun(payload, runId) {
+  if (runId && latest?.runId === runId && latest.tabId !== undefined) {
+    const known = await chrome.tabs.get(latest.tabId).catch(() => null);
+    if (known) return known;
+  }
+
+  let tab = await drivenTab(payload.origin);
+  const wanted = payload.starts_on;
+  if (wanted && (!tab || !samePage(tab.url, wanted))) {
+    const opened = await openAt(wanted);
+    if (opened) tab = opened;
+  }
+
+  if (tab && runId && latest?.runId === runId) latest = { ...latest, tabId: tab.id };
+  return tab;
+}
+
+/** Two URLs that are the same screen.
+ *
+ * Compared without the query, because a session id or a site code in it is not
+ * what makes this the Work Areas page -- and with the fragment, because in an
+ * application that routes on the fragment it is the only thing that says which
+ * screen this is at all.
+ */
+export function samePage(a, b) {
+  const parse = (raw) => {
+    try {
+      const url = new URL(raw);
+      return `${url.origin}${url.pathname}${url.hash}`.replace(/\/+$/, "");
+    } catch {
+      return null;
+    }
+  };
+  const one = parse(a);
+  return one !== null && one === parse(b);
+}
+
+/** Open a tab on that screen and wait for it to finish loading.
+ *
+ * In the background: the run is not asking for the operator's attention, and a
+ * tab that stole focus mid-sentence would be worse than the problem it solves.
+ * The band the page shows is what tells them it is there.
+ */
+async function openAt(url) {
+  let tab;
+  try {
+    tab = await chrome.tabs.create({ url, active: false });
+  } catch {
+    return null;
+  }
+  const ready = await settled(tab.id);
+  return ready || tab;
+}
+
+const OPENS_WITHIN_MS = 20_000;
+
+function settled(tabId) {
+  return new Promise((resolve) => {
+    const done = (tab) => {
+      chrome.tabs.onUpdated.removeListener(watch);
+      clearTimeout(timer);
+      resolve(tab);
+    };
+    const watch = (id, change) => {
+      if (id === tabId && change.status === "complete") {
+        chrome.tabs.get(tabId).then(done, () => done(null));
+      }
+    };
+    // A page that never reports complete is still worth acting on: the locator
+    // says whether the control is there, and that is a better answer than a run
+    // that failed because a third-party script kept a request open.
+    const timer = setTimeout(() => done(null), OPENS_WITHIN_MS);
+    chrome.tabs.onUpdated.addListener(watch);
+  });
 }
 
 /** Which frame of the page holds this control.
@@ -437,7 +531,7 @@ export async function perform(command) {
   try {
     switch (command.kind) {
       case "ui.perform":
-        return await uiPerform(command.payload || {});
+        return await uiPerform(command.payload || {}, command.run_id);
       case "ui.perform_at":
         return await uiPerformAt(command.payload || {});
       case "ui.url":

@@ -351,6 +351,7 @@ class InduceSkill:
                 systems=systems_touched(
                     await uow.connections.list_for_tenant(ctx.tenant_id), run_a, run_b
                 ),
+                starts_on=_started_on(run_a, run_b),
                 # Deliberately not moved along like the indices below, and
                 # this is the one place the two must not agree: a loop counts
                 # raw frames, everything else counts aligned steps. A loop can
@@ -748,3 +749,21 @@ def _provenance_note(run_a: Recording, run_b: Recording, *, paired: bool = True)
         return alone or "induced from two silent demonstrations"
     said = f"narration available on {', '.join(str(rid) for rid in narrated)}"
     return f"{alone}; {said}" if alone else said
+
+
+def _started_on(*recordings: Recording | None) -> str | None:
+    """The page every demonstration of this task opened on.
+
+    The first frame's, because that is the screen the operator was looking at
+    when they began -- not the last, which is wherever the task left them.
+
+    Unanimous or nothing. Two demonstrations that began on different screens are
+    evidence that the screen is not part of the task, and navigating on a
+    disagreement would send a run somewhere only one of them ever was.
+    """
+    began = {
+        recording.frames[0].page_url
+        for recording in recordings
+        if recording is not None and recording.frames and recording.frames[0].page_url
+    }
+    return began.pop() if len(began) == 1 else None

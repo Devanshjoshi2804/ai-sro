@@ -98,6 +98,7 @@ def assemble_frames(events: list[CaptureEvent]) -> AssemblyResult:
             index=index,
             occurred_at=open_frame.event.at,
             action=open_frame.event.action,
+            page_url=open_frame.event.page_url,
             ax_graph=open_frame.snapshot,
             requests=tuple(open_frame.requests),
         )

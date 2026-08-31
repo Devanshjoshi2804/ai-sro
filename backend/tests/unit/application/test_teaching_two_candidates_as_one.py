@@ -14,6 +14,7 @@ call and call the difference a parameter.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -47,6 +48,7 @@ class _Induction:
     def __init__(self, *, fails: str = "") -> None:
         self.fails = fails
         self.asked: list[tuple[RecordingId, RecordingId | None, str | None]] = []
+        self.rest: list[tuple[RecordingId, ...]] = []
 
     async def execute(
         self,
@@ -55,8 +57,10 @@ class _Induction:
         first: RecordingId,
         second: RecordingId | None = None,
         name: str | None = None,
+        others: Sequence[RecordingId] = (),
     ) -> object:
         self.asked.append((first, second, name))
+        self.rest.append(tuple(others))
         if self.fails:
             raise InductionFailed(self.fails)
         return type("Induced", (), {"skill_id": SkillId("skl-merged")})()

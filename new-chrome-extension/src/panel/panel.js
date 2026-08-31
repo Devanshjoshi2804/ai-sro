@@ -844,8 +844,11 @@ function preview(skillVersion, missingParameters, known = {}) {
     // Read out of the sentence, not invented: `known` is `resolution.items`,
     // the parser's own extraction, and a name absent from it (no parser
     // configured, or this one just was not said) is shown blank rather than
-    // guessed at.
-    return { intent: step.intent, value: known[parameter.name] ?? null, name: parameter.name };
+    // guessed at. Trimmed, and an empty result treated the same as absent --
+    // a value the parser read as whitespace is not a value it read, and the
+    // rule against sending a key with no value is the same rule whether the
+    // gap is a missing name or one that resolved to "".
+    return { intent: step.intent, value: (known[parameter.name] ?? "").trim() || null, name: parameter.name };
   });
   return previewOf(
     { stage: skillVersion.stage, clean_streak: skillVersion.track_record?.clean_streak ?? 0 },
@@ -1025,6 +1028,8 @@ async function fetchVersion(candidate) {
  * for missing it, it is sent, and it writes an empty field into a warehouse
  * record. So a blank here is treated exactly like one never typed at all --
  * it stays asked for -- rather than accepted as a deliberate empty string.
+ * Trimmed before that check, not after: three spaces is not a value either,
+ * and typing them is not meaningfully different from typing nothing.
  */
 async function renderPreview(built, candidate, box, utterance, note) {
   box.replaceChildren();
@@ -1047,12 +1052,12 @@ async function renderPreview(built, candidate, box, utterance, note) {
     go.type = "button";
     go.textContent = "Continue";
     go.addEventListener("click", async () => {
-      const blank = [...fields].filter(([, field]) => !field.value);
+      const blank = [...fields].filter(([, field]) => !field.value.trim());
       if (blank.length) {
         warn.textContent = `${blank.map(([step]) => step.label).join(", ")} cannot be left blank.`;
         return;
       }
-      for (const [step, field] of fields) step.value = field.value;
+      for (const [step, field] of fields) step.value = field.value.trim();
       await renderReady(built, candidate, box, utterance, note);
     });
     box.append(warn, go);
@@ -1109,7 +1114,13 @@ async function renderReady(built, candidate, box, utterance, note) {
       await runIt(candidate.skill_id, parameters, utterance);
       said_.textContent = "started";
     } catch (error) {
-      said_.textContent = error.message;
+      // The button stays disabled after this and must: it is the only guard
+      // against a second click turning one refused write into two attempts.
+      // But a dead control with no explanation reads as a broken panel, not
+      // a safe one, so the way back is said here -- type the sentence again,
+      // which opens a fresh press with its own guard rather than reusing
+      // this one.
+      said_.textContent = `${error.message} — type the sentence again to try once more.`;
     }
   };
 

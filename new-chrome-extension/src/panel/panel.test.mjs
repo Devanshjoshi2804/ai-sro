@@ -941,6 +941,95 @@ test("a derived value is never sent as a parameter, even when the parser read so
 });
 
 
+test("a whitespace-only field is not an answer either", async () => {
+  // Same rule as the blank-field test above, applied to the gap it missed:
+  // `!field.value` let "   " straight through, because three spaces is
+  // truthy. Sent, it is a value the operator never actually gave.
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: { skill_id: "skl-6", name: "Adjust an LPN", version: 1, stage: "recorded" },
+      confident: true,
+      choices: [],
+      missing_parameters: ["voice_code"],
+    },
+    skill: {
+      id: "skl-6",
+      name: "Adjust an LPN",
+      versions: [
+        {
+          version: 1,
+          stage: "recorded",
+          track_record: { clean_streak: 0 },
+          steps: [{ index: 0, intent: "Enter the Voice Code." }],
+          parameters: [{ name: "voice_code", kind: "input", source_step_index: 0, description: "Voice Code" }],
+        },
+      ],
+    },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "adjust the LPN";
+  await ask.listeners[0]();
+
+  const [voiceCode] = inputs(row).filter((field) => field !== utterance);
+  voiceCode.value = "   ";
+  const [go] = buttons(row).filter((button) => button.textContent === "Continue");
+  await go.listeners[0]();
+
+  assert.ok(
+    !sent.some((message) => message.kind === "run-skill"),
+    "a whitespace-only field was accepted as an answer and the run started anyway",
+  );
+  assert.match(words(row), /cannot be left blank/i, "a whitespace-only field was silently accepted");
+});
+
+test("a value the parser read as empty is not sent as one", async () => {
+  // Same rule again, at the other entry point: `resolution.items` carrying
+  // `""` (or whitespace) under a parameter's name is not the parser having
+  // read something -- it is the parser having read nothing -- and the old
+  // `known[name] ?? null` kept an empty string as though it were a value.
+  const { sent, row } = await openedOffer({
+    "resolve-intent": {
+      matched: { skill_id: "skl-7", name: "Adjust an LPN", version: 1, stage: "recorded" },
+      confident: true,
+      choices: [],
+      missing_parameters: [],
+      items: [{ voice_code: "   " }],
+    },
+    skill: {
+      id: "skl-7",
+      name: "Adjust an LPN",
+      versions: [
+        {
+          version: 1,
+          stage: "recorded",
+          track_record: { clean_streak: 0 },
+          steps: [{ index: 0, intent: "Enter the Voice Code." }],
+          parameters: [{ name: "voice_code", kind: "input", source_step_index: 0, description: "Voice Code" }],
+        },
+      ],
+    },
+  });
+
+  const [ask] = buttons(row).filter((button) => button.textContent === "Ask");
+  const [utterance] = inputs(row);
+  utterance.value = "adjust the LPN, voice code  ";
+  await ask.listeners[0]();
+
+  const [doIt] = buttons(row).filter((button) => button.textContent === "Do it");
+  await doIt.listeners[0]();
+
+  const ran = sent.filter((message) => message.kind === "run-skill");
+  assert.equal(ran.length, 1);
+  assert.deepEqual(
+    ran[0].parameters,
+    {},
+    "an empty value the parser read was sent as a real one",
+  );
+});
+
+
 for (const [name, fn] of tests) {
   try {
     await fn();

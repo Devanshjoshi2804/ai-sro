@@ -96,6 +96,21 @@ def test_an_undo_is_offered_when_all_three_facts_hold() -> None:
     assert found.parameters == {"operation_id": "NDPCK"}
 
 
+def test_a_delete_with_no_id_segment_in_the_path_is_still_an_undo() -> None:
+    """Some deletes carry the record's id in the query string, or act on a
+    singleton, rather than naming it as the last path segment. The delete's
+    own shape is then the collection's shape already -- there is nothing to
+    set aside -- and that is just as much a reverse as a trailing id
+    segment, in the same `url_shape` sense that decides the other one."""
+    found = reversal_for(
+        _run_that_created("NDPCK"),
+        [_deletes("https://wms.test/api/workOperations?operationId=$operation_id")],
+    )
+
+    assert found is not None
+    assert found.parameters == {"operation_id": "NDPCK"}
+
+
 def test_nothing_is_offered_when_the_run_never_learned_what_it_made() -> None:
     """A button that cannot name what it would remove is worse than no button."""
     assert (

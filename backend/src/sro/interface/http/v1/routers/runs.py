@@ -33,6 +33,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["runs"])
 
+_LIBRARY_PAGE = 200
+"""Same number, same reasoning as `_LIBRARY_PAGE` in
+`sro.application.intent.resolve`: a tenant's library is dozens, not millions,
+so one page holds it. It has to hold it *here* particularly -- a skill that
+would undo this run sitting on a page this fetch never asks for is not
+"no undo exists", it is an undo the operator cannot tell from one that
+doesn't, on the one button whose entire value is being reliable. Same
+ponytail note applies: query it once fetching a page stops being enough."""
+
 
 @router.post("/skills/{skill_id}/runs", status_code=status.HTTP_201_CREATED)
 async def run_skill(
@@ -180,10 +189,7 @@ async def get_run(run_id: str, container: ContainerDep, ctx: ContextDep) -> RunM
         # a failed run has nothing settled to take back, and computing this
         # needs the tenant's whole skill library, which the list endpoint must
         # not pay for on every row.
-        # ponytail: first page only (default limit=50), so a tenant with more
-        # skills than that can miss a DELETE this run could actually use.
-        # Widen if a tenant's library grows past a page before this is felt.
-        skills = await container.list_skills().execute(ctx)
+        skills = await container.list_skills().execute(ctx, limit=_LIBRARY_PAGE)
         reversal = reversal_for(run, skills)
     return RunModel.of(run, reversal=reversal)
 

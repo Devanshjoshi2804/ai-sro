@@ -20,7 +20,17 @@ from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings, get_settings
 from sro.container import Container
-from sro.domain.shared.identifiers import BrowserSessionId, PrincipalId, RecordingId, TenantId
+from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
+from sro.domain.shared.identifiers import (
+    BrowserSessionId,
+    PrincipalId,
+    RecordingId,
+    SkillId,
+    TenantId,
+)
+from sro.domain.skill.plan import NetworkPlan
+from sro.domain.skill.promotion import PromotionStage
+from sro.domain.skill.template import Template
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.gemini.null_interpreter import NoInterpreter
@@ -441,3 +451,72 @@ class TestBrowsersAreNotShared:
         )
 
         assert response.status_code == 404
+
+
+class TestRunReversal:
+    """`GET /v1/runs/{id}` offers an undo by paging the tenant's whole skill
+    library, not just its first fifty -- the one button whose entire value is
+    the operator being able to rely on it. See `_LIBRARY_PAGE` in
+    `sro.interface.http.v1.routers.runs`."""
+
+    async def test_a_matching_delete_past_the_default_page_is_still_found(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
+    ) -> None:
+        for i in range(60):
+            await uow.skills.add(f.skill(id=SkillId(f"pad-{i}"), name=f"padding {i}"))
+
+        version = f.skill_version(
+            steps=(
+                f.step(
+                    index=0,
+                    network_plan=NetworkPlan(
+                        method="DELETE",
+                        url=Template("https://wms.test/api/workOperations/$operation_id"),
+                        body=None,
+                        expected_status=204,
+                    ),
+                    ui_plan=None,
+                ),
+            ),
+            parameters=(f.parameter(name="operation_id", observed_values=("NDPCK",)),),
+        )
+        undoer = f.skill(id=SkillId("undoer"), name="Delete a work operation", versions=0)
+        undoer.add_version(version)
+        version.promote(PromotionStage.SHADOW, f.at(10), f.OPERATOR)
+        version.promote(PromotionStage.ASSISTED, f.at(20), f.OPERATOR)
+        await uow.skills.add(undoer)
+
+        run = Run(
+            id=RunId("run-1"),
+            tenant_id=f.TENANT,
+            skill_id=SkillId("some-other-skill"),
+            skill_version=1,
+            stage=PromotionStage.ASSISTED,
+            parameters={},
+            requested_by=f.OPERATOR,
+            started_at=f.at(0),
+            authorized_by=f.OPERATOR,
+            target_system="wms",
+        )
+        run.record(
+            StepOutcome(
+                index=0,
+                medium=Medium.NETWORK,
+                disposition=StepDisposition.PERFORMED,
+                intent="create the work operation",
+                method="POST",
+                url="https://wms.test/api/workOperations",
+                status_code=201,
+            )
+        )
+        run.learn("operation_id", "NDPCK")
+        run.finish(f.at(60))
+        await uow.runs.add(run)
+
+        response = await client.get("/v1/runs/run-1")
+
+        assert response.status_code == 200
+        assert response.json()["reversal"] == {
+            "skill_id": "undoer",
+            "parameters": {"operation_id": "NDPCK"},
+        }

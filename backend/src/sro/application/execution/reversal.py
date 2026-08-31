@@ -57,7 +57,7 @@ def reversal_for(run: Run, skills: Sequence[Skill]) -> Reversal | None:
             plan = step.network_plan
             if plan is None or plan.method.upper() != "DELETE":
                 continue
-            if _collection(plan.url.raw) != made:
+            if made not in _shapes_for(plan.url.raw):
                 continue
             wanted = {p.name for p in version.inputs}
             if not wanted or not wanted <= run.derived.keys():
@@ -87,14 +87,22 @@ def _what_it_made(run: Run) -> str | None:
     return url_shape(urls[0])
 
 
-def _collection(url: str) -> str:
-    """The resource a call acts on, with its trailing identifier set aside.
+def _shapes_for(delete_url: str) -> tuple[str, str]:
+    """The shape(s) a DELETE might match against what a run made.
 
-    A DELETE addresses one record -- `.../workOperations/$operation_id` -- and
-    what has to match the shape of a bare `POST .../workOperations` is the
-    collection the record belongs to, not the record's own address. The
-    identifier segment is dropped before `url_shape` runs rather than after:
-    `url_shape` only recognises an identifier by the digits in it, and a
-    skill's own placeholder -- `$operation_id` -- carries none.
+    Most REST deletes name the record in the path -- `.../workOperations/
+    $operation_id` -- so what has to match the bare `POST .../workOperations`
+    that made the record is that shape with its trailing identifier set aside,
+    not the record's own address. That segment is dropped before `url_shape`
+    runs rather than after: `url_shape` only recognises an identifier by the
+    digits in it, and a skill's own placeholder carries none.
+
+    Not every DELETE names a record that way, though: a singleton resource, or
+    one identified in the body or the query string rather than the path,
+    deletes at the very same shape the POST that made it used. Both are the
+    same call in the sense `url_shape` already exists to answer -- there is no
+    reason in the design for one form to count and the other not -- so both
+    are handed back and either is accepted.
     """
-    return url_shape(url.rsplit("/", 1)[0])
+    shape = url_shape(delete_url)
+    return shape, shape.rsplit("/", 1)[0]
